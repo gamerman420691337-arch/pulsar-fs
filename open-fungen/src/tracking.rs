@@ -125,12 +125,47 @@ pub fn detect_cut_photometric(p0: &[u8], p1: &[u8], threshold: f32) -> bool {
 }
 
 /// High-performance multi-threaded dense optical flow calculation (Lucas-Kanade gradient tensor).
+/// Highly optimized with precomputed gradient buffers to eliminate 98% of redundant arithmetic ops.
 pub fn compute_dense_flow(p0: &[u8], p1: &[u8], width: usize, height: usize) -> FlowField {
     let mut field = FlowField::new(width, height);
+    if width < 3 || height < 3 {
+        return field;
+    }
+
+    let size = width * height;
+    let mut ix = vec![0.0f32; size];
+    let mut iy = vec![0.0f32; size];
+    let mut it = vec![0.0f32; size];
+
+    // Phase 1: Precompute spatial and temporal gradients in parallel across rows
+    ix.par_chunks_mut(width)
+        .zip(iy.par_chunks_mut(width))
+        .zip(it.par_chunks_mut(width))
+        .enumerate()
+        .for_each(|(y, ((row_ix, row_iy), row_it))| {
+            if y == 0 || y >= height - 1 {
+                return;
+            }
+            let row_offset = y * width;
+            let prev_offset = (y - 1) * width;
+            let next_offset = (y + 1) * width;
+
+            for x in 1..(width - 1) {
+                let idx = row_offset + x;
+                row_ix[x] = ((p0[idx + 1] as f32 - p0[idx - 1] as f32)
+                    + (p1[idx + 1] as f32 - p1[idx - 1] as f32))
+                    * 0.25;
+                row_iy[x] = ((p0[next_offset + x] as f32 - p0[prev_offset + x] as f32)
+                    + (p1[next_offset + x] as f32 - p1[prev_offset + x] as f32))
+                    * 0.25;
+                row_it[x] = p1[idx] as f32 - p0[idx] as f32;
+            }
+        });
+
     let win_rad = 3isize;
     let lambda = 0.05f32; // Regularization parameter
 
-    // Process rows in parallel via Rayon
+    // Phase 2: Solve Lucas-Kanade linear systems using contiguous precomputed gradient rows
     field
         .u
         .par_chunks_mut(width)
@@ -142,45 +177,36 @@ pub fn compute_dense_flow(p0: &[u8], p1: &[u8], width: usize, height: usize) -> 
                 return;
             }
 
+            let y_start = (y - win_rad).max(1);
+            let y_end = (y + win_rad).min(height as isize - 2);
+
             for x in 1..(width as isize - 1) {
+                let x_start = ((x - win_rad).max(1)) as usize;
+                let x_end = ((x + win_rad).min(width as isize - 2)) as usize;
+
                 let mut sum_xx = 0.0f32;
                 let mut sum_xy = 0.0f32;
                 let mut sum_yy = 0.0f32;
                 let mut sum_xt = 0.0f32;
                 let mut sum_yt = 0.0f32;
 
-                // Accumulate gradients in local window
-                for wy in -win_rad..=win_rad {
-                    let ny = y + wy;
-                    if ny < 1 || ny >= (height as isize - 1) {
-                        continue;
-                    }
-                    for wx in -win_rad..=win_rad {
-                        let nx = x + wx;
-                        if nx < 1 || nx >= (width as isize - 1) {
-                            continue;
-                        }
+                // Accumulate precomputed gradients in local window
+                for ny in y_start..=y_end {
+                    let row_off = (ny as usize) * width;
+                    let ix_slice = &ix[row_off + x_start..=row_off + x_end];
+                    let iy_slice = &iy[row_off + x_start..=row_off + x_end];
+                    let it_slice = &it[row_off + x_start..=row_off + x_end];
 
-                        let idx = (ny as usize) * width + (nx as usize);
-                        let idx_xp = idx + 1;
-                        let idx_xm = idx - 1;
-                        let idx_yp = idx + width;
-                        let idx_ym = idx - width;
+                    for k in 0..ix_slice.len() {
+                        let g_ix = ix_slice[k];
+                        let g_iy = iy_slice[k];
+                        let g_it = it_slice[k];
 
-                        // Central differences averaged over both frames
-                        let ix = ((p0[idx_xp] as f32 - p0[idx_xm] as f32)
-                            + (p1[idx_xp] as f32 - p1[idx_xm] as f32))
-                            * 0.25;
-                        let iy = ((p0[idx_yp] as f32 - p0[idx_ym] as f32)
-                            + (p1[idx_yp] as f32 - p1[idx_ym] as f32))
-                            * 0.25;
-                        let it = p1[idx] as f32 - p0[idx] as f32;
-
-                        sum_xx += ix * ix;
-                        sum_xy += ix * iy;
-                        sum_yy += iy * iy;
-                        sum_xt += ix * it;
-                        sum_yt += iy * it;
+                        sum_xx += g_ix * g_ix;
+                        sum_xy += g_ix * g_iy;
+                        sum_yy += g_iy * g_iy;
+                        sum_xt += g_ix * g_it;
+                        sum_yt += g_iy * g_it;
                     }
                 }
 
@@ -396,5 +422,29 @@ mod tests {
 
         let vorticity = flow.compute_vorticity(0.5, 0.5, 0.3);
         assert!(vorticity > 0.0, "Expected positive rotational vorticity, got {}", vorticity);
+    }
+
+    #[test]
+    fn test_dense_flow_benchmark_256x256() {
+        let w = 256;
+        let h = 256;
+        let mut p0 = vec![128u8; w * h];
+        let mut p1 = vec![128u8; w * h];
+
+        // Add pattern that shifts
+        for y in 80..160 {
+            for x in 80..160 {
+                p0[y * w + x] = 220;
+                p1[y * w + (x + 3)] = 220;
+            }
+        }
+
+        let t0 = std::time::Instant::now();
+        let flow = compute_dense_flow(&p0, &p1, w, h);
+        let elapsed = t0.elapsed();
+
+        assert_eq!(flow.width, 256);
+        assert_eq!(flow.height, 256);
+        assert!(elapsed.as_millis() < 500, "Flow computation took too long: {:?}", elapsed);
     }
 }

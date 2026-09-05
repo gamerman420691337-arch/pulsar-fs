@@ -19,7 +19,7 @@ use eframe::egui::{
     self, Align, Color32, Context as EguiContext, Layout, ProgressBar, RichText, ScrollArea,
     Slider, TopBottomPanel, Ui,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
@@ -33,6 +33,20 @@ pub enum HubTab {
     ScriptDoctor, // F4: Script Doctor & Repair
     DeviceSync,   // F5: Device & Hardware Sync
     Automation,   // F6: Stash & Plugin Automation Ecosystem
+}
+
+pub struct VideoFrameRequest {
+    pub path: PathBuf,
+    pub time_ms: i64,
+    pub width: u32,
+    pub height: u32,
+}
+
+pub struct VideoFrameResponse {
+    pub time_ms: i64,
+    pub width: u32,
+    pub height: u32,
+    pub rgb_data: Vec<u8>,
 }
 
 pub enum WorkerMessage {
@@ -76,6 +90,10 @@ pub struct FunGenApp {
     waveform_rx: Option<Receiver<AudioWaveform>>,
     pub video_texture: Option<egui::TextureHandle>,
     pub last_video_frame_ts: i64,
+    pub video_req_tx: Option<Sender<VideoFrameRequest>>,
+    pub video_resp_rx: Option<Receiver<VideoFrameResponse>>,
+    pub video_frame_cache: VecDeque<(i64, egui::TextureHandle)>,
+    pub video_pending_req_ts: Option<i64>,
 
     // Playback simulation
     pub is_playing: bool,
@@ -167,6 +185,10 @@ impl Default for FunGenApp {
             waveform_rx: None,
             video_texture: None,
             last_video_frame_ts: -999,
+            video_req_tx: None,
+            video_resp_rx: None,
+            video_frame_cache: VecDeque::new(),
+            video_pending_req_ts: None,
 
             is_playing: false,
             playback_speed: 1.0,
@@ -457,9 +479,68 @@ impl FunGenApp {
         }
     }
 
+    fn ensure_video_worker(&mut self) -> Sender<VideoFrameRequest> {
+        if let Some(ref tx) = self.video_req_tx {
+            return tx.clone();
+        }
+        let (req_tx, req_rx) = channel::<VideoFrameRequest>();
+        let (resp_tx, resp_rx) = channel::<VideoFrameResponse>();
+
+        thread::spawn(move || {
+            while let Ok(mut req) = req_rx.recv() {
+                // Drain newer requests to avoid backlog
+                while let Ok(newer) = req_rx.try_recv() {
+                    req = newer;
+                }
+                if let Ok(raw_rgb) = crate::video::extract_frame_at(&req.path, req.time_ms, req.width, req.height) {
+                    let _ = resp_tx.send(VideoFrameResponse {
+                        time_ms: req.time_ms,
+                        width: req.width,
+                        height: req.height,
+                        rgb_data: raw_rgb,
+                    });
+                }
+            }
+        });
+
+        self.video_req_tx = Some(req_tx.clone());
+        self.video_resp_rx = Some(resp_rx);
+        req_tx
+    }
+
+    fn poll_video_frames(&mut self, ctx: &EguiContext) {
+        if let Some(ref rx) = self.video_resp_rx {
+            let mut got_frame = false;
+            while let Ok(resp) = rx.try_recv() {
+                let color_image = egui::ColorImage::from_rgb(
+                    [resp.width as usize, resp.height as usize],
+                    &resp.rgb_data,
+                );
+                let texture = ctx.load_texture(
+                    "current_video_frame",
+                    color_image,
+                    egui::TextureOptions::LINEAR,
+                );
+                if self.video_frame_cache.len() >= 24 {
+                    self.video_frame_cache.pop_front();
+                }
+                self.video_frame_cache.push_back((resp.time_ms, texture.clone()));
+                self.video_texture = Some(texture);
+                self.last_video_frame_ts = resp.time_ms;
+                self.video_pending_req_ts = None;
+                got_frame = true;
+            }
+            if got_frame {
+                ctx.request_repaint();
+            }
+        }
+    }
+
     fn update_video_texture(&mut self, ctx: &EguiContext) {
+        self.poll_video_frames(ctx);
+
         let video_path = match self.video_path.as_ref() {
-            Some(p) => p,
+            Some(p) => p.clone(),
             None => return,
         };
 
@@ -469,17 +550,30 @@ impl FunGenApp {
             return;
         }
 
+        // Fast path: reuse recently decoded frame from LRU cache
+        if let Some((_, cached_tex)) = self.video_frame_cache.iter().find(|(ts, _)| (*ts - cur_time).abs() <= 35) {
+            self.video_texture = Some(cached_tex.clone());
+            self.last_video_frame_ts = cur_time;
+            return;
+        }
+
+        // Avoid spamming duplicate requests if one is already pending for this timestamp
+        if let Some(pending_ts) = self.video_pending_req_ts {
+            if (cur_time - pending_ts).abs() < 35 {
+                return;
+            }
+        }
+
         let w = 480;
         let h = 270;
-        if let Ok(raw_rgb) = crate::video::extract_frame_at(video_path, cur_time, w, h) {
-            let color_image = egui::ColorImage::from_rgb([w as usize, h as usize], &raw_rgb);
-            self.video_texture = Some(ctx.load_texture(
-                "current_video_frame",
-                color_image,
-                egui::TextureOptions::LINEAR,
-            ));
-            self.last_video_frame_ts = cur_time;
-        }
+        let tx = self.ensure_video_worker();
+        let _ = tx.send(VideoFrameRequest {
+            path: video_path,
+            time_ms: cur_time,
+            width: w,
+            height: h,
+        });
+        self.video_pending_req_ts = Some(cur_time);
     }
 
     fn poll_waveform(&mut self) {
@@ -522,10 +616,24 @@ impl FunGenApp {
         let blend_ms = self.scurve_preset.blend_radius_ms();
         let mut positions = HashMap::new();
 
-        self.multi_axis.channels.insert(self.active_axis, self.script.clone());
+        // 1. Evaluate active axis directly without per-frame cloning
+        if !self.script.actions.is_empty() {
+            let raw_pos = if blend_ms > 0 {
+                eval_scurve(&self.script.actions, cur_ms, blend_ms)
+            } else {
+                self.script.interpolate_position(cur_ms)
+            };
+            let final_pos = if self.active_axis == AxisChannel::Stroke {
+                self.thermal_model.attenuate_position(raw_pos)
+            } else {
+                raw_pos
+            };
+            positions.insert(self.active_axis, final_pos);
+        }
 
+        // 2. Evaluate companion channels
         for (&axis, script) in &self.multi_axis.channels {
-            if script.actions.is_empty() {
+            if axis == self.active_axis || script.actions.is_empty() {
                 continue;
             }
             let raw_pos = if blend_ms > 0 {
@@ -911,9 +1019,6 @@ impl FunGenApp {
                 .size(11.0)
                 .color(Color32::from_rgb(130, 140, 155)),
         );
-
-        // Synchronize active script to multi_axis map before rendering ghost curves
-        self.multi_axis.channels.insert(self.active_axis, self.script.clone());
 
         let ghost_data: Vec<(&str, &Funscript, Color32)> = if self.show_ghost_axes {
             AxisChannel::ALL
@@ -1950,6 +2055,8 @@ impl FunGenApp {
             // Reset video frame cache
             self.last_video_frame_ts = -999;
             self.video_texture = None;
+            self.video_frame_cache.clear();
+            self.video_pending_req_ts = None;
             self.set_status(format!("Selected video: {}", path.file_name().unwrap_or_default().to_string_lossy()));
         }
     }

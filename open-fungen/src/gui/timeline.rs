@@ -241,16 +241,26 @@ fn draw_action_curve(
     ghost_axes: Option<&[(&str, &Funscript, Color32)]>,
     active_color: Color32,
 ) {
-    // 1. Draw Inactive Ghost Axis Curves if enabled
+    let view_start = state.view_start_ms as i64;
+    let view_end = (state.view_start_ms + state.view_duration_ms) as i64;
+
+    // 1. Draw Inactive Ghost Axis Curves if enabled (culled to visible range)
     if let Some(ghosts) = ghost_axes {
         for (_name, ghost_script, col) in ghosts {
             if ghost_script.actions.len() < 2 {
                 continue;
             }
+            let start_k = ghost_script.actions.partition_point(|a| a.at < view_start).saturating_sub(1);
+            let end_k = (ghost_script.actions.partition_point(|a| a.at <= view_end) + 1).min(ghost_script.actions.len());
+            let ghost_slice = &ghost_script.actions[start_k..end_k];
+            if ghost_slice.len() < 2 {
+                continue;
+            }
+
             let ghost_color = Color32::from_rgba_unmultiplied(col.r(), col.g(), col.b(), 65);
             let mut prev_pt: Option<Pos2> = None;
 
-            for a in &ghost_script.actions {
+            for a in ghost_slice {
                 let x = state.time_to_screen_x(a.at as f64, rect);
                 let y = TimelineState::pos_to_screen_y(a.pos, rect);
                 let curr_pt = pos2(x, y);
@@ -265,36 +275,33 @@ fn draw_action_curve(
         }
     }
 
-    // 2. Draw Active Channel Curve
+    // 2. Draw Active Channel Curve (culled to visible slice with zero heap allocations)
     if script.actions.is_empty() {
         return;
     }
 
     let actions = &script.actions;
-    let mut points: Vec<Pos2> = Vec::with_capacity(actions.len());
-
-    for a in actions {
-        let x = state.time_to_screen_x(a.at as f64, rect);
-        let y = TimelineState::pos_to_screen_y(a.pos, rect);
-        points.push(pos2(x, y));
+    let start_idx = actions.partition_point(|a| a.at < view_start).saturating_sub(1);
+    let end_idx = (actions.partition_point(|a| a.at <= view_end) + 1).min(actions.len());
+    if start_idx >= end_idx {
+        return;
     }
+    let visible_slice = &actions[start_idx..end_idx];
 
-    // Draw connecting line segments with speed violation detection
-    for i in 1..points.len() {
-        let p0 = points[i - 1];
-        let p1 = points[i];
+    // Draw connecting line segments with speed violation detection directly on visible slice
+    for j in 1..visible_slice.len() {
+        let a0 = &visible_slice[j - 1];
+        let a1 = &visible_slice[j];
+        let p0 = pos2(state.time_to_screen_x(a0.at as f64, rect), TimelineState::pos_to_screen_y(a0.pos, rect));
+        let p1 = pos2(state.time_to_screen_x(a1.at as f64, rect), TimelineState::pos_to_screen_y(a1.pos, rect));
 
-        // Only draw if within horizontal bounds
         if (p0.x < rect.left() && p1.x < rect.left()) || (p0.x > rect.right() && p1.x > rect.right()) {
             continue;
         }
 
-        let a0 = &actions[i - 1];
-        let a1 = &actions[i];
         let dt = (a1.at - a0.at) as f64 / 1000.0;
         let speed = if dt > 0.0 { (a1.pos - a0.pos).abs() as f64 / dt } else { 0.0 };
 
-        // Highlight speed violations in vibrant red, warning in amber, normal curve in active channel color
         let stroke_color = if speed > 450.0 {
             Color32::from_rgb(255, 50, 50)
         } else if speed > 350.0 {
@@ -306,13 +313,17 @@ fn draw_action_curve(
         painter.line_segment([p0, p1], Stroke::new(2.0f32, stroke_color));
     }
 
-    // Draw keyframe nodes
-    for (i, &p) in points.iter().enumerate() {
-        if p.x < rect.left() - 10.0 || p.x > rect.right() + 10.0 {
+    // Draw keyframe nodes on visible slice
+    for (rel_i, a) in visible_slice.iter().enumerate() {
+        let actual_idx = start_idx + rel_i;
+        let x = state.time_to_screen_x(a.at as f64, rect);
+        if x < rect.left() - 10.0 || x > rect.right() + 10.0 {
             continue;
         }
+        let y = TimelineState::pos_to_screen_y(a.pos, rect);
+        let p = pos2(x, y);
 
-        let is_selected = state.selected_index == Some(i);
+        let is_selected = state.selected_index == Some(actual_idx);
         let radius = if is_selected { 5.5 } else { 3.5 };
         let fill = if is_selected {
             Color32::from_rgb(255, 220, 50)
@@ -337,12 +348,17 @@ fn handle_point_interactions(
 ) {
     let pointer = response.interact_pointer_pos();
 
-    // 1. Hit-test keyframe points for selection and dragging
+    // 1. Hit-test keyframe points for selection and dragging using binary search time radius
     if let Some(pos) = pointer {
         if response.clicked() {
-            // Find closest keyframe within 12 pixels
+            let click_time = state.screen_x_to_time(pos.x, rect);
+            let time_radius = ((14.0 / rect.width().max(1.0)) as f64 * state.view_duration_ms).max(20.0) as i64;
+            let search_start = script.actions.partition_point(|a| a.at < click_time - time_radius);
+            let search_end = (script.actions.partition_point(|a| a.at <= click_time + time_radius) + 1).min(script.actions.len());
+
             let mut hit: Option<usize> = None;
-            for (i, a) in script.actions.iter().enumerate() {
+            for i in search_start..search_end {
+                let a = &script.actions[i];
                 let px = state.time_to_screen_x(a.at as f64, rect);
                 let py = TimelineState::pos_to_screen_y(a.pos, rect);
                 let dist = ((px - pos.x).powi(2) + (py - pos.y).powi(2)).sqrt();
@@ -415,8 +431,14 @@ fn handle_point_interactions(
 
         // Right-click: Delete hovered keyframe
         if response.secondary_clicked() {
+            let click_time = state.screen_x_to_time(pos.x, rect);
+            let time_radius = ((14.0 / rect.width().max(1.0)) as f64 * state.view_duration_ms).max(20.0) as i64;
+            let search_start = script.actions.partition_point(|a| a.at < click_time - time_radius);
+            let search_end = (script.actions.partition_point(|a| a.at <= click_time + time_radius) + 1).min(script.actions.len());
+
             let mut delete_idx: Option<usize> = None;
-            for (i, a) in script.actions.iter().enumerate() {
+            for i in search_start..search_end {
+                let a = &script.actions[i];
                 let px = state.time_to_screen_x(a.at as f64, rect);
                 let py = TimelineState::pos_to_screen_y(a.pos, rect);
                 let dist = ((px - pos.x).powi(2) + (py - pos.y).powi(2)).sqrt();

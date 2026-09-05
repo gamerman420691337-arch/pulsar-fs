@@ -193,22 +193,67 @@ pub fn detrend_and_normalize(
         smoothed[i] = if w_total > 0.0 { sum / w_total } else { detrended[i] };
     }
 
-    // Rolling min-max normalization
+    // Rolling min-max normalization in linear O(N) time via monotonic sliding windows
     let norm_win = (norm_window_sec * effective_fps).round().max(3.0) as usize;
     let half_norm = norm_win / 2;
     let mut normalized = vec![50.0f32; n];
 
-    for i in 0..n {
-        let start = i.saturating_sub(half_norm);
-        let end = (i + half_norm + 1).min(n);
+    let mut mins = vec![0.0f32; n];
+    let mut maxs = vec![0.0f32; n];
+    let mut min_dq: std::collections::VecDeque<usize> = std::collections::VecDeque::new();
+    let mut max_dq: std::collections::VecDeque<usize> = std::collections::VecDeque::new();
 
-        let mut local_min = f32::INFINITY;
-        let mut local_max = f32::NEG_INFINITY;
-        for j in start..end {
-            local_min = local_min.min(smoothed[j]);
-            local_max = local_max.max(smoothed[j]);
+    let mut r = 0;
+    for i in 0..n {
+        let win_end = (i + half_norm).min(n - 1);
+        let win_start = i.saturating_sub(half_norm);
+
+        while r <= win_end {
+            let val = smoothed[r];
+            while let Some(&back) = min_dq.back() {
+                if smoothed[back] >= val {
+                    min_dq.pop_back();
+                } else {
+                    break;
+                }
+            }
+            min_dq.push_back(r);
+
+            while let Some(&back) = max_dq.back() {
+                if smoothed[back] <= val {
+                    max_dq.pop_back();
+                } else {
+                    break;
+                }
+            }
+            max_dq.push_back(r);
+
+            r += 1;
         }
 
+        while let Some(&front) = min_dq.front() {
+            if front < win_start {
+                min_dq.pop_front();
+            } else {
+                break;
+            }
+        }
+
+        while let Some(&front) = max_dq.front() {
+            if front < win_start {
+                max_dq.pop_front();
+            } else {
+                break;
+            }
+        }
+
+        mins[i] = smoothed[*min_dq.front().unwrap_or(&i)];
+        maxs[i] = smoothed[*max_dq.front().unwrap_or(&i)];
+    }
+
+    for i in 0..n {
+        let local_min = mins[i];
+        let local_max = maxs[i];
         let span = local_max - local_min;
         if span > 1e-4 {
             let val = (smoothed[i] - local_min) / span * 100.0;
@@ -313,5 +358,22 @@ mod tests {
         assert_eq!(actions[0].pos, 100); // 100 - 0
         assert_eq!(actions[1].pos, 0);   // 100 - 100 (peak)
         assert_eq!(actions[2].pos, 100); // 100 - 0 (valley)
+    }
+
+    #[test]
+    fn test_normalization_benchmark_50k_samples() {
+        let n = 50_000;
+        let mut signal = Vec::with_capacity(n);
+        for i in 0..n {
+            let t = i as f32 / 30.0;
+            signal.push((t * 0.5).sin() * 20.0 + (t * 3.0).cos() * 5.0);
+        }
+
+        let t0 = std::time::Instant::now();
+        let norm = detrend_and_normalize(&signal, 30.0, 2.0, 3.0, 1000.0);
+        let elapsed = t0.elapsed();
+
+        assert_eq!(norm.len(), n);
+        assert!(elapsed.as_millis() < 500, "50k sample normalization took too long: {:?}", elapsed);
     }
 }

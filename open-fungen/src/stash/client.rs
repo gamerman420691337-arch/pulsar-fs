@@ -54,7 +54,11 @@ impl StashClient {
             "variables": variables,
         });
 
-        let mut req = ureq::post(&self.config.endpoint)
+        let config = ureq::config::Config::builder()
+            .timeout_global(Some(std::time::Duration::from_secs(10)))
+            .build();
+        let agent: ureq::Agent = config.into();
+        let mut req = agent.post(&self.config.endpoint)
             .header("Content-Type", "application/json");
 
         if let Some(ref key) = self.config.api_key {
