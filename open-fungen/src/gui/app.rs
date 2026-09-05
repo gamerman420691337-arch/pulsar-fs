@@ -2,7 +2,10 @@
 
 use anyhow::Context;
 use crate::audio::AudioWaveform;
-use crate::funscript::{diagnose_funscript, DoctorConfig, DoctorReport, Funscript};
+use crate::funscript::{
+    diagnose_funscript, AxisChannel, DoctorConfig, DoctorReport, Funscript, InfillPattern,
+    MultiAxisScript,
+};
 use crate::gui::timeline::{show_timeline, TimelineState};
 use eframe::egui::{
     self, Align, Color32, Context as EguiContext, Layout, ProgressBar, RichText, ScrollArea,
@@ -33,6 +36,22 @@ pub struct FunGenApp {
 
     /// Currently loaded funscript
     pub script: Funscript,
+    /// Multi-axis script collection (6-DOF + Suction)
+    pub multi_axis: MultiAxisScript,
+    /// Currently selected active editing channel
+    pub active_axis: AxisChannel,
+    /// Whether to show faint ghost curves of inactive channels on timeline
+    pub show_ghost_axes: bool,
+
+    /// Infill generator modal and parameters
+    pub infill_dialog_open: bool,
+    pub infill_pattern: InfillPattern,
+    pub infill_freq_hz: f32,
+    pub infill_min_pos: i32,
+    pub infill_max_pos: i32,
+    pub infill_start_ms: i64,
+    pub infill_end_ms: i64,
+
     /// Path to the loaded funscript file
     pub script_path: Option<PathBuf>,
     /// Interactive timeline state (zoom, pan, selection, playhead)
@@ -84,6 +103,18 @@ impl Default for FunGenApp {
         Self {
             active_tab: HubTab::Studio,
             script,
+            multi_axis: MultiAxisScript::new(),
+            active_axis: AxisChannel::Stroke,
+            show_ghost_axes: true,
+
+            infill_dialog_open: false,
+            infill_pattern: InfillPattern::Sine,
+            infill_freq_hz: 1.5,
+            infill_min_pos: 10,
+            infill_max_pos: 90,
+            infill_start_ms: 0,
+            infill_end_ms: 5000,
+
             script_path: None,
             timeline_state: TimelineState::default(),
             doctor_report,
@@ -260,6 +291,20 @@ impl FunGenApp {
         self.status_message = Some((msg, Instant::now()));
     }
 
+    pub fn switch_axis(&mut self, new_axis: AxisChannel) {
+        if self.active_axis == new_axis {
+            return;
+        }
+        // Commit current active script into multi_axis collection
+        self.multi_axis.channels.insert(self.active_axis, self.script.clone());
+        self.active_axis = new_axis;
+        // Load target channel script (or blank if new)
+        self.script = self.multi_axis.get_or_create(new_axis).clone();
+        self.timeline_state.selected_index = None;
+        self.run_doctor();
+        self.set_status(format!("Switched active channel to {}", new_axis.display_name()));
+    }
+
     fn handle_shortcuts(&mut self, ctx: &EguiContext) {
         if ctx.input(|i| i.key_pressed(egui::Key::F1)) {
             self.active_tab = HubTab::Studio;
@@ -277,8 +322,17 @@ impl FunGenApp {
             self.active_tab = HubTab::DeviceSync;
         }
 
-        // Playback and frame stepping hotkeys (when not typing in an input field)
+        // Playback, frame stepping, and axis channel hotkeys (when not typing in an input field)
         if !ctx.wants_keyboard_input() {
+            // Hotkeys 1-7: Switch active multi-axis channel
+            if ctx.input(|i| i.key_pressed(egui::Key::Num1)) { self.switch_axis(AxisChannel::Stroke); }
+            if ctx.input(|i| i.key_pressed(egui::Key::Num2)) { self.switch_axis(AxisChannel::Surge); }
+            if ctx.input(|i| i.key_pressed(egui::Key::Num3)) { self.switch_axis(AxisChannel::Sway); }
+            if ctx.input(|i| i.key_pressed(egui::Key::Num4)) { self.switch_axis(AxisChannel::Pitch); }
+            if ctx.input(|i| i.key_pressed(egui::Key::Num5)) { self.switch_axis(AxisChannel::Roll); }
+            if ctx.input(|i| i.key_pressed(egui::Key::Num6)) { self.switch_axis(AxisChannel::Twist); }
+            if ctx.input(|i| i.key_pressed(egui::Key::Num7)) { self.switch_axis(AxisChannel::Suction); }
+
             if ctx.input(|i| i.key_pressed(egui::Key::Space)) {
                 self.is_playing = !self.is_playing;
             }
@@ -382,7 +436,10 @@ impl FunGenApp {
                     self.worker_rx = None;
                     match result {
                         Ok(new_script) => {
-                            self.script = new_script;
+                            self.script = new_script.clone();
+                            self.multi_axis = MultiAxisScript::new();
+                            self.multi_axis.channels.insert(AxisChannel::Stroke, new_script);
+                            self.active_axis = AxisChannel::Stroke;
                             self.run_doctor();
                             self.fit_timeline();
                             self.generation_status = "Generation Complete!".to_string();
@@ -518,14 +575,154 @@ impl FunGenApp {
             );
         }
 
+        // Multi-Axis Channel Ribbon & Snapping Controls
+        ui.horizontal(|ui| {
+            ui.label(RichText::new("Axis (1-7):").size(11.0).strong());
+            for axis in AxisChannel::ALL {
+                let is_active = axis == self.active_axis;
+                let count = if is_active {
+                    self.script.actions.len()
+                } else {
+                    self.multi_axis.get(axis).map(|s| s.actions.len()).unwrap_or(0)
+                };
+                let (r, g, b) = axis.color_rgb();
+                let color = Color32::from_rgb(r, g, b);
+
+                let label_text = format!("{} ({})", axis.tcode_axis(), count);
+                let btn = if is_active {
+                    egui::Button::new(RichText::new(format!("● {label_text}")).color(color).strong())
+                } else {
+                    egui::Button::new(RichText::new(format!("○ {label_text}")).color(Color32::from_rgb(140, 150, 165)))
+                };
+
+                if ui.add(btn).clicked() {
+                    self.switch_axis(axis);
+                }
+            }
+
+            ui.separator();
+            ui.checkbox(&mut self.show_ghost_axes, "Ghost Curves");
+            ui.checkbox(&mut self.timeline_state.magnetic_snapping, "🧲 Audio Snap (±35ms)");
+
+            ui.separator();
+            if ui.button("🌊 Infill Generator...").clicked() {
+                self.infill_start_ms = self.timeline_state.view_start_ms as i64;
+                self.infill_end_ms = (self.timeline_state.view_start_ms + self.timeline_state.view_duration_ms) as i64;
+                self.infill_dialog_open = true;
+            }
+        });
+
+        // Procedural Waveform Infill Generator Modal
+        if self.infill_dialog_open {
+            let mut open = self.infill_dialog_open;
+            let mut do_generate = false;
+
+            egui::Window::new("Procedural Waveform Infill Generator")
+                .open(&mut open)
+                .resizable(false)
+                .show(ui.ctx(), |ui| {
+                    ui.heading(format!("Target Axis: {}", self.active_axis.display_name()));
+                    ui.separator();
+
+                    ui.horizontal(|ui| {
+                        ui.label("Pattern Shape:");
+                        ui.selectable_value(&mut self.infill_pattern, InfillPattern::Sine, "Sine");
+                        ui.selectable_value(&mut self.infill_pattern, InfillPattern::Triangle, "Triangle");
+                        ui.selectable_value(&mut self.infill_pattern, InfillPattern::Sawtooth, "Sawtooth");
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("Frequency (Hz):");
+                        ui.add(Slider::new(&mut self.infill_freq_hz, 0.2..=10.0).suffix(" Hz"));
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("Min Pos:");
+                        ui.add(Slider::new(&mut self.infill_min_pos, 0..=100));
+                        ui.label("Max Pos:");
+                        ui.add(Slider::new(&mut self.infill_max_pos, 0..=100));
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("Start (ms):");
+                        ui.add(egui::DragValue::new(&mut self.infill_start_ms).speed(100.0));
+                        ui.label("End (ms):");
+                        ui.add(egui::DragValue::new(&mut self.infill_end_ms).speed(100.0));
+                    });
+
+                    ui.horizontal(|ui| {
+                        if ui.button("Viewport Window").clicked() {
+                            self.infill_start_ms = self.timeline_state.view_start_ms as i64;
+                            self.infill_end_ms = (self.timeline_state.view_start_ms + self.timeline_state.view_duration_ms) as i64;
+                        }
+                        if ui.button("Cursor + 5s").clicked() {
+                            self.infill_start_ms = self.timeline_state.cursor_time_ms;
+                            self.infill_end_ms = self.timeline_state.cursor_time_ms + 5000;
+                        }
+                    });
+
+                    ui.separator();
+                    if ui.button(RichText::new("⚡ Generate Infill Waveform").strong()).clicked() {
+                        do_generate = true;
+                    }
+                });
+
+            self.infill_dialog_open = open;
+
+            if do_generate {
+                self.script.infill_pattern(
+                    self.infill_start_ms,
+                    self.infill_end_ms,
+                    self.infill_min_pos,
+                    self.infill_max_pos,
+                    self.infill_freq_hz,
+                    self.infill_pattern,
+                );
+                self.run_doctor();
+                self.set_status(format!(
+                    "Generated {:?} infill on {} ({}ms - {}ms)",
+                    self.infill_pattern,
+                    self.active_axis.display_name(),
+                    self.infill_start_ms,
+                    self.infill_end_ms
+                ));
+                self.infill_dialog_open = false;
+            }
+        }
+
         ui.add_space(2.0);
 
-        // Timeline Canvas with Audio Waveform
+        // Timeline Canvas with Audio Waveform and Ghost Axis Overlays
         ui.label(
             RichText::new("Timeline Curve & Audio Waveform | Left Drag: Keyframe | Double-Click: Add | Scroll: Zoom | Middle/Ctrl+Drag: Pan | Arrows: Step Frame")
                 .size(11.0)
                 .color(Color32::from_rgb(130, 140, 155)),
         );
+
+        // Synchronize active script to multi_axis map before rendering ghost curves
+        self.multi_axis.channels.insert(self.active_axis, self.script.clone());
+
+        let ghost_data: Vec<(&str, &Funscript, Color32)> = if self.show_ghost_axes {
+            AxisChannel::ALL
+                .iter()
+                .filter(|&&a| a != self.active_axis)
+                .filter_map(|&a| {
+                    self.multi_axis.get(a).and_then(|s| {
+                        if !s.actions.is_empty() {
+                            let (r, g, b) = a.color_rgb();
+                            Some((a.display_name(), s, Color32::from_rgb(r, g, b)))
+                        } else {
+                            None
+                        }
+                    })
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        let (ar, ag, ab) = self.active_axis.color_rgb();
+        let active_color = Color32::from_rgb(ar, ag, ab);
 
         show_timeline(
             ui,
@@ -533,6 +730,8 @@ impl FunGenApp {
             &mut self.timeline_state,
             self.doctor_report.as_ref(),
             self.audio_waveform.as_ref(),
+            if ghost_data.is_empty() { None } else { Some(&ghost_data) },
+            active_color,
         );
     }
 
@@ -625,27 +824,37 @@ impl FunGenApp {
     }
 
     fn render_selected_action_editor(&mut self, ui: &mut Ui) {
-        ui.heading("Keyframe Inspector");
+        ui.heading("Keyframe & Channel Inspector");
         if let Some(idx) = self.timeline_state.selected_index {
             if idx < self.script.actions.len() {
-                let action = &mut self.script.actions[idx];
+                let action_at = self.script.actions[idx].at;
+                let mut jump_clicked = false;
+                let mut delete_clicked = false;
 
                 ui.horizontal(|ui| {
                     ui.label("Time (ms):");
-                    ui.add(egui::DragValue::new(&mut action.at).speed(10.0));
+                    ui.add(egui::DragValue::new(&mut self.script.actions[idx].at).speed(10.0));
                 });
 
                 ui.horizontal(|ui| {
                     ui.label("Position:");
-                    ui.add(egui::Slider::new(&mut action.pos, 0..=100));
+                    ui.add(egui::Slider::new(&mut self.script.actions[idx].pos, 0..=100));
                 });
 
                 ui.add_space(4.0);
-                if ui.button("Jump Playhead Here").clicked() {
-                    self.timeline_state.cursor_time_ms = action.at;
-                }
+                ui.horizontal(|ui| {
+                    if ui.button("Jump Playhead").clicked() {
+                        jump_clicked = true;
+                    }
+                    if ui.button("🗑 Delete Point").clicked() {
+                        delete_clicked = true;
+                    }
+                });
 
-                if ui.button("Delete Keyframe").clicked() {
+                if jump_clicked {
+                    self.timeline_state.cursor_time_ms = action_at;
+                }
+                if delete_clicked {
                     self.script.actions.remove(idx);
                     self.timeline_state.selected_index = None;
                     self.run_doctor();
@@ -654,6 +863,27 @@ impl FunGenApp {
         } else {
             ui.label(RichText::new("Click a keyframe node on the timeline to edit.").color(Color32::GRAY));
         }
+
+        ui.add_space(4.0);
+        ui.separator();
+        ui.label(RichText::new("Channel Transformations:").size(11.0).strong());
+        ui.horizontal(|ui| {
+            if ui.button("Invert (100-P)").clicked() {
+                self.script.invert_positions();
+                self.run_doctor();
+                self.set_status("Inverted channel positions".to_string());
+            }
+            if ui.button("Scale 1.1x").clicked() {
+                self.script.scale_amplitude(1.1, 50);
+                self.run_doctor();
+                self.set_status("Scaled amplitude up 10%".to_string());
+            }
+            if ui.button("Scale 0.9x").clicked() {
+                self.script.scale_amplitude(0.9, 50);
+                self.run_doctor();
+                self.set_status("Scaled amplitude down 10%".to_string());
+            }
+        });
     }
 
     fn render_quick_doctor_summary(&mut self, ui: &mut Ui) {
@@ -1121,20 +1351,33 @@ impl FunGenApp {
             .add_filter("Funscript", &["funscript", "json"])
             .pick_file()
         {
-            if let Ok(loaded) = Funscript::load(&path) {
-                self.script = loaded;
-                self.script_path = Some(path);
+            if let Ok(bundle) = MultiAxisScript::load_bundle(&path) {
+                self.multi_axis = bundle;
+                self.active_axis = AxisChannel::Stroke;
+                self.script = self.multi_axis.get_or_create(AxisChannel::Stroke).clone();
+                self.script_path = Some(path.clone());
                 self.run_doctor();
                 self.fit_timeline();
-                self.set_status("Loaded funscript successfully".to_string());
+                let active_count = self
+                    .multi_axis
+                    .channels
+                    .values()
+                    .filter(|s| !s.actions.is_empty())
+                    .count();
+                self.set_status(format!(
+                    "Loaded multi-axis bundle ({} active channels) from {}",
+                    active_count,
+                    path.display()
+                ));
             }
         }
     }
 
     fn save_funscript(&mut self) {
+        self.multi_axis.channels.insert(self.active_axis, self.script.clone());
         if let Some(ref path) = self.script_path {
-            if self.script.save(path).is_ok() {
-                self.set_status(format!("Saved funscript to {}", path.display()));
+            if self.multi_axis.save_bundle(path).is_ok() {
+                self.set_status(format!("Saved multi-axis bundle for {}", path.display()));
             }
         } else {
             self.save_funscript_as();
@@ -1146,9 +1389,10 @@ impl FunGenApp {
             .add_filter("Funscript", &["funscript"])
             .save_file()
         {
-            if self.script.save(&path).is_ok() {
+            self.multi_axis.channels.insert(self.active_axis, self.script.clone());
+            if self.multi_axis.save_bundle(&path).is_ok() {
                 self.script_path = Some(path.clone());
-                self.set_status(format!("Saved funscript to {}", path.display()));
+                self.set_status(format!("Saved multi-axis bundle to {}", path.display()));
             }
         }
     }

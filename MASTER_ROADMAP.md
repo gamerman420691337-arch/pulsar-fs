@@ -128,9 +128,9 @@ Designed for cataloging and mass generation.
 graph TD
     P1["Phase 1 (Complete)<br/>Python FunscriptFlow Modernization"] --> P2["Phase 2 (Complete)<br/>Native Cleanroom Rust Engine"]
     P2 --> P3["Phase 3 (Complete)<br/>Neural YOLO + egui Desktop GUI + fs-hub CLI"]
-    P3 --> P4["Phase 4 (Next)<br/>Embedded GPU Video Canvas & Audio Waveform"]
-    P4 --> P5["Phase 5<br/>Multi-Axis Stack (6-DOF) & Magnetic Snapping"]
-    P5 --> P6["Phase 6<br/>SAM 2 & Co-Tracker Temporal Point Tracking"]
+    P3 --> P4["Phase 4 (Complete)<br/>Embedded GPU Video Canvas & Audio Waveform"]
+    P4 --> P5["Phase 5 (Complete)<br/>Multi-Axis Stack (6-DOF) & Magnetic Snapping"]
+    P5 --> P6["Phase 6 (Next)<br/>SAM 2 & Co-Tracker Temporal Point Tracking"]
     P6 --> P7["Phase 7<br/>Toy Kinematic Physics Engine & VR Player Sync"]
     P7 --> P8["Phase 8<br/>Stash GraphQL Integration & Wasm Plugin SDK"]
 ```
@@ -168,16 +168,17 @@ graph TD
 
 ---
 
-### ⏳ Phase 5: Multi-Axis Timeline (6-DOF) & Magnetic Snapping (Next Up)
-- [ ] **Multi-Track Funscript Schema**: Support concurrent tracking and editing for $L_0$ (Stroke), $L_1$ (Surge), $L_2$ (Sway), $R_0$ (Roll), $R_1$ (Pitch), $R_2$ (Twist), and $V_0$ (Suction).
-- [ ] **Stacked vs. Overlay Track Views**: Toggle between separate vertical axis lanes and unified multi-colored overlay.
-- [ ] **Magnetic Audio Transient Snapping**: Automatically snap keyframe peaks to audio slaps, vocalizations, and rhythmic drum beats.
-- [ ] **Multi-Keyframe Selection Transformations**: Box-select, time stretch/compress handles, amplitude scaling, and inversion.
-- [ ] **Procedural Infill Generators**: Sine wave, triangle wave, and sawtooth infill macros between selected markers.
+### ✅ Phase 5: Multi-Axis Timeline (6-DOF) & Magnetic Snapping (Completed)
+- [x] **Multi-Track Funscript Schema**: Canonical multi-axis companion bundle loading and saving for Stroke ($L_0$), Surge ($L_1$), Sway ($L_2$), Pitch ($R_1$), Roll ($R_0$), Twist ($R_2$), and Suction ($V_0$).
+- [x] **Multi-Axis Channel Ribbon & Hotkeys**: Instant switching between active channels via UI ribbon and keyboard hotkeys `1`–`7`.
+- [x] **Ghost Multi-Axis Overlays**: Anti-aliased faint ghost curve overlays rendering inactive channels in their distinct canonical colors (cyan, coral, orchid, lime, gold, teal, pink).
+- [x] **Magnetic Audio Transient Snapping**: Real-time transient acoustic peak detection snapping keyframe moves and additions within $\pm 35$ms with glowing visual indicator (`⚡ SNAP`).
+- [x] **Procedural Infill Waveform Generator**: Modal generator creating parameterized Sine, Triangle, and Sawtooth infills with configurable frequency (Hz), min/max position, and time bounds.
+- [x] **Channel Macro Transformations**: One-click position inversion (`100 - P`), amplitude expansion (`1.1x`), and compression (`0.9x`).
 
 ---
 
-### ⏳ Phase 6: SOTA Neural Vision (SAM 2 & Temporal Point Tracking)
+### ⏳ Phase 6: SOTA Neural Vision (SAM 2 & Temporal Point Tracking) (Next Up)
 - [ ] **SAM 2 / Co-Tracker Memory Integration**: Persistent point tracking across video frames to prevent occlusion drift.
 - [ ] **3D Anatomical Pose Estimator**: Extract organ 3D spatial orientation and penetration vectors from surface landmarks.
 - [ ] **Automated 6-Axis Generator**: Simultaneously generate $L_0, L_1, L_2, R_1$ funscripts from a single video pass.

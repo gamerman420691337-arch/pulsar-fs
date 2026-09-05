@@ -48,6 +48,42 @@ impl AudioWaveform {
     pub fn is_empty(&self) -> bool {
         self.peaks.is_empty()
     }
+
+    /// Find the nearest acoustic transient/peak within a search radius (for magnetic snapping)
+    pub fn find_nearest_transient(&self, time_ms: i64, max_dist_ms: i64) -> Option<i64> {
+        if self.peaks.is_empty() || time_ms < 0 || max_dist_ms <= 0 {
+            return None;
+        }
+
+        let center_bin = ((time_ms as f64 / 1000.0) * self.bins_per_sec as f64).round() as isize;
+        let radius_bins = ((max_dist_ms as f64 / 1000.0) * self.bins_per_sec as f64).ceil() as isize;
+
+        let start_bin = (center_bin - radius_bins).max(1) as usize;
+        let end_bin = ((center_bin + radius_bins) as usize).min(self.peaks.len().saturating_sub(2));
+
+        let mut best_peak_val = 0.15f32; // Minimum threshold to qualify as transient
+        let mut best_time_ms = None;
+        let mut min_time_dist = i64::MAX;
+
+        for b in start_bin..=end_bin {
+            let val = self.peaks[b];
+            let prev = self.peaks[b - 1];
+            let next = self.peaks[b + 1];
+
+            // Local maximum with significant amplitude
+            if val > prev && val >= next && val >= best_peak_val {
+                let bin_time = ((b as f64 / self.bins_per_sec as f64) * 1000.0).round() as i64;
+                let dist = (bin_time - time_ms).abs();
+                if dist <= max_dist_ms && dist < min_time_dist {
+                    best_peak_val = val;
+                    best_time_ms = Some(bin_time);
+                    min_time_dist = dist;
+                }
+            }
+        }
+
+        best_time_ms
+    }
 }
 
 /// Extract PCM audio stream and compute normalized RMS peak bins.
@@ -144,5 +180,27 @@ mod tests {
         // Test with empty or non-existent path returns error or empty waveform
         let wf = extract_audio_waveform(Path::new("/nonexistent_audio_file.mp4"));
         assert!(wf.is_err());
+    }
+
+    #[test]
+    fn test_find_nearest_transient() {
+        // Create 20 bins (200ms total, 10ms per bin at 100 bins/sec)
+        let mut peaks = vec![0.0f32; 20];
+        // Introduce a transient peak at bin 10 (100ms) with value 0.8
+        peaks[9] = 0.2;
+        peaks[10] = 0.8;
+        peaks[11] = 0.3;
+
+        let wf = AudioWaveform::new(peaks, 100.0);
+
+        // Within 35ms: query at 90ms -> should snap to 100ms
+        let snapped = wf.find_nearest_transient(90, 35);
+        assert_eq!(snapped, Some(100));
+
+        // Query at 150ms with 35ms window -> too far, returns None
+        assert_eq!(wf.find_nearest_transient(150, 35), None);
+
+        // Query at 120ms with 35ms window -> within 20ms, snaps to 100ms
+        assert_eq!(wf.find_nearest_transient(120, 35), Some(100));
     }
 }

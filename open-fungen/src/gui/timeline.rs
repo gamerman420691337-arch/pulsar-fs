@@ -17,6 +17,10 @@ pub struct TimelineState {
     pub selected_index: Option<usize>,
     /// Whether a keyframe point is actively being dragged
     pub is_dragging_point: bool,
+    /// Whether magnetic snapping to audio waveform transients is enabled
+    pub magnetic_snapping: bool,
+    /// Currently snapped acoustic transient timestamp (if active)
+    pub snapped_transient_ms: Option<i64>,
 }
 
 impl Default for TimelineState {
@@ -27,6 +31,8 @@ impl Default for TimelineState {
             cursor_time_ms: 0,
             selected_index: None,
             is_dragging_point: false,
+            magnetic_snapping: true,
+            snapped_transient_ms: None,
         }
     }
 }
@@ -65,6 +71,8 @@ pub fn show_timeline(
     state: &mut TimelineState,
     doctor_report: Option<&DoctorReport>,
     waveform: Option<&crate::audio::AudioWaveform>,
+    ghost_axes: Option<&[(&str, &Funscript, Color32)]>,
+    active_color: Color32,
 ) -> Response {
     let desired_size = vec2(ui.available_width(), ui.available_height().max(280.0));
     let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click_and_drag());
@@ -102,11 +110,29 @@ pub fn show_timeline(
     // 2b. Render Audio Waveform (translucent acoustic bars under curve)
     draw_audio_waveform(&painter, rect, state, waveform);
 
-    // 3. Render Action Curve & Highlights
-    draw_action_curve(&painter, rect, script, state, doctor_report);
+    // 3. Render Action Curve, Ghost Multi-Axis Curves, & Highlights
+    draw_action_curve(&painter, rect, script, state, doctor_report, ghost_axes, active_color);
 
-    // 4. Handle Keyframe Point Selection, Dragging, Adding & Deleting
-    handle_point_interactions(ui, &response, rect, script, state);
+    // 4. Handle Keyframe Point Selection, Dragging, Adding & Deleting (with Magnetic Snapping)
+    handle_point_interactions(ui, &response, rect, script, state, waveform);
+
+    // 4b. Render Magnetic Transient Snap Indicator if snapped
+    if let Some(snap_t) = state.snapped_transient_ms {
+        let snap_x = state.time_to_screen_x(snap_t as f64, rect);
+        if snap_x >= rect.left() && snap_x <= rect.right() {
+            painter.line_segment(
+                [pos2(snap_x, rect.top()), pos2(snap_x, rect.bottom())],
+                Stroke::new(1.8f32, Color32::from_rgb(255, 215, 0)),
+            );
+            painter.text(
+                pos2(snap_x + 3.0, rect.top() + 6.0),
+                eframe::egui::Align2::LEFT_TOP,
+                "⚡ SNAP",
+                eframe::egui::FontId::monospace(10.0),
+                Color32::from_rgb(255, 215, 0),
+            );
+        }
+    }
 
     // 5. Render Draggable Playhead Cursor
     let cursor_x = state.time_to_screen_x(state.cursor_time_ms as f64, rect);
@@ -212,7 +238,34 @@ fn draw_action_curve(
     script: &Funscript,
     state: &TimelineState,
     _doctor_report: Option<&DoctorReport>,
+    ghost_axes: Option<&[(&str, &Funscript, Color32)]>,
+    active_color: Color32,
 ) {
+    // 1. Draw Inactive Ghost Axis Curves if enabled
+    if let Some(ghosts) = ghost_axes {
+        for (_name, ghost_script, col) in ghosts {
+            if ghost_script.actions.len() < 2 {
+                continue;
+            }
+            let ghost_color = Color32::from_rgba_unmultiplied(col.r(), col.g(), col.b(), 65);
+            let mut prev_pt: Option<Pos2> = None;
+
+            for a in &ghost_script.actions {
+                let x = state.time_to_screen_x(a.at as f64, rect);
+                let y = TimelineState::pos_to_screen_y(a.pos, rect);
+                let curr_pt = pos2(x, y);
+
+                if let Some(p0) = prev_pt {
+                    if !((p0.x < rect.left() && curr_pt.x < rect.left()) || (p0.x > rect.right() && curr_pt.x > rect.right())) {
+                        painter.line_segment([p0, curr_pt], Stroke::new(1.2f32, ghost_color));
+                    }
+                }
+                prev_pt = Some(curr_pt);
+            }
+        }
+    }
+
+    // 2. Draw Active Channel Curve
     if script.actions.is_empty() {
         return;
     }
@@ -241,13 +294,13 @@ fn draw_action_curve(
         let dt = (a1.at - a0.at) as f64 / 1000.0;
         let speed = if dt > 0.0 { (a1.pos - a0.pos).abs() as f64 / dt } else { 0.0 };
 
-        // Highlight speed violations in vibrant red, normal curve in cyan/blue
+        // Highlight speed violations in vibrant red, warning in amber, normal curve in active channel color
         let stroke_color = if speed > 450.0 {
             Color32::from_rgb(255, 50, 50)
         } else if speed > 350.0 {
             Color32::from_rgb(255, 180, 50)
         } else {
-            Color32::from_rgb(0, 200, 255)
+            active_color
         };
 
         painter.line_segment([p0, p1], Stroke::new(2.0f32, stroke_color));
@@ -280,13 +333,14 @@ fn handle_point_interactions(
     rect: Rect,
     script: &mut Funscript,
     state: &mut TimelineState,
+    waveform: Option<&crate::audio::AudioWaveform>,
 ) {
     let pointer = response.interact_pointer_pos();
 
     // 1. Hit-test keyframe points for selection and dragging
     if let Some(pos) = pointer {
         if response.clicked() {
-            // Find closest keyframe within 10 pixels
+            // Find closest keyframe within 12 pixels
             let mut hit: Option<usize> = None;
             for (i, a) in script.actions.iter().enumerate() {
                 let px = state.time_to_screen_x(a.at as f64, rect);
@@ -304,10 +358,19 @@ fn handle_point_interactions(
             }
         }
 
-        // Double click: insert new keyframe
+        // Double click: insert new keyframe (with magnetic audio snapping if enabled)
         if response.double_clicked() {
-            let t = state.screen_x_to_time(pos.x, rect);
+            let mut t = state.screen_x_to_time(pos.x, rect);
             let p = TimelineState::screen_y_to_pos(pos.y, rect);
+
+            if state.magnetic_snapping {
+                if let Some(wf) = waveform {
+                    if let Some(snap) = wf.find_nearest_transient(t, 35) {
+                        t = snap;
+                    }
+                }
+            }
+
             script.actions.push(Action { at: t, pos: p });
             script.sanitize();
 
@@ -316,13 +379,26 @@ fn handle_point_interactions(
             state.cursor_time_ms = t;
         }
 
-        // Dragging a selected keyframe
+        // Dragging a selected keyframe (with magnetic audio snapping if enabled)
         if response.dragged_by(eframe::egui::PointerButton::Primary) {
             if let Some(idx) = state.selected_index {
                 if idx < script.actions.len() {
                     state.is_dragging_point = true;
-                    let new_t = state.screen_x_to_time(pos.x, rect);
+                    let mut new_t = state.screen_x_to_time(pos.x, rect);
                     let new_p = TimelineState::screen_y_to_pos(pos.y, rect);
+
+                    if state.magnetic_snapping {
+                        if let Some(wf) = waveform {
+                            if let Some(snap) = wf.find_nearest_transient(new_t, 35) {
+                                new_t = snap;
+                                state.snapped_transient_ms = Some(snap);
+                            } else {
+                                state.snapped_transient_ms = None;
+                            }
+                        }
+                    } else {
+                        state.snapped_transient_ms = None;
+                    }
 
                     script.actions[idx].at = new_t;
                     script.actions[idx].pos = new_p;
@@ -332,6 +408,7 @@ fn handle_point_interactions(
         } else {
             if state.is_dragging_point {
                 state.is_dragging_point = false;
+                state.snapped_transient_ms = None;
                 script.sanitize();
             }
         }
@@ -413,5 +490,12 @@ mod tests {
 
         let pos_roundtrip = TimelineState::screen_y_to_pos(y_100, rect);
         assert_eq!(pos_roundtrip, 100);
+    }
+
+    #[test]
+    fn test_timeline_state_defaults() {
+        let state = TimelineState::default();
+        assert!(state.magnetic_snapping);
+        assert_eq!(state.snapped_transient_ms, None);
     }
 }
