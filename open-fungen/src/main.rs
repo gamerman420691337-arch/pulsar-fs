@@ -1,4 +1,5 @@
 mod funscript;
+mod gui;
 mod neural;
 mod signal;
 mod tracking;
@@ -25,11 +26,14 @@ use video::{probe_video, rgb_to_gray, FrameStreamReader, StreamConfig};
 #[command(version = "0.1.0")]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Launch the interactive GUI timeline editor and generator
+    Gui,
+
     /// Generate a .funscript from video using optical flow motion tracking or neural ONNX detection
     Generate {
         /// Path to the video file
@@ -117,7 +121,11 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Generate {
+        None | Some(Commands::Gui) => {
+            println!("Launching Open-FunGen Desktop GUI...");
+            gui::run_gui().map_err(|e| anyhow::anyhow!("GUI execution error: {e}"))?;
+        }
+        Some(Commands::Generate {
             video,
             output,
             model,
@@ -134,7 +142,7 @@ fn main() -> Result<()> {
             no_keyframe_reduction,
             cut_diff,
             cut_flow,
-        } => {
+        }) => {
             let eff_width = width.unwrap_or(if model.is_some() { 640 } else { 256 });
             let eff_height = height.unwrap_or(if model.is_some() { 640 } else { 256 });
 
@@ -157,10 +165,10 @@ fn main() -> Result<()> {
                 cut_flow,
             )?;
         }
-        Commands::Doctor { script, max_speed } => {
+        Some(Commands::Doctor { script, max_speed }) => {
             run_doctor(&script, max_speed)?;
         }
-        Commands::Info { video } => {
+        Some(Commands::Info { video }) => {
             run_info(&video)?;
         }
     }

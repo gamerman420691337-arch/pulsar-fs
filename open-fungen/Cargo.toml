@@ -14,3 +14,5 @@ anyhow = "1.0"
 thiserror = "2.0"
 indicatif = "0.17"
 ort = { version = "2.0.0-rc.13", features = ["ndarray", "download-binaries"] }
+eframe = "0.31"
+rfd = "0.15"
