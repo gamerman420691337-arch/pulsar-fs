@@ -88,8 +88,8 @@ pub fn decode_yolo_detections(
         }
 
         if best_score >= conf_threshold {
-            let cx = output_slice[0 * num_anchors + i] / 640.0;
-            let cy = output_slice[1 * num_anchors + i] / 640.0;
+            let cx = output_slice[i] / 640.0;
+            let cy = output_slice[num_anchors + i] / 640.0;
             let w = output_slice[2 * num_anchors + i] / 640.0;
             let h = output_slice[3 * num_anchors + i] / 640.0;
 

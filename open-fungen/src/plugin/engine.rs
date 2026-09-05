@@ -161,7 +161,7 @@ impl FunscriptPlugin for ChaosJitterPlugin {
 
         for (i, a) in actions.iter().enumerate() {
             // Pseudorandom deterministic hash based on timestamp and index
-            let pseudo_rand = ((i as f32 * 12.9898 + a.at as f32 * 78.233).sin() * 43758.5453).fract();
+            let pseudo_rand = ((i as f32 * 12.9898 + a.at as f32 * 78.233).sin() * 43_758.547_f32).fract();
             let jitter = (pseudo_rand * 2.0 - 1.0) * intensity;
             let new_pos = (a.pos as f32 + jitter).round().clamp(0.0, 100.0) as i32;
             out.push(Action { at: a.at, pos: new_pos });

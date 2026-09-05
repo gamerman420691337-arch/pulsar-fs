@@ -272,9 +272,9 @@ pub fn filter_centers_median(centers: &[(f32, f32)], window_radius: usize) -> Ve
 
         xs.clear();
         ys.clear();
-        for j in start..end {
-            xs.push(centers[j].0);
-            ys.push(centers[j].1);
+        for center in &centers[start..end] {
+            xs.push(center.0);
+            ys.push(center.1);
         }
 
         xs.sort_by(|a, b| a.partial_cmp(b).unwrap());

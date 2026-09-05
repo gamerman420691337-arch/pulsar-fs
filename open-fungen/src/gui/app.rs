@@ -156,6 +156,10 @@ pub struct FunGenApp {
     pub plugin_dialog_open: bool,
     pub selected_plugin_idx: usize,
     pub plugin_param_values: HashMap<String, f32>,
+
+    // Help & About Modals
+    pub help_dialog_open: bool,
+    pub about_dialog_open: bool,
 }
 
 impl Default for FunGenApp {
@@ -245,6 +249,9 @@ impl Default for FunGenApp {
             plugin_dialog_open: false,
             selected_plugin_idx: 0,
             plugin_param_values: HashMap::new(),
+
+            help_dialog_open: false,
+            about_dialog_open: false,
         }
     }
 }
@@ -270,15 +277,15 @@ impl eframe::App for FunGenApp {
         TopBottomPanel::top("top_menu").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
-                    if ui.button("Open Funscript...").clicked() {
+                    if ui.button("Open Funscript... (Ctrl+O)").clicked() {
                         self.open_funscript_dialog();
                         ui.close_menu();
                     }
-                    if ui.button("Save Funscript").clicked() {
+                    if ui.button("Save Funscript (Ctrl+S)").clicked() {
                         self.save_funscript();
                         ui.close_menu();
                     }
-                    if ui.button("Save Funscript As...").clicked() {
+                    if ui.button("Save Funscript As... (Ctrl+Shift+S)").clicked() {
                         self.save_funscript_as();
                         ui.close_menu();
                     }
@@ -416,6 +423,17 @@ impl eframe::App for FunGenApp {
                     }
                 });
 
+                ui.menu_button("Help", |ui| {
+                    if ui.button("Keyboard & Mouse Shortcuts...").clicked() {
+                        self.help_dialog_open = true;
+                        ui.close_menu();
+                    }
+                    if ui.button("About Funscript Hub...").clicked() {
+                        self.about_dialog_open = true;
+                        ui.close_menu();
+                    }
+                });
+
                 ui.separator();
 
                 // Navigation Tabs with Function Key Hints
@@ -459,8 +477,10 @@ impl eframe::App for FunGenApp {
             }
         });
 
-        // Floating plugin dialog
+        // Floating dialogs & modals
         self.render_plugin_dialog(ctx);
+        self.render_help_dialog(ctx);
+        self.render_about_dialog(ctx);
 
         // Request repaint if playing, generating, or running batch worker
         if self.is_playing || self.is_generating || self.batch_worker.is_active() {
@@ -516,6 +536,17 @@ impl FunGenApp {
             self.perform_redo();
         }
 
+        // Global File shortcuts (Save / Save As / Open)
+        if ctx.input(|i| (i.modifiers.command || i.modifiers.ctrl) && i.key_pressed(egui::Key::S) && !i.modifiers.shift) {
+            self.save_funscript();
+        }
+        if ctx.input(|i| (i.modifiers.command || i.modifiers.ctrl) && i.key_pressed(egui::Key::S) && i.modifiers.shift) {
+            self.save_funscript_as();
+        }
+        if ctx.input(|i| (i.modifiers.command || i.modifiers.ctrl) && i.key_pressed(egui::Key::O)) {
+            self.open_funscript_dialog();
+        }
+
         if ctx.input(|i| i.key_pressed(egui::Key::F1)) {
             self.active_tab = HubTab::Studio;
         }
@@ -546,6 +577,25 @@ impl FunGenApp {
                         self.timeline_state.selected_index = None;
                         self.run_doctor();
                         self.set_status("Deleted selected keyframe".to_string());
+                    }
+                }
+            }
+
+            // Up / Down Arrow: nudge selected keyframe position (Shift: by 5, normal: by 1)
+            if let Some(idx) = self.timeline_state.selected_index {
+                if idx < self.script.actions.len() {
+                    let step = if ctx.input(|i| i.modifiers.shift) { 5 } else { 1 };
+                    if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
+                        self.undo_history.push_snapshot(&self.script);
+                        self.script.actions[idx].pos = (self.script.actions[idx].pos + step).min(100);
+                        self.run_doctor();
+                        self.set_status(format!("Keyframe #{} position: {}", idx + 1, self.script.actions[idx].pos));
+                    }
+                    if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
+                        self.undo_history.push_snapshot(&self.script);
+                        self.script.actions[idx].pos = (self.script.actions[idx].pos - step).max(0);
+                        self.run_doctor();
+                        self.set_status(format!("Keyframe #{} position: {}", idx + 1, self.script.actions[idx].pos));
                     }
                 }
             }
@@ -2391,6 +2441,187 @@ impl FunGenApp {
         }
     }
 
+    fn render_help_dialog(&mut self, ctx: &EguiContext) {
+        if !self.help_dialog_open {
+            return;
+        }
+
+        let mut open = self.help_dialog_open;
+        egui::Window::new("⌨ Keyboard & Mouse Shortcuts")
+            .open(&mut open)
+            .resizable(true)
+            .default_width(540.0)
+            .show(ctx, |ui| {
+                ui.heading("Funscript Hub Controls & Shortcuts");
+                ui.separator();
+
+                ScrollArea::vertical().max_height(450.0).show(ui, |ui| {
+                    egui::Grid::new("shortcuts_grid")
+                        .striped(true)
+                        .spacing([16.0, 6.0])
+                        .show(ui, |ui| {
+                            ui.strong("Shortcut");
+                            ui.strong("Action");
+                            ui.strong("Context");
+                            ui.end_row();
+
+                            ui.monospace("Ctrl + Z");
+                            ui.label("Undo last editing change");
+                            ui.label("Studio / Global");
+                            ui.end_row();
+
+                            ui.monospace("Ctrl + Y / Ctrl+Shift+Z");
+                            ui.label("Redo last undone change");
+                            ui.label("Studio / Global");
+                            ui.end_row();
+
+                            ui.monospace("Ctrl + S");
+                            ui.label("Save funscript bundle");
+                            ui.label("Global");
+                            ui.end_row();
+
+                            ui.monospace("Ctrl + Shift + S");
+                            ui.label("Save funscript as new file");
+                            ui.label("Global");
+                            ui.end_row();
+
+                            ui.monospace("Ctrl + O");
+                            ui.label("Open funscript file / bundle");
+                            ui.label("Global");
+                            ui.end_row();
+
+                            ui.monospace("Space");
+                            ui.label("Play / Pause playback");
+                            ui.label("Global");
+                            ui.end_row();
+
+                            ui.monospace("Delete / Backspace");
+                            ui.label("Delete currently selected keyframe");
+                            ui.label("Studio Editor");
+                            ui.end_row();
+
+                            ui.monospace("Up / Down Arrow");
+                            ui.label("Nudge selected keyframe position (+/- 1)");
+                            ui.label("Studio Editor");
+                            ui.end_row();
+
+                            ui.monospace("Shift + Up / Down");
+                            ui.label("Nudge selected keyframe position (+/- 5)");
+                            ui.label("Studio Editor");
+                            ui.end_row();
+
+                            ui.monospace("Left / Right Arrow");
+                            ui.label("Step time cursor (-33ms / +33ms)");
+                            ui.label("Global");
+                            ui.end_row();
+
+                            ui.monospace("Shift + Left / Right");
+                            ui.label("Step time cursor (-1000ms / +1000ms)");
+                            ui.label("Global");
+                            ui.end_row();
+
+                            ui.monospace("Home / End");
+                            ui.label("Jump to start (0ms) / end of script");
+                            ui.label("Global");
+                            ui.end_row();
+
+                            ui.monospace("M");
+                            ui.label("Toggle magnetic audio transient snapping");
+                            ui.label("Studio Editor");
+                            ui.end_row();
+
+                            ui.monospace("[ / ]");
+                            ui.label("Decrease / Increase playback speed (0.25x)");
+                            ui.label("Global / Cinema");
+                            ui.end_row();
+
+                            ui.monospace("1 - 7");
+                            ui.label("Switch 6-DOF channel (Stroke, Surge, Sway...)");
+                            ui.label("Studio Editor");
+                            ui.end_row();
+
+                            ui.monospace("F1 - F6");
+                            ui.label("Switch View (Studio, Cinema, Generator...)");
+                            ui.label("Global");
+                            ui.end_row();
+
+                            ui.monospace("Double-Click Canvas");
+                            ui.label("Insert keyframe at mouse position");
+                            ui.label("Timeline");
+                            ui.end_row();
+
+                            ui.monospace("Left-Click Canvas");
+                            ui.label("Seek playhead to clicked timestamp");
+                            ui.label("Timeline");
+                            ui.end_row();
+
+                            ui.monospace("Left-Click Drag Canvas");
+                            ui.label("Scrub playhead smoothly across time");
+                            ui.label("Timeline");
+                            ui.end_row();
+
+                            ui.monospace("Right-Click Keyframe");
+                            ui.label("Delete hovered keyframe");
+                            ui.label("Timeline");
+                            ui.end_row();
+
+                            ui.monospace("Middle-Click / Ctrl-Drag");
+                            ui.label("Pan timeline viewport horizontally");
+                            ui.label("Timeline");
+                            ui.end_row();
+
+                            ui.monospace("Scroll Wheel");
+                            ui.label("Zoom timeline in / out");
+                            ui.label("Timeline");
+                            ui.end_row();
+                        });
+                });
+            });
+
+        self.help_dialog_open = open;
+    }
+
+    fn render_about_dialog(&mut self, ctx: &EguiContext) {
+        if !self.about_dialog_open {
+            return;
+        }
+
+        let mut open = self.about_dialog_open;
+        egui::Window::new("ℹ About Funscript Hub")
+            .open(&mut open)
+            .resizable(false)
+            .default_width(420.0)
+            .show(ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.heading("Funscript Hub (fs-hub)");
+                    ui.label(RichText::new("v0.1.0 • Pure Rust SOTA Composed Monolith").color(Color32::from_rgb(0, 200, 255)));
+                });
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(4.0);
+
+                ui.label("Funscript Hub is the open-source, native-first funscript generation, precision editing, and haptic synchronization suite.");
+                ui.add_space(6.0);
+
+                ui.group(|ui| {
+                    ui.strong("Core Architectural Highlights:");
+                    ui.label("• Pure Rust Native Engine (Zero external C bindings)");
+                    ui.label("• Real-time Lucas-Kanade dense optical flow with Rayon parallelization");
+                    ui.label("• AI Neural YOLOv12 / SAM 2 tracking with ONNX Runtime");
+                    ui.label("• 6-DOF Multi-Axis Timeline & Jerk-Limited S-Curve Kinematics");
+                    ui.label("• Hardware thermal dissipation wattage protection");
+                    ui.label("• Stash GraphQL media server sync & headless batch queue");
+                    ui.label("• T-Code v0.3 protocol dispatcher & DeoVR/HereSphere telemetry");
+                });
+
+                ui.add_space(8.0);
+                ui.separator();
+                ui.label(RichText::new("Cleanroom Open Source • MIT / Apache-2.0 License").weak().size(11.0));
+            });
+
+        self.about_dialog_open = open;
+    }
+
     fn render_automation_view(&mut self, ui: &mut Ui) {
         ScrollArea::vertical().show(ui, |ui| {
             ui.heading("Funscript Hub: Automation, Stash & Community Plugin Ecosystem");
@@ -2544,13 +2775,13 @@ impl FunGenApp {
                             self.batch_worker.stop();
                             self.set_status("Batch worker stopped.".to_string());
                         }
-                    } else if !self.batch_queue.jobs.is_empty() {
-                        if ui.button(RichText::new("▶ Start Batch Processing").strong()).clicked() {
-                            let jobs = self.batch_queue.jobs.clone();
-                            let cfg = self.batch_config.clone();
-                            self.batch_worker.start(jobs, cfg);
-                            self.set_status("Batch processing worker started.".to_string());
-                        }
+                    } else if !self.batch_queue.jobs.is_empty()
+                        && ui.button(RichText::new("▶ Start Batch Processing").strong()).clicked()
+                    {
+                        let jobs = self.batch_queue.jobs.clone();
+                        let cfg = self.batch_config.clone();
+                        self.batch_worker.start(jobs, cfg);
+                        self.set_status("Batch processing worker started.".to_string());
                     }
                     if ui.button("Clear Queue").clicked() {
                         self.batch_queue.clear();

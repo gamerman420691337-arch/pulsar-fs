@@ -240,7 +240,7 @@ impl BatchWorker {
                             break;
                         }
                         frame_count += 1;
-                        if frame_count % 30 == 0 {
+                        if frame_count.is_multiple_of(30) {
                             let progress = est_total
                                 .map(|tot| (frame_count as f32 / tot as f32).min(0.99))
                                 .unwrap_or(0.5);

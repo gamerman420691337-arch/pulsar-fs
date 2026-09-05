@@ -5,20 +5,15 @@ use crate::neural::yolo::Detection;
 use crate::tracking::FlowField;
 
 /// Occlusion state for temporal point tracking
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum OcclusionState {
     /// Both probe tip and target are explicitly detected by YOLO
     Visible,
     /// Probe tip has entered target orifice bounding area and is occluded internally
     OccludedInside,
     /// Detections lost, propagating coordinates via optical flow
+    #[default]
     Lost,
-}
-
-impl Default for OcclusionState {
-    fn default() -> Self {
-        Self::Lost
-    }
 }
 
 /// A temporally tracked anatomical point with velocity and confidence history
@@ -277,7 +272,7 @@ impl AnatomicalTracker {
     }
 
     /// Backwards-compatible stroke position estimation from YOLO detections.
-    #[allow(dead_code)]
+    #[allow(dead_code, clippy::type_complexity)]
     pub fn update_from_detections(
         &mut self,
         detections: &[Detection],

@@ -152,7 +152,7 @@ pub fn smooth_funscript(script: &Funscript, blend_radius_ms: i64) -> Funscript {
 
     for i in 0..actions.len() {
         if i == 0 || i == actions.len() - 1 {
-            smoothed_actions.push(actions[i].clone());
+            smoothed_actions.push(actions[i]);
             continue;
         }
 
@@ -217,7 +217,7 @@ mod tests {
 
         // Approaching vertex (190ms), smooth position decelerates into apex (0.0 <= pos <= 5.0)
         let pos_scurve = eval_scurve(&actions, 190, 40);
-        assert!(pos_scurve >= 0.0 && pos_scurve <= 5.0);
+        assert!((0.0..=5.0).contains(&pos_scurve));
     }
 
     #[test]

@@ -406,6 +406,7 @@ fn run_doctor(script_path: &Path, max_speed: f64) -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_generate(
     video_path: &Path,
     output_path: Option<&Path>,
@@ -772,7 +773,7 @@ fn run_stash_list_missing(url: &str, api_key: Option<&str>, limit: u32) -> Resul
     let scenes = client.find_scenes_missing_scripts(limit)?;
 
     println!("Found {} scenes missing interactive funscripts:", scenes.len());
-    println!("{:<8} | {:<40} | {}", "ID", "Title", "Primary File Path");
+    println!("{:<8} | {:<40} | Primary File Path", "ID", "Title");
     println!("{:-<8}-+-{:-<40}-+-{:-<30}", "", "", "");
 
     for scene in &scenes {

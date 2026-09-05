@@ -344,7 +344,7 @@ mod tests {
         let norm = detrend_and_normalize(&signal, 30.0, 2.0, 2.0, 1000.0);
         assert_eq!(norm.len(), 300);
         for &val in &norm {
-            assert!(val >= 0.0 && val <= 100.0);
+            assert!((0.0..=100.0).contains(&val));
         }
     }
 

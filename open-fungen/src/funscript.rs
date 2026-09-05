@@ -134,7 +134,7 @@ impl Funscript {
         let mut filtered = Vec::with_capacity(initial_len);
 
         // Always keep first point
-        filtered.push(self.actions[0].clone());
+        filtered.push(self.actions[0]);
 
         for i in 1..(self.actions.len() - 1) {
             let prev = filtered.last().unwrap();
@@ -146,13 +146,13 @@ impl Funscript {
                 // Skip micro-jitter point
                 continue;
             }
-            filtered.push(curr.clone());
+            filtered.push(*curr);
         }
 
         // Always keep last point
         if let Some(last) = self.actions.last() {
             if filtered.last().map(|p| p.at) != Some(last.at) {
-                filtered.push(last.clone());
+                filtered.push(*last);
             }
         }
 
@@ -390,7 +390,7 @@ impl MultiAxisScript {
     pub fn save_bundle<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         let (parent, base_stem) = extract_base_stem(&path);
         for (axis, script) in &self.channels {
-            if !script.actions.is_empty() {
+            if *axis == AxisChannel::Stroke || !script.actions.is_empty() {
                 let filename = if *axis == AxisChannel::Stroke {
                     format!("{}.funscript", base_stem)
                 } else {

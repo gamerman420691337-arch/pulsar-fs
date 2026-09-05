@@ -65,6 +65,7 @@ impl TimelineState {
 }
 
 /// Render and handle interactions on the interactive timeline canvas
+#[allow(clippy::too_many_arguments)]
 pub fn show_timeline(
     ui: &mut Ui,
     script: &mut Funscript,
