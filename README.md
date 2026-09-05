@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="Logo.png" alt="Funscript Hub" width="450">
-</p>
-
 # Funscript Hub (`fs-hub`)
 
 The unified, open-source cleanroom suite for automated funscript generation, neural motion tracking, interactive timeline editing, and hardware script auditing.
