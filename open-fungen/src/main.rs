@@ -1,4 +1,5 @@
 mod funscript;
+mod neural;
 mod signal;
 mod tracking;
 mod video;
@@ -7,6 +8,8 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use funscript::{diagnose_funscript, DoctorConfig, Funscript};
 use indicatif::{ProgressBar, ProgressStyle};
+use neural::tracker::AnatomicalTracker;
+use neural::NeuralDetector;
 use signal::{detrend_and_normalize, extract_actions, integrate_flow};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -14,7 +17,7 @@ use tracking::{
     compute_dense_flow, detect_cut_photometric, filter_centers_median, find_divergence_center,
     project_radial_motion,
 };
-use video::{probe_video, FrameStreamReader, StreamConfig};
+use video::{probe_video, rgb_to_gray, FrameStreamReader, StreamConfig};
 
 #[derive(Parser)]
 #[command(name = "open-fungen")]
@@ -27,7 +30,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Generate a .funscript from video using optical flow motion tracking
+    /// Generate a .funscript from video using optical flow motion tracking or neural ONNX detection
     Generate {
         /// Path to the video file
         video: PathBuf,
@@ -36,17 +39,25 @@ enum Commands {
         #[arg(short, long)]
         output: Option<PathBuf>,
 
+        /// Path to ONNX neural tracking model (e.g. YOLOv12n / FunGen model)
+        #[arg(long)]
+        model: Option<PathBuf>,
+
+        /// Neural detection confidence threshold (defaults to 0.35)
+        #[arg(long, default_value_t = 0.35)]
+        conf: f32,
+
         /// Target processing FPS (defaults to 30.0)
         #[arg(long, default_value_t = 30.0)]
         fps: f64,
 
-        /// Processing frame resolution width (defaults to 256)
-        #[arg(long, default_value_t = 256)]
-        width: u32,
+        /// Processing frame resolution width (defaults to 256 for flow, 640 for neural)
+        #[arg(long)]
+        width: Option<u32>,
 
-        /// Processing frame resolution height (defaults to 256)
-        #[arg(long, default_value_t = 256)]
-        height: u32,
+        /// Processing frame resolution height (defaults to 256 for flow, 640 for neural)
+        #[arg(long)]
+        height: Option<u32>,
 
         /// Detrend window in seconds (defaults to 2.0)
         #[arg(long, default_value_t = 2.0)]
@@ -109,6 +120,8 @@ fn main() -> Result<()> {
         Commands::Generate {
             video,
             output,
+            model,
+            conf,
             fps,
             width,
             height,
@@ -122,12 +135,17 @@ fn main() -> Result<()> {
             cut_diff,
             cut_flow,
         } => {
+            let eff_width = width.unwrap_or(if model.is_some() { 640 } else { 256 });
+            let eff_height = height.unwrap_or(if model.is_some() { 640 } else { 256 });
+
             run_generate(
                 &video,
                 output.as_deref(),
+                model.as_deref(),
+                conf,
                 fps,
-                width,
-                height,
+                eff_width,
+                eff_height,
                 detrend_window,
                 norm_window,
                 batch_size,
@@ -207,6 +225,8 @@ fn run_doctor(script_path: &Path, max_speed: f64) -> Result<()> {
 fn run_generate(
     video_path: &Path,
     output_path: Option<&Path>,
+    model_path: Option<&Path>,
+    conf_threshold: f32,
     target_fps: f64,
     width: u32,
     height: u32,
@@ -227,6 +247,8 @@ fn run_generate(
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| video_path.with_extension("funscript"));
 
+    let is_neural = model_path.is_some();
+
     println!("==================================================");
     println!("Open-FunGen: Video Motion Tracking Engine");
     println!("==================================================");
@@ -234,16 +256,32 @@ fn run_generate(
     println!("Output Script: {}", effective_output.display());
     println!("Original Info: {}x{}, {:.2} FPS, {:.1}s", meta.width, meta.height, meta.fps, meta.duration_secs);
     println!("Tracking Mode: {} | Grid: {}x{} | Target: {:.2} FPS",
-        if vr_mode { "VR 180" } else if pov_mode { "POV" } else { "2D Divergence" },
+        if is_neural { "Neural YOLO (ONNX) + Hybrid Flow" } else if vr_mode { "VR 180 (Optical Flow)" } else if pov_mode { "POV (Optical Flow)" } else { "2D Divergence (Optical Flow)" },
         width, height, target_fps
     );
+    if let Some(m) = model_path {
+        println!("ONNX Model:    {} (conf: {:.2})", m.display(), conf_threshold);
+    }
     println!("--------------------------------------------------");
+
+    let mut neural_detector = if let Some(m) = model_path {
+        Some(NeuralDetector::new(m, conf_threshold)?)
+    } else {
+        None
+    };
+
+    let mut anatomical_tracker = if is_neural {
+        Some(AnatomicalTracker::new())
+    } else {
+        None
+    };
 
     let stream_cfg = StreamConfig {
         target_width: width,
         target_height: height,
         target_fps,
         vr_mode,
+        is_rgb: is_neural,
     };
 
     let mut stream = FrameStreamReader::new(video_path, &stream_cfg)
@@ -259,11 +297,12 @@ fn run_generate(
     );
 
     let mut all_samples: Vec<(f32, bool, i64)> = Vec::new();
+    let mut neural_positions: Vec<(f32, i64)> = Vec::new();
     let mut frame_batch: Vec<(Vec<u8>, i64)> = Vec::with_capacity(batch_size);
 
     // Seed first frame
     let first = stream.next_frame()?.context("Video stream returned zero frames")?;
-    let mut last_frame = first.0;
+    let mut last_raw = first.0;
 
     let mut total_processed = 0u64;
 
@@ -287,9 +326,18 @@ fn run_generate(
         let mut raw_centers = Vec::with_capacity(batch_len);
         let mut cuts = Vec::with_capacity(batch_len);
 
-        for (curr_frame, _curr_ts) in &frame_batch {
-            let is_cut_diff = detect_cut_photometric(&last_frame, curr_frame, cut_diff_threshold);
-            let flow = compute_dense_flow(&last_frame, curr_frame, width as usize, height as usize);
+        for (curr_raw, _curr_ts) in &frame_batch {
+            let (last_gray, curr_gray) = if stream_cfg.is_rgb {
+                (
+                    rgb_to_gray(&last_raw),
+                    rgb_to_gray(curr_raw),
+                )
+            } else {
+                (last_raw.clone(), curr_raw.clone())
+            };
+
+            let is_cut_diff = detect_cut_photometric(&last_gray, &curr_gray, cut_diff_threshold);
+            let flow = compute_dense_flow(&last_gray, &curr_gray, width as usize, height as usize);
             let is_cut_flow = flow.mean_magnitude() > cut_flow_threshold;
             let is_cut = is_cut_diff || is_cut_flow;
 
@@ -304,15 +352,15 @@ fn run_generate(
             raw_centers.push(center);
             cuts.push(is_cut);
 
-            last_frame = curr_frame.clone();
+            last_raw = curr_raw.clone();
         }
 
         // 2. Filter center outliers
         let filtered_centers = filter_centers_median(&raw_centers, 6);
 
-        // 3. Project radial motions
+        // 3. Project radial motions & execute neural tracking if active
         for j in 0..batch_len {
-            let (_, ts) = frame_batch[j];
+            let (ref raw_frame, ts) = frame_batch[j];
             let radial_dot = project_radial_motion(
                 &raw_flows[j],
                 filtered_centers[j],
@@ -321,6 +369,18 @@ fn run_generate(
                 balance_global,
             );
             all_samples.push((radial_dot, cuts[j], ts));
+
+            if let (Some(ref mut detector), Some(ref mut tracker)) =
+                (&mut neural_detector, &mut anatomical_tracker)
+            {
+                let detections = detector.detect(raw_frame, width as usize, height as usize)?;
+                let pos = if let Some((p, _, _)) = tracker.update_from_detections(&detections) {
+                    p
+                } else {
+                    tracker.update_hybrid_fallback(radial_dot)
+                };
+                neural_positions.push((pos, ts));
+            }
         }
 
         total_processed += batch_len as u64;
@@ -334,21 +394,23 @@ fn run_generate(
         anyhow::bail!("No frames were tracked from video");
     }
 
-    println!("-> Integrating motion and filtering signal...");
-    // 4. Numerical Integration
-    let (cum_flow, timestamps) = integrate_flow(&all_samples);
-
-    // 5. Detrending & Rolling Normalization
-    let normalized = detrend_and_normalize(&cum_flow, target_fps, detrend_window, norm_window, 1000.0);
-
-    // 6. Keyframe Extraction
-    println!("-> Extracting keyframe action points...");
-    let actions = extract_actions(&normalized, &timestamps, keyframe_reduction);
+    let actions = if is_neural && !neural_positions.is_empty() {
+        println!("-> Processing neural stroke observations...");
+        let norm_values: Vec<f32> = neural_positions.iter().map(|(p, _)| *p).collect();
+        let timestamps: Vec<i64> = neural_positions.iter().map(|(_, ts)| *ts).collect();
+        extract_actions(&norm_values, &timestamps, keyframe_reduction)
+    } else {
+        println!("-> Integrating optical motion and filtering signal...");
+        let (cum_flow, timestamps) = integrate_flow(&all_samples);
+        let normalized = detrend_and_normalize(&cum_flow, target_fps, detrend_window, norm_window, 1000.0);
+        println!("-> Extracting keyframe action points...");
+        extract_actions(&normalized, &timestamps, keyframe_reduction)
+    };
 
     let mut script = Funscript::new(actions);
     script.sanitize();
 
-    // 7. Save output
+    // Save output
     script.save(&effective_output)?;
     let elapsed = t0.elapsed();
 

@@ -117,6 +117,7 @@ pub struct StreamConfig {
     pub target_height: u32,
     pub target_fps: f64,
     pub vr_mode: bool,
+    pub is_rgb: bool,
 }
 
 impl Default for StreamConfig {
@@ -126,8 +127,23 @@ impl Default for StreamConfig {
             target_height: 256,
             target_fps: 30.0,
             vr_mode: false,
+            is_rgb: false,
         }
     }
+}
+
+/// Convert contiguous RGB bytes into Grayscale bytes (Rec. 601 standard luma)
+pub fn rgb_to_gray(rgb: &[u8]) -> Vec<u8> {
+    let num_pixels = rgb.len() / 3;
+    let mut gray = Vec::with_capacity(num_pixels);
+    for chunk in rgb.chunks_exact(3) {
+        let r = chunk[0] as u32;
+        let g = chunk[1] as u32;
+        let b = chunk[2] as u32;
+        let y = ((r * 77 + g * 150 + b * 29) >> 8) as u8;
+        gray.push(y);
+    }
+    gray
 }
 
 /// High-throughput streaming frame reader
@@ -139,6 +155,8 @@ pub struct FrameStreamReader {
     #[allow(dead_code)]
     pub height: u32,
     pub fps: f64,
+    #[allow(dead_code)]
+    pub is_rgb: bool,
     current_frame: u64,
 }
 
@@ -147,6 +165,7 @@ impl FrameStreamReader {
         let w = config.target_width;
         let h = config.target_height;
         let fps = config.target_fps;
+        let is_rgb = config.is_rgb;
 
         // Build hardware accelerated video filter graph
         let filter = if config.vr_mode {
@@ -158,6 +177,8 @@ impl FrameStreamReader {
         } else {
             format!("fps={:.3},scale={}:{}", fps, w, h)
         };
+
+        let pix_fmt = if is_rgb { "rgb24" } else { "gray" };
 
         let child = Command::new("ffmpeg")
             .args([
@@ -173,7 +194,7 @@ impl FrameStreamReader {
                 "-f",
                 "rawvideo",
                 "-pix_fmt",
-                "gray",
+                pix_fmt,
                 "pipe:1",
             ])
             .stdout(Stdio::piped())
@@ -181,7 +202,8 @@ impl FrameStreamReader {
             .spawn()
             .with_context(|| "Failed to spawn ffmpeg child process")?;
 
-        let frame_bytes = (w * h) as usize;
+        let channels = if is_rgb { 3 } else { 1 };
+        let frame_bytes = (w * h * channels) as usize;
 
         Ok(Self {
             child,
@@ -189,6 +211,7 @@ impl FrameStreamReader {
             width: w,
             height: h,
             fps,
+            is_rgb,
             current_frame: 0,
         })
     }

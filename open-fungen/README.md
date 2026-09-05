@@ -53,8 +53,10 @@ open-fungen generate video.mp4 \
 #### CLI Options:
 - `<VIDEO>`: Input video file.
 - `-o, --output <PATH>`: Destination `.funscript` file (defaults to `<video_name>.funscript`).
+- `--model <PATH>`: Path to ONNX neural tracking model (e.g. YOLOv12n / FunGen model). Automatically enables hybrid neural tracking.
+- `--conf <FLOAT>`: Detection confidence threshold for neural tracking (default: `0.35`).
 - `--fps <FLOAT>`: Processing target frame rate (default: `30.0`).
-- `--width <INT>`, `--height <INT>`: Processing grid dimensions (default: `256x256`).
+- `--width <INT>`, `--height <INT>`: Processing grid dimensions (default: `256` for flow, `640` for neural).
 - `--detrend-window <SECONDS>`: Window for polynomial baseline detrending (default: `2.0`).
 - `--norm-window <SECONDS>`: Window for rolling min-max normalization (default: `3.0`).
 - `--pov`: Enables POV mode (anchors interaction center to bottom-center).
