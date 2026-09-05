@@ -1,6 +1,7 @@
 //! Main Funscript Hub desktop application window.
 
 use anyhow::Context;
+use crate::audio::AudioWaveform;
 use crate::funscript::{diagnose_funscript, DoctorConfig, DoctorReport, Funscript};
 use crate::gui::timeline::{show_timeline, TimelineState};
 use eframe::egui::{
@@ -14,10 +15,11 @@ use std::time::Instant;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HubTab {
-    Timeline,
-    Generator,
-    ScriptDoctor,
-    DeviceSync,
+    Studio,       // F1: Studio Editor (Video Canvas + Keyframe Inspector + Timeline + Waveform)
+    Cinema,       // F2: Cinema Player (Full-window Video Canvas + Floating HUD)
+    Generator,    // F3: Generator Studio
+    ScriptDoctor, // F4: Script Doctor & Repair
+    DeviceSync,   // F5: Device & Hardware Sync
 }
 
 pub enum WorkerMessage {
@@ -39,6 +41,12 @@ pub struct FunGenApp {
     pub doctor_report: Option<DoctorReport>,
     /// User notification or repair action message
     pub status_message: Option<(String, Instant)>,
+
+    // Media & Waveform
+    pub audio_waveform: Option<AudioWaveform>,
+    waveform_rx: Option<Receiver<AudioWaveform>>,
+    pub video_texture: Option<egui::TextureHandle>,
+    pub last_video_frame_ts: i64,
 
     // Playback simulation
     pub is_playing: bool,
@@ -74,12 +82,17 @@ impl Default for FunGenApp {
         let doctor_report = Some(diagnose_funscript(&script, &DoctorConfig::default()));
 
         Self {
-            active_tab: HubTab::Timeline,
+            active_tab: HubTab::Studio,
             script,
             script_path: None,
             timeline_state: TimelineState::default(),
             doctor_report,
             status_message: None,
+
+            audio_waveform: None,
+            waveform_rx: None,
+            video_texture: None,
+            last_video_frame_ts: -999,
 
             is_playing: false,
             playback_speed: 1.0,
@@ -111,13 +124,20 @@ impl Default for FunGenApp {
 
 impl eframe::App for FunGenApp {
     fn update(&mut self, ctx: &EguiContext, _frame: &mut eframe::Frame) {
-        // 1. Poll background worker messages
+        // 1. Poll background messages (generation and audio waveform)
         self.poll_worker();
+        self.poll_waveform();
 
-        // 2. Advance simulated playback if playing
+        // 2. Advance playback clock if playing
         self.update_playback(ctx);
 
-        // 3. Top Menu & Tab Navigation Bar
+        // 3. Handle Keyboard Shortcuts
+        self.handle_shortcuts(ctx);
+
+        // 4. Update video texture frame if cursor timestamp shifted
+        self.update_video_texture(ctx);
+
+        // 5. Top Menu & Tab Navigation Bar
         TopBottomPanel::top("top_menu").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
@@ -145,6 +165,15 @@ impl eframe::App for FunGenApp {
                 });
 
                 ui.menu_button("View", |ui| {
+                    if ui.button("Studio Editor (F1)").clicked() {
+                        self.active_tab = HubTab::Studio;
+                        ui.close_menu();
+                    }
+                    if ui.button("Cinema Player (F2)").clicked() {
+                        self.active_tab = HubTab::Cinema;
+                        ui.close_menu();
+                    }
+                    ui.separator();
                     if ui.button("Zoom In (Scroll Up)").clicked() {
                         self.timeline_state.view_duration_ms =
                             (self.timeline_state.view_duration_ms * 0.75).max(500.0);
@@ -162,7 +191,7 @@ impl eframe::App for FunGenApp {
                 });
 
                 ui.menu_button("Audit", |ui| {
-                    if ui.button("Run Script Doctor").clicked() {
+                    if ui.button("Run Script Doctor (F4)").clicked() {
                         self.run_doctor();
                         self.active_tab = HubTab::ScriptDoctor;
                         ui.close_menu();
@@ -183,11 +212,12 @@ impl eframe::App for FunGenApp {
 
                 ui.separator();
 
-                // Navigation Tabs
-                ui.selectable_value(&mut self.active_tab, HubTab::Timeline, "  Timeline Editor  ");
-                ui.selectable_value(&mut self.active_tab, HubTab::Generator, "  Generator Studio  ");
-                ui.selectable_value(&mut self.active_tab, HubTab::ScriptDoctor, "  Script Doctor & Repair  ");
-                ui.selectable_value(&mut self.active_tab, HubTab::DeviceSync, "  Device & Sync  ");
+                // Navigation Tabs with Function Key Hints
+                ui.selectable_value(&mut self.active_tab, HubTab::Studio, "  Studio Editor (F1)  ");
+                ui.selectable_value(&mut self.active_tab, HubTab::Cinema, "  Cinema Player (F2)  ");
+                ui.selectable_value(&mut self.active_tab, HubTab::Generator, "  Generator (F3)  ");
+                ui.selectable_value(&mut self.active_tab, HubTab::ScriptDoctor, "  Doctor & Repair (F4)  ");
+                ui.selectable_value(&mut self.active_tab, HubTab::DeviceSync, "  Device & Sync (F5)  ");
 
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     if self.is_generating {
@@ -207,18 +237,19 @@ impl eframe::App for FunGenApp {
             });
         });
 
-        // 4. Central Panel Rendered based on Active Tab
+        // 6. Central Panel Rendered based on Active Tab
         egui::CentralPanel::default().show(ctx, |ui| {
             match self.active_tab {
-                HubTab::Timeline => self.render_timeline_view(ui),
+                HubTab::Studio => self.render_studio_view(ui),
+                HubTab::Cinema => self.render_cinema_view(ui),
                 HubTab::Generator => self.render_generator_view(ui),
                 HubTab::ScriptDoctor => self.render_doctor_view(ui),
                 HubTab::DeviceSync => self.render_device_sync_view(ui),
             }
         });
 
-        // Request repaint if generating
-        if self.is_generating {
+        // Request repaint if playing or generating
+        if self.is_playing || self.is_generating {
             ctx.request_repaint();
         }
     }
@@ -227,6 +258,82 @@ impl eframe::App for FunGenApp {
 impl FunGenApp {
     fn set_status(&mut self, msg: String) {
         self.status_message = Some((msg, Instant::now()));
+    }
+
+    fn handle_shortcuts(&mut self, ctx: &EguiContext) {
+        if ctx.input(|i| i.key_pressed(egui::Key::F1)) {
+            self.active_tab = HubTab::Studio;
+        }
+        if ctx.input(|i| i.key_pressed(egui::Key::F2)) {
+            self.active_tab = HubTab::Cinema;
+        }
+        if ctx.input(|i| i.key_pressed(egui::Key::F3)) {
+            self.active_tab = HubTab::Generator;
+        }
+        if ctx.input(|i| i.key_pressed(egui::Key::F4)) {
+            self.active_tab = HubTab::ScriptDoctor;
+        }
+        if ctx.input(|i| i.key_pressed(egui::Key::F5)) {
+            self.active_tab = HubTab::DeviceSync;
+        }
+
+        // Playback and frame stepping hotkeys (when not typing in an input field)
+        if !ctx.wants_keyboard_input() {
+            if ctx.input(|i| i.key_pressed(egui::Key::Space)) {
+                self.is_playing = !self.is_playing;
+            }
+            if ctx.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {
+                let step = if ctx.input(|i| i.modifiers.shift) { 1000 } else { 33 };
+                self.timeline_state.cursor_time_ms = (self.timeline_state.cursor_time_ms - step).max(0);
+            }
+            if ctx.input(|i| i.key_pressed(egui::Key::ArrowRight)) {
+                let step = if ctx.input(|i| i.modifiers.shift) { 1000 } else { 33 };
+                let dur = self.script.actions.last().map(|a| a.at).unwrap_or(0);
+                self.timeline_state.cursor_time_ms = (self.timeline_state.cursor_time_ms + step).min(dur.max(step));
+            }
+            if ctx.input(|i| i.key_pressed(egui::Key::Home)) {
+                self.timeline_state.cursor_time_ms = 0;
+            }
+            if ctx.input(|i| i.key_pressed(egui::Key::End)) {
+                let dur = self.script.actions.last().map(|a| a.at).unwrap_or(0);
+                self.timeline_state.cursor_time_ms = dur;
+            }
+        }
+    }
+
+    fn update_video_texture(&mut self, ctx: &EguiContext) {
+        let video_path = match self.video_path.as_ref() {
+            Some(p) => p,
+            None => return,
+        };
+
+        let cur_time = self.timeline_state.cursor_time_ms;
+        // Don't re-extract if timestamp hasn't changed significantly (within 20ms)
+        if (cur_time - self.last_video_frame_ts).abs() < 20 && self.video_texture.is_some() {
+            return;
+        }
+
+        let w = 480;
+        let h = 270;
+        if let Ok(raw_rgb) = crate::video::extract_frame_at(video_path, cur_time, w, h) {
+            let color_image = egui::ColorImage::from_rgb([w as usize, h as usize], &raw_rgb);
+            self.video_texture = Some(ctx.load_texture(
+                "current_video_frame",
+                color_image,
+                egui::TextureOptions::LINEAR,
+            ));
+            self.last_video_frame_ts = cur_time;
+        }
+    }
+
+    fn poll_waveform(&mut self) {
+        if let Some(ref rx) = self.waveform_rx {
+            if let Ok(wf) = rx.try_recv() {
+                self.audio_waveform = Some(wf);
+                self.waveform_rx = None;
+                self.set_status("Audio waveform extracted and loaded".to_string());
+            }
+        }
     }
 
     fn update_playback(&mut self, ctx: &EguiContext) {
@@ -279,8 +386,8 @@ impl FunGenApp {
                             self.run_doctor();
                             self.fit_timeline();
                             self.generation_status = "Generation Complete!".to_string();
-                            self.set_status("Generation complete! Loaded into Timeline Editor.".to_string());
-                            self.active_tab = HubTab::Timeline;
+                            self.set_status("Generation complete! Loaded into Studio Editor.".to_string());
+                            self.active_tab = HubTab::Studio;
                         }
                         Err(e) => {
                             self.generation_status = format!("Error: {e}");
@@ -292,12 +399,65 @@ impl FunGenApp {
     }
 
     // =========================================================================
-    // View 1: Timeline Editor
+    // View 1: Studio Editor (F1)
     // =========================================================================
-    fn render_timeline_view(&mut self, ui: &mut Ui) {
-        // Playback & Scrubbing Controller Bar
+    fn render_studio_view(&mut self, ui: &mut Ui) {
+        let duration_ms = self.script.actions.last().map(|a| a.at).unwrap_or(0);
+
+        // Top Section: Embedded Synchronized Video + Inspector Sidebar
+        let top_height = 240.0;
+        ui.allocate_ui(egui::vec2(ui.available_width(), top_height), |ui| {
+            ui.horizontal(|ui| {
+                // Embedded Video Canvas
+                let video_w = 426.0;
+                let video_h = 240.0;
+                ui.group(|ui| {
+                    ui.set_width(video_w);
+                    ui.set_height(video_h);
+
+                    if let Some(ref tex) = self.video_texture {
+                        ui.image((tex.id(), egui::vec2(video_w - 8.0, video_h - 26.0)));
+                    } else if let Some(ref p) = self.video_path {
+                        ui.vertical_centered(|ui| {
+                            ui.add_space(80.0);
+                            ui.label(RichText::new(p.file_name().unwrap_or_default().to_string_lossy()).strong());
+                            ui.label(RichText::new("Loading video frames...").size(11.0).color(Color32::GRAY));
+                        });
+                    } else {
+                        ui.vertical_centered(|ui| {
+                            ui.add_space(80.0);
+                            ui.label(RichText::new("No Video Loaded").color(Color32::GRAY));
+                            if ui.button("Select Video...").clicked() {
+                                self.select_video_dialog();
+                            }
+                        });
+                    }
+
+                    // Video caption overlay
+                    ui.horizontal(|ui| {
+                        let cur_time_str = format_ms(self.timeline_state.cursor_time_ms);
+                        ui.monospace(RichText::new(format!("Frame Time: {cur_time_str}")).size(10.0));
+                    });
+                });
+
+                ui.separator();
+
+                // Keyframe Inspector & Quick Health
+                ui.vertical(|ui| {
+                    ui.set_width(ui.available_width() - 8.0);
+                    self.render_selected_action_editor(ui);
+                    ui.separator();
+                    self.render_quick_doctor_summary(ui);
+                });
+            });
+        });
+
+        ui.add_space(4.0);
+        ui.separator();
+
+        // Bottom Section: Playback Controller + Timeline Canvas & Audio Waveform
         ui.horizontal(|ui| {
-            let play_label = if self.is_playing { "⏸ Pause" } else { "▶ Play" };
+            let play_label = if self.is_playing { "⏸ Pause (Space)" } else { "▶ Play (Space)" };
             if ui.button(play_label).clicked() {
                 self.is_playing = !self.is_playing;
             }
@@ -305,8 +465,12 @@ impl FunGenApp {
             if ui.button("⏮ Start").clicked() {
                 self.timeline_state.cursor_time_ms = 0;
             }
-
-            let duration_ms = self.script.actions.last().map(|a| a.at).unwrap_or(0);
+            if ui.button("◀ 1F").clicked() {
+                self.timeline_state.cursor_time_ms = (self.timeline_state.cursor_time_ms - 33).max(0);
+            }
+            if ui.button("1F ▶").clicked() {
+                self.timeline_state.cursor_time_ms = (self.timeline_state.cursor_time_ms + 33).min(duration_ms.max(33));
+            }
             if ui.button("⏭ End").clicked() {
                 self.timeline_state.cursor_time_ms = duration_ms;
             }
@@ -346,7 +510,6 @@ impl FunGenApp {
         });
 
         // Time scrubber slider
-        let duration_ms = self.script.actions.last().map(|a| a.at).unwrap_or(0);
         if duration_ms > 0 {
             ui.add(
                 Slider::new(&mut self.timeline_state.cursor_time_ms, 0..=duration_ms)
@@ -355,40 +518,110 @@ impl FunGenApp {
             );
         }
 
-        ui.separator();
+        ui.add_space(2.0);
 
-        // Split view: Main Timeline Canvas + Right Inspector Sidebar
-        ui.horizontal(|ui| {
-            // Main Timeline Canvas
-            let sidebar_width = 240.0;
-            let canvas_width = (ui.available_width() - sidebar_width - 12.0).max(400.0);
+        // Timeline Canvas with Audio Waveform
+        ui.label(
+            RichText::new("Timeline Curve & Audio Waveform | Left Drag: Keyframe | Double-Click: Add | Scroll: Zoom | Middle/Ctrl+Drag: Pan | Arrows: Step Frame")
+                .size(11.0)
+                .color(Color32::from_rgb(130, 140, 155)),
+        );
 
-            ui.allocate_ui(egui::vec2(canvas_width, ui.available_height()), |ui| {
-                ui.label(
-                    RichText::new("Scroll: Zoom | Middle/Ctrl+Drag: Pan | Left Drag: Move Keyframe | Double-Click: Add | Right-Click/Delete: Remove")
-                        .size(11.0)
-                        .color(Color32::from_rgb(130, 140, 155)),
-                );
-                ui.add_space(2.0);
+        show_timeline(
+            ui,
+            &mut self.script,
+            &mut self.timeline_state,
+            self.doctor_report.as_ref(),
+            self.audio_waveform.as_ref(),
+        );
+    }
 
-                show_timeline(
-                    ui,
-                    &mut self.script,
-                    &mut self.timeline_state,
-                    self.doctor_report.as_ref(),
-                );
+    // =========================================================================
+    // View 2: Cinema Player (F2)
+    // =========================================================================
+    fn render_cinema_view(&mut self, ui: &mut Ui) {
+        let avail_rect = ui.available_rect_before_wrap();
+        let cur_pos = self.script.interpolate_position(self.timeline_state.cursor_time_ms);
+
+        // 1. Full-Window Video Canvas
+        if let Some(ref tex) = self.video_texture {
+            let img_h = (avail_rect.height() - 70.0).max(200.0);
+            let img_w = (img_h * (16.0 / 9.0)).min(avail_rect.width());
+            let center_x = avail_rect.center().x;
+            let video_rect = egui::Rect::from_center_size(
+                egui::pos2(center_x, avail_rect.top() + img_h / 2.0),
+                egui::vec2(img_w, img_h),
+            );
+            ui.painter().image(
+                tex.id(),
+                video_rect,
+                egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                Color32::WHITE,
+            );
+        } else {
+            ui.vertical_centered(|ui| {
+                ui.add_space(avail_rect.height() * 0.35);
+                ui.heading("Cinema Player Mode");
+                ui.label("No video loaded for playback.");
+                if ui.button("Select Video...").clicked() {
+                    self.select_video_dialog();
+                }
             });
+        }
 
-            ui.separator();
+        // 2. Floating Bottom HUD (Auto-Hiding Controls & Live Stroke Position)
+        let hud_rect = egui::Rect::from_min_max(
+            egui::pos2(avail_rect.left(), avail_rect.bottom() - 65.0),
+            avail_rect.max,
+        );
+        ui.allocate_new_ui(egui::UiBuilder::new().max_rect(hud_rect), |ui| {
+            ui.painter().rect_filled(ui.available_rect_before_wrap(), 4.0, Color32::from_rgba_unmultiplied(18, 20, 26, 230));
+                ui.add_space(4.0);
 
-            // Right Inspector Sidebar
-            ui.vertical(|ui| {
-                ui.set_width(sidebar_width);
-                self.render_selected_action_editor(ui);
-                ui.separator();
-                self.render_quick_doctor_summary(ui);
-            });
-        });
+                ui.horizontal(|ui| {
+                    let play_label = if self.is_playing { "⏸ Pause" } else { "▶ Play" };
+                    if ui.button(play_label).clicked() {
+                        self.is_playing = !self.is_playing;
+                    }
+                    if ui.button("⏮").clicked() {
+                        self.timeline_state.cursor_time_ms = 0;
+                    }
+
+                    let cur_time_str = format_ms(self.timeline_state.cursor_time_ms);
+                    let dur_ms = self.script.actions.last().map(|a| a.at).unwrap_or(0);
+                    let dur_str = format_ms(dur_ms);
+                    ui.monospace(format!("{cur_time_str} / {dur_str}"));
+
+                    // Live Haptic Gauge Bar
+                    ui.separator();
+                    ui.label(RichText::new("Haptic Stroke:").size(11.0));
+                    let (gauge_rect, _) = ui.allocate_exact_size(egui::vec2(160.0, 16.0), egui::Sense::hover());
+                    ui.painter().rect_filled(gauge_rect, 2.0, Color32::from_rgb(30, 35, 45));
+                    let fill_w = (cur_pos / 100.0) * gauge_rect.width();
+                    let fill_rect = egui::Rect::from_min_max(gauge_rect.min, egui::pos2(gauge_rect.left() + fill_w, gauge_rect.bottom()));
+                    ui.painter().rect_filled(fill_rect, 2.0, Color32::from_rgb(0, 200, 255));
+                    ui.strong(format!("{:.0}%", cur_pos));
+
+                    // Telemetry & Studio button
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        if ui.button("Exit to Studio (F1)").clicked() {
+                            self.active_tab = HubTab::Studio;
+                        }
+                        ui.monospace(format!("T-Code: L0{:03}", (cur_pos * 10.0).round() as i32));
+                    });
+                });
+
+                // Scrubber slider
+                let duration_ms = self.script.actions.last().map(|a| a.at).unwrap_or(0);
+                if duration_ms > 0 {
+                    ui.add(
+                        Slider::new(&mut self.timeline_state.cursor_time_ms, 0..=duration_ms)
+                            .show_value(false)
+                            .trailing_fill(true),
+                    );
+                }
+            },
+        );
     }
 
     fn render_selected_action_editor(&mut self, ui: &mut Ui) {
@@ -419,7 +652,7 @@ impl FunGenApp {
                 }
             }
         } else {
-            ui.label(RichText::new("Click a keyframe node to edit.").color(Color32::GRAY));
+            ui.label(RichText::new("Click a keyframe node on the timeline to edit.").color(Color32::GRAY));
         }
     }
 
@@ -439,15 +672,15 @@ impl FunGenApp {
             ui.label(format!("Max Speed: {:.0} u/s", rep.max_speed_units_per_sec));
             ui.label(format!("Violations: {}", rep.speed_violations_count));
 
-            ui.add_space(6.0);
-            if ui.button("Open Full Doctor & Repair").clicked() {
+            ui.add_space(4.0);
+            if ui.button("Open Full Doctor & Repair (F4)").clicked() {
                 self.active_tab = HubTab::ScriptDoctor;
             }
         }
     }
 
     // =========================================================================
-    // View 2: Generator Studio
+    // View 3: Generator Studio (F3)
     // =========================================================================
     fn render_generator_view(&mut self, ui: &mut Ui) {
         ScrollArea::vertical().show(ui, |ui| {
@@ -563,7 +796,7 @@ impl FunGenApp {
     }
 
     // =========================================================================
-    // View 3: Script Doctor & Repair
+    // View 4: Script Doctor & Repair (F4)
     // =========================================================================
     fn render_doctor_view(&mut self, ui: &mut Ui) {
         ScrollArea::vertical().show(ui, |ui| {
@@ -670,7 +903,7 @@ impl FunGenApp {
                             ui.label(&issue.description);
                             if ui.button("Jump").clicked() {
                                 self.timeline_state.cursor_time_ms = issue.timestamp_ms;
-                                self.active_tab = HubTab::Timeline;
+                                self.active_tab = HubTab::Studio;
                             }
                         });
                         if i < rep.issues.len() - 1 {
@@ -685,7 +918,7 @@ impl FunGenApp {
     }
 
     // =========================================================================
-    // View 4: Device & Sync
+    // View 5: Device & Sync (F5)
     // =========================================================================
     fn render_device_sync_view(&mut self, ui: &mut Ui) {
         ui.heading("Hardware Device & T-Code Sync");
@@ -729,7 +962,7 @@ impl FunGenApp {
             ui.vertical(|ui| {
                 ui.group(|ui| {
                     ui.heading("T-Code v0.3 Telemetry Stream");
-                    ui.monospace(format!("Target Axis:   L0 (Main Stroke)"));
+                    ui.monospace("Target Axis:   L0 (Main Stroke)");
                     ui.monospace(format!("Command Feed:  {tcode_cmd}"));
                     ui.monospace(format!("Playhead Time: {} ms", self.timeline_state.cursor_time_ms));
                     ui.monospace(format!("Playback:      {}", if self.is_playing { "Active (Streaming)" } else { "Paused" }));
@@ -931,7 +1164,21 @@ impl FunGenApp {
                     meta.width, meta.height, meta.fps, meta.duration_secs, meta.total_frames
                 ));
             }
-            self.video_path = Some(path);
+            self.video_path = Some(path.clone());
+
+            // Extract audio waveform in background thread
+            let (tx, rx) = channel();
+            self.waveform_rx = Some(rx);
+            let path_for_audio = path.clone();
+            thread::spawn(move || {
+                let wf = crate::audio::extract_audio_waveform(&path_for_audio).unwrap_or_default();
+                let _ = tx.send(wf);
+            });
+
+            // Reset video frame cache
+            self.last_video_frame_ts = -999;
+            self.video_texture = None;
+            self.set_status(format!("Selected video: {}", path.file_name().unwrap_or_default().to_string_lossy()));
         }
     }
 

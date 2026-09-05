@@ -64,6 +64,7 @@ pub fn show_timeline(
     script: &mut Funscript,
     state: &mut TimelineState,
     doctor_report: Option<&DoctorReport>,
+    waveform: Option<&crate::audio::AudioWaveform>,
 ) -> Response {
     let desired_size = vec2(ui.available_width(), ui.available_height().max(280.0));
     let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click_and_drag());
@@ -97,6 +98,9 @@ pub fn show_timeline(
     // 2. Render Canvas Background & Grids
     painter.rect_filled(rect, 4.0, Color32::from_rgb(22, 24, 29));
     draw_grids(&painter, rect, state);
+
+    // 2b. Render Audio Waveform (translucent acoustic bars under curve)
+    draw_audio_waveform(&painter, rect, state, waveform);
 
     // 3. Render Action Curve & Highlights
     draw_action_curve(&painter, rect, script, state, doctor_report);
@@ -169,6 +173,36 @@ fn draw_grids(painter: &Painter, rect: Rect, state: &TimelineState) {
             }
         }
         t += step_ms as i64;
+    }
+}
+
+fn draw_audio_waveform(
+    painter: &Painter,
+    rect: Rect,
+    state: &TimelineState,
+    waveform: Option<&crate::audio::AudioWaveform>,
+) {
+    let wf = match waveform {
+        Some(w) if !w.is_empty() => w,
+        _ => return,
+    };
+
+    let base_y = TimelineState::pos_to_screen_y(0, rect);
+    let max_height = (rect.height() * 0.35).min(100.0);
+    let bar_color = Color32::from_rgba_unmultiplied(0, 180, 240, 65);
+
+    let mut x = rect.left();
+    while x <= rect.right() {
+        let time_ms = state.screen_x_to_time(x, rect);
+        let peak = wf.get_peak_at(time_ms);
+        if peak > 0.02 {
+            let bar_h = peak * max_height;
+            painter.line_segment(
+                [pos2(x, base_y), pos2(x, base_y - bar_h)],
+                Stroke::new(1.8f32, bar_color),
+            );
+        }
+        x += 2.0;
     }
 }
 

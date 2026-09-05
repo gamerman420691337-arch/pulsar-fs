@@ -244,3 +244,65 @@ impl Drop for FrameStreamReader {
         let _ = self.child.wait();
     }
 }
+
+/// Extract a single frame at a specific timestamp in milliseconds.
+/// Returns RGB24 bytes of dimensions `target_width x target_height`.
+pub fn extract_frame_at<P: AsRef<Path>>(
+    video_path: P,
+    time_ms: i64,
+    target_width: u32,
+    target_height: u32,
+) -> Result<Vec<u8>> {
+    let time_secs = (time_ms.max(0) as f64 / 1000.0).max(0.0);
+    let scale_filter = format!("scale={}:{}", target_width, target_height);
+
+    let output = Command::new("ffmpeg")
+        .args([
+            "-nostdin",
+            "-ss",
+            &format!("{:.3}", time_secs),
+            "-i",
+        ])
+        .arg(video_path.as_ref())
+        .args([
+            "-vframes",
+            "1",
+            "-vf",
+            &scale_filter,
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            "pipe:1",
+        ])
+        .output()
+        .with_context(|| "Failed to execute ffmpeg for single-frame extraction")?;
+
+    let expected_bytes = (target_width * target_height * 3) as usize;
+    if output.stdout.len() >= expected_bytes {
+        Ok(output.stdout[..expected_bytes].to_vec())
+    } else {
+        bail!(
+            "Insufficient bytes returned by ffmpeg for frame at {}ms (expected {}, got {})",
+            time_ms,
+            expected_bytes,
+            output.stdout.len()
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_frame_from_synth_video() {
+        let path = Path::new("/tmp/test_synth_rust.mp4");
+        if path.exists() {
+            let res = extract_frame_at(path, 500, 64, 64);
+            assert!(res.is_ok());
+            let bytes = res.unwrap();
+            assert_eq!(bytes.len(), 64 * 64 * 3);
+        }
+    }
+}
