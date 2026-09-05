@@ -5,7 +5,7 @@ use crate::audio::AudioWaveform;
 use crate::batch::queue::{BatchJob, BatchJobConfig, BatchJobStatus, BatchProgressUpdate, BatchQueue, BatchWorker};
 use crate::funscript::{
     diagnose_funscript, AxisChannel, DoctorConfig, DoctorReport, Funscript, InfillPattern,
-    MultiAxisScript,
+    MultiAxisScript, UndoHistory,
 };
 use crate::gui::timeline::{show_timeline, TimelineState};
 use crate::kinematics::{
@@ -84,6 +84,8 @@ pub struct FunGenApp {
     pub doctor_report: Option<DoctorReport>,
     /// User notification or repair action message
     pub status_message: Option<(String, Instant)>,
+    /// Undo/redo history engine
+    pub undo_history: UndoHistory,
 
     // Media & Waveform
     pub audio_waveform: Option<AudioWaveform>,
@@ -180,6 +182,7 @@ impl Default for FunGenApp {
             timeline_state: TimelineState::default(),
             doctor_report,
             status_message: None,
+            undo_history: UndoHistory::default(),
 
             audio_waveform: None,
             waveform_rx: None,
@@ -290,6 +293,48 @@ impl eframe::App for FunGenApp {
                     }
                 });
 
+                ui.menu_button("Edit", |ui| {
+                    if ui.add_enabled(self.undo_history.can_undo(), egui::Button::new("↶ Undo (Ctrl+Z)")).clicked() {
+                        self.perform_undo();
+                        ui.close_menu();
+                    }
+                    if ui.add_enabled(self.undo_history.can_redo(), egui::Button::new("↷ Redo (Ctrl+Y)")).clicked() {
+                        self.perform_redo();
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    let has_selection = self.timeline_state.selected_index.is_some();
+                    if ui.add_enabled(has_selection, egui::Button::new("🗑 Delete Selected Keyframe (Del)")).clicked() {
+                        if let Some(idx) = self.timeline_state.selected_index {
+                            if idx < self.script.actions.len() {
+                                self.undo_history.push_snapshot(&self.script);
+                                self.script.actions.remove(idx);
+                                self.timeline_state.selected_index = None;
+                                self.run_doctor();
+                                self.set_status("Deleted selected keyframe".to_string());
+                            }
+                        }
+                        ui.close_menu();
+                    }
+                    if ui.button("Invert Positions (0 ↔ 100)").clicked() {
+                        self.undo_history.push_snapshot(&self.script);
+                        self.script.invert_positions();
+                        self.run_doctor();
+                        self.set_status("Inverted all keyframe positions".to_string());
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    let snap_label = if self.timeline_state.magnetic_snapping {
+                        "Disable Magnetic Audio Snapping (M)"
+                    } else {
+                        "Enable Magnetic Audio Snapping (M)"
+                    };
+                    if ui.button(snap_label).clicked() {
+                        self.timeline_state.magnetic_snapping = !self.timeline_state.magnetic_snapping;
+                        ui.close_menu();
+                    }
+                });
+
                 ui.menu_button("View", |ui| {
                     if ui.button("Studio Editor (F1)").clicked() {
                         self.active_tab = HubTab::Studio;
@@ -322,13 +367,30 @@ impl eframe::App for FunGenApp {
                         self.active_tab = HubTab::ScriptDoctor;
                         ui.close_menu();
                     }
-                    if ui.button("Quick Fix Speed Violations").clicked() {
+                    ui.separator();
+                    if ui.button("⚡ Fix All Issues (1-Click Safe Auto-Repair)").clicked() {
+                        self.undo_history.push_snapshot(&self.script);
+                        let clamped = self.script.fix_speed_violations(450.0);
+                        let removed_jitters = self.script.remove_micro_jitters(20, 2);
+                        let initial = self.script.actions.len();
+                        self.script.sanitize();
+                        let deduped = initial - self.script.actions.len();
+                        self.run_doctor();
+                        self.set_status(format!(
+                            "Safe Auto-Repair complete: clamped {} speeds, removed {} jitters, deduplicated {} points",
+                            clamped, removed_jitters, deduped
+                        ));
+                        ui.close_menu();
+                    }
+                    if ui.button("Quick Fix Speed Violations (450 u/s)").clicked() {
+                        self.undo_history.push_snapshot(&self.script);
                         let fixed = self.script.fix_speed_violations(450.0);
                         self.run_doctor();
                         self.set_status(format!("Clamped {} speed violations to safe limits", fixed));
                         ui.close_menu();
                     }
                     if ui.button("Remove Micro-Jitters (<20ms)").clicked() {
+                        self.undo_history.push_snapshot(&self.script);
                         let removed = self.script.remove_micro_jitters(20, 2);
                         self.run_doctor();
                         self.set_status(format!("Removed {} micro-jitter keyframes", removed));
@@ -426,7 +488,34 @@ impl FunGenApp {
         self.set_status(format!("Switched active channel to {}", new_axis.display_name()));
     }
 
+    pub fn perform_undo(&mut self) {
+        if self.undo_history.undo(&mut self.script) {
+            self.timeline_state.selected_index = None;
+            self.run_doctor();
+            self.set_status("Undid last action (Ctrl+Z)".to_string());
+        }
+    }
+
+    pub fn perform_redo(&mut self) {
+        if self.undo_history.redo(&mut self.script) {
+            self.timeline_state.selected_index = None;
+            self.run_doctor();
+            self.set_status("Redid action (Ctrl+Y)".to_string());
+        }
+    }
+
     fn handle_shortcuts(&mut self, ctx: &EguiContext) {
+        // Global Undo / Redo shortcuts
+        if ctx.input(|i| (i.modifiers.command || i.modifiers.ctrl) && i.key_pressed(egui::Key::Z) && !i.modifiers.shift) {
+            self.perform_undo();
+        }
+        if ctx.input(|i| {
+            let ctrl = i.modifiers.command || i.modifiers.ctrl;
+            (ctrl && i.key_pressed(egui::Key::Y)) || (ctrl && i.modifiers.shift && i.key_pressed(egui::Key::Z))
+        }) {
+            self.perform_redo();
+        }
+
         if ctx.input(|i| i.key_pressed(egui::Key::F1)) {
             self.active_tab = HubTab::Studio;
         }
@@ -446,8 +535,38 @@ impl FunGenApp {
             self.active_tab = HubTab::Automation;
         }
 
-        // Playback, frame stepping, and axis channel hotkeys (when not typing in an input field)
+        // Editing, playback, frame stepping, and axis channel hotkeys (when not typing in an input field)
         if !ctx.wants_keyboard_input() {
+            // Delete / Backspace: delete selected keyframe
+            if ctx.input(|i| i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace)) {
+                if let Some(idx) = self.timeline_state.selected_index {
+                    if idx < self.script.actions.len() {
+                        self.undo_history.push_snapshot(&self.script);
+                        self.script.actions.remove(idx);
+                        self.timeline_state.selected_index = None;
+                        self.run_doctor();
+                        self.set_status("Deleted selected keyframe".to_string());
+                    }
+                }
+            }
+
+            // M: Toggle magnetic audio snapping
+            if ctx.input(|i| i.key_pressed(egui::Key::M)) {
+                self.timeline_state.magnetic_snapping = !self.timeline_state.magnetic_snapping;
+                let s = if self.timeline_state.magnetic_snapping { "enabled" } else { "disabled" };
+                self.set_status(format!("Magnetic audio snapping {}", s));
+            }
+
+            // [ / ]: Playback speed adjustment
+            if ctx.input(|i| i.key_pressed(egui::Key::OpenBracket)) {
+                self.playback_speed = (self.playback_speed - 0.25).max(0.25);
+                self.set_status(format!("Playback speed: {:.2}x", self.playback_speed));
+            }
+            if ctx.input(|i| i.key_pressed(egui::Key::CloseBracket)) {
+                self.playback_speed = (self.playback_speed + 0.25).min(3.0);
+                self.set_status(format!("Playback speed: {:.2}x", self.playback_speed));
+            }
+
             // Hotkeys 1-7: Switch active multi-axis channel
             if ctx.input(|i| i.key_pressed(egui::Key::Num1)) { self.switch_axis(AxisChannel::Stroke); }
             if ctx.input(|i| i.key_pressed(egui::Key::Num2)) { self.switch_axis(AxisChannel::Surge); }
@@ -851,6 +970,14 @@ impl FunGenApp {
             }
 
             ui.separator();
+            if ui.add_enabled(self.undo_history.can_undo(), egui::Button::new("↶ Undo")).clicked() {
+                self.perform_undo();
+            }
+            if ui.add_enabled(self.undo_history.can_redo(), egui::Button::new("↷ Redo")).clicked() {
+                self.perform_redo();
+            }
+
+            ui.separator();
 
             // Playback speed selector
             ui.label("Speed:");
@@ -991,6 +1118,7 @@ impl FunGenApp {
             self.infill_dialog_open = open;
 
             if do_generate {
+                self.undo_history.push_snapshot(&self.script);
                 self.script.infill_pattern(
                     self.infill_start_ms,
                     self.infill_end_ms,
@@ -1050,6 +1178,7 @@ impl FunGenApp {
             self.audio_waveform.as_ref(),
             if ghost_data.is_empty() { None } else { Some(&ghost_data) },
             active_color,
+            Some(&mut self.undo_history),
         );
     }
 
@@ -1161,6 +1290,13 @@ impl FunGenApp {
                 let dur_str = format_ms(dur_ms);
                 ui.monospace(format!("{cur_time_str} / {dur_str}"));
 
+                // Playback speed selector
+                ui.separator();
+                ui.selectable_value(&mut self.playback_speed, 0.5, "0.5x");
+                ui.selectable_value(&mut self.playback_speed, 1.0, "1.0x");
+                ui.selectable_value(&mut self.playback_speed, 1.5, "1.5x");
+                ui.selectable_value(&mut self.playback_speed, 2.0, "2.0x");
+
                 // Live Haptic Gauge Bar
                 ui.separator();
                 ui.label(RichText::new("Haptic Stroke:").size(11.0));
@@ -1232,9 +1368,11 @@ impl FunGenApp {
                     self.timeline_state.cursor_time_ms = action_at;
                 }
                 if delete_clicked {
+                    self.undo_history.push_snapshot(&self.script);
                     self.script.actions.remove(idx);
                     self.timeline_state.selected_index = None;
                     self.run_doctor();
+                    self.set_status("Deleted keyframe".to_string());
                 }
             }
         } else {
@@ -1246,16 +1384,19 @@ impl FunGenApp {
         ui.label(RichText::new("Channel Transformations:").size(11.0).strong());
         ui.horizontal(|ui| {
             if ui.button("Invert (100-P)").clicked() {
+                self.undo_history.push_snapshot(&self.script);
                 self.script.invert_positions();
                 self.run_doctor();
                 self.set_status("Inverted channel positions".to_string());
             }
             if ui.button("Scale 1.1x").clicked() {
+                self.undo_history.push_snapshot(&self.script);
                 self.script.scale_amplitude(1.1, 50);
                 self.run_doctor();
                 self.set_status("Scaled amplitude up 10%".to_string());
             }
             if ui.button("Scale 0.9x").clicked() {
+                self.undo_history.push_snapshot(&self.script);
                 self.script.scale_amplitude(0.9, 50);
                 self.run_doctor();
                 self.set_status("Scaled amplitude down 10%".to_string());
@@ -1470,19 +1611,38 @@ impl FunGenApp {
                 ui.group(|ui| {
                     ui.heading("Automated Repair Tools");
                     ui.horizontal(|ui| {
-                        if ui.button("⚡ Clamp Speed Violations (450 u/s)").clicked() {
+                        if ui.button(RichText::new("⚡ Fix All Issues (1-Click Safe Auto-Repair)").strong().color(Color32::from_rgb(0, 240, 255))).clicked() {
+                            self.undo_history.push_snapshot(&self.script);
+                            let clamped = self.script.fix_speed_violations(450.0);
+                            let removed_jitters = self.script.remove_micro_jitters(20, 2);
+                            let initial = self.script.actions.len();
+                            self.script.sanitize();
+                            let deduped = initial - self.script.actions.len();
+                            self.run_doctor();
+                            self.set_status(format!(
+                                "Safe Auto-Repair complete: clamped {} speeds, removed {} jitters, deduplicated {} points",
+                                clamped, removed_jitters, deduped
+                            ));
+                        }
+                    });
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        if ui.button("Clamp Speed Violations (450 u/s)").clicked() {
+                            self.undo_history.push_snapshot(&self.script);
                             let fixed = self.script.fix_speed_violations(450.0);
                             self.run_doctor();
                             self.set_status(format!("Clamped {} speed violations to safe limits", fixed));
                         }
 
                         if ui.button("🧹 Remove Micro-Jitters").clicked() {
+                            self.undo_history.push_snapshot(&self.script);
                             let removed = self.script.remove_micro_jitters(20, 2);
                             self.run_doctor();
                             self.set_status(format!("Removed {} micro-jitter keyframes", removed));
                         }
 
                         if ui.button("✨ Sort & Deduplicate").clicked() {
+                            self.undo_history.push_snapshot(&self.script);
                             let initial = self.script.actions.len();
                             self.script.sanitize();
                             let removed = initial - self.script.actions.len();
@@ -1511,6 +1671,7 @@ impl FunGenApp {
                             ui.label(&issue.description);
                             if ui.button("Jump").clicked() {
                                 self.timeline_state.cursor_time_ms = issue.timestamp_ms;
+                                self.timeline_state.view_start_ms = (issue.timestamp_ms as f64 - self.timeline_state.view_duration_ms / 2.0).max(0.0);
                                 self.active_tab = HubTab::Studio;
                             }
                         });
@@ -1988,6 +2149,7 @@ impl FunGenApp {
                 self.multi_axis = bundle;
                 self.active_axis = AxisChannel::Stroke;
                 self.script = self.multi_axis.get_or_create(AxisChannel::Stroke).clone();
+                self.undo_history.clear();
                 self.script_path = Some(path.clone());
                 self.run_doctor();
                 self.fit_timeline();
@@ -2118,6 +2280,7 @@ impl FunGenApp {
 
             match self.plugin_host.apply_by_id(&plugin_meta.id, &in_range, &params) {
                 Ok(transformed) => {
+                    self.undo_history.push_snapshot(&self.script);
                     let mut combined = before;
                     combined.extend(transformed);
                     combined.extend(after);
@@ -2133,6 +2296,7 @@ impl FunGenApp {
         } else {
             match self.plugin_host.apply_by_id(&plugin_meta.id, &self.script.actions, &params) {
                 Ok(transformed) => {
+                    self.undo_history.push_snapshot(&self.script);
                     self.script.actions = transformed;
                     self.script.sanitize();
                     self.run_doctor();

@@ -433,6 +433,77 @@ fn extract_base_stem<P: AsRef<Path>>(path: P) -> (PathBuf, String) {
     (parent, clean_name.to_string())
 }
 
+// ==============================================================================
+// Undo / Redo History Engine
+// ==============================================================================
+
+/// Bounded undo/redo history manager for keyframe editing.
+#[derive(Debug, Clone, PartialEq)]
+pub struct UndoHistory {
+    undo_stack: Vec<Funscript>,
+    redo_stack: Vec<Funscript>,
+    max_depth: usize,
+}
+
+impl Default for UndoHistory {
+    fn default() -> Self {
+        Self::new(50)
+    }
+}
+
+impl UndoHistory {
+    pub fn new(max_depth: usize) -> Self {
+        Self {
+            undo_stack: Vec::with_capacity(max_depth),
+            redo_stack: Vec::new(),
+            max_depth: max_depth.max(5),
+        }
+    }
+
+    /// Push current state to undo history before making modifications.
+    pub fn push_snapshot(&mut self, script: &Funscript) {
+        if self.undo_stack.len() >= self.max_depth {
+            self.undo_stack.remove(0);
+        }
+        self.undo_stack.push(script.clone());
+        self.redo_stack.clear();
+    }
+
+    /// Undo to previous state. Returns true if undo was performed.
+    pub fn undo(&mut self, current: &mut Funscript) -> bool {
+        if let Some(prev) = self.undo_stack.pop() {
+            self.redo_stack.push(current.clone());
+            *current = prev;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Redo to next state. Returns true if redo was performed.
+    pub fn redo(&mut self, current: &mut Funscript) -> bool {
+        if let Some(next) = self.redo_stack.pop() {
+            self.undo_stack.push(current.clone());
+            *current = next;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn can_undo(&self) -> bool {
+        !self.undo_stack.is_empty()
+    }
+
+    pub fn can_redo(&self) -> bool {
+        !self.redo_stack.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        self.undo_stack.clear();
+        self.redo_stack.clear();
+    }
+}
 
 // ==============================================================================
 // Script Doctor Linter
@@ -732,5 +803,45 @@ mod tests {
 
         let (_, stem3) = extract_base_stem("/tmp/movie.mp4");
         assert_eq!(stem3, "movie");
+    }
+
+    #[test]
+    fn test_undo_history_lifecycle() {
+        let mut history = UndoHistory::new(3);
+        let mut script = Funscript::new(vec![Action { at: 100, pos: 10 }]);
+
+        assert!(!history.can_undo());
+        assert!(!history.can_redo());
+
+        // Snapshot 1
+        history.push_snapshot(&script);
+        script.actions.push(Action { at: 200, pos: 50 });
+        assert_eq!(script.actions.len(), 2);
+        assert!(history.can_undo());
+
+        // Snapshot 2
+        history.push_snapshot(&script);
+        script.actions.push(Action { at: 300, pos: 90 });
+        assert_eq!(script.actions.len(), 3);
+
+        // Undo 1 step
+        assert!(history.undo(&mut script));
+        assert_eq!(script.actions.len(), 2);
+        assert_eq!(script.actions[1].pos, 50);
+        assert!(history.can_redo());
+
+        // Undo 2nd step
+        assert!(history.undo(&mut script));
+        assert_eq!(script.actions.len(), 1);
+        assert!(!history.can_undo());
+
+        // Redo 1 step
+        assert!(history.redo(&mut script));
+        assert_eq!(script.actions.len(), 2);
+
+        // Redo 2nd step
+        assert!(history.redo(&mut script));
+        assert_eq!(script.actions.len(), 3);
+        assert!(!history.can_redo());
     }
 }

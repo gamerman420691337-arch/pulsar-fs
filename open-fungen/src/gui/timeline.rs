@@ -73,6 +73,7 @@ pub fn show_timeline(
     waveform: Option<&crate::audio::AudioWaveform>,
     ghost_axes: Option<&[(&str, &Funscript, Color32)]>,
     active_color: Color32,
+    undo_history: Option<&mut crate::funscript::UndoHistory>,
 ) -> Response {
     let desired_size = vec2(ui.available_width(), ui.available_height().max(280.0));
     let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click_and_drag());
@@ -114,7 +115,7 @@ pub fn show_timeline(
     draw_action_curve(&painter, rect, script, state, doctor_report, ghost_axes, active_color);
 
     // 4. Handle Keyframe Point Selection, Dragging, Adding & Deleting (with Magnetic Snapping)
-    handle_point_interactions(ui, &response, rect, script, state, waveform);
+    handle_point_interactions(ui, &response, rect, script, state, waveform, undo_history);
 
     // 4b. Render Magnetic Transient Snap Indicator if snapped
     if let Some(snap_t) = state.snapped_transient_ms {
@@ -122,14 +123,17 @@ pub fn show_timeline(
         if snap_x >= rect.left() && snap_x <= rect.right() {
             painter.line_segment(
                 [pos2(snap_x, rect.top()), pos2(snap_x, rect.bottom())],
-                Stroke::new(1.8f32, Color32::from_rgb(255, 215, 0)),
+                Stroke::new(1.8f32, Color32::from_rgb(0, 240, 255)),
             );
+            let badge_rect = Rect::from_min_size(pos2(snap_x - 24.0, rect.top() + 4.0), vec2(48.0, 16.0));
+            painter.rect_filled(badge_rect, 3.0, Color32::from_rgba_unmultiplied(0, 25, 40, 230));
+            painter.rect_stroke(badge_rect, 3.0, Stroke::new(1.0f32, Color32::from_rgb(0, 240, 255)), eframe::egui::StrokeKind::Middle);
             painter.text(
-                pos2(snap_x + 3.0, rect.top() + 6.0),
-                eframe::egui::Align2::LEFT_TOP,
+                badge_rect.center(),
+                eframe::egui::Align2::CENTER_CENTER,
                 "⚡ SNAP",
                 eframe::egui::FontId::monospace(10.0),
-                Color32::from_rgb(255, 215, 0),
+                Color32::from_rgb(0, 240, 255),
             );
         }
     }
@@ -143,13 +147,6 @@ pub fn show_timeline(
         );
         // Playhead head indicator
         painter.circle_filled(pos2(cursor_x, rect.top() + 6.0), 5.0, Color32::from_rgb(255, 64, 129));
-    }
-
-    // Click on empty space moves cursor
-    if response.clicked() && !state.is_dragging_point {
-        if let Some(pos) = pointer {
-            state.cursor_time_ms = state.screen_x_to_time(pos.x, rect);
-        }
     }
 
     response
@@ -345,6 +342,7 @@ fn handle_point_interactions(
     script: &mut Funscript,
     state: &mut TimelineState,
     waveform: Option<&crate::audio::AudioWaveform>,
+    mut undo_history: Option<&mut crate::funscript::UndoHistory>,
 ) {
     let pointer = response.interact_pointer_pos();
 
@@ -371,6 +369,8 @@ fn handle_point_interactions(
             state.selected_index = hit;
             if let Some(idx) = hit {
                 state.cursor_time_ms = script.actions[idx].at;
+            } else {
+                state.cursor_time_ms = click_time.max(0);
             }
         }
 
@@ -387,6 +387,10 @@ fn handle_point_interactions(
                 }
             }
 
+            if let Some(ref mut uh) = undo_history {
+                uh.push_snapshot(script);
+            }
+
             script.actions.push(Action { at: t, pos: p });
             script.sanitize();
 
@@ -399,7 +403,13 @@ fn handle_point_interactions(
         if response.dragged_by(eframe::egui::PointerButton::Primary) {
             if let Some(idx) = state.selected_index {
                 if idx < script.actions.len() {
-                    state.is_dragging_point = true;
+                    if !state.is_dragging_point {
+                        if let Some(ref mut uh) = undo_history {
+                            uh.push_snapshot(script);
+                        }
+                        state.is_dragging_point = true;
+                    }
+
                     let mut new_t = state.screen_x_to_time(pos.x, rect);
                     let new_p = TimelineState::screen_y_to_pos(pos.y, rect);
 
@@ -429,6 +439,14 @@ fn handle_point_interactions(
             }
         }
 
+        // Scrub cursor time when primary-dragging empty timeline canvas (without pan modifier)
+        if response.dragged_by(eframe::egui::PointerButton::Primary)
+            && state.selected_index.is_none()
+            && !_ui.input(|i| i.modifiers.command || i.modifiers.ctrl)
+        {
+            state.cursor_time_ms = state.screen_x_to_time(pos.x, rect).max(0);
+        }
+
         // Right-click: Delete hovered keyframe
         if response.secondary_clicked() {
             let click_time = state.screen_x_to_time(pos.x, rect);
@@ -448,6 +466,9 @@ fn handle_point_interactions(
                 }
             }
             if let Some(idx) = delete_idx {
+                if let Some(ref mut uh) = undo_history {
+                    uh.push_snapshot(script);
+                }
                 script.actions.remove(idx);
                 state.selected_index = None;
             }
