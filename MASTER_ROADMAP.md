@@ -159,16 +159,16 @@ graph TD
 
 ---
 
-### ⏳ Phase 4: Embedded Video Frame Canvas & Multi-Band Audio Waveform (Next Up)
-- [ ] **Embedded Video Frame Surface**: Render synchronized decoded video frames directly inside the Studio Editor and Cinema Player modes.
-- [ ] **Frame Stepping Controls**: True single-frame forward/backward steps, 5-frame jog, and keyframe jump hotkeys.
-- [ ] **Audio Waveform Pipeline**: Extract PCM audio via FFmpeg and generate multi-resolution RMS overview buffers.
-- [ ] **Audio Waveform Renderer**: Draw anti-aliased audio waveforms aligned to millisecond timecodes beneath the timeline curve.
-- [ ] **Hardware Acceleration Backend Selector**: GUI settings to enable CUDA / TensorRT / DirectML / CPU inference providers.
+### ✅ Phase 4: Embedded Video Frame Canvas & Multi-Band Audio Waveform (Completed)
+- [x] **Embedded Video Frame Surface**: Render synchronized decoded video frames directly inside the Studio Editor (`F1`) and Cinema Player (`F2`) modes.
+- [x] **Frame Stepping Controls**: True single-frame forward/backward steps (Left/Right arrows), 1s jumps, and keyframe jump hotkeys.
+- [x] **Audio Waveform Pipeline**: Extract PCM audio via FFmpeg and generate multi-resolution RMS overview buffers.
+- [x] **Audio Waveform Renderer**: Draw anti-aliased audio waveforms aligned to millisecond timecodes beneath the timeline curve.
+- [x] **Separation of Duties Workspaces**: Dedicated modes for Studio Editor (`F1`), Cinema Player (`F2`), Generator Studio (`F3`), Script Doctor (`F4`), and Device Sync (`F5`).
 
 ---
 
-### ⏳ Phase 5: Multi-Axis Timeline (6-DOF) & Magnetic Snapping
+### ⏳ Phase 5: Multi-Axis Timeline (6-DOF) & Magnetic Snapping (Next Up)
 - [ ] **Multi-Track Funscript Schema**: Support concurrent tracking and editing for $L_0$ (Stroke), $L_1$ (Surge), $L_2$ (Sway), $R_0$ (Roll), $R_1$ (Pitch), $R_2$ (Twist), and $V_0$ (Suction).
 - [ ] **Stacked vs. Overlay Track Views**: Toggle between separate vertical axis lanes and unified multi-colored overlay.
 - [ ] **Magnetic Audio Transient Snapping**: Automatically snap keyframe peaks to audio slaps, vocalizations, and rhythmic drum beats.
