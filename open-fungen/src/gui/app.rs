@@ -7,10 +7,16 @@ use crate::funscript::{
     MultiAxisScript,
 };
 use crate::gui::timeline::{show_timeline, TimelineState};
+use crate::kinematics::{
+    eval_scurve, smooth_funscript, DeviceProfile, DeviceType, KinematicState,
+    SCurvePreset, ThermalModel, ThermalStatus,
+};
+use crate::sync::{format_tcode_v03, TCodeDispatcher, VrSyncMessage, VrSyncServer};
 use eframe::egui::{
     self, Align, Color32, Context as EguiContext, Layout, ProgressBar, RichText, ScrollArea,
     Slider, TopBottomPanel, Ui,
 };
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
@@ -91,9 +97,23 @@ pub struct FunGenApp {
     pub generation_status: String,
     worker_rx: Option<Receiver<WorkerMessage>>,
 
-    // Device & Sync state
+    // Device, Kinematics & Physics Simulation
+    pub device_profile: DeviceProfile,
+    pub kinematic_state: KinematicState,
+    pub thermal_model: ThermalModel,
+    pub scurve_preset: SCurvePreset,
+
+    // T-Code Hardware Protocol
+    pub tcode_dispatcher: TCodeDispatcher,
     pub sync_udp_address: String,
     pub sync_udp_enabled: bool,
+    pub last_tcode_string: String,
+
+    // VR Headset Sync Server & SBS Mode
+    pub vr_server: Option<VrSyncServer>,
+    pub vr_server_port: u16,
+    pub vr_sbs_mode: bool,
+    pub vr_ipd_offset: f32,
 }
 
 impl Default for FunGenApp {
@@ -149,8 +169,20 @@ impl Default for FunGenApp {
             generation_status: "Idle".to_string(),
             worker_rx: None,
 
+            device_profile: DeviceProfile::for_device(DeviceType::TheHandy),
+            kinematic_state: KinematicState::new(),
+            thermal_model: ThermalModel::new(),
+            scurve_preset: SCurvePreset::Balanced,
+
+            tcode_dispatcher: TCodeDispatcher::new("127.0.0.1:8888"),
             sync_udp_address: "127.0.0.1:8888".to_string(),
             sync_udp_enabled: false,
+            last_tcode_string: String::new(),
+
+            vr_server: None,
+            vr_server_port: 23443,
+            vr_sbs_mode: false,
+            vr_ipd_offset: 0.0,
         }
     }
 }
@@ -160,6 +192,7 @@ impl eframe::App for FunGenApp {
         // 1. Poll background messages (generation and audio waveform)
         self.poll_worker();
         self.poll_waveform();
+        self.poll_vr_sync();
 
         // 2. Advance playback clock if playing
         self.update_playback(ctx);
@@ -392,11 +425,68 @@ impl FunGenApp {
         }
     }
 
+    fn poll_vr_sync(&mut self) {
+        let msgs = if let Some(ref vr) = self.vr_server {
+            vr.try_recv()
+        } else {
+            Vec::new()
+        };
+
+        for msg in msgs {
+            match msg {
+                VrSyncMessage::TimeUpdate { timestamp_ms } => {
+                    self.timeline_state.cursor_time_ms = timestamp_ms;
+                }
+                VrSyncMessage::PlayStateChange { is_playing } => {
+                    self.is_playing = is_playing;
+                }
+                VrSyncMessage::SpeedChange { speed } => {
+                    self.playback_speed = speed.clamp(0.1, 5.0);
+                }
+                VrSyncMessage::VideoPath { path } => {
+                    self.set_status(format!("VR Headset requested video: {}", path));
+                }
+            }
+        }
+    }
+
+    pub fn evaluate_current_positions(&mut self) -> HashMap<AxisChannel, f32> {
+        let cur_ms = self.timeline_state.cursor_time_ms;
+        let blend_ms = self.scurve_preset.blend_radius_ms();
+        let mut positions = HashMap::new();
+
+        self.multi_axis.channels.insert(self.active_axis, self.script.clone());
+
+        for (&axis, script) in &self.multi_axis.channels {
+            if script.actions.is_empty() {
+                continue;
+            }
+            let raw_pos = if blend_ms > 0 {
+                eval_scurve(&script.actions, cur_ms, blend_ms)
+            } else {
+                script.interpolate_position(cur_ms)
+            };
+            let final_pos = if axis == AxisChannel::Stroke {
+                self.thermal_model.attenuate_position(raw_pos)
+            } else {
+                raw_pos
+            };
+            positions.insert(axis, final_pos);
+        }
+
+        if positions.is_empty() {
+            positions.insert(AxisChannel::Stroke, 50.0);
+        }
+
+        positions
+    }
+
     fn update_playback(&mut self, ctx: &EguiContext) {
         if self.is_playing {
             let now = Instant::now();
+            let mut dt_secs = 0.033;
             if let Some(last) = self.last_frame_time {
-                let dt_secs = now.duration_since(last).as_secs_f64();
+                dt_secs = now.duration_since(last).as_secs_f64();
                 let advance_ms = (dt_secs * 1000.0 * self.playback_speed).round() as i64;
                 self.timeline_state.cursor_time_ms += advance_ms;
 
@@ -413,6 +503,20 @@ impl FunGenApp {
                 }
             }
             self.last_frame_time = Some(now);
+
+            // Hardware Kinematics & T-Code Streaming
+            let positions = self.evaluate_current_positions();
+            let limits = self.device_profile.limits.clone();
+            self.kinematic_state.update(&positions, self.timeline_state.cursor_time_ms, &limits);
+            self.thermal_model.step(dt_secs as f32, self.kinematic_state.instantaneous_speed, self.kinematic_state.instantaneous_accel);
+
+            let interval_ms = (dt_secs * 1000.0).round().max(10.0) as u32;
+            let tcode = format_tcode_v03(&positions, Some(interval_ms));
+            self.last_tcode_string = tcode.clone();
+            if self.sync_udp_enabled {
+                self.tcode_dispatcher.send(&tcode);
+            }
+
             ctx.request_repaint();
         } else {
             self.last_frame_time = None;
@@ -746,21 +850,73 @@ impl FunGenApp {
         let avail_rect = ui.available_rect_before_wrap();
         let cur_pos = self.script.interpolate_position(self.timeline_state.cursor_time_ms);
 
-        // 1. Full-Window Video Canvas
+        // 1. Full-Window Video Canvas (Mono or VR 180 SBS Stereo)
         if let Some(ref tex) = self.video_texture {
             let img_h = (avail_rect.height() - 70.0).max(200.0);
-            let img_w = (img_h * (16.0 / 9.0)).min(avail_rect.width());
-            let center_x = avail_rect.center().x;
-            let video_rect = egui::Rect::from_center_size(
-                egui::pos2(center_x, avail_rect.top() + img_h / 2.0),
-                egui::vec2(img_w, img_h),
-            );
-            ui.painter().image(
-                tex.id(),
-                video_rect,
-                egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-                Color32::WHITE,
-            );
+
+            if self.vr_sbs_mode {
+                // VR 180 SBS Stereoscopic Mode: Dual Viewports Side-by-Side
+                let half_w = (avail_rect.width() / 2.0) - 6.0;
+                let top_y = avail_rect.top() + 4.0;
+
+                // Left Eye Viewport
+                let left_rect = egui::Rect::from_min_size(
+                    egui::pos2(avail_rect.left() + 2.0, top_y),
+                    egui::vec2(half_w, img_h),
+                );
+                let left_uv_min = egui::pos2((0.0 + self.vr_ipd_offset).clamp(0.0, 0.4), 0.0);
+                let left_uv_max = egui::pos2((0.5 + self.vr_ipd_offset).clamp(0.1, 0.5), 1.0);
+                ui.painter().image(
+                    tex.id(),
+                    left_rect,
+                    egui::Rect::from_min_max(left_uv_min, left_uv_max),
+                    Color32::WHITE,
+                );
+
+                // Right Eye Viewport
+                let right_rect = egui::Rect::from_min_size(
+                    egui::pos2(avail_rect.left() + half_w + 10.0, top_y),
+                    egui::vec2(half_w, img_h),
+                );
+                let right_uv_min = egui::pos2((0.5 - self.vr_ipd_offset).clamp(0.5, 0.9), 0.0);
+                let right_uv_max = egui::pos2((1.0 - self.vr_ipd_offset).clamp(0.6, 1.0), 1.0);
+                ui.painter().image(
+                    tex.id(),
+                    right_rect,
+                    egui::Rect::from_min_max(right_uv_min, right_uv_max),
+                    Color32::WHITE,
+                );
+
+                // Eye labels
+                ui.painter().text(
+                    left_rect.left_top() + egui::vec2(10.0, 10.0),
+                    egui::Align2::LEFT_TOP,
+                    "LEFT EYE",
+                    egui::FontId::monospace(12.0),
+                    Color32::from_rgba_unmultiplied(200, 220, 255, 180),
+                );
+                ui.painter().text(
+                    right_rect.left_top() + egui::vec2(10.0, 10.0),
+                    egui::Align2::LEFT_TOP,
+                    "RIGHT EYE",
+                    egui::FontId::monospace(12.0),
+                    Color32::from_rgba_unmultiplied(200, 220, 255, 180),
+                );
+            } else {
+                // Standard Cinema Monoscopic Canvas
+                let img_w = (img_h * (16.0 / 9.0)).min(avail_rect.width());
+                let center_x = avail_rect.center().x;
+                let video_rect = egui::Rect::from_center_size(
+                    egui::pos2(center_x, avail_rect.top() + img_h / 2.0),
+                    egui::vec2(img_w, img_h),
+                );
+                ui.painter().image(
+                    tex.id(),
+                    video_rect,
+                    egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                    Color32::WHITE,
+                );
+            }
         } else {
             ui.vertical_centered(|ui| {
                 ui.add_space(avail_rect.height() * 0.35);
@@ -779,52 +935,59 @@ impl FunGenApp {
         );
         ui.allocate_new_ui(egui::UiBuilder::new().max_rect(hud_rect), |ui| {
             ui.painter().rect_filled(ui.available_rect_before_wrap(), 4.0, Color32::from_rgba_unmultiplied(18, 20, 26, 230));
-                ui.add_space(4.0);
+            ui.add_space(4.0);
 
-                ui.horizontal(|ui| {
-                    let play_label = if self.is_playing { "⏸ Pause" } else { "▶ Play" };
-                    if ui.button(play_label).clicked() {
-                        self.is_playing = !self.is_playing;
-                    }
-                    if ui.button("⏮").clicked() {
-                        self.timeline_state.cursor_time_ms = 0;
-                    }
-
-                    let cur_time_str = format_ms(self.timeline_state.cursor_time_ms);
-                    let dur_ms = self.script.actions.last().map(|a| a.at).unwrap_or(0);
-                    let dur_str = format_ms(dur_ms);
-                    ui.monospace(format!("{cur_time_str} / {dur_str}"));
-
-                    // Live Haptic Gauge Bar
-                    ui.separator();
-                    ui.label(RichText::new("Haptic Stroke:").size(11.0));
-                    let (gauge_rect, _) = ui.allocate_exact_size(egui::vec2(160.0, 16.0), egui::Sense::hover());
-                    ui.painter().rect_filled(gauge_rect, 2.0, Color32::from_rgb(30, 35, 45));
-                    let fill_w = (cur_pos / 100.0) * gauge_rect.width();
-                    let fill_rect = egui::Rect::from_min_max(gauge_rect.min, egui::pos2(gauge_rect.left() + fill_w, gauge_rect.bottom()));
-                    ui.painter().rect_filled(fill_rect, 2.0, Color32::from_rgb(0, 200, 255));
-                    ui.strong(format!("{:.0}%", cur_pos));
-
-                    // Telemetry & Studio button
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if ui.button("Exit to Studio (F1)").clicked() {
-                            self.active_tab = HubTab::Studio;
-                        }
-                        ui.monospace(format!("T-Code: L0{:03}", (cur_pos * 10.0).round() as i32));
-                    });
-                });
-
-                // Scrubber slider
-                let duration_ms = self.script.actions.last().map(|a| a.at).unwrap_or(0);
-                if duration_ms > 0 {
-                    ui.add(
-                        Slider::new(&mut self.timeline_state.cursor_time_ms, 0..=duration_ms)
-                            .show_value(false)
-                            .trailing_fill(true),
-                    );
+            ui.horizontal(|ui| {
+                let play_label = if self.is_playing { "⏸ Pause" } else { "▶ Play" };
+                if ui.button(play_label).clicked() {
+                    self.is_playing = !self.is_playing;
                 }
-            },
-        );
+                if ui.button("⏮").clicked() {
+                    self.timeline_state.cursor_time_ms = 0;
+                }
+
+                let cur_time_str = format_ms(self.timeline_state.cursor_time_ms);
+                let dur_ms = self.script.actions.last().map(|a| a.at).unwrap_or(0);
+                let dur_str = format_ms(dur_ms);
+                ui.monospace(format!("{cur_time_str} / {dur_str}"));
+
+                // Live Haptic Gauge Bar
+                ui.separator();
+                ui.label(RichText::new("Haptic Stroke:").size(11.0));
+                let (gauge_rect, _) = ui.allocate_exact_size(egui::vec2(140.0, 16.0), egui::Sense::hover());
+                ui.painter().rect_filled(gauge_rect, 2.0, Color32::from_rgb(30, 35, 45));
+                let fill_w = (cur_pos / 100.0) * gauge_rect.width();
+                let fill_rect = egui::Rect::from_min_max(gauge_rect.min, egui::pos2(gauge_rect.left() + fill_w, gauge_rect.bottom()));
+                ui.painter().rect_filled(fill_rect, 2.0, Color32::from_rgb(0, 200, 255));
+                ui.strong(format!("{:.0}%", cur_pos));
+
+                // VR SBS Controls
+                ui.separator();
+                ui.checkbox(&mut self.vr_sbs_mode, "VR SBS");
+                if self.vr_sbs_mode {
+                    ui.label("IPD:");
+                    ui.add(Slider::new(&mut self.vr_ipd_offset, -0.05..=0.05).step_by(0.005));
+                }
+
+                // Telemetry & Studio button
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    if ui.button("Exit to Studio (F1)").clicked() {
+                        self.active_tab = HubTab::Studio;
+                    }
+                    ui.monospace(format!("T-Code: L0{:03}", (cur_pos * 10.0).round() as i32));
+                });
+            });
+
+            // Scrubber slider
+            let duration_ms = self.script.actions.last().map(|a| a.at).unwrap_or(0);
+            if duration_ms > 0 {
+                ui.add(
+                    Slider::new(&mut self.timeline_state.cursor_time_ms, 0..=duration_ms)
+                        .show_value(false)
+                        .trailing_fill(true),
+                );
+            }
+        });
     }
 
     fn render_selected_action_editor(&mut self, ui: &mut Ui) {
@@ -1156,78 +1319,294 @@ impl FunGenApp {
     // View 5: Device & Sync (F5)
     // =========================================================================
     fn render_device_sync_view(&mut self, ui: &mut Ui) {
-        ui.heading("Hardware Device & T-Code Sync");
-        ui.label("Real-time T-Code protocol telemetry and device output simulation for OSR, Handy, Keon, and MultiFunPlayer.");
-        ui.add_space(10.0);
+        ScrollArea::vertical().show(ui, |ui| {
+            ui.heading("Hardware Toy Kinematics & VR Headset Sync");
+            ui.label("Calibrated motor dynamics models, jerk-limited S-curve smoothing, thermal wattage protection, and HereSphere/DeoVR zero-config sync.");
+            ui.add_space(8.0);
 
-        let cur_pos = self.script.interpolate_position(self.timeline_state.cursor_time_ms);
-        let tcode_cmd = format!("L0{:03}I100\n", (cur_pos * 10.0).round() as i32);
-
-        ui.horizontal(|ui| {
-            // Left: Position Gauge
+            // 1. Device Profile & S-Curve Configuration Bar
             ui.group(|ui| {
-                ui.set_width(200.0);
-                ui.heading("Stroke Position");
-                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    ui.strong("Device Profile:");
+                    let mut cur_type = self.device_profile.device_type;
+                    egui::ComboBox::from_id_salt("device_profile_combo")
+                        .selected_text(cur_type.display_name())
+                        .show_ui(ui, |ui| {
+                            for dt in DeviceType::ALL {
+                                if ui.selectable_value(&mut cur_type, dt, dt.display_name()).clicked() {
+                                    self.device_profile = DeviceProfile::for_device(dt);
+                                    self.set_status(format!("Active hardware profile: {}", dt.display_name()));
+                                }
+                            }
+                        });
 
-                // Vertical gauge
-                let gauge_height = 240.0;
-                let gauge_width = 36.0;
-                let (rect, _) = ui.allocate_exact_size(egui::vec2(gauge_width, gauge_height), egui::Sense::hover());
-                let painter = ui.painter_at(rect);
+                    ui.separator();
+                    ui.strong("S-Curve Smoothing:");
+                    egui::ComboBox::from_id_salt("scurve_preset_combo")
+                        .selected_text(self.scurve_preset.display_name())
+                        .show_ui(ui, |ui| {
+                            for p in SCurvePreset::ALL {
+                                ui.selectable_value(&mut self.scurve_preset, p, p.display_name());
+                            }
+                        });
 
-                // Background
-                painter.rect_filled(rect, 4.0, Color32::from_rgb(30, 35, 45));
-
-                // Active fill bar
-                let fill_height = (cur_pos / 100.0) * gauge_height;
-                let fill_rect = egui::Rect::from_min_max(
-                    egui::pos2(rect.left(), rect.bottom() - fill_height),
-                    rect.max,
-                );
-                painter.rect_filled(fill_rect, 4.0, Color32::from_rgb(0, 200, 255));
-
-                ui.add_space(6.0);
-                ui.strong(format!("{:.1}%", cur_pos));
+                    ui.separator();
+                    if ui.button("⚡ Apply S-Curve to Script (Permanent)").clicked() {
+                        let blend_ms = self.scurve_preset.blend_radius_ms();
+                        if blend_ms > 0 {
+                            let prev_len = self.script.actions.len();
+                            self.script = smooth_funscript(&self.script, blend_ms);
+                            self.run_doctor();
+                            self.set_status(format!(
+                                "Applied {} S-curve smoothing (densified from {} to {} actions)",
+                                self.scurve_preset.display_name(),
+                                prev_len,
+                                self.script.actions.len()
+                            ));
+                        } else {
+                            self.set_status("S-curve filter is set to Off (raw linear)".to_string());
+                        }
+                    }
+                });
             });
 
             ui.add_space(10.0);
 
-            // Right: Protocol Stream Monitor & Network
-            ui.vertical(|ui| {
-                ui.group(|ui| {
-                    ui.heading("T-Code v0.3 Telemetry Stream");
-                    ui.monospace("Target Axis:   L0 (Main Stroke)");
-                    ui.monospace(format!("Command Feed:  {tcode_cmd}"));
-                    ui.monospace(format!("Playhead Time: {} ms", self.timeline_state.cursor_time_ms));
-                    ui.monospace(format!("Playback:      {}", if self.is_playing { "Active (Streaming)" } else { "Paused" }));
+            let positions = self.evaluate_current_positions();
+            let cur_pos = *positions.get(&AxisChannel::Stroke).unwrap_or(&50.0);
+
+            // 2. Hardware Telemetry & Physics Gauges (3 Cards)
+            ui.columns(3, |columns| {
+                // Column 1: Multi-Axis Position Gauges
+                columns[0].group(|ui| {
+                    ui.set_min_height(260.0);
+                    ui.heading("Actuator Positions");
+                    ui.add_space(4.0);
+
+                    ui.horizontal(|ui| {
+                        // Vertical Stroke Meter
+                        let gauge_h = 160.0;
+                        let gauge_w = 30.0;
+                        let (rect, _) = ui.allocate_exact_size(egui::vec2(gauge_w, gauge_h), egui::Sense::hover());
+                        let painter = ui.painter_at(rect);
+                        painter.rect_filled(rect, 4.0, Color32::from_rgb(30, 35, 45));
+
+                        let fill_h = (cur_pos / 100.0) * gauge_h;
+                        let fill_rect = egui::Rect::from_min_max(
+                            egui::pos2(rect.left(), rect.bottom() - fill_h),
+                            rect.max,
+                        );
+                        painter.rect_filled(fill_rect, 4.0, Color32::from_rgb(0, 200, 255));
+
+                        ui.vertical(|ui| {
+                            ui.strong(format!("L0 Stroke: {:.1}%", cur_pos));
+                            ui.add_space(6.0);
+
+                            // Other channels
+                            for &ch in &[
+                                AxisChannel::Surge,
+                                AxisChannel::Sway,
+                                AxisChannel::Pitch,
+                                AxisChannel::Roll,
+                                AxisChannel::Twist,
+                                AxisChannel::Suction,
+                            ] {
+                                let val = *positions.get(&ch).unwrap_or(&50.0);
+                                let (r, g, b) = ch.color_rgb();
+                                ui.horizontal(|ui| {
+                                    ui.colored_label(Color32::from_rgb(r, g, b), format!("{:>2}:", ch.tcode_axis()));
+                                    ui.monospace(format!("{:>5.1}%", val));
+                                });
+                            }
+                        });
+                    });
                 });
 
-                ui.add_space(8.0);
+                // Column 2: Velocity & Acceleration Kinematics
+                columns[1].group(|ui| {
+                    ui.set_min_height(260.0);
+                    ui.heading("Actuator Kinematics");
+                    ui.add_space(4.0);
 
-                ui.group(|ui| {
-                    ui.heading("Network Broadcast (UDP)");
+                    let speed = self.kinematic_state.instantaneous_speed;
+                    let speed_ratio = self.kinematic_state.speed_ratio;
+                    let max_speed = self.device_profile.limits.max_speed_units_per_sec;
+                    let mm_speed = speed * (self.device_profile.limits.physical_stroke_mm / 100.0);
+
+                    ui.label(RichText::new("Velocity:").strong());
+                    ui.horizontal(|ui| {
+                        ui.label(format!("{:.1} units/s ({:.0} mm/s)", speed, mm_speed));
+                    });
+
+                    let speed_color = if speed_ratio > 1.0 {
+                        Color32::from_rgb(255, 70, 70)
+                    } else if speed_ratio > 0.85 {
+                        Color32::from_rgb(255, 180, 50)
+                    } else {
+                        Color32::from_rgb(80, 220, 120)
+                    };
+
+                    let speed_pb = ProgressBar::new(speed_ratio.min(1.0))
+                        .fill(speed_color)
+                        .text(format!("{:.0}% of limit ({:.0} u/s)", speed_ratio * 100.0, max_speed));
+                    ui.add(speed_pb);
+
+                    ui.add_space(8.0);
+                    let accel = self.kinematic_state.instantaneous_accel;
+                    let accel_ratio = self.kinematic_state.accel_ratio;
+                    let max_accel = self.device_profile.limits.max_accel_units_per_sec2;
+
+                    ui.label(RichText::new("Acceleration:").strong());
+                    ui.label(format!("{:.0} units/s²", accel));
+
+                    let accel_pb = ProgressBar::new(accel_ratio.min(1.0))
+                        .fill(Color32::from_rgb(140, 180, 255))
+                        .text(format!("{:.0}% of limit ({:.0} u/s²)", accel_ratio * 100.0, max_accel));
+                    ui.add(accel_pb);
+
+                    ui.add_space(8.0);
+                    if self.kinematic_state.is_speed_warning {
+                        ui.colored_label(Color32::from_rgb(255, 80, 80), "⚠ SPEED LIMIT EXCEEDED");
+                    } else {
+                        ui.colored_label(Color32::from_rgb(100, 220, 150), "✓ Safe Motor Dynamics");
+                    }
+                });
+
+                // Column 3: Thermal Load & Motor Heat Simulation
+                columns[2].group(|ui| {
+                    ui.set_min_height(260.0);
+                    ui.heading("Motor Thermal Engine");
+                    ui.add_space(4.0);
+
+                    let load = self.thermal_model.thermal_load_pct;
+                    let status = self.thermal_model.status;
+
+                    let (status_color, status_text) = match status {
+                        ThermalStatus::Normal => (Color32::from_rgb(80, 220, 120), "NORMAL"),
+                        ThermalStatus::Warm => (Color32::from_rgb(255, 180, 50), "WARMING"),
+                        ThermalStatus::Throttling => (Color32::from_rgb(255, 70, 70), "THROTTLING"),
+                    };
+
+                    ui.horizontal(|ui| {
+                        ui.strong("Status:");
+                        ui.colored_label(status_color, status_text);
+                    });
+
+                    ui.add_space(4.0);
+                    let thermal_pb = ProgressBar::new(load / 100.0)
+                        .fill(status_color)
+                        .text(format!("{:.1}% Thermal Load", load));
+                    ui.add(thermal_pb);
+
+                    ui.add_space(6.0);
+                    let temp_rise = self.thermal_model.temp_rise_c;
+                    let est_temp = 25.0 + temp_rise;
+                    ui.label(format!("Temp Rise:   +{:.1} °C above ambient", temp_rise));
+                    ui.label(format!("Estimated:   {:.1} °C coil temp (limit: 80°C)", est_temp));
+
+                    ui.add_space(6.0);
+                    if status == ThermalStatus::Throttling {
+                        ui.colored_label(Color32::from_rgb(255, 120, 120), "Active Micro-Cooldown Protection");
+                        ui.label("Automatically attenuating amplitude to shed coil heat without stopping playback.");
+                    } else {
+                        ui.label("Coil temperature within safe bounds.");
+                    }
+
+                    ui.add_space(8.0);
+                    if ui.button("Reset Thermal Model (Cold)").clicked() {
+                        self.thermal_model.reset();
+                        self.set_status("Reset thermal dissipation accumulator".to_string());
+                    }
+                });
+            });
+
+            ui.add_space(10.0);
+
+            // 3. Network Synchronization & VR Headset Server (2 Columns)
+            ui.columns(2, |columns| {
+                // Column 1: T-Code v0.3 UDP Broadcast
+                columns[0].group(|ui| {
+                    ui.heading("T-Code v0.3 UDP Broadcast");
+                    ui.label("Streams real-time multi-axis T-Code commands to MultiFunPlayer, Intiface, or physical ESP32/Arduino controllers.");
+                    ui.add_space(4.0);
+
                     ui.horizontal(|ui| {
                         ui.label("Target UDP Host:Port:");
                         ui.text_edit_singleline(&mut self.sync_udp_address);
                     });
 
                     ui.horizontal(|ui| {
-                        let btn_label = if self.sync_udp_enabled { "Disconnect UDP" } else { "Connect UDP Broadcast" };
+                        let btn_label = if self.sync_udp_enabled { "Disconnect UDP Broadcast" } else { "Connect UDP Broadcast" };
                         if ui.button(btn_label).clicked() {
                             self.sync_udp_enabled = !self.sync_udp_enabled;
+                            self.tcode_dispatcher.target_addr = self.sync_udp_address.clone();
+                            self.tcode_dispatcher.is_enabled = self.sync_udp_enabled;
                             self.set_status(if self.sync_udp_enabled {
-                                format!("Streaming T-Code to UDP {}", self.sync_udp_address)
+                                format!("Streaming T-Code v0.3 to UDP {}", self.sync_udp_address)
                             } else {
                                 "UDP Broadcast disconnected".to_string()
                             });
                         }
+
                         if self.sync_udp_enabled {
-                            ui.colored_label(Color32::GREEN, "● Connected");
+                            ui.colored_label(Color32::GREEN, "● Active Streaming");
                         } else {
                             ui.colored_label(Color32::GRAY, "○ Standby");
                         }
                     });
+
+                    ui.add_space(6.0);
+                    ui.label(RichText::new("Live Protocol Stream Output:").size(11.0).strong());
+                    let display_cmd = if self.last_tcode_string.is_empty() {
+                        "L05000 I100\n".to_string()
+                    } else {
+                        self.last_tcode_string.clone()
+                    };
+                    ui.monospace(format!(">>> {display_cmd}"));
+                });
+
+                // Column 2: HereSphere & DeoVR WebSocket Sync Server
+                columns[1].group(|ui| {
+                    ui.heading("VR Headset Sync Server");
+                    ui.label("Zero-config local WebSocket server for HereSphere, DeoVR, and Whirligig VR headsets.");
+                    ui.add_space(4.0);
+
+                    ui.horizontal(|ui| {
+                        ui.label("WebSocket Port:");
+                        ui.add(egui::DragValue::new(&mut self.vr_server_port).range(1024..=65535));
+                    });
+
+                    let is_running = self.vr_server.as_ref().map(|s| s.is_running()).unwrap_or(false);
+
+                    ui.horizontal(|ui| {
+                        let btn_label = if is_running { "Stop VR Sync Server" } else { "Start VR Sync Server" };
+                        if ui.button(btn_label).clicked() {
+                            if is_running {
+                                if let Some(mut s) = self.vr_server.take() {
+                                    s.stop();
+                                }
+                                self.set_status("VR WebSocket Sync Server stopped".to_string());
+                            } else {
+                                let mut s = VrSyncServer::new(self.vr_server_port);
+                                if s.start() {
+                                    self.set_status(format!("VR Sync Server listening on port {}", self.vr_server_port));
+                                    self.vr_server = Some(s);
+                                } else {
+                                    self.set_status(format!("Failed to bind port {}", self.vr_server_port));
+                                }
+                            }
+                        }
+
+                        if is_running {
+                            ui.colored_label(Color32::GREEN, format!("● LISTENING (ws://0.0.0.0:{})", self.vr_server_port));
+                        } else {
+                            ui.colored_label(Color32::GRAY, "○ Server Stopped");
+                        }
+                    });
+
+                    ui.add_space(6.0);
+                    ui.label(RichText::new("How to connect:").size(11.0).strong());
+                    ui.label(RichText::new("1. In HereSphere or DeoVR on your Quest/Pico/PCVR headset, enable External Sync / WebSocket.\n2. Point it to this PC's local IP address and configured port.\n3. Funscript Hub will automatically lock playhead time, scrubbing, and pause states with zero latency.").size(10.5).color(Color32::from_rgb(170, 180, 195)));
                 });
             });
         });

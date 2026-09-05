@@ -1,8 +1,10 @@
 mod audio;
 mod funscript;
 mod gui;
+mod kinematics;
 mod neural;
 mod signal;
+mod sync;
 mod tracking;
 mod video;
 
