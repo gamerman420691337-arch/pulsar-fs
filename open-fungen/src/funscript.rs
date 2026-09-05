@@ -16,7 +16,7 @@ pub struct Funscript {
     pub metadata: Option<Metadata>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Action {
     /// Timestamp in milliseconds
     pub at: i64,

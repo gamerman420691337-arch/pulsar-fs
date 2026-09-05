@@ -1,9 +1,12 @@
 mod audio;
+mod batch;
 mod funscript;
 mod gui;
 mod kinematics;
 mod neural;
+mod plugin;
 mod signal;
+mod stash;
 mod sync;
 mod tracking;
 mod video;
@@ -144,6 +147,75 @@ enum Commands {
         /// Path to the video file
         video: PathBuf,
     },
+
+    /// Batch process an entire folder of videos in headless queue mode
+    Batch {
+        /// Directory containing video files
+        folder: PathBuf,
+
+        /// Recursively scan subdirectories for videos
+        #[arg(short, long, default_value_t = true)]
+        recursive: bool,
+
+        /// Path to ONNX neural tracking model
+        #[arg(long)]
+        model: Option<PathBuf>,
+
+        /// Generate full 6-DOF companion bundle
+        #[arg(long, default_value_t = false)]
+        multi_axis: bool,
+
+        /// Overwrite existing .funscript files
+        #[arg(long, default_value_t = false)]
+        overwrite: bool,
+    },
+
+    /// Stash Media Server GraphQL integration and automation
+    Stash {
+        #[command(subcommand)]
+        command: StashCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum StashCommands {
+    /// Query Stash server for scenes missing .funscripts
+    ListMissing {
+        /// Maximum number of scenes to query
+        #[arg(long, default_value_t = 50)]
+        limit: u32,
+
+        /// Stash GraphQL endpoint URL
+        #[arg(long, default_value = "http://localhost:9999/graphql")]
+        url: String,
+
+        /// Optional Stash API key
+        #[arg(long)]
+        api_key: Option<String>,
+    },
+
+    /// Automatically generate .funscripts for all Stash scenes missing scripts
+    AutoGenerate {
+        /// Maximum number of scenes to process
+        #[arg(long, default_value_t = 50)]
+        limit: u32,
+
+        /// Stash GraphQL endpoint URL
+        #[arg(long, default_value = "http://localhost:9999/graphql")]
+        url: String,
+
+        /// Optional Stash API key
+        #[arg(long)]
+        api_key: Option<String>,
+
+        /// Path to ONNX neural tracking model
+        #[arg(long)]
+        model: Option<PathBuf>,
+
+        /// Generate full 6-DOF companion bundle
+        #[arg(long, default_value_t = false)]
+        multi_axis: bool,
+    },
 }
 
 fn main() -> Result<()> {
@@ -211,6 +283,29 @@ fn main() -> Result<()> {
         Some(Commands::Info { video }) => {
             run_info(&video)?;
         }
+        Some(Commands::Batch {
+            folder,
+            recursive,
+            model,
+            multi_axis,
+            overwrite,
+        }) => {
+            run_batch(&folder, recursive, model.as_deref(), multi_axis, overwrite)?;
+        }
+        Some(Commands::Stash { command }) => match command {
+            StashCommands::ListMissing { limit, url, api_key } => {
+                run_stash_list_missing(&url, api_key.as_deref(), limit)?;
+            }
+            StashCommands::AutoGenerate {
+                limit,
+                url,
+                api_key,
+                model,
+                multi_axis,
+            } => {
+                run_stash_auto_generate(&url, api_key.as_deref(), limit, model.as_deref(), multi_axis)?;
+            }
+        },
     }
 
     Ok(())
@@ -565,6 +660,221 @@ fn run_generate(
     println!("  Max Speed:        {:.1} units/s", report.max_speed_units_per_sec);
     println!("  Speed Violations: {}", report.speed_violations_count);
     println!("  Status:           {}", if report.issues.is_empty() { "EXCELLENT" } else { "VALIDATED (minor warnings)" });
+    println!("==================================================");
+
+    Ok(())
+}
+
+fn run_batch(
+    folder: &Path,
+    recursive: bool,
+    model: Option<&Path>,
+    multi_axis: bool,
+    overwrite: bool,
+) -> Result<()> {
+    use batch::queue::{BatchJobConfig, BatchQueue};
+
+    println!("==================================================");
+    println!("Funscript Hub: Headless Batch Processing Queue");
+    println!("==================================================");
+    println!("Target Directory: {}", folder.display());
+    println!("Recursive Scan:   {}", recursive);
+    println!("Multi-Axis:       {}", multi_axis);
+    println!("Overwrite:        {}", overwrite);
+
+    let config = BatchJobConfig {
+        model_path: model.map(|p| p.to_path_buf()),
+        multi_axis,
+        overwrite,
+        ..Default::default()
+    };
+
+    let mut queue = BatchQueue::new();
+    let count = queue.scan_directory(folder, recursive, &config);
+    println!("Discovered {} videos requiring funscripts.", count);
+
+    if count == 0 {
+        println!("No videos to process. Exiting.");
+        return Ok(());
+    }
+
+    let mut succeeded = 0;
+    let mut failed = 0;
+
+    for (idx, job) in queue.jobs.iter().enumerate() {
+        println!("\n[{}/{}] Processing: {}", idx + 1, count, job.video_path.display());
+        let width = if model.is_some() { 640 } else { 256 };
+        let height = if model.is_some() { 640 } else { 256 };
+
+        match run_generate(
+            &job.video_path,
+            Some(&job.output_path),
+            model,
+            config.conf,
+            config.fps,
+            width,
+            height,
+            2.0,
+            3.0,
+            2000,
+            config.vr_mode,
+            config.pov_mode,
+            true,
+            true,
+            30.0,
+            8.0,
+            multi_axis,
+        ) {
+            Ok(_) => {
+                succeeded += 1;
+                println!("✓ Finished: {}", job.output_path.display());
+            }
+            Err(e) => {
+                failed += 1;
+                eprintln!("✗ Error processing {}: {e}", job.video_path.display());
+            }
+        }
+    }
+
+    println!("\n==================================================");
+    println!("Batch Processing Summary");
+    println!("==================================================");
+    println!("Total Jobs:     {}", count);
+    println!("Succeeded:      {}", succeeded);
+    println!("Failed:         {}", failed);
+    println!("==================================================");
+
+    Ok(())
+}
+
+fn run_stash_list_missing(url: &str, api_key: Option<&str>, limit: u32) -> Result<()> {
+    use stash::client::{StashClient, StashConfig};
+
+    println!("==================================================");
+    println!("Funscript Hub: Stash Media Server Integration");
+    println!("==================================================");
+    println!("Connecting to Stash endpoint: {}", url);
+
+    let client = StashClient::new(StashConfig {
+        endpoint: url.to_string(),
+        api_key: api_key.map(|k| k.to_string()),
+        auto_rescan: true,
+    });
+
+    match client.test_connection() {
+        Ok(ver) => println!("Connected to Stash Server (version {})", ver),
+        Err(e) => {
+            eprintln!("Warning: Failed to query Stash version ({}). Proceeding with query...", e);
+        }
+    }
+
+    println!("Querying for scenes missing funscripts (limit = {})...", limit);
+    let scenes = client.find_scenes_missing_scripts(limit)?;
+
+    println!("Found {} scenes missing interactive funscripts:", scenes.len());
+    println!("{:<8} | {:<40} | {}", "ID", "Title", "Primary File Path");
+    println!("{:-<8}-+-{:-<40}-+-{:-<30}", "", "", "");
+
+    for scene in &scenes {
+        let title = scene.title.as_deref().unwrap_or("<Untitled>");
+        let file_path = scene.files.first().map(|f| f.path.as_str()).unwrap_or("<No file>");
+        let trunc_title = if title.len() > 38 {
+            format!("{}...", &title[..35])
+        } else {
+            title.to_string()
+        };
+        println!("{:<8} | {:<40} | {}", scene.id, trunc_title, file_path);
+    }
+    println!("==================================================");
+
+    Ok(())
+}
+
+fn run_stash_auto_generate(
+    url: &str,
+    api_key: Option<&str>,
+    limit: u32,
+    model: Option<&Path>,
+    multi_axis: bool,
+) -> Result<()> {
+    use stash::client::{StashClient, StashConfig};
+
+    println!("==================================================");
+    println!("Funscript Hub: Stash Media Server Auto-Generate");
+    println!("==================================================");
+    println!("Connecting to Stash endpoint: {}", url);
+
+    let client = StashClient::new(StashConfig {
+        endpoint: url.to_string(),
+        api_key: api_key.map(|k| k.to_string()),
+        auto_rescan: true,
+    });
+
+    let scenes = client.find_scenes_missing_scripts(limit)?;
+    if scenes.is_empty() {
+        println!("No scenes missing scripts found in Stash. Everything is synced!");
+        return Ok(());
+    }
+
+    println!("Found {} scenes needing funscripts. Starting auto-generation...", scenes.len());
+    let mut generated_paths = Vec::new();
+
+    for (i, scene) in scenes.iter().enumerate() {
+        let Some(file) = scene.files.first() else {
+            continue;
+        };
+        let vid_path = Path::new(&file.path);
+        if !vid_path.exists() {
+            eprintln!("[{}/{}] File not accessible on local filesystem: {}", i + 1, scenes.len(), vid_path.display());
+            continue;
+        }
+
+        let script_output = vid_path.with_extension("funscript");
+        println!("\n[{}/{}] Generating script for: {}", i + 1, scenes.len(), vid_path.display());
+
+        let width = if model.is_some() { 640 } else { 256 };
+        let height = if model.is_some() { 640 } else { 256 };
+
+        match run_generate(
+            vid_path,
+            Some(&script_output),
+            model,
+            0.35,
+            30.0,
+            width,
+            height,
+            2.0,
+            3.0,
+            2000,
+            false,
+            false,
+            true,
+            true,
+            30.0,
+            8.0,
+            multi_axis,
+        ) {
+            Ok(_) => {
+                generated_paths.push(file.path.clone());
+                println!("✓ Successfully generated {}", script_output.display());
+            }
+            Err(e) => {
+                eprintln!("✗ Failed to generate {}: {e}", vid_path.display());
+            }
+        }
+    }
+
+    if !generated_paths.is_empty() {
+        println!("\nTriggering Stash metadata rescan for {} scenes...", generated_paths.len());
+        match client.trigger_metadata_scan(&generated_paths) {
+            Ok(true) => println!("✓ Stash metadata rescan triggered successfully. Funscripts are now linked in Stash!"),
+            Ok(false) => println!("Stash reported rescan task already in progress."),
+            Err(e) => eprintln!("Notice: Could not trigger Stash rescan automatically: {e}"),
+        }
+    }
+
+    println!("==================================================");
+    println!("Stash Auto-Generation Complete ({} processed)", generated_paths.len());
     println!("==================================================");
 
     Ok(())

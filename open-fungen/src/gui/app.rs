@@ -2,6 +2,7 @@
 
 use anyhow::Context;
 use crate::audio::AudioWaveform;
+use crate::batch::queue::{BatchJob, BatchJobConfig, BatchJobStatus, BatchProgressUpdate, BatchQueue, BatchWorker};
 use crate::funscript::{
     diagnose_funscript, AxisChannel, DoctorConfig, DoctorReport, Funscript, InfillPattern,
     MultiAxisScript,
@@ -11,6 +12,8 @@ use crate::kinematics::{
     eval_scurve, smooth_funscript, DeviceProfile, DeviceType, KinematicState,
     SCurvePreset, ThermalModel, ThermalStatus,
 };
+use crate::plugin::engine::PluginHost;
+use crate::stash::client::{StashClient, StashConfig, StashScene};
 use crate::sync::{format_tcode_v03, TCodeDispatcher, VrSyncMessage, VrSyncServer};
 use eframe::egui::{
     self, Align, Color32, Context as EguiContext, Layout, ProgressBar, RichText, ScrollArea,
@@ -29,6 +32,7 @@ pub enum HubTab {
     Generator,    // F3: Generator Studio
     ScriptDoctor, // F4: Script Doctor & Repair
     DeviceSync,   // F5: Device & Hardware Sync
+    Automation,   // F6: Stash & Plugin Automation Ecosystem
 }
 
 pub enum WorkerMessage {
@@ -114,6 +118,24 @@ pub struct FunGenApp {
     pub vr_server_port: u16,
     pub vr_sbs_mode: bool,
     pub vr_ipd_offset: f32,
+
+    // Stash Media Automation
+    pub stash_config: StashConfig,
+    pub stash_scenes: Vec<StashScene>,
+    pub stash_connected: bool,
+    pub stash_status: Option<String>,
+
+    // Batch Queue Processing
+    pub batch_queue: BatchQueue,
+    pub batch_config: BatchJobConfig,
+    pub batch_scan_path: String,
+    pub batch_worker: BatchWorker,
+
+    // Community Plugin & Procedural Macro SDK
+    pub plugin_host: PluginHost,
+    pub plugin_dialog_open: bool,
+    pub selected_plugin_idx: usize,
+    pub plugin_param_values: HashMap<String, f32>,
 }
 
 impl Default for FunGenApp {
@@ -183,14 +205,30 @@ impl Default for FunGenApp {
             vr_server_port: 23443,
             vr_sbs_mode: false,
             vr_ipd_offset: 0.0,
+
+            stash_config: StashConfig::default(),
+            stash_scenes: Vec::new(),
+            stash_connected: false,
+            stash_status: None,
+
+            batch_queue: BatchQueue::new(),
+            batch_config: BatchJobConfig::default(),
+            batch_scan_path: String::new(),
+            batch_worker: BatchWorker::new(),
+
+            plugin_host: PluginHost::new(),
+            plugin_dialog_open: false,
+            selected_plugin_idx: 0,
+            plugin_param_values: HashMap::new(),
         }
     }
 }
 
 impl eframe::App for FunGenApp {
     fn update(&mut self, ctx: &EguiContext, _frame: &mut eframe::Frame) {
-        // 1. Poll background messages (generation and audio waveform)
+        // 1. Poll background messages (generation, batch worker, and audio waveform)
         self.poll_worker();
+        self.poll_batch_worker();
         self.poll_waveform();
         self.poll_vr_sync();
 
@@ -276,6 +314,24 @@ impl eframe::App for FunGenApp {
                     }
                 });
 
+                ui.menu_button("Stash", |ui| {
+                    if ui.button("Stash Automation Manager (F6)").clicked() {
+                        self.active_tab = HubTab::Automation;
+                        ui.close_menu();
+                    }
+                });
+
+                ui.menu_button("Plugins", |ui| {
+                    if ui.button("Open Plugin & Macro SDK (F6)").clicked() {
+                        self.active_tab = HubTab::Automation;
+                        ui.close_menu();
+                    }
+                    if ui.button("Floating Plugin Window...").clicked() {
+                        self.plugin_dialog_open = true;
+                        ui.close_menu();
+                    }
+                });
+
                 ui.separator();
 
                 // Navigation Tabs with Function Key Hints
@@ -284,11 +340,15 @@ impl eframe::App for FunGenApp {
                 ui.selectable_value(&mut self.active_tab, HubTab::Generator, "  Generator (F3)  ");
                 ui.selectable_value(&mut self.active_tab, HubTab::ScriptDoctor, "  Doctor & Repair (F4)  ");
                 ui.selectable_value(&mut self.active_tab, HubTab::DeviceSync, "  Device & Sync (F5)  ");
+                ui.selectable_value(&mut self.active_tab, HubTab::Automation, "  Automation & Plugins (F6)  ");
 
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     if self.is_generating {
                         ui.spinner();
                         ui.label(RichText::new(&self.generation_status).color(Color32::from_rgb(0, 200, 255)));
+                    } else if self.batch_worker.is_active() {
+                        ui.spinner();
+                        ui.label(RichText::new("Batch Processing Active...").color(Color32::from_rgb(0, 200, 255)));
                     } else if let Some((ref msg, instant)) = self.status_message {
                         if instant.elapsed().as_secs() < 6 {
                             ui.label(RichText::new(msg).color(Color32::from_rgb(100, 220, 150)));
@@ -311,11 +371,15 @@ impl eframe::App for FunGenApp {
                 HubTab::Generator => self.render_generator_view(ui),
                 HubTab::ScriptDoctor => self.render_doctor_view(ui),
                 HubTab::DeviceSync => self.render_device_sync_view(ui),
+                HubTab::Automation => self.render_automation_view(ui),
             }
         });
 
-        // Request repaint if playing or generating
-        if self.is_playing || self.is_generating {
+        // Floating plugin dialog
+        self.render_plugin_dialog(ctx);
+
+        // Request repaint if playing, generating, or running batch worker
+        if self.is_playing || self.is_generating || self.batch_worker.is_active() {
             ctx.request_repaint();
         }
     }
@@ -355,6 +419,9 @@ impl FunGenApp {
         }
         if ctx.input(|i| i.key_pressed(egui::Key::F5)) {
             self.active_tab = HubTab::DeviceSync;
+        }
+        if ctx.input(|i| i.key_pressed(egui::Key::F6)) {
+            self.active_tab = HubTab::Automation;
         }
 
         // Playback, frame stepping, and axis channel hotkeys (when not typing in an input field)
@@ -563,6 +630,41 @@ impl FunGenApp {
         }
     }
 
+    fn poll_batch_worker(&mut self) {
+        let mut updates = Vec::new();
+        while let Ok(msg) = self.batch_worker.rx.try_recv() {
+            updates.push(msg);
+        }
+
+        for update in updates {
+            match update {
+                BatchProgressUpdate::JobStarted { id } => {
+                    if let Some(j) = self.batch_queue.jobs.iter_mut().find(|j| j.id == id) {
+                        j.status = BatchJobStatus::Processing { progress: 0.0, current_frame: 0 };
+                    }
+                }
+                BatchProgressUpdate::JobProgress { id, progress, frame } => {
+                    if let Some(j) = self.batch_queue.jobs.iter_mut().find(|j| j.id == id) {
+                        j.status = BatchJobStatus::Processing { progress, current_frame: frame };
+                    }
+                }
+                BatchProgressUpdate::JobCompleted { id, actions_count, elapsed_secs } => {
+                    if let Some(j) = self.batch_queue.jobs.iter_mut().find(|j| j.id == id) {
+                        j.status = BatchJobStatus::Completed { actions_count, elapsed_secs };
+                    }
+                }
+                BatchProgressUpdate::JobFailed { id, error } => {
+                    if let Some(j) = self.batch_queue.jobs.iter_mut().find(|j| j.id == id) {
+                        j.status = BatchJobStatus::Failed { error };
+                    }
+                }
+                BatchProgressUpdate::AllJobsCompleted => {
+                    self.set_status("Batch Queue execution complete!".to_string());
+                }
+            }
+        }
+    }
+
     // =========================================================================
     // View 1: Studio Editor (F1)
     // =========================================================================
@@ -717,6 +819,9 @@ impl FunGenApp {
                 self.infill_start_ms = self.timeline_state.view_start_ms as i64;
                 self.infill_end_ms = (self.timeline_state.view_start_ms + self.timeline_state.view_duration_ms) as i64;
                 self.infill_dialog_open = true;
+            }
+            if ui.button("🧩 Plugin Macros...").clicked() {
+                self.plugin_dialog_open = true;
             }
         });
 
@@ -1867,6 +1972,411 @@ impl FunGenApp {
 
     fn run_doctor(&mut self) {
         self.doctor_report = Some(diagnose_funscript(&self.script, &DoctorConfig::default()));
+    }
+
+    fn apply_current_plugin(&mut self, selection_only: bool) {
+        let plugins = self.plugin_host.list_plugins();
+        let Some(plugin_meta) = plugins.get(self.selected_plugin_idx) else {
+            return;
+        };
+        let plugin = &self.plugin_host.plugins[self.selected_plugin_idx];
+        let mut params = HashMap::new();
+        for p in plugin.parameters() {
+            let val = self.plugin_param_values.get(&p.key).copied().unwrap_or(p.default);
+            params.insert(p.key, val);
+        }
+
+        if selection_only {
+            let start_ms = self.timeline_state.view_start_ms as i64;
+            let end_ms = (self.timeline_state.view_start_ms + self.timeline_state.view_duration_ms) as i64;
+
+            let mut in_range = Vec::new();
+            let mut before = Vec::new();
+            let mut after = Vec::new();
+
+            for a in &self.script.actions {
+                if a.at < start_ms {
+                    before.push(*a);
+                } else if a.at > end_ms {
+                    after.push(*a);
+                } else {
+                    in_range.push(*a);
+                }
+            }
+
+            if in_range.is_empty() {
+                self.set_status("No keyframes inside current viewport range to transform.".to_string());
+                return;
+            }
+
+            match self.plugin_host.apply_by_id(&plugin_meta.id, &in_range, &params) {
+                Ok(transformed) => {
+                    let mut combined = before;
+                    combined.extend(transformed);
+                    combined.extend(after);
+                    self.script.actions = combined;
+                    self.script.sanitize();
+                    self.run_doctor();
+                    self.set_status(format!("Applied plugin '{}' to viewport range ({}ms - {}ms)", plugin_meta.name, start_ms, end_ms));
+                }
+                Err(e) => {
+                    self.set_status(format!("Plugin execution failed: {e}"));
+                }
+            }
+        } else {
+            match self.plugin_host.apply_by_id(&plugin_meta.id, &self.script.actions, &params) {
+                Ok(transformed) => {
+                    self.script.actions = transformed;
+                    self.script.sanitize();
+                    self.run_doctor();
+                    self.set_status(format!("Applied plugin '{}' across {} actions", plugin_meta.name, self.script.actions.len()));
+                }
+                Err(e) => {
+                    self.set_status(format!("Plugin execution failed: {e}"));
+                }
+            }
+        }
+    }
+
+    fn render_plugin_dialog(&mut self, ctx: &EguiContext) {
+        if !self.plugin_dialog_open {
+            return;
+        }
+
+        let mut open = self.plugin_dialog_open;
+        let mut apply_entire = false;
+        let mut apply_selection = false;
+
+        egui::Window::new("Community Plugin & Macro SDK")
+            .open(&mut open)
+            .resizable(true)
+            .default_width(450.0)
+            .show(ctx, |ui| {
+                ui.heading("Procedural Macro Transformers");
+                ui.label(
+                    RichText::new("Execute non-linear mathematical curve filters and stochastic infills on keyframe curves.")
+                        .size(11.0)
+                        .color(Color32::GRAY),
+                );
+                ui.separator();
+
+                let plugins = self.plugin_host.list_plugins();
+                if plugins.is_empty() {
+                    ui.label("No plugins loaded.");
+                    return;
+                }
+
+                ui.horizontal(|ui| {
+                    ui.label("Select Plugin:");
+                    egui::ComboBox::from_id_salt("plugin_select_dialog")
+                        .selected_text(
+                            plugins
+                                .get(self.selected_plugin_idx)
+                                .map(|p| p.name.as_str())
+                                .unwrap_or("Select..."),
+                        )
+                        .show_ui(ui, |ui| {
+                            for (idx, p) in plugins.iter().enumerate() {
+                                ui.selectable_value(&mut self.selected_plugin_idx, idx, &p.name);
+                            }
+                        });
+                });
+
+                if let Some(plugin_meta) = plugins.get(self.selected_plugin_idx) {
+                    ui.add_space(4.0);
+                    ui.label(RichText::new(&plugin_meta.description).italics());
+                    ui.monospace(format!("Author: {} | Version: {}", plugin_meta.author, plugin_meta.version));
+                    ui.separator();
+
+                    ui.heading("Parameters");
+                    let params = self.plugin_host.plugins[self.selected_plugin_idx].parameters();
+                    for p in params {
+                        let val = self.plugin_param_values.entry(p.key.clone()).or_insert(p.default);
+                        ui.horizontal(|ui| {
+                            ui.label(format!("{}:", p.label));
+                            ui.add(Slider::new(val, p.min..=p.max).step_by(0.1));
+                        });
+                    }
+
+                    ui.add_space(8.0);
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        if ui.button(RichText::new("⚡ Apply to Entire Script").strong()).clicked() {
+                            apply_entire = true;
+                        }
+                        if ui.button("Apply to Viewport Range").clicked() {
+                            apply_selection = true;
+                        }
+                    });
+                }
+            });
+
+        self.plugin_dialog_open = open;
+
+        if apply_entire {
+            self.apply_current_plugin(false);
+        } else if apply_selection {
+            self.apply_current_plugin(true);
+        }
+    }
+
+    fn render_automation_view(&mut self, ui: &mut Ui) {
+        ScrollArea::vertical().show(ui, |ui| {
+            ui.heading("Funscript Hub: Automation, Stash & Community Plugin Ecosystem");
+            ui.label(
+                RichText::new("Centralized control center for media server sync, high-throughput batch generation queues, and procedural macro plugins.")
+                    .color(Color32::from_rgb(160, 170, 185)),
+            );
+            ui.add_space(8.0);
+
+            // Section 1: Stash Media Server Integration
+            ui.group(|ui| {
+                ui.heading("1. Stash Media Server Integration (GraphQL)");
+                ui.label(
+                    RichText::new("Connect to your self-hosted Stash instance (localhost:9999) to detect scenes lacking funscripts, batch-generate them, and trigger metadata scans.")
+                        .size(11.0)
+                        .color(Color32::GRAY),
+                );
+                ui.add_space(4.0);
+
+                ui.horizontal(|ui| {
+                    ui.label("Endpoint:");
+                    ui.text_edit_singleline(&mut self.stash_config.endpoint);
+                    ui.label("API Key:");
+                    let mut api_key_str = self.stash_config.api_key.clone().unwrap_or_default();
+                    if ui.text_edit_singleline(&mut api_key_str).changed() {
+                        self.stash_config.api_key = if api_key_str.trim().is_empty() {
+                            None
+                        } else {
+                            Some(api_key_str)
+                        };
+                    }
+                    if ui.button("🔌 Test Connection").clicked() {
+                        let client = StashClient::new(self.stash_config.clone());
+                        match client.test_connection() {
+                            Ok(ver) => {
+                                self.stash_connected = true;
+                                self.stash_status = Some(format!("Connected: Stash v{}", ver));
+                            }
+                            Err(e) => {
+                                self.stash_connected = false;
+                                self.stash_status = Some(format!("Connection Failed: {}", e));
+                            }
+                        }
+                    }
+                    if ui.button("🔍 Find Scenes Missing Scripts").clicked() {
+                        let client = StashClient::new(self.stash_config.clone());
+                        match client.find_scenes_missing_scripts(50) {
+                            Ok(scenes) => {
+                                let count = scenes.len();
+                                self.stash_scenes = scenes;
+                                self.stash_status = Some(format!("Found {} scenes missing funscripts", count));
+                            }
+                            Err(e) => {
+                                self.stash_status = Some(format!("Query failed: {}", e));
+                            }
+                        }
+                    }
+                });
+
+                if let Some(ref status) = self.stash_status {
+                    ui.label(RichText::new(status).color(if self.stash_connected { Color32::GREEN } else { Color32::LIGHT_BLUE }));
+                }
+
+                if !self.stash_scenes.is_empty() {
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new(format!("Discovered Scenes Requiring Funscripts ({} total):", self.stash_scenes.len())).strong());
+                        if ui.button("⚡ Enqueue All to Batch Queue").clicked() {
+                            let mut added = 0;
+                            for sc in &self.stash_scenes {
+                                if let Some(f) = sc.files.first() {
+                                    let path = PathBuf::from(&f.path);
+                                    let out = path.with_extension("funscript");
+                                    if !self.batch_queue.jobs.iter().any(|j| j.video_path == path) {
+                                        self.batch_queue.jobs.push(BatchJob {
+                                            id: self.batch_queue.next_job_id,
+                                            video_path: path,
+                                            output_path: out,
+                                            status: BatchJobStatus::Queued,
+                                        });
+                                        self.batch_queue.next_job_id += 1;
+                                        added += 1;
+                                    }
+                                }
+                            }
+                            self.set_status(format!("Enqueued {} scenes from Stash into Batch Queue!", added));
+                        }
+                    });
+
+                    egui::Frame::NONE
+                        .fill(Color32::from_rgb(18, 20, 26))
+                        .show(ui, |ui| {
+                            ScrollArea::vertical().max_height(140.0).show(ui, |ui| {
+                                for sc in &self.stash_scenes {
+                                    ui.horizontal(|ui| {
+                                        ui.monospace(format!("[ID: {}]", sc.id));
+                                        let title = sc.title.as_deref().unwrap_or("<Untitled>");
+                                        ui.label(title);
+                                        if let Some(f) = sc.files.first() {
+                                            ui.label(RichText::new(&f.path).color(Color32::GRAY).size(10.0));
+                                        }
+                                    });
+                                }
+                            });
+                        });
+                }
+            });
+
+            ui.add_space(8.0);
+
+            // Section 2: Headless Multi-threaded Batch Processing Queue
+            ui.group(|ui| {
+                ui.heading("2. High-Throughput Batch Processing Queue");
+                ui.label(
+                    RichText::new("Scan folders recursively for videos, automatically enqueue missing scripts, and process in background thread with zero UI lag.")
+                        .size(11.0)
+                        .color(Color32::GRAY),
+                );
+                ui.add_space(4.0);
+
+                ui.horizontal(|ui| {
+                    ui.label("Scan Directory:");
+                    ui.text_edit_singleline(&mut self.batch_scan_path);
+                    if ui.button("Browse...").clicked() {
+                        if let Some(dir) = rfd::FileDialog::new().pick_folder() {
+                            self.batch_scan_path = dir.to_string_lossy().to_string();
+                        }
+                    }
+                    if ui.button("📂 Scan & Enqueue").clicked() {
+                        let p = PathBuf::from(&self.batch_scan_path);
+                        if p.is_dir() {
+                            let count = self.batch_queue.scan_directory(&p, true, &self.batch_config);
+                            self.set_status(format!("Enqueued {} videos for processing.", count));
+                        } else {
+                            self.set_status("Specified path is not a valid directory.".to_string());
+                        }
+                    }
+                });
+
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut self.batch_config.multi_axis, "Generate 6-DOF Companion Bundle (.surge, .sway, etc.)");
+                    ui.checkbox(&mut self.batch_config.overwrite, "Overwrite Existing Scripts");
+                });
+
+                ui.add_space(4.0);
+                let (total, queued, processing, completed, failed, _skipped) = self.batch_queue.stats();
+                ui.horizontal(|ui| {
+                    ui.monospace(format!("Jobs: {} Total | {} Queued | {} Running | {} Done | {} Failed", total, queued, processing, completed, failed));
+                    if self.batch_worker.is_active() {
+                        if ui.button("⏸ Stop Worker").clicked() {
+                            self.batch_worker.stop();
+                            self.set_status("Batch worker stopped.".to_string());
+                        }
+                    } else if !self.batch_queue.jobs.is_empty() {
+                        if ui.button(RichText::new("▶ Start Batch Processing").strong()).clicked() {
+                            let jobs = self.batch_queue.jobs.clone();
+                            let cfg = self.batch_config.clone();
+                            self.batch_worker.start(jobs, cfg);
+                            self.set_status("Batch processing worker started.".to_string());
+                        }
+                    }
+                    if ui.button("Clear Queue").clicked() {
+                        self.batch_queue.clear();
+                    }
+                });
+
+                if !self.batch_queue.jobs.is_empty() {
+                    egui::Frame::NONE
+                        .fill(Color32::from_rgb(18, 20, 26))
+                        .show(ui, |ui| {
+                            ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
+                                for job in &self.batch_queue.jobs {
+                                    ui.horizontal(|ui| {
+                                        let status_text = match &job.status {
+                                            BatchJobStatus::Queued => RichText::new("QUEUED").color(Color32::GRAY),
+                                            BatchJobStatus::Processing { progress, .. } => {
+                                                RichText::new(format!("RUNNING ({:.0}%)", progress * 100.0)).color(Color32::from_rgb(0, 200, 255))
+                                            }
+                                            BatchJobStatus::Completed { actions_count, .. } => {
+                                                RichText::new(format!("DONE ({} pts)", actions_count)).color(Color32::GREEN)
+                                            }
+                                            BatchJobStatus::Failed { error } => {
+                                                RichText::new(format!("ERR: {}", error)).color(Color32::RED)
+                                            }
+                                            BatchJobStatus::Skipped { reason } => {
+                                                RichText::new(format!("SKIP: {}", reason)).color(Color32::YELLOW)
+                                            }
+                                        };
+                                        ui.monospace(format!("[#{:>2}]", job.id));
+                                        ui.label(status_text);
+                                        ui.label(job.video_path.file_name().unwrap_or_default().to_string_lossy());
+                                    });
+                                }
+                            });
+                        });
+                }
+            });
+
+            ui.add_space(8.0);
+
+            // Section 3: Community Plugin & Procedural Macro SDK
+            ui.group(|ui| {
+                ui.heading("3. Community Plugin & Procedural Macro SDK");
+                ui.label(
+                    RichText::new("Extensible procedural macro interface for transforming keyframe actions using pure mathematical signal filters.")
+                        .size(11.0)
+                        .color(Color32::GRAY),
+                );
+                ui.add_space(4.0);
+
+                let plugins = self.plugin_host.list_plugins();
+                ui.horizontal(|ui| {
+                    ui.label("Select Macro Plugin:");
+                    egui::ComboBox::from_id_salt("plugin_select_tab")
+                        .selected_text(
+                            plugins
+                                .get(self.selected_plugin_idx)
+                                .map(|p| p.name.as_str())
+                                .unwrap_or("Select..."),
+                        )
+                        .show_ui(ui, |ui| {
+                            for (idx, p) in plugins.iter().enumerate() {
+                                ui.selectable_value(&mut self.selected_plugin_idx, idx, &p.name);
+                            }
+                        });
+                });
+
+                if let Some(meta) = plugins.get(self.selected_plugin_idx) {
+                    ui.add_space(4.0);
+                    ui.label(RichText::new(&meta.description).italics());
+                    ui.monospace(format!("Author: {} | Version: {}", meta.author, meta.version));
+                    ui.add_space(4.0);
+
+                    let params = self.plugin_host.plugins[self.selected_plugin_idx].parameters();
+                    for p in params {
+                        let val = self.plugin_param_values.entry(p.key.clone()).or_insert(p.default);
+                        ui.horizontal(|ui| {
+                            ui.label(format!("{}:", p.label));
+                            ui.add(Slider::new(val, p.min..=p.max).step_by(0.1));
+                        });
+                    }
+
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        if ui.button(RichText::new("⚡ Apply to Current Script").strong()).clicked() {
+                            self.apply_current_plugin(false);
+                        }
+                        if ui.button("Apply to Viewport Range").clicked() {
+                            self.apply_current_plugin(true);
+                        }
+                        if ui.button("Open as Floating Dialog").clicked() {
+                            self.plugin_dialog_open = true;
+                        }
+                    });
+                }
+            });
+        });
     }
 }
 
