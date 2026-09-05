@@ -21,8 +21,8 @@ use tracking::{
 use video::{probe_video, rgb_to_gray, FrameStreamReader, StreamConfig};
 
 #[derive(Parser)]
-#[command(name = "open-fungen")]
-#[command(about = "Open-source high-performance cleanroom funscript generator and editor engine", long_about = None)]
+#[command(name = "fs-hub")]
+#[command(about = "Funscript Hub (fs-hub): The unified open-source funscript generation, editing, and auditing suite", long_about = None)]
 #[command(version = "0.1.0")]
 struct Cli {
     #[command(subcommand)]
@@ -33,6 +33,28 @@ struct Cli {
 enum Commands {
     /// Launch the interactive GUI timeline editor and generator
     Gui,
+
+    /// Automatically repair an existing .funscript (clamp speed violations, remove micro-jitters, sort/dedup)
+    Fix {
+        /// Path to the .funscript file
+        script: PathBuf,
+
+        /// Path to save repaired .funscript (defaults to <name>.fixed.funscript)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Maximum safe hardware speed in units/s (defaults to 450.0)
+        #[arg(long, default_value_t = 450.0)]
+        max_speed: f64,
+
+        /// Micro-jitter time threshold in ms (defaults to 20)
+        #[arg(long, default_value_t = 20)]
+        jitter_window: i64,
+
+        /// Micro-jitter position delta threshold (defaults to 2)
+        #[arg(long, default_value_t = 2)]
+        jitter_threshold: i32,
+    },
 
     /// Generate a .funscript from video using optical flow motion tracking or neural ONNX detection
     Generate {
@@ -122,8 +144,17 @@ fn main() -> Result<()> {
 
     match cli.command {
         None | Some(Commands::Gui) => {
-            println!("Launching Open-FunGen Desktop GUI...");
+            println!("Launching Funscript Hub Desktop Application...");
             gui::run_gui().map_err(|e| anyhow::anyhow!("GUI execution error: {e}"))?;
+        }
+        Some(Commands::Fix {
+            script,
+            output,
+            max_speed,
+            jitter_window,
+            jitter_threshold,
+        }) => {
+            run_fix(&script, output.as_deref(), max_speed, jitter_window, jitter_threshold)?;
         }
         Some(Commands::Generate {
             video,
@@ -172,6 +203,47 @@ fn main() -> Result<()> {
             run_info(&video)?;
         }
     }
+
+    Ok(())
+}
+
+fn run_fix(
+    script_path: &Path,
+    output_path: Option<&Path>,
+    max_speed: f64,
+    jitter_window: i64,
+    jitter_threshold: i32,
+) -> Result<()> {
+    println!("Loading funscript for repair: {}", script_path.display());
+    let mut script = Funscript::load(script_path)?;
+    let initial_count = script.actions.len();
+
+    script.sanitize();
+    let sanitized_count = script.actions.len();
+    let removed_jitters = script.remove_micro_jitters(jitter_window, jitter_threshold);
+    let fixed_speeds = script.fix_speed_violations(max_speed);
+
+    let effective_output = match output_path {
+        Some(p) => p.to_path_buf(),
+        None => {
+            let stem = script_path.file_stem().unwrap_or_default().to_string_lossy();
+            let parent = script_path.parent().unwrap_or_else(|| Path::new("."));
+            parent.join(format!("{}.fixed.funscript", stem))
+        }
+    };
+
+    script.save(&effective_output)?;
+
+    println!("==================================================");
+    println!("Script Doctor Repair Complete");
+    println!("==================================================");
+    println!("Original Actions: {}", initial_count);
+    println!("Deduplicated:     {}", initial_count - sanitized_count);
+    println!("Jitters Removed:  {}", removed_jitters);
+    println!("Speeds Clamped:   {}", fixed_speeds);
+    println!("Final Actions:    {}", script.actions.len());
+    println!("Output Saved To:  {}", effective_output.display());
+    println!("==================================================");
 
     Ok(())
 }

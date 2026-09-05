@@ -1,0 +1,13 @@
+/target/
+open-fungen/target/
+**/*.rs.bk
+*.funscript
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+*.mp4
+*.mkv
+*.webm

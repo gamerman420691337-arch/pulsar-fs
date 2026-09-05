@@ -90,6 +90,99 @@ impl Funscript {
         }
         self.actions = clean;
     }
+
+    /// Fix transitions that exceed safe hardware motor speed limits by clamping position deltas.
+    pub fn fix_speed_violations(&mut self, max_safe_speed: f64) -> usize {
+        if self.actions.len() < 2 {
+            return 0;
+        }
+
+        self.sanitize();
+        let mut fixed_count = 0;
+
+        for i in 1..self.actions.len() {
+            let dt = (self.actions[i].at - self.actions[i - 1].at).max(1) as f64 / 1000.0;
+            let max_allowed_delta = (max_safe_speed * dt).round() as i32;
+
+            let prev_pos = self.actions[i - 1].pos;
+            let curr_pos = self.actions[i].pos;
+            let delta = curr_pos - prev_pos;
+
+            if delta.abs() > max_allowed_delta {
+                let clamped_pos = if delta > 0 {
+                    (prev_pos + max_allowed_delta).min(100)
+                } else {
+                    (prev_pos - max_allowed_delta).max(0)
+                };
+                self.actions[i].pos = clamped_pos;
+                fixed_count += 1;
+            }
+        }
+
+        fixed_count
+    }
+
+    /// Remove micro-jitter actions with negligible position change within a small time window.
+    pub fn remove_micro_jitters(&mut self, min_dt_ms: i64, min_dpos: i32) -> usize {
+        if self.actions.len() < 3 {
+            return 0;
+        }
+
+        self.sanitize();
+        let initial_len = self.actions.len();
+        let mut filtered = Vec::with_capacity(initial_len);
+
+        // Always keep first point
+        filtered.push(self.actions[0].clone());
+
+        for i in 1..(self.actions.len() - 1) {
+            let prev = filtered.last().unwrap();
+            let curr = &self.actions[i];
+            let dt = curr.at - prev.at;
+            let dpos = (curr.pos - prev.pos).abs();
+
+            if dt < min_dt_ms && dpos <= min_dpos {
+                // Skip micro-jitter point
+                continue;
+            }
+            filtered.push(curr.clone());
+        }
+
+        // Always keep last point
+        if let Some(last) = self.actions.last() {
+            if filtered.last().map(|p| p.at) != Some(last.at) {
+                filtered.push(last.clone());
+            }
+        }
+
+        let removed = initial_len - filtered.len();
+        self.actions = filtered;
+        removed
+    }
+
+    /// Linearly interpolate position [0.0, 100.0] at a given timestamp.
+    pub fn interpolate_position(&self, time_ms: i64) -> f32 {
+        if self.actions.is_empty() {
+            return 0.0;
+        }
+        if time_ms <= self.actions[0].at {
+            return self.actions[0].pos as f32;
+        }
+        if time_ms >= self.actions.last().unwrap().at {
+            return self.actions.last().unwrap().pos as f32;
+        }
+
+        let idx = match self.actions.binary_search_by_key(&time_ms, |a| a.at) {
+            Ok(i) => return self.actions[i].pos as f32,
+            Err(i) => i,
+        };
+
+        let prev = &self.actions[idx - 1];
+        let next = &self.actions[idx];
+        let dt = (next.at - prev.at).max(1) as f32;
+        let frac = ((time_ms - prev.at) as f32 / dt).clamp(0.0, 1.0);
+        prev.pos as f32 + frac * (next.pos - prev.pos) as f32
+    }
 }
 
 // ==============================================================================
@@ -303,5 +396,50 @@ mod tests {
         assert_eq!(script.actions.len(), 2);
         assert_eq!(script.actions[0], Action { at: 50, pos: 0 });
         assert_eq!(script.actions[1], Action { at: 100, pos: 90 });
+    }
+
+    #[test]
+    fn test_fix_speed_violations() {
+        let mut script = Funscript::new(vec![
+            Action { at: 0, pos: 0 },
+            // dt = 100ms, max speed 400 u/s => max delta = 40. pos 100 should be clamped to 40.
+            Action { at: 100, pos: 100 },
+        ]);
+
+        let fixed = script.fix_speed_violations(400.0);
+        assert_eq!(fixed, 1);
+        assert_eq!(script.actions[1].pos, 40);
+
+        let report = diagnose_funscript(&script, &DoctorConfig { max_safe_speed: 400.0, ..Default::default() });
+        assert_eq!(report.speed_violations_count, 0);
+    }
+
+    #[test]
+    fn test_remove_micro_jitters() {
+        let mut script = Funscript::new(vec![
+            Action { at: 0, pos: 0 },
+            Action { at: 10, pos: 1 }, // Micro jitter (<20ms, delta <= 2)
+            Action { at: 500, pos: 100 },
+        ]);
+
+        let removed = script.remove_micro_jitters(20, 2);
+        assert_eq!(removed, 1);
+        assert_eq!(script.actions.len(), 2);
+        assert_eq!(script.actions[0].at, 0);
+        assert_eq!(script.actions[1].at, 500);
+    }
+
+    #[test]
+    fn test_interpolate_position() {
+        let script = Funscript::new(vec![
+            Action { at: 0, pos: 0 },
+            Action { at: 1000, pos: 100 },
+        ]);
+
+        assert_eq!(script.interpolate_position(-50), 0.0);
+        assert_eq!(script.interpolate_position(0), 0.0);
+        assert_eq!(script.interpolate_position(500), 50.0);
+        assert_eq!(script.interpolate_position(1000), 100.0);
+        assert_eq!(script.interpolate_position(1500), 100.0);
     }
 }

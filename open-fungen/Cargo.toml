@@ -2,6 +2,14 @@
 name = "open-fungen"
 version = "0.1.0"
 edition = "2021"
+authors = ["Funscript Hub Developers"]
+description = "Funscript Hub: Cleanroom open-source funscript generation, editing, and auditing suite"
+license = "MIT OR Apache-2.0"
+default-run = "fs-hub"
+
+[[bin]]
+name = "fs-hub"
+path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }

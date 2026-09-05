@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "open-fungen",
+]
+default-members = ["open-fungen"]
+resolver = "2"
