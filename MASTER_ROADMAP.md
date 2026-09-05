@@ -130,8 +130,8 @@ graph TD
     P2 --> P3["Phase 3 (Complete)<br/>Neural YOLO + egui Desktop GUI + fs-hub CLI"]
     P3 --> P4["Phase 4 (Complete)<br/>Embedded GPU Video Canvas & Audio Waveform"]
     P4 --> P5["Phase 5 (Complete)<br/>Multi-Axis Stack (6-DOF) & Magnetic Snapping"]
-    P5 --> P6["Phase 6 (Next)<br/>SAM 2 & Co-Tracker Temporal Point Tracking"]
-    P6 --> P7["Phase 7<br/>Toy Kinematic Physics Engine & VR Player Sync"]
+    P5 --> P6["Phase 6 (Complete)<br/>SAM 2 & Co-Tracker Temporal Point Tracking"]
+    P6 --> P7["Phase 7 (Next)<br/>Toy Kinematic Physics Engine & VR Player Sync"]
     P7 --> P8["Phase 8<br/>Stash GraphQL Integration & Wasm Plugin SDK"]
 ```
 
@@ -178,15 +178,15 @@ graph TD
 
 ---
 
-### ⏳ Phase 6: SOTA Neural Vision (SAM 2 & Temporal Point Tracking) (Next Up)
-- [ ] **SAM 2 / Co-Tracker Memory Integration**: Persistent point tracking across video frames to prevent occlusion drift.
-- [ ] **3D Anatomical Pose Estimator**: Extract organ 3D spatial orientation and penetration vectors from surface landmarks.
-- [ ] **Automated 6-Axis Generator**: Simultaneously generate $L_0, L_1, L_2, R_1$ funscripts from a single video pass.
-- [ ] **Scene Boundary Classification**: Automatic semantic tagging of position transitions, rhythm changes, and cut boundaries.
+### ✅ Phase 6: SOTA Neural Vision (SAM 2 & Temporal Point Tracking) (Completed)
+- [x] **SAM 2 / Co-Tracker Memory Integration**: Temporal memory bank (`TemporalMemoryBank`), velocity-smoothed point trackers (`TrackedPoint`), and occlusion recovery states (`OccludedInside`, `Lost`) preventing tracking collapse during deep insertion.
+- [x] **3D Anatomical Pose Estimator**: Kinematic surface pose modeling (`Pose3D`) computing full 6-DOF kinematics + suction ($L_0, L_1, L_2, R_1, R_0, R_2, V_0$) from landmark bounding boxes, aspect ratios, distances, and optical curl vorticity.
+- [x] **Automated 6-Axis Multi-Track Generator**: Simultaneously generates companion funscript channels (`.surge`, `.sway`, `.pitch`, `.roll`, `.twist`, `.suction`) directly from video with `--multi-axis` flag in CLI or GUI checkbox.
+- [x] **Optical Vorticity & Twist Tracking**: Dense optical flow curl computation ($\nabla \times \mathbf{u} = \frac{\partial v}{\partial x} - \frac{\partial u}{\partial y}$) for accurate axial roll / twist generation around organ contact regions.
 
 ---
 
-### ⏳ Phase 7: Toy Kinematic Physics Engine & VR Player Sync
+### ⏳ Phase 7: Toy Kinematic Physics Engine & VR Player Sync (Next Up)
 - [ ] **Physical Motor Dynamics Models**: Calibrated profiles for The Handy, OSR2+, SR6, and Keon.
 - [ ] **Jerk-Limited S-Curve Filter**: Automatic conversion of sharp linear corners into jounce-minimized mechanical curves.
 - [ ] **Thermal & Wattage Protection**: Real-time continuous power estimation with micro-cooldown valley insertion.

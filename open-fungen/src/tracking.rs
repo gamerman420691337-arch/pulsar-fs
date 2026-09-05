@@ -32,6 +32,82 @@ impl FlowField {
             .sum();
         sum / (self.u.len() as f32)
     }
+
+    /// Bilinear interpolation sampling of optical flow velocity (u, v) at normalized coordinates [0.0, 1.0]
+    pub fn sample_flow_at(&self, norm_x: f32, norm_y: f32) -> (f32, f32) {
+        if self.width == 0 || self.height == 0 {
+            return (0.0, 0.0);
+        }
+        let px = (norm_x * (self.width as f32 - 1.0)).clamp(0.0, self.width as f32 - 1.0);
+        let py = (norm_y * (self.height as f32 - 1.0)).clamp(0.0, self.height as f32 - 1.0);
+
+        let x0 = px.floor() as usize;
+        let y0 = py.floor() as usize;
+        let x1 = (x0 + 1).min(self.width - 1);
+        let y1 = (y0 + 1).min(self.height - 1);
+
+        let fx = px - x0 as f32;
+        let fy = py - y0 as f32;
+
+        let idx00 = y0 * self.width + x0;
+        let idx10 = y0 * self.width + x1;
+        let idx01 = y1 * self.width + x0;
+        let idx11 = y1 * self.width + x1;
+
+        let u0 = self.u[idx00] * (1.0 - fx) + self.u[idx10] * fx;
+        let u1 = self.u[idx01] * (1.0 - fx) + self.u[idx11] * fx;
+        let sampled_u = u0 * (1.0 - fy) + u1 * fy;
+
+        let v0 = self.v[idx00] * (1.0 - fx) + self.v[idx10] * fx;
+        let v1 = self.v[idx01] * (1.0 - fx) + self.v[idx11] * fx;
+        let sampled_v = v0 * (1.0 - fy) + v1 * fy;
+
+        (sampled_u, sampled_v)
+    }
+
+    /// Compute optical flow vorticity (rotational curl: dv/dx - du/dy) in a circular region around (norm_cx, norm_cy).
+    /// Used for T-Code Twist (R2) axial rotation detection.
+    pub fn compute_vorticity(&self, norm_cx: f32, norm_cy: f32, norm_radius: f32) -> f32 {
+        if self.width < 3 || self.height < 3 {
+            return 0.0;
+        }
+
+        let cx = (norm_cx * self.width as f32).round() as isize;
+        let cy = (norm_cy * self.height as f32).round() as isize;
+        let r = ((norm_radius * self.width as f32).round() as isize).max(2);
+
+        let mut sum_curl = 0.0f32;
+        let mut count = 0usize;
+
+        let y_min = (cy - r).max(1);
+        let y_max = (cy + r).min(self.height as isize - 2);
+        let x_min = (cx - r).max(1);
+        let x_max = (cx + r).min(self.width as isize - 2);
+
+        for y in y_min..=y_max {
+            for x in x_min..=x_max {
+                let dx = x - cx;
+                let dy = y - cy;
+                if dx * dx + dy * dy <= r * r {
+                    let idx_xp = (y as usize) * self.width + (x + 1) as usize;
+                    let idx_xm = (y as usize) * self.width + (x - 1) as usize;
+                    let idx_yp = ((y + 1) as usize) * self.width + (x as usize);
+                    let idx_ym = ((y - 1) as usize) * self.width + (x as usize);
+
+                    let dv_dx = (self.v[idx_xp] - self.v[idx_xm]) * 0.5;
+                    let du_dy = (self.u[idx_yp] - self.u[idx_ym]) * 0.5;
+                    sum_curl += dv_dx - du_dy;
+                    count += 1;
+                }
+            }
+        }
+
+        if count > 0 {
+            sum_curl / (count as f32)
+        } else {
+            0.0
+        }
+    }
 }
 
 /// Detect sudden cut via L1 mean pixel difference between frames
@@ -301,5 +377,24 @@ mod tests {
         let filtered = filter_centers_median(&raw, 2);
         assert!((filtered[5].0 - 50.0).abs() < 1.0);
         assert!((filtered[5].1 - 50.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn test_flow_sample_and_vorticity() {
+        let mut flow = FlowField::new(10, 10);
+        for y in 0..10 {
+            for x in 0..10 {
+                let idx = y * 10 + x;
+                flow.v[idx] = (x as f32 - 4.5) * 2.0;
+                flow.u[idx] = -(y as f32 - 4.5) * 2.0;
+            }
+        }
+
+        let (u_center, v_center) = flow.sample_flow_at(0.5, 0.5);
+        assert!(u_center.abs() < 1.0);
+        assert!(v_center.abs() < 1.0);
+
+        let vorticity = flow.compute_vorticity(0.5, 0.5, 0.3);
+        assert!(vorticity > 0.0, "Expected positive rotational vorticity, got {}", vorticity);
     }
 }

@@ -27,7 +27,7 @@ pub enum HubTab {
 
 pub enum WorkerMessage {
     Progress { percent: f32, status: String },
-    Done(Result<Funscript, String>),
+    Done(Result<MultiAxisScript, String>),
 }
 
 pub struct FunGenApp {
@@ -83,6 +83,7 @@ pub struct FunGenApp {
     pub detrend_window: f64,
     pub norm_window: f64,
     pub use_neural: bool,
+    pub generate_multi_axis: bool,
 
     // Background generation task state
     pub is_generating: bool,
@@ -141,6 +142,7 @@ impl Default for FunGenApp {
             detrend_window: 2.0,
             norm_window: 3.0,
             use_neural: true,
+            generate_multi_axis: true,
 
             is_generating: false,
             generation_progress: 0.0,
@@ -435,15 +437,17 @@ impl FunGenApp {
                     self.is_generating = false;
                     self.worker_rx = None;
                     match result {
-                        Ok(new_script) => {
-                            self.script = new_script.clone();
-                            self.multi_axis = MultiAxisScript::new();
-                            self.multi_axis.channels.insert(AxisChannel::Stroke, new_script);
+                        Ok(bundle) => {
+                            if let Some(stroke) = bundle.channels.get(&AxisChannel::Stroke) {
+                                self.script = stroke.clone();
+                            }
+                            self.multi_axis = bundle;
                             self.active_axis = AxisChannel::Stroke;
                             self.run_doctor();
                             self.fit_timeline();
-                            self.generation_status = "Generation Complete!".to_string();
-                            self.set_status("Generation complete! Loaded into Studio Editor.".to_string());
+                            let count = self.multi_axis.channels.len();
+                            self.generation_status = format!("Generation Complete! ({} axes generated)", count);
+                            self.set_status(format!("Generated {} axes! Loaded into Studio Editor.", count));
                             self.active_tab = HubTab::Studio;
                         }
                         Err(e) => {
@@ -1009,6 +1013,7 @@ impl FunGenApp {
                 ui.add_space(4.0);
                 ui.checkbox(&mut self.pov_mode, "POV Mode (Fixed bottom-center interaction anchor)");
                 ui.checkbox(&mut self.vr_mode, "VR 180 Stereo Mode (Crop bottom-left quadrant)");
+                ui.checkbox(&mut self.generate_multi_axis, "Generate 6-DOF Multi-Axis Bundle (L0, L1, L2, R1, R0, R2, V0)");
             });
 
             ui.add_space(12.0);
@@ -1243,6 +1248,7 @@ impl FunGenApp {
         let conf = self.neural_conf;
         let detrend_win = self.detrend_window;
         let norm_win = self.norm_window;
+        let multi_axis = self.generate_multi_axis;
 
         let (tx, rx): (Sender<WorkerMessage>, Receiver<WorkerMessage>) = channel();
         self.worker_rx = Some(rx);
@@ -1253,8 +1259,11 @@ impl FunGenApp {
         thread::spawn(move || {
             let width = if model.is_some() { 640 } else { 256 };
             let height = if model.is_some() { 640 } else { 256 };
+            let est_total = crate::video::probe_video(&video)
+                .ok()
+                .map(|m| (m.duration_secs * fps).round().max(1.0) as u64);
 
-            let res = (|| -> anyhow::Result<Funscript> {
+            let res = (|| -> anyhow::Result<MultiAxisScript> {
                 let stream_cfg = crate::video::StreamConfig {
                     target_width: width,
                     target_height: height,
@@ -1265,7 +1274,7 @@ impl FunGenApp {
 
                 let mut stream = crate::video::FrameStreamReader::new(&video, &stream_cfg)?;
                 let mut all_samples = Vec::new();
-                let mut neural_positions = Vec::new();
+                let mut neural_poses: Vec<(crate::neural::Pose3D, i64)> = Vec::new();
 
                 let first = stream.next_frame()?.context("Zero video frames")?;
                 let mut last_raw = first.0;
@@ -1285,8 +1294,11 @@ impl FunGenApp {
                 while let Some((curr_raw, ts)) = stream.next_frame()? {
                     frame_count += 1;
                     if frame_count % 30 == 0 {
+                        let pct = est_total
+                            .map(|tot| (frame_count as f32 / tot as f32).min(0.99))
+                            .unwrap_or(0.5);
                         let _ = tx.send(WorkerMessage::Progress {
-                            percent: 0.5,
+                            percent: pct,
                             status: format!("Processing frame {}", frame_count),
                         });
                     }
@@ -1316,30 +1328,62 @@ impl FunGenApp {
 
                     if let (Some(ref mut det), Some(ref mut trk)) = (&mut detector, &mut tracker) {
                         let detections = det.detect(&curr_raw, width as usize, height as usize)?;
-                        let pos = if let Some((p, _, _)) = trk.update_from_detections(&detections) {
-                            p
-                        } else {
-                            trk.update_hybrid_fallback(radial_dot)
-                        };
-                        neural_positions.push((pos, ts));
+                        let (pose, _) = trk.update_pose(&detections, Some(&flow));
+                        neural_poses.push((pose, ts));
                     }
 
                     last_raw = curr_raw;
                 }
 
-                let actions = if model.is_some() && !neural_positions.is_empty() {
-                    let norm_values: Vec<f32> = neural_positions.iter().map(|(p, _)| *p).collect();
-                    let timestamps: Vec<i64> = neural_positions.iter().map(|(_, ts)| *ts).collect();
-                    crate::signal::extract_actions(&norm_values, &timestamps, true)
+                let mut bundle = MultiAxisScript::new();
+
+                if model.is_some() && !neural_poses.is_empty() {
+                    let timestamps: Vec<i64> = neural_poses.iter().map(|(_, ts)| *ts).collect();
+                    let stroke_values: Vec<f32> = neural_poses.iter().map(|(p, _)| p.stroke).collect();
+                    let mut stroke_script = Funscript::new(crate::signal::extract_actions(&stroke_values, &timestamps, true));
+                    stroke_script.sanitize();
+                    bundle.channels.insert(AxisChannel::Stroke, stroke_script);
+
+                    if multi_axis {
+                        let surge_values: Vec<f32> = neural_poses.iter().map(|(p, _)| p.surge).collect();
+                        let mut surge_script = Funscript::new(crate::signal::extract_actions(&surge_values, &timestamps, true));
+                        surge_script.sanitize();
+                        bundle.channels.insert(AxisChannel::Surge, surge_script);
+
+                        let sway_values: Vec<f32> = neural_poses.iter().map(|(p, _)| p.sway).collect();
+                        let mut sway_script = Funscript::new(crate::signal::extract_actions(&sway_values, &timestamps, true));
+                        sway_script.sanitize();
+                        bundle.channels.insert(AxisChannel::Sway, sway_script);
+
+                        let pitch_values: Vec<f32> = neural_poses.iter().map(|(p, _)| p.pitch).collect();
+                        let mut pitch_script = Funscript::new(crate::signal::extract_actions(&pitch_values, &timestamps, true));
+                        pitch_script.sanitize();
+                        bundle.channels.insert(AxisChannel::Pitch, pitch_script);
+
+                        let roll_values: Vec<f32> = neural_poses.iter().map(|(p, _)| p.roll).collect();
+                        let mut roll_script = Funscript::new(crate::signal::extract_actions(&roll_values, &timestamps, true));
+                        roll_script.sanitize();
+                        bundle.channels.insert(AxisChannel::Roll, roll_script);
+
+                        let twist_values: Vec<f32> = neural_poses.iter().map(|(p, _)| p.twist).collect();
+                        let mut twist_script = Funscript::new(crate::signal::extract_actions(&twist_values, &timestamps, true));
+                        twist_script.sanitize();
+                        bundle.channels.insert(AxisChannel::Twist, twist_script);
+
+                        let suction_values: Vec<f32> = neural_poses.iter().map(|(p, _)| p.suction).collect();
+                        let mut suction_script = Funscript::new(crate::signal::extract_actions(&suction_values, &timestamps, true));
+                        suction_script.sanitize();
+                        bundle.channels.insert(AxisChannel::Suction, suction_script);
+                    }
                 } else {
                     let (cum, ts) = crate::signal::integrate_flow(&all_samples);
                     let norm = crate::signal::detrend_and_normalize(&cum, fps, detrend_win, norm_win, 1000.0);
-                    crate::signal::extract_actions(&norm, &ts, true)
-                };
+                    let mut stroke_script = Funscript::new(crate::signal::extract_actions(&norm, &ts, true));
+                    stroke_script.sanitize();
+                    bundle.channels.insert(AxisChannel::Stroke, stroke_script);
+                }
 
-                let mut s = Funscript::new(actions);
-                s.sanitize();
-                Ok(s)
+                Ok(bundle)
             })();
 
             let _ = tx.send(WorkerMessage::Done(res.map_err(|e| e.to_string())));

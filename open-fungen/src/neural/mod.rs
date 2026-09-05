@@ -1,7 +1,10 @@
 //! Neural inference engine powered by ONNX Runtime (`ort`).
 
+pub mod pose;
 pub mod tracker;
 pub mod yolo;
+
+pub use pose::Pose3D;
 
 use anyhow::{Context, Result};
 use ndarray::Array4;

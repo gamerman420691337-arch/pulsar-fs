@@ -8,7 +8,7 @@ mod video;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use funscript::{diagnose_funscript, DoctorConfig, Funscript};
+use funscript::{diagnose_funscript, AxisChannel, DoctorConfig, Funscript, MultiAxisScript};
 use indicatif::{ProgressBar, ProgressStyle};
 use neural::tracker::AnatomicalTracker;
 use neural::NeuralDetector;
@@ -121,6 +121,10 @@ enum Commands {
         /// Cut velocity magnitude threshold (defaults to 8.0)
         #[arg(long, default_value_t = 8.0)]
         cut_flow: f32,
+
+        /// Generate full 6-DOF companion bundle (.surge, .sway, .pitch, .twist, .suction)
+        #[arg(long, default_value_t = false)]
+        multi_axis: bool,
     },
 
     /// Audit and lint an existing .funscript with Script Doctor
@@ -174,6 +178,7 @@ fn main() -> Result<()> {
             no_keyframe_reduction,
             cut_diff,
             cut_flow,
+            multi_axis,
         }) => {
             let eff_width = width.unwrap_or(if model.is_some() { 640 } else { 256 });
             let eff_height = height.unwrap_or(if model.is_some() { 640 } else { 256 });
@@ -195,6 +200,7 @@ fn main() -> Result<()> {
                 !no_keyframe_reduction,
                 cut_diff,
                 cut_flow,
+                multi_axis,
             )?;
         }
         Some(Commands::Doctor { script, max_speed }) => {
@@ -320,6 +326,7 @@ fn run_generate(
     keyframe_reduction: bool,
     cut_diff_threshold: f32,
     cut_flow_threshold: f32,
+    multi_axis: bool,
 ) -> Result<()> {
     let t0 = Instant::now();
     let meta = probe_video(video_path).context("Failed to probe input video")?;
@@ -337,11 +344,14 @@ fn run_generate(
     println!("Output Script: {}", effective_output.display());
     println!("Original Info: {}x{}, {:.2} FPS, {:.1}s", meta.width, meta.height, meta.fps, meta.duration_secs);
     println!("Tracking Mode: {} | Grid: {}x{} | Target: {:.2} FPS",
-        if is_neural { "Neural YOLO (ONNX) + Hybrid Flow" } else if vr_mode { "VR 180 (Optical Flow)" } else if pov_mode { "POV (Optical Flow)" } else { "2D Divergence (Optical Flow)" },
+        if is_neural { "Neural YOLO (ONNX) + 6-DOF Flow Fusion" } else if vr_mode { "VR 180 (Optical Flow)" } else if pov_mode { "POV (Optical Flow)" } else { "2D Divergence (Optical Flow)" },
         width, height, target_fps
     );
     if let Some(m) = model_path {
         println!("ONNX Model:    {} (conf: {:.2})", m.display(), conf_threshold);
+    }
+    if multi_axis {
+        println!("Multi-Axis:    ENABLED (Generating L0, L1, L2, R1, R0, R2, V0)");
     }
     println!("--------------------------------------------------");
 
@@ -378,7 +388,7 @@ fn run_generate(
     );
 
     let mut all_samples: Vec<(f32, bool, i64)> = Vec::new();
-    let mut neural_positions: Vec<(f32, i64)> = Vec::new();
+    let mut neural_poses: Vec<(crate::neural::Pose3D, i64)> = Vec::new();
     let mut frame_batch: Vec<(Vec<u8>, i64)> = Vec::with_capacity(batch_size);
 
     // Seed first frame
@@ -455,12 +465,8 @@ fn run_generate(
                 (&mut neural_detector, &mut anatomical_tracker)
             {
                 let detections = detector.detect(raw_frame, width as usize, height as usize)?;
-                let pos = if let Some((p, _, _)) = tracker.update_from_detections(&detections) {
-                    p
-                } else {
-                    tracker.update_hybrid_fallback(radial_dot)
-                };
-                neural_positions.push((pos, ts));
+                let (pose, _) = tracker.update_pose(&detections, Some(&raw_flows[j]));
+                neural_poses.push((pose, ts));
             }
         }
 
@@ -475,36 +481,84 @@ fn run_generate(
         anyhow::bail!("No frames were tracked from video");
     }
 
-    let actions = if is_neural && !neural_positions.is_empty() {
-        println!("-> Processing neural stroke observations...");
-        let norm_values: Vec<f32> = neural_positions.iter().map(|(p, _)| *p).collect();
-        let timestamps: Vec<i64> = neural_positions.iter().map(|(_, ts)| *ts).collect();
-        extract_actions(&norm_values, &timestamps, keyframe_reduction)
+    let mut bundle = MultiAxisScript::new();
+
+    if is_neural && !neural_poses.is_empty() {
+        println!("-> Processing neural 6-DOF pose observations (SAM 2 / Co-Tracker temporal point tracking)...");
+        let timestamps: Vec<i64> = neural_poses.iter().map(|(_, ts)| *ts).collect();
+        let stroke_values: Vec<f32> = neural_poses.iter().map(|(p, _)| p.stroke).collect();
+
+        let mut stroke_script = Funscript::new(extract_actions(&stroke_values, &timestamps, keyframe_reduction));
+        stroke_script.sanitize();
+        bundle.channels.insert(AxisChannel::Stroke, stroke_script);
+
+        if multi_axis {
+            println!("-> Synthesizing full 6-DOF companion channels...");
+            let surge_values: Vec<f32> = neural_poses.iter().map(|(p, _)| p.surge).collect();
+            let mut surge_script = Funscript::new(extract_actions(&surge_values, &timestamps, keyframe_reduction));
+            surge_script.sanitize();
+            bundle.channels.insert(AxisChannel::Surge, surge_script);
+
+            let sway_values: Vec<f32> = neural_poses.iter().map(|(p, _)| p.sway).collect();
+            let mut sway_script = Funscript::new(extract_actions(&sway_values, &timestamps, keyframe_reduction));
+            sway_script.sanitize();
+            bundle.channels.insert(AxisChannel::Sway, sway_script);
+
+            let pitch_values: Vec<f32> = neural_poses.iter().map(|(p, _)| p.pitch).collect();
+            let mut pitch_script = Funscript::new(extract_actions(&pitch_values, &timestamps, keyframe_reduction));
+            pitch_script.sanitize();
+            bundle.channels.insert(AxisChannel::Pitch, pitch_script);
+
+            let roll_values: Vec<f32> = neural_poses.iter().map(|(p, _)| p.roll).collect();
+            let mut roll_script = Funscript::new(extract_actions(&roll_values, &timestamps, keyframe_reduction));
+            roll_script.sanitize();
+            bundle.channels.insert(AxisChannel::Roll, roll_script);
+
+            let twist_values: Vec<f32> = neural_poses.iter().map(|(p, _)| p.twist).collect();
+            let mut twist_script = Funscript::new(extract_actions(&twist_values, &timestamps, keyframe_reduction));
+            twist_script.sanitize();
+            bundle.channels.insert(AxisChannel::Twist, twist_script);
+
+            let suction_values: Vec<f32> = neural_poses.iter().map(|(p, _)| p.suction).collect();
+            let mut suction_script = Funscript::new(extract_actions(&suction_values, &timestamps, keyframe_reduction));
+            suction_script.sanitize();
+            bundle.channels.insert(AxisChannel::Suction, suction_script);
+        }
     } else {
         println!("-> Integrating optical motion and filtering signal...");
         let (cum_flow, timestamps) = integrate_flow(&all_samples);
         let normalized = detrend_and_normalize(&cum_flow, target_fps, detrend_window, norm_window, 1000.0);
         println!("-> Extracting keyframe action points...");
-        extract_actions(&normalized, &timestamps, keyframe_reduction)
+        let mut stroke_script = Funscript::new(extract_actions(&normalized, &timestamps, keyframe_reduction));
+        stroke_script.sanitize();
+        bundle.channels.insert(AxisChannel::Stroke, stroke_script);
     };
 
-    let mut script = Funscript::new(actions);
-    script.sanitize();
+    if multi_axis {
+        println!("-> Saving multi-axis companion bundle...");
+        bundle.save_bundle(&effective_output)?;
+    } else if let Some(stroke) = bundle.channels.get(&AxisChannel::Stroke) {
+        stroke.save(&effective_output)?;
+    }
 
-    // Save output
-    script.save(&effective_output)?;
     let elapsed = t0.elapsed();
+    let primary_script = bundle.channels.get(&AxisChannel::Stroke).unwrap();
 
     println!("==================================================");
-    println!("SUCCESS: Funscript written to {}", effective_output.display());
-    println!("Total Actions:  {}", script.actions.len());
+    if multi_axis {
+        println!("SUCCESS: Multi-Axis 6-DOF Bundle saved for {}", effective_output.display());
+        println!("Active Channels: {}", bundle.channels.len());
+    } else {
+        println!("SUCCESS: Funscript written to {}", effective_output.display());
+    }
+    println!("Stroke Actions:  {}", primary_script.actions.len());
     println!("Processing Time: {:.2}s ({:.1}x realtime)", elapsed.as_secs_f64(), meta.duration_secs / elapsed.as_secs_f64().max(0.01));
     println!("==================================================");
 
-    // Run quick doctor check
+    // Run quick doctor check on primary stroke
     let doctor_cfg = DoctorConfig::default();
-    let report = diagnose_funscript(&script, &doctor_cfg);
-    println!("Script Doctor Summary:");
+    let report = diagnose_funscript(primary_script, &doctor_cfg);
+    println!("Script Doctor Summary (Stroke L0):");
     println!("  Avg Speed:        {:.1} units/s", report.avg_speed_units_per_sec);
     println!("  Max Speed:        {:.1} units/s", report.max_speed_units_per_sec);
     println!("  Speed Violations: {}", report.speed_violations_count);
