@@ -96,5 +96,41 @@ mod tests {
         // Detections should execute successfully (may be empty or contain low-conf detections for a flat gray frame)
         println!("Live model inference succeeded, returned {} detections", detections.len());
     }
+
+    #[test]
+    fn test_detect_on_fixture_video() {
+        let model_path = Path::new("/home/brianklam/Desktop/Funscripts/FunGen/fungen-data/cache/models/FunGen-12n-pov-1.1.0.onnx");
+        let video_path = Path::new("/home/brianklam/Desktop/Funscripts/Testing Fixtures/handonly_sync_animation.mp4");
+        if !model_path.exists() || !video_path.exists() {
+            eprintln!("Fixture or model missing");
+            return;
+        }
+
+        let mut detector = NeuralDetector::new(model_path, 0.01).expect("Failed to load model");
+        for (i, input) in detector.session.inputs().iter().enumerate() {
+            println!("Session input {}: name={}, type={:?}", i, input.name(), input.dtype());
+        }
+        for (i, output) in detector.session.outputs().iter().enumerate() {
+            println!("Session output {}: name={}, type={:?}", i, output.name(), output.dtype());
+        }
+
+        let rgb = crate::video::extract_frame_at(video_path, 1000, 640, 640).expect("Failed to extract frame");
+        println!("Sample rgb byte values: {:?}", &rgb[0..15]);
+
+        let input_array: Array4<f32> = preprocess_image_rgb(&rgb, 640, 640, 640);
+        let input_tensor = Tensor::from_array(input_array).unwrap();
+        let inputs = ort::inputs![input_tensor];
+        let outputs = detector.session.run(inputs).unwrap();
+        for (name, out) in outputs {
+            let (shape, slice) = out.try_extract_tensor::<f32>().unwrap();
+            println!("Output {}: shape={:?}, total_elements={}", name, shape, slice.len());
+            for c in 0..14 {
+                let channel_slice = &slice[c * 8400..(c + 1) * 8400];
+                let min_val = channel_slice.iter().fold(f32::INFINITY, |a, &b| a.min(b));
+                let max_val = channel_slice.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+                println!("Channel {}: min={:.4}, max={:.4}", c, min_val, max_val);
+            }
+        }
+    }
 }
 

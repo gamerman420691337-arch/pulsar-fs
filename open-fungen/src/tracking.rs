@@ -351,6 +351,120 @@ pub fn project_radial_motion(
     sum_dot / (total_pixels as f32)
 }
 
+/// Adaptive motion projection: automatically determines dominant motion axis (linear stroke vs radial expansion).
+/// Focuses on actively moving pixels so static backgrounds do not dilute motion velocity.
+/// Inverts screen-space Y velocity so moving UP corresponds to positive velocity (towards 100).
+pub fn project_adaptive_motion(
+    flow: &FlowField,
+    center: (f32, f32),
+    is_cut: bool,
+    pov_mode: bool,
+    balance_global: bool,
+) -> f32 {
+    if is_cut {
+        return 0.0;
+    }
+
+    let w = flow.width as f32;
+    let h = flow.height as f32;
+    let cx = center.0;
+    let cy = center.1;
+
+    if flow.width == 0 || flow.height == 0 {
+        return 0.0;
+    }
+
+    struct Accum {
+        sum_u: f32,
+        sum_v: f32,
+        sum_radial: f32,
+        weight_active: f32,
+    }
+
+    let accum = (0..flow.height)
+        .into_par_iter()
+        .map(|y| {
+            let mut acc = Accum {
+                sum_u: 0.0,
+                sum_v: 0.0,
+                sum_radial: 0.0,
+                weight_active: 0.0,
+            };
+            let y_f = y as f32;
+            let dy = y_f - cy;
+
+            for x in 0..flow.width {
+                let x_f = x as f32;
+                let dx = x_f - cx;
+                let idx = y * flow.width + x;
+
+                let u = flow.u[idx];
+                let v = flow.v[idx];
+                let mag = (u * u + v * v).sqrt();
+                if mag < 0.03 {
+                    continue;
+                }
+
+                let mut weight = mag; // Weight by velocity magnitude so moving foreground dominates
+                if !pov_mode && balance_global {
+                    let wx = if x_f > cx { (w - x_f) / w } else { x_f / w };
+                    let wy = if y_f > cy { (h - y_f) / h } else { y_f / h };
+                    weight *= (wx * wy).max(0.15);
+                }
+
+                let dist = (dx * dx + dy * dy).sqrt().max(1.0);
+                let norm_dx = dx / dist;
+                let norm_dy = dy / dist;
+                let rad_dot = u * norm_dx + v * norm_dy;
+
+                acc.sum_u += u * weight;
+                acc.sum_v += v * weight;
+                acc.sum_radial += rad_dot * weight;
+                acc.weight_active += weight;
+            }
+            acc
+        })
+        .reduce(
+            || Accum {
+                sum_u: 0.0,
+                sum_v: 0.0,
+                sum_radial: 0.0,
+                weight_active: 0.0,
+            },
+            |mut a, b| {
+                a.sum_u += b.sum_u;
+                a.sum_v += b.sum_v;
+                a.sum_radial += b.sum_radial;
+                a.weight_active += b.weight_active;
+                a
+            },
+        );
+
+    if accum.weight_active < 1e-4 {
+        return 0.0;
+    }
+
+    let mean_u = accum.sum_u / accum.weight_active;
+    let mean_v = accum.sum_v / accum.weight_active;
+    let mean_radial = accum.sum_radial / accum.weight_active;
+
+    let linear_mag = (mean_u * mean_u + mean_v * mean_v).sqrt();
+    let radial_mag = mean_radial.abs();
+
+    if pov_mode && radial_mag > linear_mag * 0.4 {
+        mean_radial
+    } else if linear_mag > radial_mag * 0.6 {
+        // Linear stroking dominates: project along dominant linear motion
+        if mean_v.abs() >= mean_u.abs() * 0.5 {
+            -mean_v // Moving UP on screen is positive velocity
+        } else {
+            mean_u
+        }
+    } else {
+        mean_radial * 0.5 + (-mean_v) * 0.5
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -446,5 +560,57 @@ mod tests {
         assert_eq!(flow.width, 256);
         assert_eq!(flow.height, 256);
         assert!(elapsed.as_millis() < 500, "Flow computation took too long: {:?}", elapsed);
+    }
+
+    #[test]
+    fn test_motion_axes_on_fixture() {
+        use std::path::Path;
+        let video_path = Path::new("/home/brianklam/Desktop/Funscripts/Testing Fixtures/handonly_sync_animation.mp4");
+        if !video_path.exists() {
+            return;
+        }
+
+        let cfg = crate::video::StreamConfig {
+            target_width: 256,
+            target_height: 256,
+            target_fps: 12.0, // native video fps!
+            vr_mode: false,
+            is_rgb: false,
+        };
+
+        let mut stream = crate::video::FrameStreamReader::new(video_path, &cfg).unwrap();
+        let mut prev = stream.next_frame().unwrap().unwrap().0;
+
+        let mut adaptive_dots = Vec::new();
+        let mut timestamps = Vec::new();
+
+        while let Ok(Some((curr, ts))) = stream.next_frame() {
+            let flow = compute_dense_flow(&prev, &curr, 256, 256);
+            let center = find_divergence_center(&flow);
+            let dot = project_adaptive_motion(&flow, (center.0, center.1), false, false, true);
+
+            adaptive_dots.push(dot);
+            timestamps.push(ts);
+            prev = curr;
+        }
+
+        println!("Total frames analyzed: {}", adaptive_dots.len());
+
+        let mut cum_pos = 0.0f32;
+        let mut pos_curve = Vec::new();
+        for &dot in &adaptive_dots {
+            cum_pos += dot;
+            pos_curve.push(cum_pos);
+        }
+
+        let min_c = pos_curve.iter().fold(f32::INFINITY, |a, &b| a.min(b));
+        let max_c = pos_curve.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+        println!("Integrated displacement range: [{:.2}, {:.2}]", min_c, max_c);
+
+        let actions = crate::signal::extract_actions_full_range(&pos_curve, &timestamps, 1.0, true);
+        println!("Extracted actions with 1.0% prominence: {}", actions.len());
+        for a in actions.iter().take(15) {
+            println!("  at: {:>5} ms, pos: {:>3}", a.at, a.pos);
+        }
     }
 }

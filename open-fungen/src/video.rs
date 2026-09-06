@@ -2,9 +2,14 @@
 
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
+use std::collections::VecDeque;
 use std::io::Read;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread::{self, JoinHandle};
+use std::time::Duration;
 
 #[derive(Debug, Clone)]
 pub struct VideoMetadata {
@@ -162,6 +167,10 @@ pub struct FrameStreamReader {
 
 impl FrameStreamReader {
     pub fn new<P: AsRef<Path>>(video_path: P, config: &StreamConfig) -> Result<Self> {
+        Self::new_at(video_path, config, 0.0)
+    }
+
+    pub fn new_at<P: AsRef<Path>>(video_path: P, config: &StreamConfig, start_time_secs: f64) -> Result<Self> {
         let w = config.target_width;
         let h = config.target_height;
         let fps = config.target_fps;
@@ -180,23 +189,27 @@ impl FrameStreamReader {
 
         let pix_fmt = if is_rgb { "rgb24" } else { "gray" };
 
-        let child = Command::new("ffmpeg")
-            .args([
-                "-nostdin",
-                "-hwaccel",
-                "auto",
-                "-i",
-            ])
-            .arg(video_path.as_ref())
-            .args([
-                "-vf",
-                &filter,
-                "-f",
-                "rawvideo",
-                "-pix_fmt",
-                pix_fmt,
-                "pipe:1",
-            ])
+        let mut cmd = Command::new("ffmpeg");
+        cmd.args([
+            "-nostdin",
+            "-hwaccel",
+            "auto",
+        ]);
+        if start_time_secs > 0.01 {
+            cmd.args(["-ss", &format!("{:.3}", start_time_secs)]);
+        }
+        cmd.arg("-i").arg(video_path.as_ref());
+        cmd.args([
+            "-vf",
+            &filter,
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            pix_fmt,
+            "pipe:1",
+        ]);
+
+        let child = cmd
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .spawn()
@@ -204,6 +217,7 @@ impl FrameStreamReader {
 
         let channels = if is_rgb { 3 } else { 1 };
         let frame_bytes = (w * h * channels) as usize;
+        let start_frame = (start_time_secs.max(0.0) * fps).round() as u64;
 
         Ok(Self {
             child,
@@ -212,7 +226,7 @@ impl FrameStreamReader {
             height: h,
             fps,
             is_rgb,
-            current_frame: 0,
+            current_frame: start_frame,
         })
     }
 
@@ -242,6 +256,149 @@ impl Drop for FrameStreamReader {
     fn drop(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
+    }
+}
+
+/// High-performance buffered playback streamer that decodes frames sequentially
+/// in a background thread and keeps a bounded ring buffer for zero-latency UI display.
+pub struct PlaybackStreamer {
+    queue: Arc<Mutex<VecDeque<(i64, Vec<u8>)>>>,
+    seek_target: Arc<AtomicI64>,
+    stop_flag: Arc<AtomicBool>,
+    _worker: JoinHandle<()>,
+}
+
+impl PlaybackStreamer {
+    pub fn new<P: AsRef<Path>>(
+        video_path: P,
+        width: u32,
+        height: u32,
+        fps: f64,
+        start_time_ms: i64,
+    ) -> Self {
+        let path = video_path.as_ref().to_path_buf();
+        let queue = Arc::new(Mutex::new(VecDeque::<(i64, Vec<u8>)>::with_capacity(64)));
+        let seek_target = Arc::new(AtomicI64::new(start_time_ms.max(0)));
+        let stop_flag = Arc::new(AtomicBool::new(false));
+
+        let q_clone = Arc::clone(&queue);
+        let seek_clone = Arc::clone(&seek_target);
+        let stop_clone = Arc::clone(&stop_flag);
+
+        let config = StreamConfig {
+            target_width: width,
+            target_height: height,
+            target_fps: fps,
+            vr_mode: false,
+            is_rgb: true,
+        };
+
+        let worker = thread::spawn(move || {
+            let mut current_reader: Option<FrameStreamReader> = None;
+
+            while !stop_clone.load(Ordering::Relaxed) {
+                // Check if a seek was requested
+                let seek_req = seek_clone.swap(-1, Ordering::SeqCst);
+                if seek_req >= 0 {
+                    // Reset existing reader and empty queue
+                    current_reader = None;
+                    if let Ok(mut q) = q_clone.lock() {
+                        q.clear();
+                    }
+                    let start_sec = (seek_req as f64 / 1000.0).max(0.0);
+                    match FrameStreamReader::new_at(&path, &config, start_sec) {
+                        Ok(reader) => current_reader = Some(reader),
+                        Err(e) => {
+                            eprintln!("PlaybackStreamer failed to seek to {:.2}s: {e}", start_sec);
+                        }
+                    }
+                }
+
+                if current_reader.is_none() {
+                    thread::sleep(Duration::from_millis(5));
+                    continue;
+                }
+
+                // Check queue size
+                let q_len = q_clone.lock().map(|q| q.len()).unwrap_or(0);
+                if q_len >= 45 {
+                    thread::sleep(Duration::from_millis(5));
+                    continue;
+                }
+
+                if let Some(reader) = current_reader.as_mut() {
+                    match reader.next_frame() {
+                        Ok(Some((bytes, ts))) => {
+                            if let Ok(mut q) = q_clone.lock() {
+                                q.push_back((ts, bytes));
+                            }
+                        }
+                        Ok(None) => {
+                            // End of file
+                            current_reader = None;
+                            thread::sleep(Duration::from_millis(15));
+                        }
+                        Err(_) => {
+                            current_reader = None;
+                            thread::sleep(Duration::from_millis(15));
+                        }
+                    }
+                }
+            }
+        });
+
+        Self {
+            queue,
+            seek_target,
+            stop_flag,
+            _worker: worker,
+        }
+    }
+
+    /// Request a seek to a specific millisecond timestamp
+    pub fn seek_to(&self, time_ms: i64) {
+        self.seek_target.store(time_ms.max(0), Ordering::SeqCst);
+    }
+
+    /// Retrieve the frame matching `target_time_ms`.
+    /// Automatically advances the ring buffer and discards elapsed frames.
+    pub fn get_frame(&self, target_time_ms: i64) -> Option<(i64, Vec<u8>)> {
+        let mut q = self.queue.lock().ok()?;
+
+        // If target is significantly behind what's queued, auto-seek backwards
+        if let Some(&(front_ts, _)) = q.front() {
+            if target_time_ms < front_ts - 250 {
+                self.seek_to(target_time_ms);
+                return None;
+            }
+        }
+        // If target is far ahead (> 1200ms), auto-seek forwards
+        if let Some(&(back_ts, _)) = q.back() {
+            if target_time_ms > back_ts + 1200 {
+                self.seek_to(target_time_ms);
+                return None;
+            }
+        }
+
+        // Discard frames that are strictly in the past when a newer frame is already available
+        while q.len() >= 2 && q[1].0 <= target_time_ms {
+            q.pop_front();
+        }
+
+        // Return current front frame if it is within reasonable temporal range (within 250ms)
+        if let Some((ts, rgb)) = q.front() {
+            if (target_time_ms - *ts).abs() <= 250 {
+                return Some((*ts, rgb.clone()));
+            }
+        }
+
+        None
+    }
+}
+
+impl Drop for PlaybackStreamer {
+    fn drop(&mut self) {
+        self.stop_flag.store(true, Ordering::SeqCst);
     }
 }
 
@@ -304,5 +461,13 @@ mod tests {
             let bytes = res.unwrap();
             assert_eq!(bytes.len(), 64 * 64 * 3);
         }
+    }
+
+    #[test]
+    fn test_playback_streamer_lifecycle() {
+        let streamer = PlaybackStreamer::new("/nonexistent_video_path.mp4", 160, 90, 30.0, 0);
+        streamer.seek_to(1000);
+        assert!(streamer.get_frame(1000).is_none());
+        drop(streamer);
     }
 }

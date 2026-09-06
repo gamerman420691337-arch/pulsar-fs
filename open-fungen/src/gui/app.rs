@@ -14,7 +14,7 @@ use crate::kinematics::{
 };
 use crate::plugin::engine::PluginHost;
 use crate::stash::client::{StashClient, StashConfig, StashScene};
-use crate::sync::{format_tcode_v03, TCodeDispatcher, VrSyncMessage, VrSyncServer};
+use crate::sync::{format_tcode_v03, HandyConfig, HandyDispatcher, TCodeDispatcher, VrSyncMessage, VrSyncServer};
 use eframe::egui::{
     self, Align, Color32, Context as EguiContext, Layout, ProgressBar, RichText, ScrollArea,
     Slider, TopBottomPanel, Ui,
@@ -96,6 +96,7 @@ pub struct FunGenApp {
     pub video_resp_rx: Option<Receiver<VideoFrameResponse>>,
     pub video_frame_cache: VecDeque<(i64, egui::TextureHandle)>,
     pub video_pending_req_ts: Option<i64>,
+    pub playback_streamer: Option<crate::video::PlaybackStreamer>,
 
     // Playback simulation
     pub is_playing: bool,
@@ -132,6 +133,10 @@ pub struct FunGenApp {
     pub sync_udp_address: String,
     pub sync_udp_enabled: bool,
     pub last_tcode_string: String,
+
+    // The Handy Cloud & Local Hardware Sync
+    pub handy_dispatcher: HandyDispatcher,
+    pub handy_config: HandyConfig,
 
     // VR Headset Sync Server & SBS Mode
     pub vr_server: Option<VrSyncServer>,
@@ -230,6 +235,10 @@ impl Default for FunGenApp {
             sync_udp_enabled: false,
             last_tcode_string: String::new(),
 
+            playback_streamer: None,
+            handy_dispatcher: HandyDispatcher::new(),
+            handy_config: HandyConfig::default(),
+
             vr_server: None,
             vr_server_port: 23443,
             vr_sbs_mode: false,
@@ -258,11 +267,12 @@ impl Default for FunGenApp {
 
 impl eframe::App for FunGenApp {
     fn update(&mut self, ctx: &EguiContext, _frame: &mut eframe::Frame) {
-        // 1. Poll background messages (generation, batch worker, and audio waveform)
+        // 1. Poll background messages (generation, batch worker, audio waveform, and Handy events)
         self.poll_worker();
         self.poll_batch_worker();
         self.poll_waveform();
         self.poll_vr_sync();
+        self.handy_dispatcher.poll_events();
 
         // 2. Advance playback clock if playing
         self.update_playback(ctx);
@@ -632,18 +642,30 @@ impl FunGenApp {
             if ctx.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {
                 let step = if ctx.input(|i| i.modifiers.shift) { 1000 } else { 33 };
                 self.timeline_state.cursor_time_ms = (self.timeline_state.cursor_time_ms - step).max(0);
+                if let Some(ref streamer) = self.playback_streamer {
+                    streamer.seek_to(self.timeline_state.cursor_time_ms);
+                }
             }
             if ctx.input(|i| i.key_pressed(egui::Key::ArrowRight)) {
                 let step = if ctx.input(|i| i.modifiers.shift) { 1000 } else { 33 };
                 let dur = self.script.actions.last().map(|a| a.at).unwrap_or(0);
                 self.timeline_state.cursor_time_ms = (self.timeline_state.cursor_time_ms + step).min(dur.max(step));
+                if let Some(ref streamer) = self.playback_streamer {
+                    streamer.seek_to(self.timeline_state.cursor_time_ms);
+                }
             }
             if ctx.input(|i| i.key_pressed(egui::Key::Home)) {
                 self.timeline_state.cursor_time_ms = 0;
+                if let Some(ref streamer) = self.playback_streamer {
+                    streamer.seek_to(0);
+                }
             }
             if ctx.input(|i| i.key_pressed(egui::Key::End)) {
                 let dur = self.script.actions.last().map(|a| a.at).unwrap_or(0);
                 self.timeline_state.cursor_time_ms = dur;
+                if let Some(ref streamer) = self.playback_streamer {
+                    streamer.seek_to(dur);
+                }
             }
         }
     }
@@ -726,6 +748,41 @@ impl FunGenApp {
             return;
         }
 
+        let w = 480;
+        let h = 270;
+
+        // High-performance streaming path: query buffered background PlaybackStreamer (zero process spawns)
+        if self.playback_streamer.is_none() {
+            let fps = self.target_fps.max(12.0);
+            self.playback_streamer = Some(crate::video::PlaybackStreamer::new(
+                &video_path,
+                w,
+                h,
+                fps,
+                cur_time,
+            ));
+        }
+
+        if let Some(ref streamer) = self.playback_streamer {
+            if let Some((ts, rgb_data)) = streamer.get_frame(cur_time) {
+                let color_image = egui::ColorImage::from_rgb([w as usize, h as usize], &rgb_data);
+                let texture = ctx.load_texture(
+                    "current_video_frame",
+                    color_image,
+                    egui::TextureOptions::LINEAR,
+                );
+                if self.video_frame_cache.len() >= 32 {
+                    self.video_frame_cache.pop_front();
+                }
+                self.video_frame_cache.push_back((ts, texture.clone()));
+                self.video_texture = Some(texture);
+                self.last_video_frame_ts = ts;
+                self.video_pending_req_ts = None;
+                ctx.request_repaint();
+                return;
+            }
+        }
+
         // Avoid spamming duplicate requests if one is already pending for this timestamp
         if let Some(pending_ts) = self.video_pending_req_ts {
             if (cur_time - pending_ts).abs() < 35 {
@@ -733,8 +790,6 @@ impl FunGenApp {
             }
         }
 
-        let w = 480;
-        let h = 270;
         let tx = self.ensure_video_worker();
         let _ = tx.send(VideoFrameRequest {
             path: video_path,
@@ -859,6 +914,17 @@ impl FunGenApp {
             self.last_tcode_string = tcode.clone();
             if self.sync_udp_enabled {
                 self.tcode_dispatcher.send(&tcode);
+            }
+
+            // The Handy Hardware Streaming
+            if self.handy_config.is_enabled {
+                let stroke_pos = *positions.get(&AxisChannel::Stroke).unwrap_or(&50.0);
+                self.handy_dispatcher.stream_position(
+                    &self.handy_config.connection_key,
+                    stroke_pos,
+                    &self.handy_config,
+                    interval_ms.max(50),
+                );
             }
 
             ctx.request_repaint();
@@ -2030,6 +2096,112 @@ impl FunGenApp {
                     ui.label(RichText::new("1. In HereSphere or DeoVR on your Quest/Pico/PCVR headset, enable External Sync / WebSocket.\n2. Point it to this PC's local IP address and configured port.\n3. Funscript Hub will automatically lock playhead time, scrubbing, and pause states with zero latency.").size(10.5).color(Color32::from_rgb(170, 180, 195)));
                 });
             });
+
+            ui.add_space(10.0);
+
+            // 4. The Handy (Ohdoki / Sweet Tech) Hardware Cloud & Local Sync
+            ui.group(|ui| {
+                ui.heading("The Handy — Hardware Cloud & Local HDSP Sync");
+                ui.label("Direct physical toy control via official HandyFeeling API v2 (HDSP real-time streaming & HSSP script mode).");
+                ui.add_space(6.0);
+
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Connection Key:").strong());
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.handy_config.connection_key)
+                            .hint_text("e.g. 6-8 char key from Handy app or handyfeeling.com")
+                            .desired_width(240.0)
+                    );
+
+                    if self.handy_dispatcher.is_connecting {
+                        ui.colored_label(Color32::from_rgb(255, 200, 50), "⏳ Connecting...");
+                    } else if self.handy_dispatcher.status.is_connected {
+                        if ui.button("Disconnect").clicked() {
+                            self.handy_dispatcher.disconnect(&self.handy_config.connection_key);
+                            self.set_status("The Handy disconnected".to_string());
+                        }
+                        ui.colored_label(Color32::GREEN, format!(
+                            "● Connected ({} | FW: {} | HW: {} | {}ms ping)",
+                            self.handy_dispatcher.status.model,
+                            self.handy_dispatcher.status.fw_version,
+                            self.handy_dispatcher.status.hw_version,
+                            self.handy_dispatcher.status.last_ping_ms
+                        ));
+                    } else {
+                        if ui.button("Connect & Verify").clicked() {
+                            self.handy_dispatcher.connect(&self.handy_config.connection_key);
+                            self.set_status("Connecting to The Handy...".to_string());
+                        }
+                        ui.colored_label(Color32::GRAY, "○ Disconnected");
+                    }
+
+                    if let Some(ref err) = self.handy_dispatcher.last_error {
+                        ui.colored_label(Color32::from_rgb(255, 100, 100), format!("⚠ {err}"));
+                    }
+                });
+
+                ui.add_space(6.0);
+
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut self.handy_config.is_enabled, RichText::new("Enable Hardware Streaming").strong());
+                    ui.separator();
+
+                    ui.label("Protocol Mode:");
+                    let mode_label = if self.handy_config.direct_hdsp_mode {
+                        "HDSP (High-Definition Streaming Protocol)"
+                    } else {
+                        "HSSP (Handy Script Sync Protocol)"
+                    };
+                    let prev_mode = self.handy_config.direct_hdsp_mode;
+                    egui::ComboBox::from_id_salt("handy_mode_combo")
+                        .selected_text(mode_label)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.handy_config.direct_hdsp_mode, true, "HDSP (High-Definition Streaming Protocol)");
+                            ui.selectable_value(&mut self.handy_config.direct_hdsp_mode, false, "HSSP (Handy Script Sync Protocol)");
+                        });
+                    if prev_mode != self.handy_config.direct_hdsp_mode && self.handy_dispatcher.status.is_connected {
+                        let mode_num = if self.handy_config.direct_hdsp_mode { 3 } else { 2 };
+                        self.handy_dispatcher.set_mode(&self.handy_config.connection_key, mode_num);
+                    }
+                });
+
+                ui.add_space(6.0);
+
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Stroke Range Limits:").strong());
+                    ui.add(Slider::new(&mut self.handy_config.min_stroke_pct, 0.0..=80.0).text("Min Stroke %"));
+                    ui.add(Slider::new(&mut self.handy_config.max_stroke_pct, 20.0..=100.0).text("Max Stroke %"));
+
+                    // Ensure min < max
+                    if self.handy_config.min_stroke_pct >= self.handy_config.max_stroke_pct - 5.0 {
+                        self.handy_config.min_stroke_pct = (self.handy_config.max_stroke_pct - 5.0).max(0.0);
+                    }
+
+                    ui.separator();
+                    ui.label("Presets:");
+                    if ui.button("Full (0-100%)").clicked() {
+                        self.handy_config.min_stroke_pct = 0.0;
+                        self.handy_config.max_stroke_pct = 100.0;
+                    }
+                    if ui.button("Deep (0-60%)").clicked() {
+                        self.handy_config.min_stroke_pct = 0.0;
+                        self.handy_config.max_stroke_pct = 60.0;
+                    }
+                    if ui.button("Tip (40-100%)").clicked() {
+                        self.handy_config.min_stroke_pct = 40.0;
+                        self.handy_config.max_stroke_pct = 100.0;
+                    }
+                    if ui.button("Comfort (20-80%)").clicked() {
+                        self.handy_config.min_stroke_pct = 20.0;
+                        self.handy_config.max_stroke_pct = 80.0;
+                    }
+                });
+
+                if self.handy_config.is_enabled && !self.handy_dispatcher.status.is_connected {
+                    ui.add_space(4.0);
+                    ui.colored_label(Color32::from_rgb(255, 180, 50), "ℹ Hardware streaming is enabled. Enter your Connection Key and click 'Connect & Verify' to lock sync.");
+                }
+            });
         });
     }
 
@@ -2247,13 +2419,24 @@ impl FunGenApp {
             .add_filter("Video Files", &["mp4", "mkv", "mov", "avi", "webm"])
             .pick_file()
         {
-            if let Ok(meta) = crate::video::probe_video(&path) {
+            let fps = if let Ok(meta) = crate::video::probe_video(&path) {
                 self.video_info = Some(format!(
                     "{}x{}, {:.2} fps, {:.1}s ({} frames)",
                     meta.width, meta.height, meta.fps, meta.duration_secs, meta.total_frames
                 ));
-            }
+                self.target_fps = meta.fps;
+                meta.fps
+            } else {
+                30.0
+            };
             self.video_path = Some(path.clone());
+            self.playback_streamer = Some(crate::video::PlaybackStreamer::new(
+                &path,
+                480,
+                270,
+                fps,
+                0,
+            ));
 
             // Extract audio waveform in background thread
             let (tx, rx) = channel();

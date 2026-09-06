@@ -17,12 +17,12 @@ use funscript::{diagnose_funscript, AxisChannel, DoctorConfig, Funscript, MultiA
 use indicatif::{ProgressBar, ProgressStyle};
 use neural::tracker::AnatomicalTracker;
 use neural::NeuralDetector;
-use signal::{detrend_and_normalize, extract_actions, integrate_flow};
+use signal::{extract_actions, extract_actions_full_range, integrate_flow};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 use tracking::{
     compute_dense_flow, detect_cut_photometric, filter_centers_median, find_divergence_center,
-    project_radial_motion,
+    project_adaptive_motion,
 };
 use video::{probe_video, rgb_to_gray, FrameStreamReader, StreamConfig};
 
@@ -415,8 +415,8 @@ fn run_generate(
     target_fps: f64,
     width: u32,
     height: u32,
-    detrend_window: f64,
-    norm_window: f64,
+    _detrend_window: f64,
+    _norm_window: f64,
     batch_size: usize,
     vr_mode: bool,
     pov_mode: bool,
@@ -465,10 +465,16 @@ fn run_generate(
         None
     };
 
+    let effective_fps = if (target_fps - 30.0).abs() < 1e-4 && meta.fps > 5.0 && meta.fps <= 60.0 {
+        meta.fps
+    } else {
+        target_fps
+    };
+
     let stream_cfg = StreamConfig {
         target_width: width,
         target_height: height,
-        target_fps,
+        target_fps: effective_fps,
         vr_mode,
         is_rgb: is_neural,
     };
@@ -476,7 +482,7 @@ fn run_generate(
     let mut stream = FrameStreamReader::new(video_path, &stream_cfg)
         .context("Failed to initialize video decoding stream")?;
 
-    let estimated_frames = ((meta.duration_secs * target_fps).round() as u64).max(1);
+    let estimated_frames = ((meta.duration_secs * effective_fps).round() as u64).max(1);
     let pb = ProgressBar::new(estimated_frames);
     pb.set_style(
         ProgressStyle::default_bar()
@@ -527,8 +533,7 @@ fn run_generate(
 
             let is_cut_diff = detect_cut_photometric(&last_gray, &curr_gray, cut_diff_threshold);
             let flow = compute_dense_flow(&last_gray, &curr_gray, width as usize, height as usize);
-            let is_cut_flow = flow.mean_magnitude() > cut_flow_threshold;
-            let is_cut = is_cut_diff || is_cut_flow;
+            let is_cut = is_cut_diff && (flow.mean_magnitude() > cut_flow_threshold);
 
             let center = if pov_mode {
                 ((width / 2) as f32, (height - 1) as f32)
@@ -547,17 +552,17 @@ fn run_generate(
         // 2. Filter center outliers
         let filtered_centers = filter_centers_median(&raw_centers, 6);
 
-        // 3. Project radial motions & execute neural tracking if active
+        // 3. Project adaptive motions & execute neural tracking if active
         for j in 0..batch_len {
             let (ref raw_frame, ts) = frame_batch[j];
-            let radial_dot = project_radial_motion(
+            let dot = project_adaptive_motion(
                 &raw_flows[j],
                 filtered_centers[j],
                 cuts[j],
                 pov_mode,
                 balance_global,
             );
-            all_samples.push((radial_dot, cuts[j], ts));
+            all_samples.push((dot, cuts[j], ts));
 
             if let (Some(ref mut detector), Some(ref mut tracker)) =
                 (&mut neural_detector, &mut anatomical_tracker)
@@ -570,7 +575,7 @@ fn run_generate(
 
         total_processed += batch_len as u64;
         pb.set_position(total_processed);
-        pb.set_message(format!("{:.1}x speed", (total_processed as f64 / target_fps) / t0.elapsed().as_secs_f64()));
+        pb.set_message(format!("{:.1}x speed", (total_processed as f64 / effective_fps) / t0.elapsed().as_secs_f64()));
     }
 
     pb.finish_with_message("Tracking complete");
@@ -581,12 +586,21 @@ fn run_generate(
 
     let mut bundle = MultiAxisScript::new();
 
-    if is_neural && !neural_poses.is_empty() {
+    let neural_valid = if is_neural && !neural_poses.is_empty() {
+        let stroke_values: Vec<f32> = neural_poses.iter().map(|(p, _)| p.stroke).collect();
+        let min_s = stroke_values.iter().fold(f32::INFINITY, |a, &b| a.min(b));
+        let max_s = stroke_values.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+        (max_s - min_s) > 5.0
+    } else {
+        false
+    };
+
+    if neural_valid {
         println!("-> Processing neural 6-DOF pose observations (SAM 2 / Co-Tracker temporal point tracking)...");
         let timestamps: Vec<i64> = neural_poses.iter().map(|(_, ts)| *ts).collect();
         let stroke_values: Vec<f32> = neural_poses.iter().map(|(p, _)| p.stroke).collect();
 
-        let mut stroke_script = Funscript::new(extract_actions(&stroke_values, &timestamps, keyframe_reduction));
+        let mut stroke_script = Funscript::new(extract_actions_full_range(&stroke_values, &timestamps, 3.5, true));
         stroke_script.sanitize();
         bundle.channels.insert(AxisChannel::Stroke, stroke_script);
 
@@ -623,11 +637,18 @@ fn run_generate(
             bundle.channels.insert(AxisChannel::Suction, suction_script);
         }
     } else {
+        if is_neural {
+            println!("-> Neural detection found insufficient anatomical landmark motion in this video; seamlessly falling back to high-fidelity optical motion tracking...");
+        }
         println!("-> Integrating optical motion and filtering signal...");
         let (cum_flow, timestamps) = integrate_flow(&all_samples);
-        let normalized = detrend_and_normalize(&cum_flow, target_fps, detrend_window, norm_window, 1000.0);
-        println!("-> Extracting keyframe action points...");
-        let mut stroke_script = Funscript::new(extract_actions(&normalized, &timestamps, keyframe_reduction));
+        println!("-> Extracting full-range keyframe action points (0 to 100)...");
+        let mut stroke_script = Funscript::new(extract_actions_full_range(
+            &cum_flow,
+            &timestamps,
+            0.8,
+            true,
+        ));
         stroke_script.sanitize();
         bundle.channels.insert(AxisChannel::Stroke, stroke_script);
     };
