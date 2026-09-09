@@ -1,5 +1,7 @@
 # Funscript Hub (`fs-hub`)
 
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Donate-orange?style=for-the-badge&logo=buy-me-a-coffee)](https://buymeacoffee.com/thesmartestgooner)
+
 > **The Unified, Open-Source, SOTA Funscript Generation, Precision Editing, and Hardware Synchronization Suite**  
 > *Composed Monolith Architecture • Pure Native Rust Engine • Zero External C Dependencies*
 
