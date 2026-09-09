@@ -1,11 +1,11 @@
-# Funscript Hub (`fs-hub`)
+# ⚡ Pulsar — Funscript Generator (`pulsar`)
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Donate-orange?style=for-the-badge&logo=buy-me-a-coffee)](https://buymeacoffee.com/thesmartestgooner)
 
-> **The Unified, Open-Source, SOTA Funscript Generation, Precision Editing, and Hardware Synchronization Suite**  
-> *Composed Monolith Architecture • Pure Native Rust Engine • Zero External C Dependencies*
+> **The Neural Kinematic Workstation & Funscript Generator**  
+> *Composed Monolith Architecture • Pure Native Rust Engine • Adaptive Fast/Slow ML • 6-DOF Robotic Kinematics • Zero External C Dependencies*
 
-`Funscript-Hub` provides an ultra-fast, zero-runtime-dependency desktop application and unified CLI accessible via the **`fs-hub`** command.
+Pulsar provides an ultra-fast, zero-runtime-dependency desktop workstation and unified CLI accessible via the **`pulsar`** command (with backward-compatible aliases for `fs-hub` and `open-fungen`).
 
 ---
 
@@ -18,7 +18,8 @@
 - **Magnetic Audio Transient Snapping**: Neon-cyan guidelines and `⚡ SNAP` badges automatically lock keyframes to audio beats and onset transients (`M` toggle).
 - **Ergonomic Keyframe Nudging**: ArrowUp / ArrowDown adjustments (+/- 1 unit, or +/- 5 with Shift).
 
-### 🎬 2. Cinema Player Mode
+### 🎬 2. Cinema Player & 3D Robotic Rig Simulator
+- **Real-Time 3D Forward-Kinematics Rig Simulator**: Live 60+ FPS interactive 3D rendering of OSR2 and SR6 robotic hardware reacting to active 6-DOF telemetry.
 - **Distraction-Free Playback**: Floating auto-hiding HUD with live haptic gauge, real-time T-Code feedback, and one-click switching (`F1` / `F2`).
 - **VR Side-by-Side (SBS)**: Stereo 3D video playback with adjustable IPD convergence offsets.
 - **Multi-Speed Transport**: Instant playback speed switching (`0.5x`, `1.0x`, `1.5x`, `2.0x`, `[` / `]`).
@@ -31,16 +32,22 @@
 - **Jerk-Limited S-Curve Profiles**: Quintic smoothstep transitions preserving apex extrema while eliminating harsh mechanical reversals.
 - **Thermal Wattage Dissipation Model**: Continuous motor heating and exponential decay simulation with dynamic amplitude throttling to prevent actuator burnout.
 
-### 🧠 5. SOTA AI Neural & Optical Flow Generation
-- **Neural YOLOv12 / SAM 2 Tracking**: Anatomical detection (`penis`, `glans`, `pussy`, `butt`, etc.) with occlusion recovery and Non-Maximum Suppression via ONNX Runtime (`ort`).
-- **Rayon Data-Parallel Optical Flow**: Contiguous gradient buffers yielding ~4x Lucas-Kanade speedups with automated photometric cut detection.
-- **Automated 6-DOF Derivation**: Auto-generates companion `.surge.funscript`, `.sway.funscript`, and `.pitch.funscript` files from camera and motion geometry.
+### 🧠 5. Phase 8 Adaptive Fast/Slow Vision-to-Motion Machine Learning
+- **Adaptive Failure Router**: Calibrated uncertainty metrics dynamically route intervals across `FastTracking` ($O(1)$), `SpecialistRefresh` (YOLOv12 / RF-DETR), `DenseRepair` (TAPNext++ / CoWTracker), and `SemanticReacquisition` (SAM 3.1).
+- **YOLO26 & RF-DETR Direct Decoders**: Ultra-fast NMS-free & DFL-free direct top-$K$ tensor decoding.
+- **TAPNext++ Point Trajectories**: Sub-pixel multi-point sliding-window tracking with forward-backward cycle consistency.
+- **Multi-Hypothesis Bayesian Reconciler**: Probabilistic hypothesis tree resolving occlusions with audio transient grounding.
+- **5 Empirical Pareto Profiles**: `Economy`, `BalancedSpecialist`, `GenericDefault`, `DenseOffline`, and `GeometryHeavy3D`.
 
-### 🔌 6. Hardware & VR Headset Synchronization
-- **T-Code v0.2 / v0.3 Protocol Dispatcher**: Real-time UDP network streaming (`127.0.0.1:8888`) for OSR, Handy, Keon, and MultiFunPlayer.
+### 🔊 6. Sub-Millisecond Audio Waterfall Spectrogram & Multi-Band Infill
+- **STFT Waterfall Spectrogram**: Real-time frequency power decomposition across Sub-Bass (20–120 Hz), Mid (120–2000 Hz), and High (2000–8000 Hz).
+- **Automated Haptic Infill**: Synthesize frequency-locked haptic vibrations, rhythm-locked pulse infill, or companion channel modulation from audio tracks.
+
+### 🔌 7. Hardware & VR Headset Synchronization
+- **T-Code v0.2 / v0.3 Protocol Dispatcher**: Real-time Serial COM port (`/dev/ttyUSB0`) and UDP network streaming (`127.0.0.1:8888`) for OSR, Handy, Keon, and MultiFunPlayer.
 - **VR Headset Telemetry Server**: Native embedded server receiving live timestamps and playback state from **DeoVR** and **HereSphere** VR video players.
 
-### 🗄️ 7. Automation, Stash & Community Plugin SDK
+### 🗄️ 8. Automation, Stash & Community Plugin SDK
 - **Stash Media Server Integration**: Direct GraphQL synchronization querying scenes lacking scripts, batch-generating them, and triggering metadata re-scans.
 - **Headless Batch Queue**: High-throughput multi-threaded worker processing entire video libraries in headless or background mode.
 - **Procedural Macro SDK**: Pure mathematical signal transformers (e.g. S-Curve, Stochastic Micro-Jitter, Infill Generators).
@@ -85,10 +92,12 @@ git clone git@github-gamerman:gamerman420691337-arch/Funscript-Hub.git
 cd Funscript-Hub
 ./install.sh
 ```
-This builds the release binary with maximum compiler optimizations and symlinks `fs-hub` into `~/.local/bin/fs-hub`.
+This builds the release binary with maximum compiler optimizations and symlinks `pulsar` (and aliases `fs-hub`, `open-fungen`) into `~/.local/bin/`.
 
 ### Launch the Desktop GUI
 ```bash
+pulsar
+# or legacy alias:
 fs-hub
 ```
 
@@ -98,19 +107,20 @@ fs-hub
 
 ### 1. Audit a Funscript with Script Doctor
 ```bash
-fs-hub doctor video.funscript --max-speed 450.0
+pulsar doctor video.funscript --max-speed 450.0
 ```
 
 ### 2. Automatically Repair a Funscript
 Clamps motor speed violations, removes micro-jitters, sorts, and deduplicates:
 ```bash
-fs-hub fix input.funscript -o output.fixed.funscript
+pulsar fix input.funscript -o output.fixed.funscript
 ```
 
-### 3. Generate from Video (AI Neural Mode)
+### 3. Generate from Video (Adaptive Fast/Slow Neural Mode)
 ```bash
-fs-hub generate video.mp4 \
-  --model models/FunGen-12n-pov-1.1.0.onnx \
+pulsar generate video.mp4 \
+  --model ~/.cache/pulsar/models/FunGen-12n-pov-1.1.0.onnx \
+  --profile balanced \
   --conf 0.35 \
   --fps 30.0 \
   --pov \
@@ -119,20 +129,25 @@ fs-hub generate video.mp4 \
 
 ### 4. Generate from Video (Optical Flow Mode)
 ```bash
-fs-hub generate video.mp4 --fps 30.0 --pov --multi-axis
+pulsar generate video.mp4 --fps 30.0 --pov --multi-axis
 ```
 
-### 5. Headless Batch Processing
+### 5. Multi-Band Audio Spectral Synthesizer & Infill
+```bash
+pulsar audio-synth video.mp4 --mode infill --band sub-bass
+```
+
+### 6. Headless Batch Processing
 Process an entire folder of videos in headless queue mode:
 ```bash
-fs-hub batch /path/to/videos --multi-axis --fps 30.0
+pulsar batch /path/to/videos --multi-axis --fps 30.0
 ```
 
-### 6. Stash Media Server Integration
+### 7. Stash Media Server Integration
 Query scenes missing funscripts and batch-generate directly into Stash directories:
 ```bash
-fs-hub stash query --limit 25
-fs-hub stash auto-generate --limit 10 --multi-axis
+pulsar stash query --limit 25
+pulsar stash auto-generate --limit 10 --multi-axis
 ```
 
 ---
