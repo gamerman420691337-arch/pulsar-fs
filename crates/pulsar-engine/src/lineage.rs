@@ -4,6 +4,8 @@ use super::*;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct ReviewState {
     pub(super) flags: Vec<ReviewFlag>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) decisions: Vec<ReviewDecision>,
     pub(super) unknown: bool,
     pub(super) conservative: bool,
 }
@@ -11,6 +13,7 @@ impl ReviewState {
     fn empty() -> Self {
         Self {
             flags: vec![],
+            decisions: vec![],
             unknown: false,
             conservative: false,
         }
@@ -59,6 +62,7 @@ pub(super) fn initialize(db: &mut Connection) -> Result<()> {
         };
         let mut state = ReviewState {
             flags: vec![],
+            decisions: vec![],
             unknown: true,
             conservative: true,
         };
@@ -98,12 +102,49 @@ pub(super) fn state(
         Some(raw) => decode(&raw)?,
         None => ReviewState {
             flags: vec![],
+            decisions: vec![],
             unknown: true,
             conservative: true,
         },
     };
-    if project_package_imports::imported_revision(db, project, revision)? { state.unknown=true; state.conservative=true; }
-    validate_reviews(&state.flags)?;
+    if project_package_imports::imported_revision(db, project, revision)? {
+        state.unknown = true;
+        state.conservative = true;
+        state.decisions.clear();
+    }
+    validate_review_decisions(&state.flags, &state.decisions)?;
+    for d in &state.decisions {
+        if d.range.is_some() {
+            review_interval_receipts::require(db, project, d)?;
+        }
+        if d.recorded_revision > revision {
+            return Err(ProtocolError::invalid(
+                "review decision follows the queried revision",
+            ));
+        }
+        let origin:Option<(String,String,i64,String)>=db.query_row("SELECT r.actor,r.kind,l.parent_revision,l.operation FROM revisions r JOIN revision_lineage l ON l.project=r.project AND l.revision=r.revision WHERE r.project=?1 AND r.revision=?2",params![project.as_str(),rev_sql(d.recorded_revision)?],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional().map_err(internal)?;
+        if origin
+            != Some((
+                d.actor.clone(),
+                if d.range.is_some() {
+                    "review_interval_disposition".into()
+                } else {
+                    "review_disposition".into()
+                },
+                rev_sql(d.base_revision)?,
+                if d.range.is_some() {
+                    "review_interval_disposition".into()
+                } else {
+                    "review_disposition".into()
+                },
+            ))
+        {
+            return Err(ProtocolError::new(
+                ErrorCode::DependencyMismatch,
+                "review decision attribution/revision binding is inconsistent",
+            ));
+        }
+    }
     Ok(state)
 }
 
@@ -203,6 +244,7 @@ pub(super) fn record(
             let candidate = candidate_state(tx, id, project)?;
             next = candidate_review_state(tx, id)?.unwrap_or(ReviewState {
                 flags: candidate.review,
+                decisions: vec![],
                 unknown: false,
                 conservative: false,
             });
@@ -218,8 +260,8 @@ pub(super) fn record(
             let candidate = candidate_state(tx, id, project)?;
             let raw: String = tx
                 .query_row(
-                    "SELECT protected FROM projects WHERE id=?1",
-                    [project.as_str()],
+                    "SELECT protected FROM revisions WHERE project=?1 AND revision=?2",
+                    params![project.as_str(), rev_sql(parent)?],
                     |row| row.get(0),
                 )
                 .map_err(internal)?;
@@ -285,6 +327,98 @@ pub(super) fn record(
                 "redo"
             }
         }
+        Command::RetimeMotion { .. } => {
+            // Original evidence flags remain immutable in their original clock.
+            // A new review marker covers the changed clock; old decisions retire.
+            for (axis, range) in coverage(program)? {
+                next.flags.push(ReviewFlag {
+                    axis: Some(axis),
+                    range,
+                    reason: ReviewReason::new(
+                        "existing_motion_explicitly_retimed_review_required",
+                    )?,
+                    evidence: EvidenceKind::Inferred,
+                    confidence: None,
+                });
+            }
+            next.unknown = true;
+            next.conservative = true;
+            "source_retime"
+        }
+        Command::SetSourcePlacement { .. } | Command::RemoveSourcePlacement { .. } => {
+            for (axis, range) in coverage(program)? {
+                let flag = ReviewFlag {
+                    axis: Some(axis),
+                    range,
+                    reason: ReviewReason::new("source_alignment_changed_motion_not_retimed")?,
+                    evidence: EvidenceKind::Inferred,
+                    confidence: None,
+                };
+                if !next.flags.iter().any(|existing| {
+                    existing.axis == flag.axis
+                        && existing.range == flag.range
+                        && existing.reason.as_str() == flag.reason.as_str()
+                }) {
+                    next.flags.push(flag);
+                }
+            }
+            next.conservative = true;
+            "source_alignment"
+        }
+        Command::SetReviewDisposition {
+            review_id,
+            disposition,
+            note,
+        }
+        | Command::SetReviewIntervalDisposition {
+            review_id,
+            disposition,
+            note,
+            ..
+        } => {
+            if !prior
+                .flags
+                .iter()
+                .any(|flag| review_identity(flag).ok().as_deref() == Some(review_id.as_str()))
+            {
+                return Err(ProtocolError::new(
+                    ErrorCode::NotFound,
+                    "review evidence ID is not present at this revision",
+                ));
+            }
+            let range =
+                if let Command::SetReviewIntervalDisposition { range, .. } = &request.command {
+                    Some(*range)
+                } else {
+                    None
+                };
+            if range.is_none() {
+                next.decisions.retain(|d| d.review_id != *review_id);
+            }
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(internal)?
+                .as_millis();
+            next.decisions.push(ReviewDecision {
+                range,
+                review_id: review_id.clone(),
+                actor: actor(tx, request.session.as_ref().expect("authenticated"))?,
+                request_id: request.request_id.clone(),
+                base_revision: parent,
+                recorded_revision: revision,
+                disposition: *disposition,
+                note: note.clone(),
+                recorded_at_unix_ms: u64::try_from(now).map_err(internal)?,
+            });
+            next.decisions.sort_by(|a, b| {
+                (&a.review_id, a.recorded_revision).cmp(&(&b.review_id, b.recorded_revision))
+            });
+            if range.is_some() {
+                "review_interval_disposition"
+            } else {
+                "review_disposition"
+            }
+        }
         Command::SetProtectedRegions { .. } => "protection",
         _ => {
             next.flags = clipped(&prior.flags, &coverage(program)?)?;
@@ -292,8 +426,50 @@ pub(super) fn record(
             "edit"
         }
     };
-    validate_reviews(&next.flags)
+    if !matches!(
+        &request.command,
+        Command::SetReviewDisposition { .. }
+            | Command::SetReviewIntervalDisposition { .. }
+            | Command::SetProtectedRegions { .. }
+            | Command::Undo
+            | Command::Redo
+    ) {
+        next.decisions.clear();
+    }
+    if matches!(
+        &request.command,
+        Command::CommitCandidate { .. } | Command::MergeCandidate { .. }
+    ) {
+        let retained: Vec<_> = prior
+            .flags
+            .iter()
+            .filter(|flag| flag.reason.as_str() == "source_alignment_changed_motion_not_retimed")
+            .cloned()
+            .collect();
+        for flag in clipped(&retained, &coverage(program)?)? {
+            if !next.flags.iter().any(|existing| {
+                existing.axis == flag.axis
+                    && existing.range == flag.range
+                    && existing.reason.as_str() == flag.reason.as_str()
+            }) {
+                next.flags.push(flag);
+                next.conservative = true;
+            }
+        }
+    }
+    validate_review_decisions(&next.flags, &next.decisions)
         .map_err(|error| ProtocolError::new(ErrorCode::ResourceExhausted, error.to_string()))?;
+    if matches!(
+        request.command,
+        Command::SetReviewIntervalDisposition { .. }
+    ) {
+        let d = next
+            .decisions
+            .iter()
+            .find(|d| d.recorded_revision == revision)
+            .ok_or_else(|| internal("interval decision missing"))?;
+        review_interval_receipts::record(tx, project, d)?;
+    }
     let encoded = encode(&next)?;
     if encoded.len() > PROGRAM_LIMIT {
         return Err(ProtocolError::new(
@@ -346,9 +522,35 @@ pub(super) fn candidate_review_state(
         .optional()
         .map_err(internal)?;
     let state: Option<ReviewState> = raw.map(|raw| decode(&raw)).transpose()?;
-    if let Some(state) = &state {
+    let mut state = state;
+    if let Some(state) = &mut state {
+        state.decisions.clear();
         validate_reviews(&state.flags)?;
     }
-    if state.is_none() { return project_package_imports::candidate_review(db, candidate); }
+    if state.is_none() {
+        return project_package_imports::candidate_review(db, candidate);
+    }
     Ok(state)
+}
+
+impl ReviewState {
+    pub(super) fn unresolved(&self) -> PResult<Vec<ReviewFlag>> {
+        validate_review_decisions(&self.flags, &self.decisions)?;
+        let mut result = Vec::new();
+        for f in &self.flags {
+            let id = review_identity(f)?;
+            let decisions: Vec<_> = self
+                .decisions
+                .iter()
+                .filter(|d| d.review_id == id)
+                .cloned()
+                .collect();
+            for range in review_unresolved_ranges(f, &decisions)? {
+                let mut flag = f.clone();
+                flag.range = range;
+                result.push(flag);
+            }
+        }
+        Ok(result)
+    }
 }

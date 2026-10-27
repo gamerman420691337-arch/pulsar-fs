@@ -61,6 +61,7 @@ fn metadata_fits_control_without_scaling_with_motion_actions() {
             },
         },
         sources: vec![],
+        placements: vec![],
     };
     snapshot.validate().unwrap();
     let mut framed = Vec::new();
@@ -68,7 +69,7 @@ fn metadata_fits_control_without_scaling_with_motion_actions() {
         &mut framed,
         &Response::success(
             RequestId::new("r").unwrap(),
-            ResponseBody::Project(snapshot),
+            ResponseBody::Project((snapshot).into()),
         ),
     )
     .unwrap();
@@ -139,6 +140,7 @@ fn descriptors_reject_duplicate_axes_bad_hashes_and_overflowed_counts() {
 #[test]
 fn duplicate_snapshot_identity_is_not_a_trusted_binding() {
     let mut snapshot = CandidateSnapshot {
+        project_interval: None,
         candidate_id: CandidateId::new("candidate").unwrap(),
         project_id: project(),
         base_revision: RevisionId::new(7),

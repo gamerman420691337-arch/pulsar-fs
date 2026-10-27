@@ -1,0 +1,17 @@
+# Explicit models for folder generation
+
+2026-10-12. Shared consumer software increment; full roadmap remains PARTIAL.
+
+`batch` and `scan --generate` now accept explicit `--model` declarations through the existing shared file-generation helper. Custom RGB/NCHW YOLO models require `--model-class-count`; alternatively `--inference-profile` supplies exact model/runtime/preprocessing/provider declarations. Neither tensor shape nor class count is inferred from a filename. Engine admission still pins bytes, verifies profile identity and authorizes native execution.
+
+Both consumers expose checked `--conf`, analysis width/height, `--video-view`, `--preset` (default/fast/maximum/quality) and `--source-sample-stride`. The folder configuration validates the shared recipe before discovery or project/source effects. Maximum requires a visual detector; annotated source-bound profiles still require their missing source-specific annotations and refuse. A discovery-only scan refuses generation controls unless `--generate` is present. No model/default is silently selected.
+
+Existing companion files remain untouched and skipped. Repeating a successful batch creates no new projects/jobs. The legacy dry-run JSON remains an array of pending entries; dry-run validates declarations but does not pin model bytes, execute inference or create generation state. Multi-axis and overwrite remain explicit unsupported modes. Per-file generation failure stops the batch and retains the emitted project/job identity for recovery; no aggregate durable local-folder scheduler is claimed.
+
+See [verification checkpoint](evidence/roadmap-2026-10-12/library-models/checkpoint.json) and [ADR B3-154](../research/phase-b/ADR-B3-154-library-model-generation.md). The preceding shipped App refused explicit models for both folder consumers. Native checks use an authored diagnostic ONNX graph and synthetic media, not a trained detector or real-media accuracy reference. Native GUI/platform/edition, models/annotations, devices and human/release gates remain open.
+
+Final verification: serial Engine/Clients/Protocol suites pass 851/326/156 with 70/8/0 ignored. Both strict lint configurations, Windows source check, native App/Worker build, formatting and architecture/source guards pass. The network-disabled native campaign executes raw-model batch/scan and declared-profile batch generation, each completing one candidate/export while preserving existing companions and media. Dry-run and five refusal cases create no additional generation state; a repeated completed batch creates no new jobs. The initial verifier assumed a receipt filename and failed after a successful export; final lookup checks receipt content and exact job identity. No model quality or platform/device qualification is inferred.
+
+The subsequent [selected-pack integration](PULSAR_LIBRARY_PACKS.md) adds exact installed owner selections to both folder consumers. It preserves explicit raw models and existing companions; model/default and aggregate folder scheduling qualification remain open. Its serial checks pass, with a separately retained unresolved parallel cleanup-lock failure.
+
+The subsequent [explicit audio folder mode](PULSAR_LIBRARY_AUDIO_BUNDLES.md) supports checked six-axis synthesized audio bundles without models and reruns the raw/selected-pack consumers. Visual six-axis generation, overwrite and a durable aggregate folder scheduler remain open.

@@ -1,0 +1,13 @@
+# Atomic Linux recovery receipts
+
+Linux recovery metadata now becomes visible only after its contents have been written and file-synced. Both package download journals and parent cleanup receipts use the shared writer. A held private unnamed inode is linked into the final name without replacement; existing named/held checks, locks, byte bounds and directory/outer-parent synchronization remain required.
+
+This addresses the preceding application's reproduced zero-byte receipt after owned SIGKILL before write. Pre-publication death discards the unnamed inode; post-publication death leaves complete metadata for existing checked recovery. Handled failures still report failure and remove only the held private named receipt when safe. Existing files, replacements, public modes and extra links remain protected.
+
+Filesystem O_TMPFILE support and procfs are required on Linux. An unsupported configuration refuses explicitly; it does not fall back to an incomplete visible receipt. Other Unix implementations and old truncated receipts remain unresolved. The native deaths target parent cleanup receipt creation; initial download-journal death is not separately injected. This is process-crash recovery, not power-loss or physical-storage durability qualification.
+
+The [checkpoint](evidence/roadmap-2026-10-12/receipt-writer-death/checkpoint.json) retains the native baseline and final campaigns. Three owned writer-death probes cover write, file sync and directory sync. Each preserves the accepted 256 KiB prefix and original intent, then explicitly resumes and verifies all 5,001 actions and package association with unchanged master. Handled ENOSPC/two EIO errors, two cleanup deaths and the original client-death probe are repeated separately. No actual disk exhaustion or hardware is used; networking is disabled and owned processes join.
+
+The full Clients suite passes 318 tests with 8 ignored, including nine writer tests; the focused writer suite also passes on the SSD filesystem. Both strict lint configurations, workspace check, formatting, native App/Worker builds, 443 architecture checks and 36 source guards pass. Engine/Core/Protocol suites and all-feature runtime suites are not rerun in this checkpoint.
+
+Two harness errors are retained: a too-long Unix socket path, corrected by shortening the owned RAM path, and an old assertion requiring a final filename before publication, corrected to recognize unnamed creation. Neither required production authorization or failure handling to be weakened. [ADR B3-143](../research/phase-b/ADR-B3-143-atomic-linux-receipts.md) records the decision.

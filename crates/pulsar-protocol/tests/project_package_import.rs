@@ -1,8 +1,7 @@
 use pulsar_protocol::*;
-use std::{
-    path::PathBuf,
-    time::{Duration, Instant},
-};
+use std::path::PathBuf;
+#[cfg(unix)]
+use std::time::{Duration, Instant};
 
 fn declaration() -> PackageUploadDeclaration {
     PackageUploadDeclaration {
@@ -58,7 +57,7 @@ fn status() -> PackageImportStatus {
 
 #[test]
 fn header_probe_preserves_native_and_origin_versions_without_qualifying_bytes() {
-    for version in [1u16, 2] {
+    for version in [1u16, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] {
         let mut header = [0u8; PACKAGE_IMPORT_HEADER_BYTES];
         header[..8].copy_from_slice(b"PULSPKG\0");
         header[8..10].copy_from_slice(&version.to_le_bytes());
@@ -67,7 +66,7 @@ fn header_probe_preserves_native_and_origin_versions_without_qualifying_bytes() 
         header[10] = 1;
         assert!(package_format_version(&header).is_err());
         header[10] = 0;
-        header[8..10].copy_from_slice(&3u16.to_le_bytes());
+        header[8..10].copy_from_slice(&u16::MAX.to_le_bytes());
         assert!(package_format_version(&header).is_err());
         assert!(package_format_version(&header[..51]).is_err());
     }

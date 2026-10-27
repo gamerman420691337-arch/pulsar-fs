@@ -1,76 +1,40 @@
 //! Separate bounded current-user bulk endpoint; descriptors are not capabilities.
-use crate::{artifacts, Engine};
-use anyhow::{bail, Result};
-use pulsar_protocol::{local_socket_prelude::*, *};
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    Arc,
-};
+use crate::Engine;
+use anyhow::Result;
+use pulsar_protocol::*;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 const IO_DEADLINE: Duration = Duration::from_secs(10);
 
-pub(crate) fn start(engine: Arc<Engine>) -> Result<()> {
-    #[cfg(not(unix))]
-    {
-        let _ = engine;
-        bail!("secured current-user bulk endpoint unavailable");
+#[cfg(unix)]
+pub(crate) fn start(engine: Arc<Engine>) -> Result<crate::daemon::Endpoint> {
+    let path = engine.config.bulk_endpoint();
+    crate::daemon::Endpoint::start(engine, &path, "pulsar-bulk", 16, connection)
+}
+#[cfg(unix)]
+fn connection(engine: &Arc<Engine>, stream: &mut LocalStream) {
+    if engine.is_shutting_down() {
+        return;
     }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
-        let endpoint = engine.config.bulk_endpoint();
-        if let Ok(meta) = std::fs::symlink_metadata(&endpoint) {
-            if !meta.file_type().is_socket() || meta.uid() != unsafe { libc::geteuid() } {
-                bail!("refusing to replace untrusted bulk endpoint");
-            }
-            std::fs::remove_file(&endpoint)?;
+    let handshake: BulkHandshakeEnvelope = {
+        let mut io = DeadlineStream::new(stream, Instant::now() + IO_DEADLINE);
+        match read_bulk_header(&mut io) {
+            Ok(value) => value,
+            Err(_) => return,
         }
-        let listener = ListenerOptions::new()
-            .name(endpoint_name(&endpoint)?)
-            .create_sync()?;
-        std::fs::set_permissions(&endpoint, std::fs::Permissions::from_mode(0o600))?;
-        artifacts::sync_dir(&engine.config.state_dir)?;
-        let active = Arc::new(AtomicUsize::new(0));
-        std::thread::spawn(move || {
-            for connection in listener.incoming() {
-                let Ok(mut stream) = connection else {
-                    break;
-                };
-                if active.fetch_add(1, Ordering::AcqRel) >= 16 {
-                    active.fetch_sub(1, Ordering::AcqRel);
-                    continue;
-                }
-                let engine = engine.clone();
-                let active = active.clone();
-                std::thread::spawn(move || {
-                    struct Slot(Arc<AtomicUsize>);
-                    impl Drop for Slot {
-                        fn drop(&mut self) {
-                            self.0.fetch_sub(1, Ordering::AcqRel);
-                        }
-                    }
-                    let _slot = Slot(active);
-                    let mut io = DeadlineStream::new(&mut stream, Instant::now() + IO_DEADLINE);
-                    let handshake: BulkHandshakeEnvelope = match read_bulk_header(&mut io) {
-                        Ok(value) => value,
-                        Err(_) => return,
-                    };
-                    drop(io);
-                    match handshake {
-                        BulkHandshakeEnvelope::PackageUpload(handshake) => import_connection(&engine, &mut stream, handshake),
-                        BulkHandshakeEnvelope::Motion(handshake) => {
-                            motion_connection(&engine, &mut stream, handshake)
-                        }
-                        BulkHandshakeEnvelope::Package(handshake) => {
-                            package_connection(&engine, &mut stream, handshake)
-                        }
-                    }
-                });
-            }
-        });
-        Ok(())
+    };
+    if engine.is_shutting_down() {
+        return;
+    }
+    match handshake {
+        BulkHandshakeEnvelope::LiveCapture(h) => live_connection(engine, stream, h),
+        BulkHandshakeEnvelope::PackageUpload(h) => import_connection(engine, stream, h),
+        BulkHandshakeEnvelope::Motion(h) => motion_connection(engine, stream, h),
+        BulkHandshakeEnvelope::Package(h) => package_connection(engine, stream, h),
+        BulkHandshakeEnvelope::SourceMedia(h) => source_media_connection(engine, stream, h),
     }
 }
+
 fn motion_connection(engine: &Arc<Engine>, stream: &mut LocalStream, handshake: BulkHandshake) {
     let mut io = DeadlineStream::new(stream, Instant::now() + IO_DEADLINE);
     match engine.bulk_ready(&handshake) {
@@ -84,7 +48,7 @@ fn motion_connection(engine: &Arc<Engine>, stream: &mut LocalStream, handshake: 
             return;
         }
     }
-    loop {
+    while !engine.is_shutting_down() {
         let mut io = DeadlineStream::new(stream, Instant::now() + IO_DEADLINE);
         let operation: BulkOperation = match read_bulk_header(&mut io) {
             Ok(value) => value,
@@ -150,10 +114,17 @@ fn package_connection(
             return;
         }
     };
-    if write_bulk_header(&mut io, &PackageBulkReply::Ready { lease }).is_err() {
+    if write_bulk_header(
+        &mut io,
+        &PackageBulkReply::Ready {
+            lease: (lease).into(),
+        },
+    )
+    .is_err()
+    {
         return;
     }
-    loop {
+    while !engine.is_shutting_down() {
         let mut io = DeadlineStream::new(stream, Instant::now() + IO_DEADLINE);
         let request: PackageBulkRequest = match read_bulk_header(&mut io) {
             Ok(value) => value,
@@ -195,24 +166,273 @@ fn package_connection(
     }
 }
 
-fn import_connection(engine:&Arc<Engine>,stream:&mut LocalStream,handshake:PackageUploadHandshake) {
-    let mut io=DeadlineStream::new(stream,Instant::now()+IO_DEADLINE);
-    let (connection,lease)=match engine.import_bulk_open(&handshake) {
-        Ok(value)=>value,Err(error)=>{let _=write_bulk_header(&mut io,&PackageUploadReply::Error(error));return;}
-    };
-    if write_bulk_header(&mut io,&PackageUploadReply::Ready{lease}).is_err(){return;}
-    loop {
-        let mut io=DeadlineStream::new(stream,Instant::now()+IO_DEADLINE);
-        let request:PackageUploadRequest=match read_bulk_header(&mut io){Ok(value)=>value,Err(_)=>break};
-        if let Err(error)=request.end(){let _=write_bulk_header(&mut io,&PackageUploadReply::Error(error));break;}
-        let bytes=match read_artifact_chunk(&mut io){Ok(value)=>value,Err(_)=>break};
-        use sha2::{Digest,Sha256};
-        if bytes.len()!=request.byte_len as usize || format!("{:x}",Sha256::digest(&bytes))!=request.sha256 {
-            let _=write_bulk_header(&mut io,&PackageUploadReply::Error(ProtocolError::invalid("upload header differs from payload bytes")));break;
+fn import_connection(
+    engine: &Arc<Engine>,
+    stream: &mut LocalStream,
+    handshake: PackageUploadHandshake,
+) {
+    let mut io = DeadlineStream::new(stream, Instant::now() + IO_DEADLINE);
+    let (connection, lease) = match engine.import_bulk_open(&handshake) {
+        Ok(value) => value,
+        Err(error) => {
+            let _ = write_bulk_header(&mut io, &PackageUploadReply::Error(error));
+            return;
         }
-        let next_offset=match engine.import_bulk_append(&connection,&handshake,request.offset,&bytes) {
-            Ok(value)=>value,Err(error)=>{let _=write_bulk_header(&mut io,&PackageUploadReply::Error(error));break;}
+    };
+    if write_bulk_header(&mut io, &PackageUploadReply::Ready { lease }).is_err() {
+        return;
+    }
+    while !engine.is_shutting_down() {
+        let mut io = DeadlineStream::new(stream, Instant::now() + IO_DEADLINE);
+        let request: PackageUploadRequest = match read_bulk_header(&mut io) {
+            Ok(value) => value,
+            Err(_) => break,
         };
-        if write_bulk_header(&mut io,&PackageUploadReply::Uploaded{offset:request.offset,byte_len:request.byte_len,sha256:request.sha256,next_offset}).is_err(){break;}
+        if let Err(error) = request.end() {
+            let _ = write_bulk_header(&mut io, &PackageUploadReply::Error(error));
+            break;
+        }
+        let bytes = match read_artifact_chunk(&mut io) {
+            Ok(value) => value,
+            Err(_) => break,
+        };
+        use sha2::{Digest, Sha256};
+        if bytes.len() != request.byte_len as usize
+            || format!("{:x}", Sha256::digest(&bytes)) != request.sha256
+        {
+            let _ = write_bulk_header(
+                &mut io,
+                &PackageUploadReply::Error(ProtocolError::invalid(
+                    "upload header differs from payload bytes",
+                )),
+            );
+            break;
+        }
+        let next_offset =
+            match engine.import_bulk_append(&connection, &handshake, request.offset, &bytes) {
+                Ok(value) => value,
+                Err(error) => {
+                    let _ = write_bulk_header(&mut io, &PackageUploadReply::Error(error));
+                    break;
+                }
+            };
+        if write_bulk_header(
+            &mut io,
+            &PackageUploadReply::Uploaded {
+                offset: request.offset,
+                byte_len: request.byte_len,
+                sha256: request.sha256,
+                next_offset,
+            },
+        )
+        .is_err()
+        {
+            break;
+        }
+    }
+}
+
+fn live_connection(engine: &Arc<Engine>, stream: &mut LocalStream, handshake: LiveBulkHandshake) {
+    if handshake.channel == LiveBulkChannel::LiveEncodedSource {
+        encoded_connection(engine, stream, handshake);
+        return;
+    }
+    use std::io::Read;
+    let mut io = DeadlineStream::new(stream, Instant::now() + IO_DEADLINE);
+    let ready = match engine.live_bulk_ready(&handshake, None) {
+        Ok(report) => LiveBulkReply::Ready(report),
+        Err(error) => {
+            let _ = write_bulk_header(&mut io, &LiveBulkReply::Error(error));
+            return;
+        }
+    };
+    if write_bulk_header(&mut io, &ready).is_err() {
+        return;
+    }
+    while !engine.is_shutting_down() {
+        let mut io = DeadlineStream::new(stream, Instant::now() + IO_DEADLINE);
+        let header: LiveFrameHeader = match read_bulk_header(&mut io) {
+            Ok(header) => header,
+            Err(_) => return,
+        };
+        if let Err(error) = engine.live_bulk_ready(&handshake, Some(&header)) {
+            let _ = write_bulk_header(&mut io, &LiveBulkReply::Error(error));
+            return;
+        }
+        if write_bulk_header(
+            &mut io,
+            &LiveBulkReply::SendPixels {
+                frame: header.frame,
+            },
+        )
+        .is_err()
+        {
+            return;
+        }
+        // Fixed stack allocation: a producer cannot select a body size. This
+        // connection buffer is outside the separately admitted retained pixels.
+        let mut pixels = [0u8; LIVE_FRAME_BYTES];
+        if io.read_exact(&mut pixels).is_err() {
+            return;
+        }
+        let reply = match engine.live_bulk_upload(&handshake, &header, &pixels) {
+            Ok((report, replayed)) => LiveBulkReply::Accepted {
+                frame: header.frame,
+                replayed,
+                report,
+            },
+            Err(error) => {
+                let _ = write_bulk_header(&mut io, &LiveBulkReply::Error(error));
+                return;
+            }
+        };
+        if write_bulk_header(&mut io, &reply).is_err() {
+            return;
+        }
+    }
+}
+fn encoded_connection(
+    engine: &Arc<Engine>,
+    stream: &mut LocalStream,
+    handshake: LiveBulkHandshake,
+) {
+    use std::io::Read;
+    let mut io = DeadlineStream::new(stream, Instant::now() + IO_DEADLINE);
+    let mut connection = match engine.encoded_source_open(&handshake) {
+        Ok(c) => c,
+        Err(error) => {
+            let _ = write_bulk_header(&mut io, &LiveEncodedReply::Error(error));
+            return;
+        }
+    };
+    let ready = match connection.ready() {
+        Ok(report) => report,
+        Err(error) => {
+            let _ = write_bulk_header(&mut io, &LiveEncodedReply::Error(error));
+            return;
+        }
+    };
+    if write_bulk_header(&mut io, &LiveEncodedReply::Ready(ready)).is_err() {
+        return;
+    }
+    while !engine.is_shutting_down() {
+        let mut io = DeadlineStream::new(stream, Instant::now() + IO_DEADLINE);
+        let request: LiveEncodedRequest = match read_bulk_header(&mut io) {
+            Ok(r) => r,
+            Err(_) => return,
+        };
+        if let Err(error) = connection.validate(&request) {
+            connection.reject(error.clone());
+            let _ = write_bulk_header(&mut io, &LiveEncodedReply::Error(error));
+            return;
+        }
+        match &request {
+            LiveEncodedRequest::Push {
+                sequence, byte_len, ..
+            } => {
+                if write_bulk_header(
+                    &mut io,
+                    &LiveEncodedReply::SendBytes {
+                        sequence: *sequence,
+                    },
+                )
+                .is_err()
+                {
+                    return;
+                }
+                // Fixed bounded connection buffer; sender cannot choose an allocation.
+                let mut bytes = [0u8; 65536];
+                if io.read_exact(&mut bytes[..*byte_len as usize]).is_err() {
+                    return;
+                }
+                let reply = match connection.push(&request, &bytes[..*byte_len as usize]) {
+                    Ok(report) => LiveEncodedReply::Accepted {
+                        sequence: *sequence,
+                        input_bytes: report
+                            .encoded_source
+                            .as_ref()
+                            .expect("admitted")
+                            .input_bytes,
+                        report,
+                    },
+                    Err(error) => {
+                        connection.reject(error.clone());
+                        let _ = write_bulk_header(&mut io, &LiveEncodedReply::Error(error));
+                        return;
+                    }
+                };
+                if write_bulk_header(&mut io, &reply).is_err() {
+                    return;
+                }
+            }
+            LiveEncodedRequest::Finish { .. } => {
+                let reply = match connection.finish(&request) {
+                    Ok(report) => LiveEncodedReply::Finished(report),
+                    Err(error) => LiveEncodedReply::Error(error),
+                };
+                let _ = write_bulk_header(&mut io, &reply);
+                return;
+            }
+        }
+    }
+}
+
+fn source_media_connection(
+    engine: &Arc<Engine>,
+    stream: &mut LocalStream,
+    handshake: SourceMediaBulkHandshake,
+) {
+    use sha2::{Digest, Sha256};
+    let mut io = DeadlineStream::new(stream, Instant::now() + IO_DEADLINE);
+    let (mut connection, binding) = match engine.source_media_bulk_open(&handshake) {
+        Ok(value) => value,
+        Err(error) => {
+            let _ = write_bulk_header(&mut io, &SourceMediaBulkReply::Error(error));
+            return;
+        }
+    };
+    if write_bulk_header(
+        &mut io,
+        &SourceMediaBulkReply::Ready {
+            binding: Box::new(binding),
+        },
+    )
+    .is_err()
+    {
+        return;
+    }
+    while !engine.is_shutting_down() {
+        let mut io = DeadlineStream::new(stream, Instant::now() + IO_DEADLINE);
+        let request: SourceMediaBulkRequest = match read_bulk_header(&mut io) {
+            Ok(value) => value,
+            Err(_) => break,
+        };
+        let bytes = match engine.source_media_bulk_read(
+            &mut connection,
+            &handshake,
+            request.offset,
+            request.byte_len,
+        ) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                let _ = write_bulk_header(&mut io, &SourceMediaBulkReply::Error(error));
+                break;
+            }
+        };
+        // Exact bytes and current authority were checked after read, before any
+        // body is released. Already written bytes cannot be retracted by revoke.
+        if write_bulk_header(
+            &mut io,
+            &SourceMediaBulkReply::Download {
+                offset: request.offset,
+                byte_len: request.byte_len,
+                sha256: format!("{:x}", Sha256::digest(&bytes)),
+            },
+        )
+        .and_then(|_| write_artifact_chunk(&mut io, &bytes))
+        .is_err()
+        {
+            break;
+        }
     }
 }

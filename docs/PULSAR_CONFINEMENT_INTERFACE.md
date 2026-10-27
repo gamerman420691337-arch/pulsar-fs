@@ -1,0 +1,13 @@
+# Shared worker confinement interface
+
+Date: 2026-10-10. Status: interface and focused runtime verification PASS; full roadmap PARTIAL.
+
+Shared Linux confinement now receives a named budget/address-space limit pair and one internal launch-assets policy: ordinary, capture staging, CUDA mounts or a sealed WASM executable. The enum replaces three independent optional arguments and makes mixed policies unrepresentable at this seam. CUDA offline/live callers supply the same budgets and address-space caps through the named type. These types describe caller inputs; they do not confer admission or effect authority.
+
+The command-construction body from cgroup descriptor extraction through return is byte-identical to the preceding source. Namespace flags, read-only bindings, writable capture staging, output tmpfs sizing, sealed executable mount, closed CUDA runtime rules, descriptor counts and all pre-exec resource calculations remain unchanged. No deadlines, stopping claims or physical-device authority were added.
+
+Default and all-feature/all-target engine checks pass. The final all-feature engine suite passes 704 unit tests and 12 integration tests, with 79 qualification tests ignored. Workspace all-feature/all-target compilation passes. Architecture passes 350 checks; source guards pass 36. Strict engine Clippy remains FAIL, exit 101, at 21 distinct findings (16 library and 16 test-target errors); confinement has no remaining lint errors. Global formatting and prior full-workspace runtime failures remain unresolved.
+
+A rebuilt, hash-pinned worker and test binary explicitly run the existing confined WASM fixture in a new private user-delegated cgroup. All nine scenarios pass in 58.78 seconds: real authored transform with measured memory peak, blocked-input cancellation with held admission, namespace/descendant retirement before result admission, stale attempt, corrupt output, stdout flood, nonzero exit, descendant-held pipe and stderr flood. The fixture asserts roster/admission retirement after each case. This establishes process-interface evidence on this host, not model/media, platform matrix, installed Stash, physical Handy or human/release qualification.
+
+The private service was automatically collected after completion. Final inspection reports not-found, inactive and MainPID zero; the later stop request found it already unloaded. Runtime and changed-source hashes are unchanged after the run. The [checkpoint](evidence/roadmap-2026-10-10/confinement-interface/checkpoint.json) retains source patches, command body comparison, gate logs, service identity/journal/cleanup and exact runtime hashes. Shared caches and unrelated jobs remain preserved.

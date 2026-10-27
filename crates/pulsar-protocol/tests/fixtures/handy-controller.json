@@ -1,0 +1,21 @@
+{
+  "request_id": "acquire-fixture",
+  "lease": {
+    "acquisition_request_id": "acquire-fixture",
+    "controller_id": "fixture-controller",
+    "preparation_request_id": "prepare-fixture",
+    "preparation_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "project_id": "fixture-project",
+    "revision": 1,
+    "engine_epoch": "fixture-boot",
+    "device_session": "fixture-device-session",
+    "device_id": "fixture-device",
+    "generation": 0,
+    "duration_ms": 1000,
+    "deadline_boottime_ns": 2000000000,
+    "state": "active",
+    "armed": true,
+    "physical_stop_pending": false,
+    "playback_enabled": false
+  }
+}

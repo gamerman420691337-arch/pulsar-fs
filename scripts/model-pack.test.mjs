@@ -1,0 +1,63 @@
+// Authored ONNX graphs and inert runtime bytes: admission, never qualification.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import {spawn,spawnSync} from 'node:child_process';
+import {once} from 'node:events';
+import {authoredOnnxFixture} from './benchmark-onnx-fixture.mjs';
+const binary=process.env.PULSAR_BENCHMARK_WORKER;
+const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
+test('offline pack CLI captures inert bytes, replays receipts, rejects corruption and survives restart',{skip:!binary},async t=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'pulsar-pack-'));t.diagnostic(`authored inert pack evidence: ${root}`);
+  const state=path.join(root,'state'),source=path.join(root,'source');fs.mkdirSync(source);
+  const env={...process.env,PULSAR_STATE_DIR:state};let engine,exited;
+  const start=async()=>{const log=fs.openSync(path.join(root,`engine-${crypto.randomUUID()}.log`),'wx',0o600);engine=spawn(binary,['engine'],{env,stdio:['ignore','ignore',log]});fs.closeSync(log);exited=once(engine,'exit');const deadline=Date.now()+15000;
+    while(true){assert.equal(engine.exitCode,null);assert.ok(Date.now()<deadline);if(fs.existsSync(path.join(state,'engine.sock'))){const ready=spawnSync(binary,['capabilities'],{env,encoding:'utf8',timeout:2000,maxBuffer:1024*1024});if(ready.status===0)break;}await new Promise(r=>setTimeout(r,25));}};
+  const stop=async()=>{if(engine.exitCode===null && engine.signalCode===null)engine.kill('SIGTERM');const timer=setTimeout(()=>engine.kill('SIGKILL'),2000);try{await exited;}finally{clearTimeout(timer);}};
+  t.after(stop);await start();
+  let index=0;const cli=args=>{const r=spawnSync(binary,args,{env,encoding:'utf8',timeout:30000,maxBuffer:1024*1024});assert.equal(r.error,undefined);fs.writeFileSync(path.join(root,`cli-${index++}.json`),JSON.stringify({args,status:r.status,stdout:r.stdout,stderr:r.stderr}),{mode:0o600});return r;};
+  const model=authoredOnnxFixture(),runtime=Buffer.from('Authored inert native-runtime bytes, no executable'),license=Buffer.from('Authored test fixture bytes. No rights declaration for outside assets.');
+  const identity=(bytes,id)=>({artifact_id:id,sha256:sha(bytes),byte_len:bytes.length});
+  const profile={schema_version:1,model:identity(model,'authored-model'),runtime:identity(runtime,'authored-runtime'),preprocessing:{input:{width:64,height:64,channels:3,layout:'nchw',class_count:1,decoder:'yolo_channel_major'},resize:'stretch',color:'rgb',scale:[1/255,1/255,1/255],bias:[0,0,0],padding_byte:0},provider:'cpu',minimum_memory_bytes:4096,minimum_output_bytes:1024,cpu_threads:1};
+  const files=[['model.bin','model',model],['runtime.bin','runtime',runtime],['profile.json','profile',Buffer.from(JSON.stringify(profile))],['LICENSE','license',license]];
+  for(const [name,,bytes]of files)fs.writeFileSync(path.join(source,name),bytes);
+  const manifest={schema_version:1,pack_id:'authored-inert-pack',target_os:'linux',target_arch:'x86_64',ort_api_version:24,labels:['fixture'],assets:files.map(([name,role,bytes])=>({path:name,role,byte_len:bytes.length,sha256:sha(bytes)})),license_path:'LICENSE',source_description:'Authored inert pack test; no inference or native runtime execution'};
+  const manifestBytes=Buffer.from(JSON.stringify(manifest));fs.writeFileSync(path.join(source,'manifest.json'),manifestBytes);
+  // Supplier filesystem and identity failures must leave no published pack.
+  const rejected=(name,alter,restore)=>{alter();const r=cli(['model','pack-import',source,'--request-id',name]);assert.notEqual(r.status,0,`unexpected acceptance: ${name}`);restore();assert.equal(fs.readdirSync(path.join(state,'model-packs')).filter(n=>!n.startsWith('.')).length,0);};
+  rejected('wrong-hash',()=>fs.writeFileSync(path.join(source,'model.bin'),'wrong'),()=>fs.writeFileSync(path.join(source,'model.bin'),model));
+  rejected('profile-binding',()=>{const bad={...manifest,assets:manifest.assets.map(a=>a.role==='model'?{...a,sha256:sha(Buffer.from('different model bytes')),byte_len:21}:a)};fs.writeFileSync(path.join(source,'model.bin'),'different model bytes');fs.writeFileSync(path.join(source,'manifest.json'),JSON.stringify(bad));},()=>{fs.writeFileSync(path.join(source,'model.bin'),model);fs.writeFileSync(path.join(source,'manifest.json'),manifestBytes);});
+  const replaceModel=bytes=>{
+    const capturedProfile=Buffer.from(JSON.stringify({...profile,model:identity(bytes,'authored-model')}));
+    fs.writeFileSync(path.join(source,'model.bin'),bytes);fs.writeFileSync(path.join(source,'profile.json'),capturedProfile);
+    const changed={...manifest,assets:manifest.assets.map(a=>a.role==='model'?{...a,sha256:sha(bytes),byte_len:bytes.length}:a.role==='profile'?{...a,sha256:sha(capturedProfile),byte_len:capturedProfile.length}:a)};
+    fs.writeFileSync(path.join(source,'manifest.json'),JSON.stringify(changed));
+  };
+  const restoreModel=()=>{fs.writeFileSync(path.join(source,'model.bin'),model);fs.writeFileSync(path.join(source,'profile.json'),files[2][2]);fs.writeFileSync(path.join(source,'manifest.json'),manifestBytes);};
+  rejected('not-onnx',()=>replaceModel(Buffer.from('arbitrary model bytes with consistent hashes')),restoreModel);
+  rejected('wrong-tensor-contract',()=>replaceModel(authoredOnnxFixture({temporal:true})),restoreModel);
+  rejected('truncated-onnx',()=>replaceModel(model.subarray(0,model.length-1)),restoreModel);
+  rejected('external-data',()=>replaceModel(authoredOnnxFixture({external:true})),restoreModel);
+  const outside=path.join(root,'outside.bin');fs.writeFileSync(outside,model);
+  rejected('symlink-asset',()=>{fs.unlinkSync(path.join(source,'model.bin'));fs.symlinkSync(outside,path.join(source,'model.bin'));},()=>{fs.unlinkSync(path.join(source,'model.bin'));fs.writeFileSync(path.join(source,'model.bin'),model);});
+  rejected('hardlink-asset',()=>{fs.unlinkSync(path.join(source,'model.bin'));fs.linkSync(outside,path.join(source,'model.bin'));},()=>{fs.unlinkSync(path.join(source,'model.bin'));fs.writeFileSync(path.join(source,'model.bin'),model);});
+  const alias=path.join(root,'supplier-alias');fs.symlinkSync(source,alias);assert.notEqual(cli(['model','pack-import',alias,'--request-id','symlink-root']).status,0);
+  const hash=sha(manifestBytes),args=['model','pack-import',source,'--request-id','authored-pack-import'];
+  const first=cli(args);assert.equal(first.status,0,first.stderr);const result=JSON.parse(first.stdout).value;
+  assert.equal(result.manifest_sha256,hash);assert.equal(result.integrity_verified,true);
+  for(const name of ['native_execution_approved','rights_verified','compatible','qualified','active'])assert.equal(result[name],false);
+  const installed=path.join(state,'model-packs',hash);assert.equal(fs.statSync(installed).mode&0o777,0o700);
+  assert.equal(fs.readFileSync(path.join(installed,'model.bin')).toString(),model.toString());
+  // Replayed mutation receipt is historical; explicit status checks current installed bytes.
+  fs.writeFileSync(path.join(source,'model.bin'),'corrupt supplier bytes');const replay=cli(args);assert.equal(replay.status,0,replay.stderr);assert.deepEqual(JSON.parse(replay.stdout),JSON.parse(first.stdout));
+  const conflict=cli(['model','pack-import',root,'--request-id','authored-pack-import']);assert.notEqual(conflict.status,0);
+  const status=cli(['model','pack-status',hash]);assert.equal(status.status,0,status.stderr);
+  await stop();await start();const restart=cli(['model','pack-status',hash]);assert.equal(restart.status,0,restart.stderr);assert.equal(JSON.parse(restart.stdout).value.active,false);
+  fs.writeFileSync(path.join(installed,'model.bin'),'installed corruption');assert.notEqual(cli(['model','pack-status',hash]).status,0);
+  assert.notEqual(cli(['model','pack-import',source,'--request-id','corruption-refused']).status,0);assert.equal(fs.readFileSync(path.join(installed,'model.bin'),'utf8'),'installed corruption');
+  assert.equal(fs.readdirSync(path.join(state,'model-packs')).some(n=>n.startsWith('.pack-stage-')),false);
+  const catalog=cli(['model','status']);assert.equal(catalog.status,0,catalog.stderr);assert.deepEqual(JSON.parse(catalog.stdout).qualified_profiles,[]);
+});

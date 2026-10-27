@@ -1,0 +1,16 @@
+# Explicit pack update and rollback policy
+
+Status: Linux pack-selection update/rollback exercised through existing production commands; [source-bound authored native receipt](evidence/roadmap-2026-10-01/pack-update-rollback/validation.json) retained. This does not implement an application executable updater or close distribution qualification.
+
+Import a proposed pack inertly first. A failed import must preserve the previously selected pack and its immutable bytes. A successful import still does not activate it. Read current catalog and owner selection status, then use `model pack-catalog-select` with the proposed manifest, exact current catalog revision, exact selection revision and explicit unqualified execution approval. The existing transaction publishes the new choice and replay receipt together. Future jobs recheck the current catalog fence and installed profile/assets.
+
+Rollback means explicitly selecting an already installed previous manifest under the **current** authenticated catalog, with a new selection revision and explicit owner approval. It never restores old root/role versions, clock facts or a historical selection receipt. If current metadata no longer lists that manifest, expires, corrupts or changes revision, rollback admission refuses until a valid explicitly approved choice is available. Ordinary unqualified owner selection remains a distinct explicit override; it does not assert catalog authentication.
+
+Both installed versions remain retained. Acknowledged or lost-ack historical update replay returns the original report without reactivating it after rollback. Restart preserves the current rollback choice and schema-14 reader barrier. Accepted jobs retain their pinned input/approval; automatic cancellation is separate work.
+
+The authored native scenario preserves the old choice after a corrupt update, imports a distinct temporal graph without activation, explicitly selects it, executes actual CPU generation, explicitly rolls back to the original detector, executes that graph again and confirms the three job model hashes in order. Catalog revision 5, signed watermarks and capsule bytes remain unchanged through rollback. Original and new model bytes survive; selection-specific journal lost-ack replay after restart does not replace the newer rollback choice.
+
+Production bytes match the preceding validated desktop/catalog subject; this increment adds the native scenario and policy evidence. Model quality, official publisher identity, rights, compatibility and release qualification are unproven. Application binary update, shared-asset deduplication, quota/retention/removal policy, update-during-active-job crash, power-loss/disk-full, native-window/platform, real-media/Handy/human and Core/Complete bundle qualification remain required. No private training or sterile evaluation is changed.
+
+
+Runtime component follow-up: [candidate component delivery](PULSAR_RUNTIME_COMPONENT_UPDATES.md) now publishes a complete new runtime from changed files plus verified pinned base assets. This is separate from model/catalog selection and signed application-update trust. Both versions remain intact; project-data rollback compatibility and release/edition qualification are still open.

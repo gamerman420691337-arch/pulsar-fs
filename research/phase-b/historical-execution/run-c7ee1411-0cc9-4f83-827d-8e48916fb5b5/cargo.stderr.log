@@ -1,0 +1,6 @@
+error: failed to select a version for the requirement `serialport = "^4.10"`
+  version 4.10.0 is yanked
+location searched: crates.io index
+required by package `pulsar-historical20 v0.8.0 (/home/brianklam/Desktop/Funscripts/pulsar-roadmap-m1/research/phase-b/historical-execution/.scratch/run-c7ee1411-0cc9-4f83-827d-8e48916fb5b5)`
+note: offline mode (via `--offline`) can sometimes cause surprising resolution failures
+help: if this error is too confusing you may wish to retry without `--offline`

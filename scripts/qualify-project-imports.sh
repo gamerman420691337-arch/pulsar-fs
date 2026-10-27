@@ -15,10 +15,10 @@ node --test scripts/architecture-source-guards.test.mjs
 bash scripts/qualify-project-packages.sh
 node scripts/qualify-package-import-model.mjs
 
-# Process fixtures must execute the real worker-capable binary, not a test harness.
-cargo build --bin pulsar --offline --locked
+# Process fixtures execute the dedicated worker companion built with the client.
+timeout 600 cargo build --workspace --bins --offline --locked
 target_dir="${CARGO_TARGET_DIR:-target}"
-export PULSAR_PACKAGE_TEST_WORKER="$(cd "$target_dir/debug" && pwd)/pulsar"
+export PULSAR_PACKAGE_TEST_WORKER="$(cd "$target_dir/debug" && pwd)/pulsar-worker"
 cargo test -p pulsar-engine --lib \
   authority::project_package_closure::project_closure_captures_actual_generated_input_and_inert_job_origin \
   --offline --locked -- --ignored --exact --nocapture

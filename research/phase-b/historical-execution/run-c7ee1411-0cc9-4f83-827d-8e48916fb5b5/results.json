@@ -1,0 +1,380 @@
+{
+  "format_version": 1,
+  "run_id": "run-c7ee1411-0cc9-4f83-827d-8e48916fb5b5",
+  "started_at_machine_utc": "2026-09-12T21:58:11.873Z",
+  "elapsed_seconds": 0.04653546800000001,
+  "command": {
+    "program": "cargo",
+    "args": [
+      "test",
+      "--manifest-path",
+      "/home/brianklam/Desktop/Funscripts/pulsar-roadmap-m1/research/phase-b/historical-execution/.scratch/run-c7ee1411-0cc9-4f83-827d-8e48916fb5b5/Cargo.toml",
+      "--bin",
+      "pulsar-historical20",
+      "--no-default-features",
+      "--offline",
+      "m1_regression_tests",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ]
+  },
+  "environment": {
+    "CARGO_TARGET_DIR": "/tmp/pulsar-phase-a-target",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_NET_OFFLINE": "true",
+    "ORT_SKIP_DOWNLOAD": "1",
+    "gpu_visibility": "empty"
+  },
+  "cargo_exit_code": 101,
+  "signal": null,
+  "spawn_error": null,
+  "campaign_state": "blocked_before_all_original_tests_executed",
+  "counts": {
+    "expected": 20,
+    "passed": 0,
+    "failed": 0,
+    "unavailable": 20,
+    "ignored": 0,
+    "observed": 0
+  },
+  "baseline_unchanged": true,
+  "fixture_unchanged": true,
+  "cases": [
+    {
+      "identity": "neural::yolo::m1_regression_tests::m1_reject_negative_box_extent",
+      "preserved_file": "src/neural/yolo.rs",
+      "original_test_name": "m1_reject_negative_box_extent",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "detector_rejects_rank_count_and_negative_geometry",
+          "detector_rejects_nonfinite_even_below_threshold",
+          "detector_clips_endpoints_and_recomputes_center",
+          "detector_drops_fully_outside_and_validates_classes"
+        ],
+        "limit": "Declared tensor geometry; category correspondence, not identical legacy API."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "neural::yolo::m1_regression_tests::m1_reject_nonfinite_geometry_and_scores",
+      "preserved_file": "src/neural/yolo.rs",
+      "original_test_name": "m1_reject_nonfinite_geometry_and_scores",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "detector_rejects_rank_count_and_negative_geometry",
+          "detector_rejects_nonfinite_even_below_threshold",
+          "detector_clips_endpoints_and_recomputes_center",
+          "detector_drops_fully_outside_and_validates_classes"
+        ],
+        "limit": "Declared tensor geometry; category correspondence, not identical legacy API."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "neural::yolo::m1_regression_tests::m1_clipped_box_center_matches_visible_bounds",
+      "preserved_file": "src/neural/yolo.rs",
+      "original_test_name": "m1_clipped_box_center_matches_visible_bounds",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "detector_rejects_rank_count_and_negative_geometry",
+          "detector_rejects_nonfinite_even_below_threshold",
+          "detector_clips_endpoints_and_recomputes_center",
+          "detector_drops_fully_outside_and_validates_classes"
+        ],
+        "limit": "Declared tensor geometry; category correspondence, not identical legacy API."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "neural::yolo::m1_regression_tests::m1_unknown_class_does_not_panic",
+      "preserved_file": "src/neural/yolo.rs",
+      "original_test_name": "m1_unknown_class_does_not_panic",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "detector_rejects_rank_count_and_negative_geometry",
+          "detector_rejects_nonfinite_even_below_threshold",
+          "detector_clips_endpoints_and_recomputes_center",
+          "detector_drops_fully_outside_and_validates_classes"
+        ],
+        "limit": "Declared tensor geometry; category correspondence, not identical legacy API."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "neural::yolo::m1_regression_tests::m1_zero_classes_cannot_create_detection",
+      "preserved_file": "src/neural/yolo.rs",
+      "original_test_name": "m1_zero_classes_cannot_create_detection",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "detector_rejects_rank_count_and_negative_geometry",
+          "detector_rejects_nonfinite_even_below_threshold",
+          "detector_clips_endpoints_and_recomputes_center",
+          "detector_drops_fully_outside_and_validates_classes"
+        ],
+        "limit": "Declared tensor geometry; category correspondence, not identical legacy API."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "neural::yolo26::m1_regression_tests::m1_direct_rejects_reversed_corners",
+      "preserved_file": "src/neural/yolo26.rs",
+      "original_test_name": "m1_direct_rejects_reversed_corners",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "detector_rows_contract_rejects_fractional_class_and_bad_shape"
+        ],
+        "limit": "Explicit pixel-corner layout differs from old normalized direct-output API."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "neural::yolo26::m1_regression_tests::m1_direct_clips_corners_without_guessing_center_format",
+      "preserved_file": "src/neural/yolo26.rs",
+      "original_test_name": "m1_direct_clips_corners_without_guessing_center_format",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "detector_rows_contract_rejects_fractional_class_and_bad_shape"
+        ],
+        "limit": "Explicit pixel-corner layout differs from old normalized direct-output API."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "neural::yolo26::m1_regression_tests::m1_direct_rejects_nonfinite_score",
+      "preserved_file": "src/neural/yolo26.rs",
+      "original_test_name": "m1_direct_rejects_nonfinite_score",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "detector_rows_contract_rejects_fractional_class_and_bad_shape"
+        ],
+        "limit": "Explicit pixel-corner layout differs from old normalized direct-output API."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "neural::tracker::m1_regression_tests::m1_flow_advances_box_and_center_together",
+      "preserved_file": "src/neural/tracker.rs",
+      "original_test_name": "m1_flow_advances_box_and_center_together",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "tracker_keeps_identity_with_permuted_detections_and_moves_boxes",
+          "tracker_prediction_translates_box_not_only_center",
+          "tracker_counts_skipped_frames_when_expiring",
+          "tracker_cut_retires_identity_even_for_same_geometry"
+        ],
+        "limit": "Velocity prediction is not historical dense-flow box propagation."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "neural::tracker::m1_regression_tests::m1_scene_cut_clears_old_targets_and_points",
+      "preserved_file": "src/neural/tracker.rs",
+      "original_test_name": "m1_scene_cut_clears_old_targets_and_points",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "tracker_keeps_identity_with_permuted_detections_and_moves_boxes",
+          "tracker_prediction_translates_box_not_only_center",
+          "tracker_counts_skipped_frames_when_expiring",
+          "tracker_cut_retires_identity_even_for_same_geometry"
+        ],
+        "limit": "Velocity prediction is not historical dense-flow box propagation."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "neural::tracker::m1_regression_tests::m1_confidence_change_does_not_replace_spatial_match",
+      "preserved_file": "src/neural/tracker.rs",
+      "original_test_name": "m1_confidence_change_does_not_replace_spatial_match",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "tracker_keeps_identity_with_permuted_detections_and_moves_boxes",
+          "tracker_prediction_translates_box_not_only_center",
+          "tracker_counts_skipped_frames_when_expiring",
+          "tracker_cut_retires_identity_even_for_same_geometry"
+        ],
+        "limit": "Velocity prediction is not historical dense-flow box propagation."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "neural::tracker::m1_regression_tests::m1_missing_detection_ages_without_flow",
+      "preserved_file": "src/neural/tracker.rs",
+      "original_test_name": "m1_missing_detection_ages_without_flow",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "tracker_keeps_identity_with_permuted_detections_and_moves_boxes",
+          "tracker_prediction_translates_box_not_only_center",
+          "tracker_counts_skipped_frames_when_expiring",
+          "tracker_cut_retires_identity_even_for_same_geometry"
+        ],
+        "limit": "Velocity prediction is not historical dense-flow box propagation."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "neural::point_tracker::m1_regression_tests::m1_degenerate_boxes_do_not_seed_points",
+      "preserved_file": "src/neural/point_tracker.rs",
+      "original_test_name": "m1_degenerate_boxes_do_not_seed_points",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "flow_independent_reverse_pass_accepts_translation",
+          "flow_rejects_shape_mismatch_and_nonfinite_points",
+          "flow_budgets_and_config_are_checked"
+        ],
+        "limit": "Independently reversed images replace a single-forward cycle-error oracle."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "neural::point_tracker::m1_regression_tests::m1_zero_requested_mask_points_do_not_panic",
+      "preserved_file": "src/neural/point_tracker.rs",
+      "original_test_name": "m1_zero_requested_mask_points_do_not_panic",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "flow_independent_reverse_pass_accepts_translation",
+          "flow_rejects_shape_mismatch_and_nonfinite_points",
+          "flow_budgets_and_config_are_checked"
+        ],
+        "limit": "Independently reversed images replace a single-forward cycle-error oracle."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "neural::point_tracker::m1_regression_tests::m1_forward_flow_is_not_its_own_backward_flow",
+      "preserved_file": "src/neural/point_tracker.rs",
+      "original_test_name": "m1_forward_flow_is_not_its_own_backward_flow",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "flow_independent_reverse_pass_accepts_translation",
+          "flow_rejects_shape_mismatch_and_nonfinite_points",
+          "flow_budgets_and_config_are_checked"
+        ],
+        "limit": "Independently reversed images replace a single-forward cycle-error oracle."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "single_forward_cycle_oracle_not_current_independent_reverse_contract"
+    },
+    {
+      "identity": "signal::m1_regression_tests::m1_constant_displacement_never_invents_stroke",
+      "preserved_file": "src/signal.rs",
+      "original_test_name": "m1_constant_displacement_never_invents_stroke",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-engine/src/worker/good_tests.rs",
+        "tests": [],
+        "limit": "Earlier actual-worker synthetic hold/direction/plateau/pause-anchor checks; exact current names not asserted or rerun here."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "signal::m1_regression_tests::m1_monotonic_decreasing_motion_keeps_direction",
+      "preserved_file": "src/signal.rs",
+      "original_test_name": "m1_monotonic_decreasing_motion_keeps_direction",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-engine/src/worker/good_tests.rs",
+        "tests": [],
+        "limit": "Earlier actual-worker synthetic hold/direction/plateau/pause-anchor checks; exact current names not asserted or rerun here."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "signal::m1_regression_tests::m1_trailing_pause_does_not_add_reversal",
+      "preserved_file": "src/signal.rs",
+      "original_test_name": "m1_trailing_pause_does_not_add_reversal",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-engine/src/worker/good_tests.rs",
+        "tests": [],
+        "limit": "Earlier actual-worker synthetic hold/direction/plateau/pause-anchor checks; exact current names not asserted or rerun here."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "signal::m1_regression_tests::m1_keyframe_reduction_preserves_both_pause_boundaries",
+      "preserved_file": "src/signal.rs",
+      "original_test_name": "m1_keyframe_reduction_preserves_both_pause_boundaries",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-engine/src/worker/good_tests.rs",
+        "tests": [],
+        "limit": "Earlier actual-worker synthetic hold/direction/plateau/pause-anchor checks; exact current names not asserted or rerun here."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    },
+    {
+      "identity": "tracking::m1_regression_tests::m1_equal_area_resize_updates_flow_geometry",
+      "preserved_file": "src/tracking.rs",
+      "original_test_name": "m1_equal_area_resize_updates_flow_geometry",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "flow_rejects_shape_mismatch_and_nonfinite_points",
+          "flow_budgets_and_config_are_checked"
+        ],
+        "limit": "Explicit buffer geometry replaces mutable legacy flow geometry; category correspondence only."
+      },
+      "current_contract_execution": "not_run_by_this_campaign",
+      "execution": "unavailable_build_or_harness",
+      "semantic_disposition": "original_assertion_preserved; current-contract evidence separate"
+    }
+  ],
+  "qualification_limits": [
+    "Full preserved production files unchanged before exact appended test modules; no extracted convenient functions or stubbed implementation.",
+    "Experimental isolation manifest differs from historical default build; dependency differences and hashes are retained.",
+    "No original legacy Cargo.lock was preserved; generated offline lock is not a recovered historical lock.",
+    "Current-contract relationships are category evidence, not rerun or one-to-one closure.",
+    "Historical single-forward zero-cycle oracle is semantically superseded by independently solved reverse flow.",
+    "No model/runtime inference, private media, GPU, device actuation, or B1 completion is claimed."
+  ]
+}

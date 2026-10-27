@@ -236,7 +236,7 @@ impl Actor {
 
 fn wire_project(response: ResponseBody) -> Result<ProjectSnapshot> {
     if let ResponseBody::Project(project) = response {
-        Ok(project)
+        Ok(*project)
     } else {
         bail!("expected project, got {response:?}")
     }
@@ -244,7 +244,7 @@ fn wire_project(response: ResponseBody) -> Result<ProjectSnapshot> {
 
 fn project(response: ClientResponseBody) -> Result<ClientProjectSnapshot> {
     if let ClientResponseBody::Project(project) = response {
-        Ok(project)
+        Ok(*project)
     } else {
         bail!("expected hydrated project, got {response:?}")
     }
@@ -413,7 +413,7 @@ fn completed_candidate(
                 Some(project_id.clone()),
                 None,
             )? {
-                ClientResponseBody::Candidate(candidate) => Ok(candidate),
+                ClientResponseBody::Candidate(candidate) => Ok(*candidate),
                 response => bail!("expected candidate, got {response:?}"),
             };
         }
@@ -529,6 +529,12 @@ fn exercise_architecture(fixture: &mut Fixture) -> Result<()> {
             .code,
         ErrorCode::RevisionConflict
     );
+    // Replacing the concurrent author's protected motion requires an explicit owner unlock.
+    let edited = project(gui_api.execute(
+        Command::SetProtectedRegions { regions: vec![] },
+        Some(project_id.clone()),
+        Some(edited.revision),
+    )?)?;
     let rebased = match gui_api.execute(
         Command::RebaseCandidate {
             candidate_id: candidate.candidate_id,
@@ -571,10 +577,13 @@ fn exercise_architecture(fixture: &mut Fixture) -> Result<()> {
     let requested_time = SourceTimestamp::new(1, 2)?;
     let preview = match gui_api.execute(
         Command::PreviewFrame {
+            time_basis: PreviewTimeBasis::SourcePts,
+            video_view: None,
             context: context.clone(),
             source_time: requested_time,
             model_path: None,
             model_input: None,
+            inference_profile: None,
         },
         Some(project_id.clone()),
         None,
@@ -668,6 +677,14 @@ fn exercise_architecture(fixture: &mut Fixture) -> Result<()> {
         replayed.revision, once.revision,
         "crash/restart must not turn replay into a second edit"
     );
+
+    // This scoped-authority fixture starts from an explicitly unlocked owner baseline.
+    let once = wire_project(owner.execute(
+        fixture,
+        Command::SetProtectedRegions { regions: vec![] },
+        Some(authority_id.clone()),
+        Some(once.revision),
+    )?)?;
 
     eprintln!("A6 process gate: scoped protection history, revocation and credential isolation");
     let editor = fixture.pair("scoped integration editor")?;
@@ -833,5 +850,444 @@ fn exercise_architecture(fixture: &mut Fixture) -> Result<()> {
         })
     ));
     eprintln!("A6 process gate passed: real CPU media path, IPC authority, persistence and scoped effects; no neural accuracy or physical qualification claim");
+    Ok(())
+}
+
+#[test]
+fn desktop_shared_api_elapsed_seek_preserves_nonzero_source_origin_after_restart() -> Result<()> {
+    let mut fixture = Fixture::new()?;
+    let original = media_fixture(&fixture)?;
+    let shifted = fixture.root.join("shifted.mkv");
+    let (status, _, stderr) = fixture.run(
+        ProcessCommand::new("ffmpeg")
+            .args(["-v", "error", "-nostdin", "-itsoffset", "5", "-i"])
+            .arg(&original)
+            .args(["-c", "copy"])
+            .arg(&shifted),
+        "offset-remux",
+    )?;
+    assert!(status.success(), "offset remux failed: {stderr}");
+    let mut client = fixture.client()?;
+    let p = project(client.execute(
+        Command::CreateProject {
+            name: "elapsed-seek".into(),
+        },
+        None,
+        None,
+    )?)?;
+    let source = match client.execute(
+        Command::ImportSource { path: shifted },
+        Some(p.project_id.clone()),
+        Some(p.revision),
+    )? {
+        ClientResponseBody::Source { source_version } => source_version,
+        other => bail!("unexpected import: {other:?}"),
+    };
+    let context = FrameContext {
+        source_version: source,
+        source_placement: SourcePlacementId::new("offset-primary")?,
+        frame: FrameId::new(0),
+        transform: TransformId::new("source-identity")?,
+        seek_generation: 3,
+        request_generation: 4,
+    };
+    let fetch = |client: &mut SessionClient,
+                 basis: PreviewTimeBasis,
+                 time: SourceTimestamp|
+     -> Result<PreviewResult> {
+        match client.execute(
+            Command::PreviewFrame {
+                time_basis: basis,
+                video_view: None,
+                context: context.clone(),
+                source_time: time,
+                model_path: None,
+                model_input: None,
+                inference_profile: None,
+            },
+            Some(p.project_id.clone()),
+            None,
+        )? {
+            ClientResponseBody::Preview(result) => {
+                assert!(result.matches_timed_seek_request(&context, &time, basis));
+                Ok(*result)
+            }
+            other => bail!("unexpected preview: {other:?}"),
+        }
+    };
+    let elapsed = fetch(
+        &mut client,
+        PreviewTimeBasis::ElapsedFromFirstFrame,
+        SourceTimestamp::new(1, 2)?,
+    )?;
+    let absolute = fetch(
+        &mut client,
+        PreviewTimeBasis::SourcePts,
+        SourceTimestamp::new(11, 2)?,
+    )?;
+    assert_eq!(elapsed.source_frame_index, 6);
+    assert_eq!(elapsed.source_frame_index, absolute.source_frame_index);
+    assert_eq!(
+        elapsed.frame.as_ref().unwrap().artifact.identity.sha256,
+        absolute.frame.as_ref().unwrap().artifact.identity.sha256
+    );
+    assert_eq!(
+        elapsed.source_time.numerator() * 2,
+        i64::from(elapsed.source_time.denominator()) * 11
+    );
+    let origin = elapsed.source_origin.unwrap();
+    assert_eq!(origin.numerator(), i64::from(origin.denominator()) * 5);
+    let elapsed_time = elapsed.elapsed_source_time.unwrap();
+    assert_eq!(
+        elapsed_time.numerator() * 2,
+        i64::from(elapsed_time.denominator())
+    );
+    fixture.restart()?;
+    let mut reconnected = fixture.client()?;
+    reconnected.execute(
+        Command::OpenProject {
+            project_id: p.project_id.clone(),
+        },
+        None,
+        None,
+    )?;
+    let recovered = fetch(
+        &mut reconnected,
+        PreviewTimeBasis::ElapsedFromFirstFrame,
+        SourceTimestamp::new(1, 2)?,
+    )?;
+    assert_eq!(recovered.source_frame_index, elapsed.source_frame_index);
+    assert_eq!(recovered.source_origin, elapsed.source_origin);
+    assert_eq!(recovered.elapsed_source_time, elapsed.elapsed_source_time);
+    Ok(())
+}
+
+#[test]
+fn source_placement_shared_api_cli_preview_history_and_restart_preserve_motion() -> Result<()> {
+    let mut fixture = Fixture::new()?;
+    let media = media_fixture(&fixture)?;
+    let mut client = fixture.client()?;
+    let initial = project(client.execute(
+        Command::CreateProject {
+            name: "placed media".into(),
+        },
+        None,
+        None,
+    )?)?;
+    let source = match client.execute(
+        Command::ImportSource { path: media },
+        Some(initial.project_id.clone()),
+        Some(initial.revision),
+    )? {
+        ClientResponseBody::Source { source_version } => source_version,
+        other => bail!("unexpected import {other:?}"),
+    };
+    let proposed = client.upload_edit(
+        initial.project_id.clone(),
+        initial.revision,
+        &motion(0.0),
+        "Authored motion",
+    )?;
+    let committed = project(client.execute(
+        Command::CommitCandidate {
+            candidate_id: proposed.candidate_id,
+        },
+        Some(initial.project_id.clone()),
+        Some(initial.revision),
+    )?)?;
+    let base = project(client.execute(
+        Command::SetProtectedRegions {
+            regions: vec![ProtectedRegion {
+                axis: Some(Axis::Stroke),
+                range: TimeRange::new(ProjectTime::ZERO, ProjectTime::from_nanos(1_100_000_000))?,
+            }],
+        },
+        Some(initial.project_id.clone()),
+        Some(committed.revision),
+    )?)?;
+    let spec = SourcePlacementSpec {
+        source_version: source,
+        source_start: SourceTimestamp::new(0, 1)?,
+        source_end: SourceTimestamp::new(2, 1)?,
+        source_anchor: SourceTimestamp::new(1, 2)?,
+        project_anchor: ProjectTime::from_nanos(2_000_000_000),
+        rate_numerator: 1,
+        rate_denominator: 1,
+    };
+    let spec_path = fixture.root.join("placement.json");
+    fs::write(&spec_path, serde_json::to_vec(&spec)?)?;
+    let (status, stdout, stderr) = fixture.run(
+        ProcessCommand::new(env!("CARGO_BIN_EXE_pulsar"))
+            .env("PULSAR_STATE_DIR", &fixture.state)
+            .args(["project", "place", initial.project_id.as_str(), "--spec"])
+            .arg(&spec_path),
+        "cli-place",
+    )?;
+    assert!(status.success(), "CLI placement failed: {stderr}");
+    assert!(stdout.contains("placement_id"));
+    let placed =
+        project(client.execute(Command::GetSnapshot, Some(initial.project_id.clone()), None)?)?;
+    assert_eq!(placed.motion.program, base.motion.program);
+    assert_eq!(placed.placements.len(), 1);
+    let old = placed.placements[0].clone();
+    let make_context = |p: &SourcePlacement| FrameContext {
+        source_version: p.spec.source_version.clone(),
+        source_placement: p.placement_id.clone(),
+        frame: FrameId::new(0),
+        transform: TransformId::new("source-identity").unwrap(),
+        seek_generation: 4,
+        request_generation: 5,
+    };
+    let context = make_context(&old);
+    let seek = PlacedPreviewRequest {
+        placement: old.clone(),
+        project_time: spec.project_anchor,
+    };
+    let result = match client.execute(
+        Command::PreviewPlacedFrame {
+            placement_id: old.placement_id.clone(),
+            project_time: spec.project_anchor,
+            context: context.clone(),
+            video_view: None,
+            model_path: None,
+            model_input: None,
+            inference_profile: None,
+        },
+        Some(initial.project_id.clone()),
+        None,
+    )? {
+        ClientResponseBody::Preview(result) => result,
+        other => bail!("unexpected preview {other:?}"),
+    };
+    assert!(result.matches_placed_seek_request(&context, &seek));
+    assert_eq!(result.source_frame_index, 6);
+    assert_eq!(
+        result.placed.as_ref().unwrap().actual_project_time,
+        ExactSeconds::new(2, 1)?
+    );
+    let (status, stdout, stderr) = fixture.run(
+        ProcessCommand::new(env!("CARGO_BIN_EXE_pulsar"))
+            .env("PULSAR_STATE_DIR", &fixture.state)
+            .args([
+                "project",
+                "preview-placement",
+                initial.project_id.as_str(),
+                old.placement_id.as_str(),
+                "--time-ns",
+                "2000000000",
+            ]),
+        "cli-preview-placement",
+    )?;
+    assert!(status.success(), "CLI placed preview failed: {stderr}");
+    assert!(stdout.contains("actual_project_time"));
+    let mut changed = spec.clone();
+    changed.project_anchor = ProjectTime::from_nanos(3_000_000_000);
+    changed.source_anchor = SourceTimestamp::new(3, 2)?;
+    changed.rate_numerator = -1;
+    let replaced = project(client.execute(
+        Command::SetSourcePlacement {
+            spec: changed.clone(),
+            replace: Some(old.placement_id.clone()),
+        },
+        Some(initial.project_id.clone()),
+        Some(placed.revision),
+    )?)?;
+    assert_ne!(replaced.placements[0].placement_id, old.placement_id);
+    assert_eq!(replaced.motion.program, base.motion.program);
+    let stale = client
+        .execute(
+            Command::PreviewPlacedFrame {
+                placement_id: old.placement_id.clone(),
+                project_time: spec.project_anchor,
+                context,
+                video_view: None,
+                model_path: None,
+                model_input: None,
+                inference_profile: None,
+            },
+            Some(initial.project_id.clone()),
+            None,
+        )
+        .unwrap_err();
+    assert_eq!(
+        stale.downcast_ref::<ProtocolError>().unwrap().code,
+        ErrorCode::NotFound
+    );
+    let restored = project(client.execute(
+        Command::Undo,
+        Some(initial.project_id.clone()),
+        Some(replaced.revision),
+    )?)?;
+    assert_eq!(restored.placements, placed.placements);
+    assert_eq!(restored.motion.program, base.motion.program);
+    let redone = project(client.execute(
+        Command::Redo,
+        Some(initial.project_id.clone()),
+        Some(restored.revision),
+    )?)?;
+    assert_eq!(redone.placements, replaced.placements);
+    fixture.restart()?;
+    let mut connected = fixture.client()?;
+    let recovered = project(connected.execute(
+        Command::GetSnapshot,
+        Some(initial.project_id.clone()),
+        None,
+    )?)?;
+    assert_eq!(recovered.placements, replaced.placements);
+    assert_eq!(recovered.motion.program, base.motion.program);
+    let new = &recovered.placements[0];
+    let context = make_context(new);
+    let expected = PlacedPreviewRequest {
+        placement: new.clone(),
+        project_time: changed.project_anchor,
+    };
+    let result = match connected.execute(
+        Command::PreviewPlacedFrame {
+            placement_id: new.placement_id.clone(),
+            project_time: changed.project_anchor,
+            context: context.clone(),
+            video_view: None,
+            model_path: None,
+            model_input: None,
+            inference_profile: None,
+        },
+        Some(initial.project_id.clone()),
+        None,
+    )? {
+        ClientResponseBody::Preview(result) => result,
+        other => bail!("unexpected preview {other:?}"),
+    };
+    assert!(result.matches_placed_seek_request(&context, &expected));
+    assert_eq!(result.source_frame_index, 18);
+    let mut forged = new.clone();
+    forged.spec.project_anchor = ProjectTime::from_nanos(9_000_000_000);
+    let error = connected
+        .execute(
+            Command::Generate {
+                source_version: new.spec.source_version.clone(),
+                preset: "fast".into(),
+                settings: Some(GenerationSettings {
+                    source_placement: Some(forged),
+                    ..Default::default()
+                }),
+                model_path: None,
+            },
+            Some(initial.project_id.clone()),
+            Some(recovered.revision),
+        )
+        .unwrap_err();
+    assert_eq!(
+        error.downcast_ref::<ProtocolError>().unwrap().code,
+        ErrorCode::DependencyMismatch
+    );
+    let (status, stdout, stderr) = fixture.run(
+        ProcessCommand::new(env!("CARGO_BIN_EXE_pulsar"))
+            .env("PULSAR_STATE_DIR", &fixture.state)
+            .args([
+                "project",
+                "generate-placement",
+                initial.project_id.as_str(),
+                new.placement_id.as_str(),
+            ]),
+        "cli-generate-placement",
+    )?;
+    assert!(status.success(), "CLI placed generation failed: {stderr}");
+    let response: serde_json::Value = serde_json::from_str(&stdout)?;
+    assert_eq!(response["kind"], "job");
+    let job: JobSnapshot = serde_json::from_value(response["value"].clone())?;
+    let candidate = completed_candidate(&mut connected, &initial.project_id, job)?;
+    assert_eq!(candidate.base_revision, recovered.revision);
+    let track = candidate
+        .program
+        .track(Axis::Stroke)
+        .context("placed candidate stroke")?;
+    assert!(!track.actions().is_empty());
+    assert!(track
+        .actions()
+        .windows(2)
+        .all(|p| p[0].time() < p[1].time()));
+    assert!(track
+        .actions()
+        .iter()
+        .all(|a| a.time() >= ProjectTime::from_nanos(2_500_000_000)
+            && a.time() <= ProjectTime::from_nanos(4_500_000_000)));
+    let unchanged = project(connected.execute(
+        Command::GetSnapshot,
+        Some(initial.project_id.clone()),
+        None,
+    )?)?;
+    assert_eq!(unchanged.revision, recovered.revision);
+    assert_eq!(unchanged.motion.program, base.motion.program);
+    Ok(())
+}
+
+#[test]
+#[ignore = "requires an explicitly pinned historical schema-2 executable"]
+fn historical_schema2_reader_refuses_placement_database_without_losing_membership() -> Result<()> {
+    historical_reader_database_refusal("PULSAR_SCHEMA2_TEST_BINARY")
+}
+#[test]
+#[ignore = "requires an explicitly pinned historical schema-3 executable"]
+fn historical_schema3_reader_refuses_timing_proof_database_without_losing_membership() -> Result<()>
+{
+    historical_reader_database_refusal("PULSAR_SCHEMA3_TEST_BINARY")
+}
+fn historical_reader_database_refusal(variable: &str) -> Result<()> {
+    let reader = PathBuf::from(
+        std::env::var_os(variable).context("pin exact historical reader executable")?,
+    );
+    let mut fixture = Fixture::new()?;
+    let media = media_fixture(&fixture)?;
+    let mut client = fixture.client()?;
+    let p = project(client.execute(
+        Command::CreateProject {
+            name: "reader boundary".into(),
+        },
+        None,
+        None,
+    )?)?;
+    let source = match client.execute(
+        Command::ImportSource { path: media },
+        Some(p.project_id.clone()),
+        None,
+    )? {
+        ClientResponseBody::Source { source_version } => source_version,
+        other => bail!("unexpected import {other:?}"),
+    };
+    let spec = SourcePlacementSpec {
+        source_version: source,
+        source_start: SourceTimestamp::new(0, 1)?,
+        source_end: SourceTimestamp::new(2, 1)?,
+        source_anchor: SourceTimestamp::new(1, 2)?,
+        project_anchor: ProjectTime::from_nanos(2_000_000_000),
+        rate_numerator: 1,
+        rate_denominator: 1,
+    };
+    let placed = project(client.execute(
+        Command::SetSourcePlacement {
+            spec,
+            replace: None,
+        },
+        Some(p.project_id.clone()),
+        Some(p.revision),
+    )?)?;
+    fixture.stop()?;
+    let (status, _, stderr) = fixture.run(
+        ProcessCommand::new(reader)
+            .arg("engine")
+            .env("PULSAR_STATE_DIR", &fixture.state),
+        "old-schema-reader",
+    )?;
+    assert!(!status.success());
+    assert!(
+        stderr.contains("schema requires an explicit recoverable migration"),
+        "unexpected reader refusal: {stderr}"
+    );
+    fixture.start()?;
+    let mut connected = fixture.client()?;
+    let recovered = project(connected.execute(Command::GetSnapshot, Some(p.project_id), None)?)?;
+    assert_eq!(recovered.placements, placed.placements);
+    assert_eq!(recovered.revision, placed.revision);
+    assert_eq!(recovered.motion.program, placed.motion.program);
     Ok(())
 }

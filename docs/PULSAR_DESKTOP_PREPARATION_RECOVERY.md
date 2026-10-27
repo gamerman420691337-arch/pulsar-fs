@@ -1,0 +1,19 @@
+# Desktop interrupted preparation recovery
+
+2026-10-12. Implemented scoped controller/UI software; full roadmap PARTIAL.
+
+The Library batches tab now exposes Recover interrupted publication preparation. Select the retained batch, private workflow directory, zero-based entry index, original staging directory and original .pending receipt. The button snapshots all five recovery inputs and runs the existing checked recovery off the UI thread. It does not recapture edited fields for a retry and opening the controls performs no Engine operation.
+
+The action uses [original preparation recovery](PULSAR_LIBRARY_PREPARATION_RECOVERY.md), then obtains current workflow status for presentation. The report has zero scheduling/generation/publication decisions; metadata restoration is shown separately from later export. Missing or mismatched original evidence remains a refusal. A matching replacement stage is still insufficient.
+
+Errors before possible metadata publication leave the form editable. Errors from the journal write carry a distinct uncertain-publication marker: the controller retains the original recovery action, blocks replacement mutations, and permits read-only inspection or exact retry. After successful recovery, a lost status response likewise retains the original action for retry. Panics during the recovery operation remain conservative. Restoration does not imply media quality, verified device stopping or release readiness.
+
+## Evidence and boundaries
+
+[Checkpoint](evidence/roadmap-2026-10-12/desktop-preparation-recovery/checkpoint.json), retained physically in `/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-12/desktop-preparation-recovery/`. Client tests pass 375 with ten ignored. Two new headless egui input tests exercise the drawn recovery button, no-effect incomplete input, captured paths/index and retention of original retry inputs despite later field edits. Existing controller tests pass. Both strict workspace/all-target lint configurations, Windows GNU source check, native App/Worker/controller builds, formatting and architecture/source guards pass. No fresh whole Engine/Protocol suite or native Windows qualification is claimed.
+
+The actual network-disabled desktop controller fixture follows a real client death after Prepared pending receipt fsync but before record rename. A missing original receipt produces a known preflight refusal without retaining a mutation. An owned fixture directory changed to 0500 causes metadata publication to fail, preserves the Preparing record, and blocks replacement mutation. After restoring 0700, the controller retries the retained action and obtains Prepared history without generation or export. Original pending and export identities are preserved. Exact desktop replay after Engine restart preserves record bytes. CLI negative controls still refuse wrong entry, automatic replacement, changed export IDs and missing receipt. Subsequent ordinary publication produces twelve scripts matching retained authored PCM/timing oracles. The deliberately killed client and two native Engines are joined; every fixture controller operation is polled to a terminal handle and joined.
+
+The test helper is the preceding byte-pinned fsync/stop fixture, not a production crash hook. Application credentials are confined to owned temporary RAM. Scratch is removed after accessible-process-reference checks; shared caches and borrowed runtime payloads remain preserved.
+
+Headless input and native controller IPC do not establish rendered desktop acceptance. Broader interruption/storage/platform behavior, visual/model folder workflows, useful models/defaults, independently annotated real media, physical Handy, human and release acceptance remain open. No annotations or qualification receipts are invented.

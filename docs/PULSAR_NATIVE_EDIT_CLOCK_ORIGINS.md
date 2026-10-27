@@ -1,0 +1,17 @@
+# Native authored-edit clock origins
+
+Status: native edit origin verification implemented; effective per-action ancestry and durable mixed-clock proofs pending.
+
+The previous source-clock ancestry walk followed the SQL upload base of an edited candidate without opening its immutable receipt or replaying the values-only edit. The predecessor release reproduced actual CLI publication with the edited candidate's receipt replaced by `{}`. This counterexample used authored media and a private GraphQL fixture.
+
+The Authority-owned loader now checks bounded same-project non-generation candidate metadata and the immutable edit-receipt identity. It verifies the receipt file's exact length/hash, producer kernel, lease/base/session attribution and original/result motion descriptors. It checks the retained upload's exact identity, reads both actual CAS motion objects and replays `reconcile_edit_values`. The resulting program and exact authored/inherited intervals must agree with the retained receipt and SQL counts. Rebased edit aliases can preserve the original upload base; changed motion cannot silently inherit its claims.
+
+Metadata SQL reads are bounded before allocation. Receipt reads use their admitted identity length plus one byte and the existing 128 MiB producer ceiling; input reads use the existing 64 MiB motion ceiling. Metadata, receipt and decoded input/motion memory are explicitly reserved. The reconciled result retains its reservations while live; the ancestry walk releases it before descending to the base rather than accumulating motion buffers along recursion. Historical actor checks confer no new publication or device authority.
+
+Unit controls verify normal reconciliation, low-memory refusal, changed counts, oversized receipt metadata and a rehashed altered interval claim. The new release refuses corrupted/missing receipts and corrupted edit inputs before sibling creation; restoration permits valid native publication with an unchanged master. Existing native contributor-clock and source-clock replay/restart/archived regressions also pass.
+
+The [checkpoint](evidence/roadmap-2026-10-09/native-edit-clock-origins/checkpoint.json) retains the failing predecessor, source identity, offline locked CUDA release and native outputs. Final default Engine: 634 passed, 55 ignored. Final parallel CUDA rerun: 636 passed, 69 ignored. Static architecture: 293 checks; source guards: 36 tests. Both native CLI campaigns passed with zero skips. All 421 source records match the frozen build input.
+
+The first final parallel CUDA run failed `worker_fence::tests::format3_creator_retires_exact_obligation_and_releases_claim` with `worker fence lease is still held` and `Resource temporarily unavailable (os error 11)`. Its isolated control passed. A serial attempt reached its explicit 80-second timeout and remains incomplete. The full parallel rerun after release compilation passed. The concurrency root cause is not established or repaired by this change; those failures remain in the evidence rather than being relabelled as passes.
+
+This supplies verified edit motion/interval facts for later per-action composition. It does not yet select each action's originating clock across the complete revision graph, retain a new durable mixed-clock proof or enable mixed-clock publication. Full workspace/OS/vendor, quality, performance, real-media, Handy and human/release qualification remain open.

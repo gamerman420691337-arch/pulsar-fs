@@ -1,0 +1,13 @@
+# Checked assistant target catalogue
+
+Status: PARTIAL software prerequisite; full roadmap INCOMPLETE.
+
+After validating a successful ordinary preview, the Engine retains inert detector observations for the authenticated project/session at the captured project revision. `pulsar assistant targets PROJECT` queries those references. No client or assistant supplies boxes to this catalogue. Each ID hashes the exact frame context, displayed artifact identity, detector model identity, observation, actual source ordinal and declared video view. The centre produces an unclassified target seed only when exactly one observed normalized box contains that point. This records detector evidence, not anatomy or useful target identity.
+
+Annotated and placed previews, absent models/pixels, unavailable analysis, stale revisions, inconsistent geometry and inputs over 4096 observations produce an empty catalogue and clear the previous owner/project entry. A successful completion is the capture boundary; this is not a global ordering guarantee for concurrently requested previews. At most the first 64 eligible observations in detector order are retained, within a 128 KiB serialized bound. The registry has 32 owner/project slots, evicts the oldest captured slot, and reserves 512 KiB from aggregate Engine memory per occupied slot. Resource admission failure refuses the preview response. Replacing a slot releases its previous reservation first.
+
+Reads require normal Engine authentication and project access. Other owners and revisions receive no references. Restart clears all references. The wire validation checks strict structure, digests, frame association, observed evidence and declared transform; it does not establish custody independently of the Engine capture path.
+
+Target IDs now feed explicit assistant Start context and separately approved generation through [target application](PULSAR_ASSISTANT_TARGET_APPLICATION.md), including CLI/private saved requests and desktop controls. Native learned execution, rendered human interaction, useful training, source-matched annotations, real-media accuracy, Handy 2 Pro and human/release qualification remain open. Live references remain permitted training material; sterile references remain evaluation-only. No annotations were created.
+
+Validation and source identities: [checkpoint](evidence/roadmap-2026-10-10/assistant-target-catalog/checkpoint.json). Focused fixtures contain authored boxes and inert frame/model declarations; they do not exercise pixel-file capture or prove model quality. Existing broad storage failures are not repaired by this increment.

@@ -7,7 +7,15 @@ use crate::{
     Confidence, CoordinateBox, CoordinateSpace, CoreError, DetectionObservation, EntityTrackId,
     EvidenceKind, FrameContext,
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+
+#[path = "perception_multiscale.rs"]
+mod multiscale;
+pub use multiscale::{track_points_fb_multiscale, PyramidFlowSummary};
+
+#[path = "perception_checkpoint.rs"]
+mod checkpoint;
+pub use checkpoint::TargetTrackerCheckpoint;
 
 pub const MAX_DETECTIONS: usize = 256;
 pub const MAX_FLOW_POINTS: usize = 64;
@@ -308,8 +316,15 @@ pub struct TrackingUpdate {
     pub observations: Vec<DetectionObservation>,
     pub reviews: Vec<TrackingReview>,
     classes: BTreeMap<EntityTrackId, u32>,
+    ambiguous_associations: BTreeSet<EntityTrackId>,
 }
 impl TrackingUpdate {
+    /// Both affected prior identities and fresh identities born from ambiguous
+    /// detections are withheld for this transition. Unrelated classes/tracks
+    /// retain their independently checked association.
+    pub fn association_ambiguous(&self, track: &EntityTrackId) -> bool {
+        self.ambiguous_associations.contains(track)
+    }
     pub fn class_for(&self, track: &EntityTrackId) -> Option<u32> {
         self.classes.get(track).copied()
     }
@@ -485,18 +500,18 @@ impl TargetTracker {
         });
         let mut ambiguous_tracks = vec![false; self.tracks.len()];
         let mut ambiguous_detections = vec![false; detections.len()];
-        for t in 0..self.tracks.len() {
+        for (t, ambiguous) in ambiguous_tracks.iter_mut().enumerate() {
             let close: Vec<_> = pairs.iter().filter(|pair| pair.1 == t).take(2).collect();
             if close.len() == 2 && close[1].0 - close[0].0 <= self.config.ambiguity_margin {
-                ambiguous_tracks[t] = true;
+                *ambiguous = true;
                 ambiguous_detections[close[0].2] = true;
                 ambiguous_detections[close[1].2] = true;
             }
         }
-        for d in 0..detections.len() {
+        for (d, ambiguous) in ambiguous_detections.iter_mut().enumerate() {
             let close: Vec<_> = pairs.iter().filter(|pair| pair.2 == d).take(2).collect();
             if close.len() == 2 && close[1].0 - close[0].0 <= self.config.ambiguity_margin {
-                ambiguous_detections[d] = true;
+                *ambiguous = true;
                 ambiguous_tracks[close[0].1] = true;
                 ambiguous_tracks[close[1].1] = true;
             }
@@ -504,6 +519,13 @@ impl TargetTracker {
         if ambiguous_tracks.iter().any(|v| *v) || ambiguous_detections.iter().any(|v| *v) {
             reviews.push(TrackingReview::AmbiguousAssociation);
         }
+        let mut ambiguous_associations: BTreeSet<_> = self
+            .tracks
+            .iter()
+            .zip(&ambiguous_tracks)
+            .filter(|(_, ambiguous)| **ambiguous)
+            .map(|(track, _)| track.id.clone())
+            .collect();
         let mut matched_tracks = vec![false; self.tracks.len()];
         let mut matched_detections = vec![false; detections.len()];
         for (_, t, d) in pairs {
@@ -576,6 +598,9 @@ impl TargetTracker {
             }
             let id = EntityTrackId::new(format!("{}.{}", self.namespace, self.next_id))?;
             self.next_id = self.next_id.checked_add(1).ok_or(CoreError::Overflow)?;
+            if ambiguous_detections[index] {
+                ambiguous_associations.insert(id.clone());
+            }
             let center = detection.bounds.center();
             self.tracks.push(Track {
                 id,
@@ -617,6 +642,7 @@ impl TargetTracker {
             observations,
             reviews,
             classes,
+            ambiguous_associations,
         })
     }
 }
@@ -884,8 +910,9 @@ fn solve_translation(
     Ok((displacement, error))
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MotionSeparation {
+    pub component_displacement_bound: f64,
     pub target_image_translation: Option<[f64; 2]>,
     /// A background image-motion proxy, not a measured physical camera pose.
     pub background_image_translation: Option<[f64; 2]>,
@@ -900,14 +927,26 @@ pub fn separate_target_motion(
     target: &[PointFlow],
     background: &[PointFlow],
 ) -> Result<MotionSeparation, CoreError> {
+    separate_target_motion_bounded(target, background, 8.5)
+}
+
+/// Explicit bounded original-pixel evidence from the multiscale adapter.
+pub fn separate_target_motion_bounded(
+    target: &[PointFlow],
+    background: &[PointFlow],
+    bound: f64,
+) -> Result<MotionSeparation, CoreError> {
+    if !bound.is_finite() || !(0.5..=34.0).contains(&bound) {
+        return Err(invalid("invalid motion separation displacement bound"));
+    }
     if target.len() > MAX_FLOW_POINTS || background.len() > MAX_FLOW_POINTS {
         return Err(invalid("motion separation exceeds bounded point budget"));
     }
-    fn summarize(points: &[PointFlow]) -> Result<(Option<[f64; 2]>, usize), CoreError> {
+    fn summarize(points: &[PointFlow], bound: f64) -> Result<(Option<[f64; 2]>, usize), CoreError> {
         let mut accepted = Vec::new();
         for point in points {
             if let Some(delta) = point.displacement {
-                if !delta.iter().all(|v| v.is_finite() && v.abs() <= 8.5)
+                if !delta.iter().all(|v| v.is_finite() && v.abs() <= bound)
                     || point.rejection.is_some()
                     || point.source.iter().any(|v| !v.is_finite() || *v < 0.0)
                     || !point
@@ -931,7 +970,7 @@ pub fn separate_target_motion(
         xs.sort_by(f64::total_cmp);
         ys.sort_by(f64::total_cmp);
         let median = |values: &[f64]| {
-            if values.len() % 2 == 0 {
+            if values.len().is_multiple_of(2) {
                 (values[values.len() / 2 - 1] + values[values.len() / 2]) / 2.0
             } else {
                 values[values.len() / 2]
@@ -953,12 +992,13 @@ pub fn separate_target_motion(
             count,
         ))
     }
-    let (target_image_translation, target_accepted_points) = summarize(target)?;
-    let (background_image_translation, background_accepted_points) = summarize(background)?;
+    let (target_image_translation, target_accepted_points) = summarize(target, bound)?;
+    let (background_image_translation, background_accepted_points) = summarize(background, bound)?;
     let target_relative_to_background = target_image_translation
         .zip(background_image_translation)
         .map(|(a, b)| [a[0] - b[0], a[1] - b[1]]);
     Ok(MotionSeparation {
+        component_displacement_bound: bound,
         target_image_translation,
         background_image_translation,
         target_relative_to_background,

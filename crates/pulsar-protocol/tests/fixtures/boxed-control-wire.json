@@ -1,0 +1,14 @@
+[
+  {
+    "kind": "generate",
+    "json": "{\"operation\":\"generate\",\"arguments\":{\"preset\":\"compatibility\",\"settings\":{\"analysis_width\":320,\"analysis_height\":180,\"source_sample_stride\":1,\"axis\":\"stroke\",\"vr_mode\":false,\"model_input\":null},\"model\":null}}"
+  },
+  {
+    "kind": "download",
+    "json": "{\"kind\":\"package_download\",\"value\":{\"lease_id\":\"fixed-lease\",\"engine_epoch\":\"fixed-epoch\",\"operation_id\":\"fixed-operation\",\"artifact\":{\"format_version\":12,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"byte_len\":100,\"manifest_sha256\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"project_id\":\"fixed-project\",\"captured_revision\":2,\"captured_event_cursor\":3,\"object_count\":1,\"verification\":\"all_declared_objects_verified\"},\"offset\":0,\"byte_len\":100,\"next_offset\":0,\"replay\":null,\"expires_after_ms\":1000,\"bulk_endpoint\":\"/fixed/engine.sock\"}}"
+  },
+  {
+    "kind": "ready",
+    "json": "{\"status\":\"ready\",\"payload\":{\"lease\":{\"lease_id\":\"fixed-lease\",\"engine_epoch\":\"fixed-epoch\",\"operation_id\":\"fixed-operation\",\"artifact\":{\"format_version\":12,\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"byte_len\":100,\"manifest_sha256\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"project_id\":\"fixed-project\",\"captured_revision\":2,\"captured_event_cursor\":3,\"object_count\":1,\"verification\":\"all_declared_objects_verified\"},\"offset\":0,\"byte_len\":100,\"next_offset\":0,\"replay\":null,\"expires_after_ms\":1000,\"bulk_endpoint\":\"/fixed/engine.sock\"}}}"
+  }
+]

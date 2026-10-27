@@ -1,0 +1,13 @@
+# Desktop Handy inspection
+
+The Devices tab now exposes connectivity and identity inspection through the same owner-scoped Engine operation as the CLI. Enter the API-key and connection-key environment-variable names, explicitly allow that online inspection, then select **Inspect Handy online**. No project is required.
+
+Only names travel through IPC. The Engine must already have those credentials, supplied through the encrypted secrets workflow. The default names HANDY_API_KEY and HANDY_CONNECTION_KEY are suggestions, not configured credentials. Launching a client through secrets run does not update an already-running Engine. The controls do not store values, provision keys or restart the Engine.
+
+The request captures the names and runs on the existing background RPC thread. The separate private Handy owner capability is read from the trusted session directory. Controls are disabled while pending; sending consumes consent and clears the old snapshot. Editing either name clears consent and the snapshot. A returned report is validated before display. Errors leave no successful-looking replacement observation; no automatic retry or periodic query occurs.
+
+A successful observation displays its timestamp, connectivity and optional model/variant/firmware/status. The remote session identifier is omitted from the panel. These sequential queries are a historical snapshot. They do not establish continuing connection, device profile admission, synchronization, physical stop response or safe playback. Physical playback remains disabled here. The [existing inspection contract](PULSAR_HANDY_INSPECTION.md) retains endpoint, credential, authorization and response limits.
+
+The [checkpoint](evidence/roadmap-2026-10-12/desktop-handy-inspection/checkpoint.json) records four headless tests, including actual drawn consent/button clicks and off-thread dispatch; full Clients pass 322 with 8 ignored. Two existing Engine authentication/consent/owner-capability tests pass against the unchanged Engine test executable. The actual network-disabled native controller invokes the production helper and verifies absent-credential refusal with unchanged master. Three shipped CLI refusal controls pass. The owned Engine joins. Both strict lint configurations, workspace check, formatting, native builds, 445 architecture checks and 36 source guards pass.
+
+No real Handy or online service was contacted. The owner-selected device remains Handy 2 Pro with unidentified firmware and unconfigured encrypted credentials. Online success, rendered GUI acceptance, broader hardware diagnostics, physical playback, other platforms and release qualification remain open. [ADR B3-144](../research/phase-b/ADR-B3-144-desktop-handy-inspection.md) records the design.

@@ -212,7 +212,46 @@ fn open_package_source(path: &Path) -> Result<File> {
         )?,
     ))
 }
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn open_package_source(path: &Path) -> Result<File> {
+    use std::{
+        fs::OpenOptions,
+        os::windows::fs::{MetadataExt, OpenOptionsExt},
+        path::{Component, Prefix},
+    };
+    const FILE_SHARE_READ: u32 = 0x0000_0001;
+    const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0000_0400;
+    const SECURITY_ANONYMOUS: u32 = 0;
+    let filesystem_prefix = match path.components().next() {
+        Some(Component::Prefix(prefix)) => match prefix.kind() {
+            Prefix::Disk(_) | Prefix::VerbatimDisk(_) => true,
+            Prefix::UNC(_, share) | Prefix::VerbatimUNC(_, share) => {
+                !share.as_encoded_bytes().eq_ignore_ascii_case(b"pipe")
+            }
+            _ => false,
+        },
+        _ => false,
+    };
+    ensure!(
+        path.is_absolute() && filesystem_prefix,
+        "Package input requires an absolute filesystem path, not a device or pipe namespace"
+    );
+    let file = OpenOptions::new()
+        .read(true)
+        .share_mode(FILE_SHARE_READ)
+        .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
+        .security_qos_flags(SECURITY_ANONYMOUS)
+        .open(path)
+        .context("Open a retained package input without write/delete sharing")?;
+    let metadata = file.metadata()?;
+    ensure!(
+        metadata.is_file() && metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0,
+        "Package input must be a regular file, not a reparse point or device"
+    );
+    Ok(file)
+}
+#[cfg(not(any(unix, windows)))]
 fn open_package_source(_: &Path) -> Result<File> {
     bail!("Validated retained-handle package input is not implemented on this platform")
 }
@@ -567,7 +606,7 @@ fn checked_import_status(
     match response {
         ResponseBody::PackageImport(status) => {
             validate_import_status(&status, operation, package)?;
-            Ok(status)
+            Ok(*status)
         }
         _ => bail!("Expected typed project-import status"),
     }
@@ -629,6 +668,7 @@ pub(crate) fn validate_import_handshake(
 mod tests {
     use super::*;
     use clap::Parser;
+    #[cfg(any(unix, windows))]
     use std::fs;
 
     fn declaration() -> PackageUploadDeclaration {
@@ -718,11 +758,11 @@ mod tests {
             assert!(crate::cli::Cli::try_parse_from(args).is_ok());
         }
     }
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     #[test]
     fn prepared_input_hashes_exact_bytes_and_preserves_actual_supported_version() {
         let root = tempfile::tempdir().unwrap();
-        for version in [1, 2] {
+        for version in [1, 2, 10] {
             let bytes = probe_bytes(version);
             let path = root.path().join(format!("v{version}.pkg"));
             fs::write(&path, &bytes).unwrap();
@@ -742,6 +782,69 @@ mod tests {
             assert_eq!(fs::read(&path).unwrap(), bytes);
         }
     }
+    #[cfg(windows)]
+    #[test]
+    fn windows_retained_input_denies_writers_and_replacement_until_drop() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("input.pkg");
+        let alias = root.path().join("alias.pkg");
+        let original = probe_bytes(1);
+        fs::write(&path, &original).unwrap();
+        fs::hard_link(&path, &alias).unwrap();
+        let writer = fs::OpenOptions::new().write(true).open(&path).unwrap();
+        assert!(PreparedPackageImport::open(&path, &PackageImportControl::default()).is_err());
+        drop(writer);
+        let mut prepared =
+            PreparedPackageImport::open(&path, &PackageImportControl::default()).unwrap();
+        assert!(fs::OpenOptions::new().write(true).open(&path).is_err());
+        assert!(fs::OpenOptions::new().write(true).open(&alias).is_err());
+        assert!(fs::rename(&path, root.path().join("replacement.pkg")).is_err());
+        assert!(fs::remove_file(&path).is_err());
+        let mut retained = Vec::new();
+        prepared.file.read_to_end(&mut retained).unwrap();
+        assert_eq!(retained, original);
+        assert_eq!(fs::read(&path).unwrap(), original);
+        drop(prepared);
+        fs::write(&path, b"replacement after release").unwrap();
+        assert_eq!(fs::read(&alias).unwrap(), b"replacement after release");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_reparse_directory_and_device_namespace_inputs_refuse_before_hashing() {
+        use std::os::windows::fs::MetadataExt;
+        let root = tempfile::tempdir().unwrap();
+        let source = root.path().join("input.pkg");
+        let link = root.path().join("linked.pkg");
+        let bytes = probe_bytes(1);
+        fs::write(&source, &bytes).unwrap();
+        std::os::windows::fs::symlink_file(&source, &link).unwrap();
+        assert_ne!(
+            fs::symlink_metadata(&link).unwrap().file_attributes() & 0x400,
+            0
+        );
+        assert_eq!(fs::read(&link).unwrap(), bytes);
+        for path in [&link, root.path()] {
+            let control = PackageImportControl::default();
+            assert!(PreparedPackageImport::open(path, &control).is_err());
+            assert_eq!(control.hashed_bytes(), 0);
+            assert_eq!(control.phase(), PackageImportPhase::Idle);
+        }
+        for path in [
+            r"\\.\pipe\pulsar-unused",
+            r"\\localhost\PIPE\pulsar-unused",
+            r"\\?\GLOBALROOT\Device\unused",
+            "relative.pkg",
+        ] {
+            let error = open_package_source(Path::new(path)).err().unwrap();
+            assert!(
+                error.to_string().contains("filesystem path"),
+                "{path}: {error}"
+            );
+        }
+        assert_eq!(fs::read(&source).unwrap(), bytes);
+    }
+
     #[cfg(unix)]
     #[test]
     fn source_handle_is_not_reopened_when_its_path_is_replaced() {
@@ -766,7 +869,25 @@ mod tests {
         let path = root.path().join("input.pkg");
         fs::write(&path, vec![0u8; 60]).unwrap();
         assert!(PreparedPackageImport::open(&path, &PackageImportControl::default()).is_err());
-        fs::write(&path, probe_bytes(9)).unwrap();
+        fs::write(&path, probe_bytes(11)).unwrap();
+        assert!(PreparedPackageImport::open(&path, &PackageImportControl::default()).is_ok());
+        fs::write(
+            &path,
+            probe_bytes(PROJECT_PACKAGE_FORMAT_VERSION_WITH_DEVICE_EXPORTS),
+        )
+        .unwrap();
+        assert!(PreparedPackageImport::open(&path, &PackageImportControl::default()).is_ok());
+        fs::write(
+            &path,
+            probe_bytes(PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY),
+        )
+        .unwrap();
+        assert!(PreparedPackageImport::open(&path, &PackageImportControl::default()).is_ok());
+        fs::write(
+            &path,
+            probe_bytes(PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY + 1),
+        )
+        .unwrap();
         assert!(PreparedPackageImport::open(&path, &PackageImportControl::default()).is_err());
         let link = root.path().join("link");
         symlink(&path, &link).unwrap();
@@ -1006,10 +1127,9 @@ mod socket_tests {
                     respond(
                         &mut stream,
                         &request,
-                        Ok(ResponseBody::PackageImport(status(
-                            &package,
-                            PackageImportOperationState::AwaitingUpload,
-                        ))),
+                        Ok(ResponseBody::PackageImport(
+                            (status(&package, PackageImportOperationState::AwaitingUpload)).into(),
+                        )),
                     );
                 }
             }
@@ -1067,10 +1187,13 @@ mod socket_tests {
             respond(
                 &mut stream,
                 &request,
-                Ok(ResponseBody::PackageImport(status(
-                    &control_package,
-                    PackageImportOperationState::AwaitingUpload,
-                ))),
+                Ok(ResponseBody::PackageImport(
+                    (status(
+                        &control_package,
+                        PackageImportOperationState::AwaitingUpload,
+                    ))
+                    .into(),
+                )),
             );
             drop(stream);
             for retry in 0..2 {
@@ -1102,10 +1225,9 @@ mod socket_tests {
                     respond(
                         &mut stream,
                         &request,
-                        Ok(ResponseBody::PackageImport(status(
-                            &control_package,
-                            PackageImportOperationState::Sealing,
-                        ))),
+                        Ok(ResponseBody::PackageImport(
+                            (status(&control_package, PackageImportOperationState::Sealing)).into(),
+                        )),
                     );
                 }
             }
@@ -1117,10 +1239,9 @@ mod socket_tests {
             respond(
                 &mut stream,
                 &request,
-                Ok(ResponseBody::PackageImport(status(
-                    &control_package,
-                    PackageImportOperationState::Failed,
-                ))),
+                Ok(ResponseBody::PackageImport(
+                    (status(&control_package, PackageImportOperationState::Failed)).into(),
+                )),
             );
         });
         let uploader = thread::spawn(move || {

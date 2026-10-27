@@ -66,15 +66,43 @@ fn hash_file(path: &Path, deadline: Option<Instant>) -> Result<(String, u64)> {
 
 /// Discovery only pins existing files. It never downloads or executes anything.
 /// PATH fallback is a transitional development adapter, not a portable-package
-/// qualification claim. Production bundles can provide explicit resource paths.
+/// qualification claim. Explicit overrides take precedence over bundled assets.
 pub fn discover_tools() -> Result<WorkerTools> {
     Ok(WorkerTools {
         ffmpeg: pin_artifact(&discover("PULSAR_FFMPEG", "ffmpeg")?)?,
         ffprobe: pin_artifact(&discover("PULSAR_FFPROBE", "ffprobe")?)?,
-        onnx_runtime: std::env::var_os("PULSAR_ORT_DYLIB")
-            .map(|path| pin_artifact(Path::new(&path)))
-            .transpose()?,
+        onnx_runtime: discover_onnx_runtime(
+            std::env::var_os("PULSAR_ORT_DYLIB").map(PathBuf::from),
+            &std::env::current_exe()?,
+        )?
+        .map(|path| pin_artifact(&path))
+        .transpose()?,
     })
+}
+
+fn discover_onnx_runtime(
+    override_path: Option<PathBuf>,
+    executable: &Path,
+) -> Result<Option<PathBuf>> {
+    if let Some(path) = override_path {
+        return Ok(Some(path));
+    }
+    let name = if cfg!(target_os = "windows") {
+        "onnxruntime.dll"
+    } else if cfg!(target_os = "macos") {
+        "libonnxruntime.dylib"
+    } else {
+        "libonnxruntime.so.1"
+    };
+    let parent = executable
+        .parent()
+        .context("executable has no parent directory")?;
+    let bundled = parent.join("runtimes").join(name);
+    match std::fs::symlink_metadata(&bundled) {
+        Ok(_) => Ok(Some(bundled)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(error.into()),
+    }
 }
 
 fn discover(variable: &str, name: &str) -> Result<PathBuf> {
@@ -204,6 +232,67 @@ pub fn write_bytes(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn runtime_discovery_preserves_absence_and_override_and_pins_bundled_bytes() {
+        let root = tempfile::tempdir().unwrap();
+        let executable = root.path().join("pulsar");
+        assert!(discover_onnx_runtime(None, &executable).unwrap().is_none());
+        let override_path = root.path().join("explicit-missing-runtime");
+        assert_eq!(
+            discover_onnx_runtime(Some(override_path.clone()), &executable).unwrap(),
+            Some(override_path.clone())
+        );
+        assert!(pin_artifact(&override_path).is_err());
+        let runtimes = root.path().join("runtimes");
+        std::fs::create_dir(&runtimes).unwrap();
+        // Ask the production resolver for its platform basename using an existing directory.
+        let name = if cfg!(target_os = "windows") {
+            "onnxruntime.dll"
+        } else if cfg!(target_os = "macos") {
+            "libonnxruntime.dylib"
+        } else {
+            "libonnxruntime.so.1"
+        };
+        let bundled = runtimes.join(name);
+        std::fs::write(&bundled, b"authored runtime identity fixture").unwrap();
+        let selected = discover_onnx_runtime(None, &executable).unwrap().unwrap();
+        assert_eq!(selected, bundled);
+        let reference = pin_artifact(&selected).unwrap();
+        assert_eq!(
+            reference.identity.sha256,
+            format!("{:x}", Sha256::digest(b"authored runtime identity fixture"))
+        );
+        assert_eq!(reference.identity.byte_len, 33);
+        assert_eq!(
+            discover_onnx_runtime(Some(override_path.clone()), &executable).unwrap(),
+            Some(override_path)
+        );
+        std::fs::remove_file(&bundled).unwrap();
+        std::fs::create_dir(&bundled).unwrap();
+        assert!(pin_artifact(&discover_onnx_runtime(None, &executable).unwrap().unwrap()).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn dangling_bundled_runtime_does_not_silently_disable_inference() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir(root.path().join("runtimes")).unwrap();
+        let name = if cfg!(target_os = "macos") {
+            "libonnxruntime.dylib"
+        } else {
+            "libonnxruntime.so.1"
+        };
+        std::os::unix::fs::symlink(
+            root.path().join("missing"),
+            root.path().join("runtimes").join(name),
+        )
+        .unwrap();
+        let selected = discover_onnx_runtime(None, &root.path().join("pulsar"))
+            .unwrap()
+            .unwrap();
+        assert!(pin_artifact(&selected).is_err());
+    }
 
     #[test]
     fn artifact_writer_refuses_path_escape_before_open() {

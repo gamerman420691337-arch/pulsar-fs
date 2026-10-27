@@ -1,0 +1,179 @@
+# Pulsar execution dashboard
+
+> GENERATED from [PULSAR_EXECUTION.json](PULSAR_EXECUTION.json). Edit the JSON; run `python3 scripts/execution_dashboard.py --write` from the repository root.
+
+Reconciled **2026-10-27 (America/New_York)**. Full roadmap: **INCOMPLETE**. Autonomous runner observation: **paused**.
+
+## Now
+
+**Current working tree: UNVERIFIED.** The latest retained format-15 compile failed with four Engine errors; development source has since changed and this snapshot awaits fresh build verification.
+
+Published development snapshot; source differs from the retained failed build. Previous passing and failing receipts remain scoped to their original inputs. Evidence: [EV-PORTABLE-BUILD](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/portable-cpu-history/build-001.jsonl).
+
+**First action — CPU-BUILD: Repair portable CPU transaction/assembly ownership and module reference.** Exit required: Compile the current Protocol, Engine and client library tests successfully with zero errors. Collect checked image declarations inside the same DB snapshot as attempts, carry them into assembly, and preserve metadata admission bounds.
+
+The queue drives execution; specifications and owner decisions retain authority. Scoped completions below do not close their parent acceptance gates.
+
+## Implemented application surface
+
+Source already includes Desktop, CLI and a local browser client over one authenticated Engine; script/project editing, candidate review/commit/export, deterministic patterns, library/Stash controls, local assistant proposals and experimental browser capture. Handy inspection and guarded transport are implemented. Useful learned defaults, the rendered browser-to-device workflow and physical synchronization remain unqualified. See the [app guide](PULSAR_APP_QUICKSTART.md); the gate ledger below retains the remaining acceptance obligations.
+
+## Last verified baseline
+
+**Engine 1884 passed / 110 ignored; clients 695 passed / 14 ignored; Protocol 395 passed.** Pinned pre-format15 checkpoints, not a passing result for the current working tree.
+
+[EV-STARTUP](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/verification.json), [EV-CPU-LIVE](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/verification.json). Ignored native/qualification scenarios are separate. The earlier startup timeout and long Engine-open delay remain causally unresolved.
+
+## Done within the recorded software scope
+
+| Work | Verified scope and limit | Parent gates | Evidence |
+| --- | --- | --- | --- |
+| Captured CPU native lifecycle implementation | Five neutral-input Start/Continue/Stop, cancellation, expiry and refusal cases pass on their pinned subject. | M3-MODELS, M5-LIVE | [EV-LIVE-CORE](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/native-live-001/check.json), [EV-CPU-LIVE](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/verification.json) |
+| Native browser-analysis EOF and successor handover | Two native cases and five estimates pass over authored browser callbacks; rendered acquisition remains open. | M2-DOMAIN, M5-LIVE | [EV-BROWSER](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/native-browser-005/check.json) |
+| Reader compatibility and retired restart recovery | Pinned older app refuses reader38 with exact DB/WAL/SHM/fence preservation; current restart restores history without live authority. | M2-INTERCHANGE, M6-INSTALL | [EV-RESTART](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/native-reader-004/check.json) |
+| Capture resource-retirement semantics | Two native cgroup/thread/staging tests pass; physical stopping remains separate. | M3-MEMORY, M5-LIVE | [EV-RETIREMENT](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/engine-private-ram-capture-assets-001/check.json) |
+| Finite fallback and selected-pack lifecycle simulation | Eleven native software scenarios pass; eligibility/provider absence/pack approval are simulated and establish no measured equivalence. | M3-MODELS | [EV-FALLBACK](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/fallback-active-consumers/verification.json) |
+| Bounded startup diagnostic implementation | 14 Engine-open phases and maximum Ready-call/gap observations are tested. Healthy timings do not identify the prior stall. | M5-LIVE, M6-MEMORY | [EV-STARTUP](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/verification.json) |
+
+## Execution queue
+
+Order is priority, with explicit dependencies. External preparation can proceed independently. “In progress” identifies unfinished work, not a confirmed live process.
+
+| Order / ID | Work and owner | State / prerequisites | Required exit evidence |
+| --- | --- | --- | --- |
+| 1. **CPU-BUILD** | Repair portable CPU transaction/assembly ownership and module reference<br>Parallel implementation agent | in progress<br>Depends: None | Compile the current Protocol, Engine and client library tests successfully with zero errors. Collect checked image declarations inside the same DB snapshot as attempts, carry them into assembly, and preserve metadata admission bounds. |
+| 2. **CPU-ARCHIVE** | Verify format-15 CPU archival correspondence and mutation refusals<br>Codex | planned<br>Depends: CPU-BUILD | Exact image/profile/model/dependency binding for successful, failed, cancelled, interrupted and captured-running attempts; stripped/changed/contradictory/hidden current or ancestor declarations refuse. |
+| 3. **CPU-ROUNDTRIP** | Prove complete CPU export/clone/restart/re-export/second-clone lifecycle<br>Codex | planned<br>Depends: CPU-ARCHIVE | Actual confined CPU attempts retain exact inert history across two clones; no origin execution authority revives. Preceding reader refuses before mutation; processes, storage and memory release are verified. |
+| 4. **BROWSER-DEMO** | Verify the real rendered-browser-to-recording/export demo<br>Codex + operator | planned<br>Depends: CPU-BUILD | Actual rendered frame acquisition, source clocks, capture, review/export and stop/reconnect/fault lifecycle pass with sterile inputs; authored callbacks alone do not close this task. |
+| 5. **CLIENT-CORRECTNESS** | Close shared-client correctness and editing fault scenarios<br>Codex + rendered-workflow operator | planned<br>Depends: CPU-BUILD | Verify source/view/time correspondence and target loss/reacquisition through real consumers; exercise protected editing, review/commit/rebase/undo/restart and crash/storage faults in CLI/desktop. Retain real-media limitations under M1-DATA. |
+| 6. **STARTUP-CAUSE** | Localize the retained intermittent startup/Ready stall<br>Codex | open<br>Depends: None | Use existing bounded phase probes on the failing path; establish a causal repair and regression, or a specifically evidenced observation-contract correction. Healthy later runs do not erase the failure. |
+| 7. **HANDY-QUALIFY** | Prepare and qualify Handy 2 Pro sync and stop behavior<br>Operator + Codex | awaiting external<br>Depends: BROWSER-DEMO | Actual firmware/configuration and encrypted secret references are supplied; authorized bench observations establish synchronization, stopping and recovery for the exact configuration. No acceptance is fabricated. |
+| 8. **QUALITY-DATA** | Build checked annotation/alignment and held-out evaluation coverage<br>Operator/data reviewer + Codex | awaiting external<br>Depends: None | Source-matched target/view labels and reference timing are independently checked; permitted live references train, sterile references remain evaluation-only; score held-out quality and human effort. |
+| 9. **STASH-COMPAT** | Verify the configured user Stash library workflow<br>Operator + Codex | awaiting external<br>Depends: CPU-BUILD | Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. |
+| 10. **LIVE-FALLBACK-HISTORY** | Complete live/browser fallback and remaining portable histories<br>Codex | planned<br>Depends: CPU-ROUNDTRIP | Implement the full retained fallback/live namespaces and authority/expiry/withdrawal behavior through actual consumers. Existing refusals remain until complete correspondence exists. |
+| 11. **DELIVERY-MODALITIES** | Finish required modalities, offline editions and platform/vendor coverage<br>Codex + qualified platform operators | planned<br>Depends: CPU-BUILD | Decompose and verify all remaining M4/M6 gate criteria with exact assets, hardware, fault and relocation evidence; partial adapters and manifests do not close the matrix. |
+| 12. **ASSISTANT-CONTENTION** | Qualify useful local-assistant tasks and resource handoff<br>Codex + model/platform evaluator | planned<br>Depends: CPU-BUILD | Measure useful offline assistant tasks through approved actual clients; verify partial-progress generation pause/response/resume and live coexistence under CPU/GPU contention with whole-application memory/latency observations. |
+| 13. **PREVIEW-STABLE** | Close Preview, Stable, assurance and comparative acceptance<br>Product owner + independent reviewers + Codex | planned<br>Depends: BROWSER-DEMO, HANDY-QUALIFY, QUALITY-DATA, DELIVERY-MODALITIES, LIVE-FALLBACK-HISTORY, CLIENT-CORRECTNESS, STASH-COMPAT, ASSISTANT-CONTENTION | Every applicable specification/test gate has current subject-bound evidence and required human/release disposition; no percentage or test count substitutes for coverage. |
+
+## M1–M8 acceptance ledger
+
+All 25 original criteria are retained verbatim. **0 of 25 acceptance gates closed.** Implementation state, evidence state and acceptance are independent; **not requalified** means this reconciliation did not establish current acceptance.
+
+### M1: baseline and stroke correctness foundation
+
+| Gate / acceptance | Required result | Implementation / verification | Next proof and basis |
+| --- | --- | --- | --- |
+| **M1-GEOMETRY** / open | Model-specific decode, coordinates, crop/projection transforms, real preview/generation consumers and stable target identity. Trace exact tensors, pixels, PTS, model and source identities. | partial<br>not requalified | Recheck pinned model/source/view through real preview and generation; retain tensor/pixel/PTS and target-identity comparisons.<br>Not requalified; source: [perception.rs](../crates/pulsar-core/src/perception.rs), [media.rs](../crates/pulsar-engine/src/worker/media.rs) |
+| **M1-MOTION** / open | Preserve pauses/shallow excursions, prevent invented flat-signal strokes and amplitude expansion, retain timestamp/identity/reacquisition boundaries. | partial<br>not requalified | Compare pauses, shallow motion, reversals and missing/extra travel against independent aligned references.<br>Not requalified; source: [perception.rs](../crates/pulsar-core/src/perception.rs), [media.rs](../crates/pulsar-engine/src/worker/media.rs) |
+| **M1-DATA** / open | Source-matched target/view annotations, checked script alignment, curated category coverage and independent held-out scoring. | partial<br>awaiting external | Create and independently check source-matched view/target labels and script timing; freeze training and held-out splits.<br>Not requalified; source: [perception.rs](../crates/pulsar-core/src/perception.rs), [media.rs](../crates/pulsar-engine/src/worker/media.rs) |
+
+### M2: shared generation and editable projects
+
+| Gate / acceptance | Required result | Implementation / verification | Next proof and basis |
+| --- | --- | --- | --- |
+| **M2-DOMAIN** / open | Shared GUI/CLI/batch/live motion semantics, neutral six-axis master, timestamp/clock provenance, source/candidate identity and explicit uncertainty. | partial<br>checkpoint partial | Exercise identical editing/generation semantics through shipped CLI, desktop and browser, including stale/revoked requests.<br>[EV-CPU-LIVE](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/verification.json); source: [authority.rs](../crates/pulsar-engine/src/authority.rs), [project_packages.rs](../crates/pulsar-engine/src/project_packages.rs), [desktop.rs](../crates/pulsar-clients/src/desktop.rs) |
+| **M2-EDITS** / open | Protected edits, explicit unlock/replacement, candidate review/commit, rebase, undo/redo and restart preservation. | partial<br>not requalified | Complete rendered edit/review/commit/undo/restart and crash/storage fault scenarios against preserved user work.<br>Not requalified; source: [authority.rs](../crates/pulsar-engine/src/authority.rs), [project_packages.rs](../crates/pulsar-engine/src/project_packages.rs), [desktop.rs](../crates/pulsar-clients/src/desktop.rs) |
+| **M2-INTERCHANGE** / open | Revision-bound native project migration, per-axis result/partial status, standard funscript export, archival exact receipt recovery and Stash publication without replacing existing work. | in progress<br>failed current | Repair current format-15 build, then verify complete attempt history through export, clone, restart, re-export and second clone.<br>[EV-PORTABLE-BUILD](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/portable-cpu-history/build-001.jsonl), [EV-RESTART](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/native-reader-004/check.json); source: [authority.rs](../crates/pulsar-engine/src/authority.rs), [project_packages.rs](../crates/pulsar-engine/src/project_packages.rs), [desktop.rs](../crates/pulsar-clients/src/desktop.rs) |
+
+### M3: adaptive quality tiers and local assistance
+
+| Gate / acceptance | Required result | Implementation / verification | Next proof and basis |
+| --- | --- | --- | --- |
+| **M3-MODELS** / open | Real pinned Fast/Default/Maximum pipelines, model-specific adapters and actual active provider disclosure; no placeholder substitution. | partial<br>checkpoint partial | Select distributable useful models; measure complete quality, speed and memory for every advertised tier/provider.<br>[EV-FALLBACK](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/fallback-active-consumers/verification.json), [EV-CPU-LIVE](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/verification.json); source: [inference_fallback_execution.rs](../crates/pulsar-engine/src/inference_fallback_execution.rs), [cpu_runtime_db.rs](../crates/pulsar-engine/src/cpu_runtime_db.rs) |
+| **M3-ASSISTANT** / open | Local structured target/settings/review/edit proposals, current owner/project/revision binding, separate approval and protected undoable effects. | partial<br>not requalified | Qualify useful offline defaults and approved target/settings/review/edit tasks through actual clients.<br>Not requalified; source: [inference_fallback_execution.rs](../crates/pulsar-engine/src/inference_fallback_execution.rs), [cpu_runtime_db.rs](../crates/pulsar-engine/src/cpu_runtime_db.rs) |
+| **M3-MEMORY** / open | MEM-01/MEM-02 and TEST-13: real generation pause/checkpoint, assistant response, resumed job and protected live playback under contention. | partial<br>checkpoint partial | Verify partial-progress pause/resume and assistant/live coexistence on actual CPU/GPU workloads with whole-application peaks.<br>[EV-RETIREMENT](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/engine-private-ram-capture-assets-001/check.json); source: [inference_fallback_execution.rs](../crates/pulsar-engine/src/inference_fallback_execution.rs), [cpu_runtime_db.rs](../crates/pulsar-engine/src/cpu_runtime_db.rs) |
+
+### M4: multimodal and six-axis generation
+
+| Gate / acceptance | Required result | Implementation / verification | Next proof and basis |
+| --- | --- | --- | --- |
+| **M4-INPUTS** / open | All specified file/stream/audio/text/still-image-plus-prompt/script input families; clear unsupported/undecodable/partial results. | partial<br>not requalified | Run the full specified media/codec/scheme/script/prompt matrix through shipped consumers and baseline offline assets.<br>Not requalified; source: [synthesis.rs](../crates/pulsar-core/src/synthesis.rs), [device.rs](../crates/pulsar-core/src/device.rs) |
+| **M4-PRECEDENCE** / open | Faithful visual motion takes precedence over conflicting rhythm; creative reinterpretation requires explicit intent. | partial<br>not requalified | Evaluate faithful visual motion versus conflicting rhythm; score creative intent separately.<br>Not requalified; source: [synthesis.rs](../crates/pulsar-core/src/synthesis.rs), [device.rs](../crates/pulsar-core/src/device.rs) |
+| **M4-AXES** / open | Neutral six-axis outputs, VR/stereo/projection handling, explicit per-channel lineage, observability and limitations. | partial<br>not requalified | Establish per-axis observability, secondary-axis/creative scoring and physical six-axis qualification.<br>Not requalified; source: [synthesis.rs](../crates/pulsar-core/src/synthesis.rs), [device.rs](../crates/pulsar-core/src/device.rs) |
+
+### M5: live scheduling and devices
+
+| Gate / acceptance | Required result | Implementation / verification | Next proof and basis |
+| --- | --- | --- | --- |
+| **M5-LIVE** / open | GPU fastest-preset live six-axis; CPU best-effort bounded latest-frame queues, skipped analysis and visible actual delay without stale backlog. | partial<br>checkpoint partial | Run actual rendered-browser acquisition and sustained timing/fault scenarios; diagnose retained startup stalls and measure jitter/lag.<br>[EV-LIVE-CORE](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/native-live-001/check.json), [EV-BROWSER](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/native-browser-005/check.json), [EV-STARTUP](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/verification.json); source: [live_captures.rs](../crates/pulsar-engine/src/live_captures.rs), [handy_hsp_live.rs](../crates/pulsar-engine/src/handy_hsp_live.rs), [browser_live.rs](../crates/pulsar-clients/src/browser_live.rs) |
+| **M5-DEVICE** / open | Handy/Handy 2 online and offline BLE, upload consent, arming/disarming, stop/expiry/authority-loss behavior and stale command handling. | partial<br>awaiting external | Identify Handy 2 Pro firmware, configure encrypted credential references and obtain authorized physical sync/stop observations; BLE remains separate.<br>Not requalified; source: [live_captures.rs](../crates/pulsar-engine/src/live_captures.rs), [handy_hsp_live.rs](../crates/pulsar-engine/src/handy_hsp_live.rs), [browser_live.rs](../crates/pulsar-clients/src/browser_live.rs) |
+| **M5-ADAPTATION** / open | MOT-02 through MOT-05: neutral master preserved, timing preserved, amplitude/dynamics/coupled-axis limits enforced and inability disclosed. | partial<br>awaiting external | Validate device-specific travel/dynamic limits while preserving neutral master and timing; measure physical behavior.<br>Not requalified; source: [live_captures.rs](../crates/pulsar-engine/src/live_captures.rs), [handy_hsp_live.rs](../crates/pulsar-engine/src/handy_hsp_live.rs), [browser_live.rs](../crates/pulsar-clients/src/browser_live.rs) |
+
+### M6: portable editions, vendors and platforms
+
+| Gate / acceptance | Required result | Implementation / verification | Next proof and basis |
+| --- | --- | --- | --- |
+| **M6-EDITIONS** / open | Core includes all baseline Fast input families, local assistant, editing/export and offline playback. Complete is the default full-offline edition and includes every advertised installed tier. | partial<br>not requalified | Deliver actual Core/Complete offline contents, useful defaults and all advertised baseline inputs/tiers.<br>Not requalified; source: [project_package_storage.rs](../crates/pulsar-engine/src/project_package_storage.rs), [release.yml](../.github/workflows/release.yml) |
+| **M6-INSTALL** / open | Transactional integrity-checked extraction/import/update, interruption/damage/incompatibility recovery, portable data roots and relocation. | partial<br>checkpoint partial | Qualify extraction/update/recovery/relocation and actual portable artifacts; finish captured/fallback archival history.<br>[EV-RESTART](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/native-reader-004/check.json), [EV-PORTABLE-BUILD](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/portable-cpu-history/build-001.jsonl); source: [project_package_storage.rs](../crates/pulsar-engine/src/project_package_storage.rs), [release.yml](../.github/workflows/release.yml) |
+| **M6-MATRIX** / open | Windows single executable, Linux AppImage, Apple Silicon macOS support and proposed app/dmg packaging; genuine qualified NVIDIA/AMD/Apple/Intel acceleration for every tier. | partial<br>awaiting external | Qualify exact supported OS/architecture/GPU-vendor artifacts and disclose all provider fallback.<br>Not requalified; source: [project_package_storage.rs](../crates/pulsar-engine/src/project_package_storage.rs), [release.yml](../.github/workflows/release.yml) |
+| **M6-MEMORY** / open | 16 GB system floor; qualified per-tier RAM/VRAM, startup and response deadlines; avoid unified-memory double counting. | partial<br>checkpoint partial | Measure complete app RAM/VRAM/startup/response behavior on the 16 GB baseline and required tier/vendor matrix.<br>[EV-STARTUP](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/verification.json); source: [project_package_storage.rs](../crates/pulsar-engine/src/project_package_storage.rs), [release.yml](../.github/workflows/release.yml) |
+
+### M7: Public Preview
+
+| Gate / acceptance | Required result | Implementation / verification | Next proof and basis |
+| --- | --- | --- | --- |
+| **M7-QUALITY** / open | Per-category Default stroke precision and recall at least 80%, target 90%; material-error flag recall at least 95% against independent annotations. | partial<br>awaiting external | Independently score aligned held-out categories against Preview precision/recall and material-error recall criteria.<br>Not requalified; source: [PULSAR_SOFTWARE_SPECIFICATION.md](../docs/PULSAR_SOFTWARE_SPECIFICATION.md), [README.md](../assurance/README.md) |
+| **M7-SPEED** / open | Required Fast stroke-only paths >1x realtime; reference GPU Fast at least 10x. CPU Default at least 0.5x, reference GPU Default at least 5x. | partial<br>awaiting external | Measure complete decode-to-export performance on the specified 30-minute reference workload and exact hardware.<br>Not requalified; source: [PULSAR_SOFTWARE_SPECIFICATION.md](../docs/PULSAR_SOFTWARE_SPECIFICATION.md), [README.md](../assurance/README.md) |
+| **M7-PREVIEW** / open | Measured human correction effort, applicable test matrix, explicit experimental labels for unqualified six-axis playback and actual preview artifacts. | partial<br>awaiting external | Complete the applicable Preview test matrix and measured human correction protocol with required acceptance.<br>Not requalified; source: [PULSAR_SOFTWARE_SPECIFICATION.md](../docs/PULSAR_SOFTWARE_SPECIFICATION.md), [README.md](../assurance/README.md) |
+
+### M8: Stable and comparative qualification
+
+| Gate / acceptance | Required result | Implementation / verification | Next proof and basis |
+| --- | --- | --- | --- |
+| **M8-QUALITY** / open | Per-category Default precision and recall at least 95%, qualified material-error detection, creative/secondary-axis criteria and physical six-axis behavior. | partial<br>awaiting external | Meet Stable category and secondary-axis/creative/physical criteria with independent evidence.<br>Not requalified; source: [PULSAR_SOFTWARE_SPECIFICATION.md](../docs/PULSAR_SOFTWARE_SPECIFICATION.md), [README.md](../assurance/README.md) |
+| **M8-EFFORT** / open | For at least 95% of 30-minute clips per category, no more than five minutes editing and ten minutes total human effort. | partial<br>awaiting external | Measure editing and total human effort on the declared independent category protocol.<br>Not requalified; source: [PULSAR_SOFTWARE_SPECIFICATION.md](../docs/PULSAR_SOFTWARE_SPECIFICATION.md), [README.md](../assurance/README.md) |
+| **M8-COMPARISON** / open | Reproducible exact-source/provider/model/hardware comparisons and SOTA claims only after complete supporting evidence. | partial<br>awaiting external | Freeze reproducible source/model/provider/hardware comparisons before any comparative or SOTA claim.<br>Not requalified; source: [PULSAR_SOFTWARE_SPECIFICATION.md](../docs/PULSAR_SOFTWARE_SPECIFICATION.md), [README.md](../assurance/README.md) |
+
+## Cross-milestone acceptance obligations
+
+All explicit TEST scenarios, security/consent requirements, delivery/platform/vendor combinations, open-policy decisions and assurance obligations in the specification/execution plan remain required. A selected test subset cannot close the whole test matrix. Before closing a gate, retain exact subject identities, command/operation results, refusals and interruption outcomes, applicable rendered/native/media/device observations, unresolved failures and the required independent human/release authority. Missing evidence stays open.
+
+## External inputs and acceptance
+
+- **Handy 2 Pro:** Firmware/model/configuration, encrypted credential environment names and authorized physical bench observations. Do not paste secret values or create plaintext keys.
+- **Reference evaluation:** Independently checked target/view annotations and source/script alignment. Existing permission allows live references for training and sterile references for evaluation only.
+- **User-installed Stash:** Actual endpoint/configuration/library mapping and explicit authorized compatibility run; old owned-fixture compatibility does not qualify the user library.
+- **Platforms, six-axis and release:** Exact supported hardware/OS/vendor subjects plus genuine independent human/release evidence.
+
+## Evidence registry
+
+Local retained artifacts may be unavailable on another machine. Outcome and scope remain pinned; run `--audit` on the evidence host to verify hashes and assertions. This is not a runtime qualification or an automatic acceptance mechanism.
+
+| ID / outcome | Recorded scope | SHA-256 |
+| --- | --- | --- |
+| [EV-STARTUP](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/verification.json) / partial | Latest passing Engine checkpoint and test-only healthy timing observations; earlier startup failure remains unknown. | `55d754f81999d1dd…` |
+| [EV-CPU-LIVE](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/verification.json) / partial | Captured CPU implementation with successful native scenarios; no real-device/model qualification. | `083598490ad9667b…` |
+| [EV-LIVE-CORE](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/native-live-001/check.json) / pass | Five authored-neutral native capture lifecycles; no broad reliability or physical acceptance. | `a62cead159c84528…` |
+| [EV-BROWSER](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/native-browser-005/check.json) / pass | Native browser-analysis EOF and prepared handover over authored callbacks; rendered acquisition unverified. | `ea488d60023007e2…` |
+| [EV-RESTART](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/native-reader-004/check.json) / pass | Actual old-reader refusal, exact DB/WAL/SHM/fence preservation and retired current restart. | `df82970ab61e7f20…` |
+| [EV-RETIREMENT](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/engine-private-ram-capture-assets-001/check.json) / pass | Two owned cgroup/thread/staging retirement tests; not physical stopping. | `fecdd03752c2943e…` |
+| [EV-FALLBACK](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/fallback-active-consumers/verification.json) / pass | Eleven finite fallback/pack scenarios; eligibility, provider absence and approval simulated. | `381ca8d9c9ec690d…` |
+| [EV-PORTABLE-BUILD](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/portable-cpu-history/build-001.jsonl) / fail | Current format-15 implementation failed its initial Protocol/Engine/client compile with four Engine errors. | `0c3c98b835f9d658…` |
+
+## How this drives the remaining work
+
+1. Use this ledger for current status and priority; keep specifications/ADRs authoritative and historical receipts immutable.
+2. Finish the active build/verification repair before adding unrelated feature work. Follow task dependencies; parallel independent external preparation may proceed.
+3. At a code change, mark working-tree build state unverified until a new subject-bound result exists. Keep the last passing checkpoint separate.
+4. A scoped software completion does not close its parent gate or milestone. Close a gate only against its full criterion and required evidence/human authority.
+5. Preserve all 25 original gates and numeric thresholds. Missing labels, timing, hardware, signatures or acceptance remain explicit; never synthesize them.
+6. After each meaningful task, update the existing JSON item, evidence and source observation; regenerate both views and run --check. Use --audit on the evidence host.
+7. Retain original failures and scope limitations when adding successful successor evidence. Mandatory model reviews remain suspended; independent required acceptance is unchanged.
+
+```sh
+python3 scripts/execution_dashboard.py --write
+python3 scripts/execution_dashboard.py --check
+python3 scripts/execution_dashboard.py --audit
+```
+
+`--check` validates preserved gates, task dependencies, current-source claims and generated views. CI runs that check. `--audit` additionally checks retained evidence hashes and recorded assertions; it does not rerun builds, benchmarks or hardware tests.
+
+## Authority and preserved history
+
+- [PULSAR_SOFTWARE_SPECIFICATION.md](../docs/PULSAR_SOFTWARE_SPECIFICATION.md): Product requirements and numeric acceptance contract.
+- [PULSAR_ARCHITECTURE_DECISIONS.md](../docs/PULSAR_ARCHITECTURE_DECISIONS.md): Recorded product-owner and architecture decisions.
+- [PULSAR_ARCHITECTURE_FIRST_EXECUTION_PLAN.md](../docs/PULSAR_ARCHITECTURE_FIRST_EXECUTION_PLAN.md): Architecture-first Phase A/B/C execution principles.
+- [PULSAR_MAJOR_ROADMAP.md](../docs/PULSAR_MAJOR_ROADMAP.md): M1–M8 scope and acceptance obligations.
+- [Previous gate ledger](PULSAR_MILESTONE_HISTORY_BEFORE_DASHBOARD.md) and [previous status chronology](PULSAR_STATUS_HISTORY_BEFORE_DASHBOARD.md): preserved historical records, superseded for current execution state.
+
+Read-only source/evidence reconciliation. Frozen receipts were inspected and hashed; no fresh benchmark, model training, device actuation or full roadmap qualification was performed.

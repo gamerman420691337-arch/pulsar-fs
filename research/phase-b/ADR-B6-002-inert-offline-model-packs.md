@@ -1,0 +1,13 @@
+# ADR B6-002: Offline directory packs install as inert snapshots
+
+Status: implemented intake slice; GB-10 remains open.
+
+The software specification requires portable offline assets and transactional installation. [Primary-source model/runtime research](model-pack-integration-research-2026-10-01.md) separately identifies ONNX external-data closure, ORT API/provider constraints, native-code trust and redistribution terms. A checksum cannot decide these matters.
+
+The engine therefore accepts a bounded versioned directory manifest under a distinct local owner capability. It snapshots only listed regular single-link files through anchored no-symlink directory handles, checks exact sizes/hashes and captured profile bindings, then atomically publishes an inert private directory by manifest hash. Existing entries are reverified without replacement. Request replay returns the original receipt; status rechecks current installed bytes. Filesystem publication contains its receipt before the engine records the request result, enabling hash-based reconciliation after an acknowledgment or database failure.
+
+There is no installer hook, network fetch, native load, environment mutation, inference selection or activation. Reports keep rights, native execution approval, compatibility, quality qualification and active status false. Target matching is declaration-only. Fake executable/model bytes deliberately pass integrity when accurately declared; tests establish that this does not activate them. Native execution requires subsequent explicit trust and compatibility mechanisms.
+
+The first adapter uses Linux descriptor-relative storage and no-clobber rename. Unsupported platforms fail intake. A directory format avoids introducing archive traversal/extraction semantics before the storage boundary is verified. Atomic publication is not exhaustive crash qualification: abrupt staging leftovers, management/garbage collection, quota coordination, recovery at every crash point, trust/signatures/revocation, update/rollback, ONNX/provider validation, activation and bundled distribution remain required work.
+
+Validation: strict protocol/path/bound tests, separate engine owner/session authorization, compiled CLI capture/replay/status/restart/corruption fixtures, full Rust/native-JavaScript/structural checks. These fixtures contain authored inert bytes; no weights are redistributed or executed, no reference media is trained, and no hardware is contacted. Raw logs and exact source/binary identity are in the [increment receipt](../../docs/evidence/roadmap-2026-10-01/offline-model-packs/validation.json).

@@ -3,6 +3,8 @@
 Status: B1 baseline. Historical cases are retained obligations, not automatically
 fixed by the architecture migration.
 
+This inventory retains its original evidence scope. [Current completion status](PULSAR_CURRENT_STATUS.md) records later software and the owner's updated inputs: sterile evaluation/live training references are permitted, but there are no source-matched annotations. Continue software work without inventing labels or human receipts.
+
 Authoritative scope: `PULSAR_ARCHITECTURE_FIRST_EXECUTION_PLAN.md` B1-B6,
 `PULSAR_SOFTWARE_SPECIFICATION.md`, and `PULSAR_PHASE_A_MIGRATION.md`.
 Machine-readable inventory:
@@ -103,3 +105,21 @@ inline-read limits. Corpus and human-effort evidence remain absent.
 See `research/phase-b/B1-SUCCESSOR-2026-09-11.md` and `research/phase-b/regressions/current-contract-correspondence-2026-09-11-successor.json`.
 Earlier hash-bound measurement receipts and historical source assertions are
 unchanged. Full Good phase remains unfinished.
+
+## Browser timing shutdown follow-up (2026-10-23)
+
+**Observed and repaired:** active rendered-browser SIGTERM returned
+`timing_exchange_unconfirmed` after the exact timing binding was permanently
+released. A Probe/Observe exchange cancelled by shutdown had left a cancellation
+error that survived the checked release. The deterministic native IPC regression
+failed before correction and passed afterwards. The client now distinguishes
+cancellation from an active exchange failure and clears cancellation uncertainty
+only after an exact checked permanently inactive Release/status. Unknown Open,
+foreign/current/missing Release and genuine active failures remain errors.
+
+The 24-combination cancellation matrix and existing negative cases pass, as do
+the final complete client suite and the actual rendered active-SIGTERM rerun.
+[Evidence and limits](PULSAR_BROWSER_HANDY_START.md) include all earlier failures.
+Separate timing/contention test-fixture failures were stabilized without changing
+production deadlines; storage contention was not established as a production
+root cause. Full model/media/device/platform/human/release gates remain open.

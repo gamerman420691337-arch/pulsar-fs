@@ -1,0 +1,13 @@
+# Preview timestamps and clip-relative seeks
+
+Preview requests declare `time_basis`. `source_pts` is the legacy default and is omitted from serialized requests to retain their request identity. `elapsed_from_first_frame` interprets the requested rational seconds relative to the first actual decoded frame. Desktop preview uses the elapsed basis, matching generation's clip-relative origin. Both paths retain original source timestamps; neither changes the source PTS or frame order.
+
+For example, a source whose first frame is at 5 seconds and whose following frames are at 5.125, 5.375 and 5.500 seconds resolves a 0.300-second elapsed seek to source frame 1 at 5.125 seconds. An absolute source-PTS request of 5.300 seconds resolves to the same frame. A 0.375-second elapsed seek resolves to frame 2. These irregular PTS are compared with checked integer arithmetic, without a guessed frame rate or floating-point timestamp conversion.
+
+Results retain the requested timestamp and basis, actual frame ordinal, actual absolute source timestamp, exact source origin and actual elapsed timestamp. Clients validate the relation between these clocks and reject future frames, a different request basis, inconsistent clock metadata, stale placement/source/transform generations and mismatched selected-view metadata. Observations remain tied to the actual displayed frame. Desktop displays both actual source and elapsed timestamps.
+
+Requests before the first frame are refused. A request beyond the last known PTS holds the last actual frame and reports its actual timestamp; this does not establish the source duration or invent a new frame at the requested position.
+
+The native worker fixture covers a 5-second nonzero origin, irregular PTS and selected-eye pixels with independently encoded frame ordinals. The authenticated engine/shared desktop API fixture compares absolute and elapsed requests and repeats the elapsed request after engine restart. Pure core tests also cover negative source origins, invalid indexes and arithmetic overflow. These establish tested timestamp and freshness behavior, not audio synchronization, real-media accuracy or physical timing qualification.
+
+[Persistent source placements](PULSAR_SOURCE_PLACEMENTS.md) now provide engine-owned trim/anchor/rate descriptors and a separate `PreviewPlacedFrame` project-time request path. Legacy/native `PreviewFrame` placement labels still serve freshness only; they do not claim an active persisted definition. Placed preview independently resolves and checks current membership. Placement-aware generation, portable closure/migration and broader qualification remain open. GB-03 remains incomplete.

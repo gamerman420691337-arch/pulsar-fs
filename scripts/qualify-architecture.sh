@@ -13,4 +13,10 @@ if [[ -z "${TLA2TOOLS_JAR:-}" || ! -f "$TLA2TOOLS_JAR" ]]; then
   exit 2
 fi
 bash assurance/check-lifecycle.sh
+formal_work="$(mktemp -d "${TMPDIR:-/tmp}/pulsar-resolution-XXXXXX")"
+trap '/usr/bin/rm -rf -- "$formal_work"' EXIT
+python3 assurance/check-wasm-start-resolution.py \
+  --jar "$TLA2TOOLS_JAR" --scratch-root "$formal_work" \
+  --output "$formal_work/results"
+cat "$formal_work/results/results.json"
 printf '%s\n' 'Architecture checks passed. GUI evidence and capability ledger still require review.'

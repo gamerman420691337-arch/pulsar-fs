@@ -247,6 +247,25 @@ impl crate::ProjectSnapshot {
     /// Check duplicate outer/binding identities before a client resolves content.
     pub fn validate(&self) -> Result<(), ProtocolError> {
         self.motion.validate()?;
+        if self.placements.len() > 128 {
+            return Err(ProtocolError::invalid("too many active source placements"));
+        }
+        let mut ids = std::collections::HashSet::new();
+        for p in &self.placements {
+            p.spec
+                .validate()
+                .map_err(|e| ProtocolError::invalid(e.to_string()))?;
+            if !ids.insert(&p.placement_id)
+                || p.created_revision > self.revision
+                || !self.sources.iter().any(|s| {
+                    s.source_version == p.spec.source_version && s.kind == crate::SourceKind::Media
+                })
+            {
+                return Err(ProtocolError::invalid(
+                    "invalid source placement catalog binding",
+                ));
+            }
+        }
         crate::bounded_text(&self.name, 256, "project name")?;
         if self.motion.binding
             != (MotionBinding::ProjectRevision {
@@ -263,6 +282,14 @@ impl crate::ProjectSnapshot {
 }
 impl crate::CandidateSnapshot {
     pub fn validate(&self) -> Result<(), ProtocolError> {
+        if self
+            .project_interval
+            .is_some_and(|interval| interval.start() < crate::ProjectTime::ZERO)
+        {
+            return Err(ProtocolError::invalid(
+                "candidate interval must be nonnegative",
+            ));
+        }
         self.motion.validate()?;
         crate::validate_reviews(&self.review)?;
         if self.motion.binding

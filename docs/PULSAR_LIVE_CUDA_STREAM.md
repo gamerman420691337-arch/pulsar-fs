@@ -1,0 +1,11 @@
+# Persistent live CUDA stream implementation
+
+This increment adds a private persistent CUDA worker and parent transport. It is not publicly enabled. The subsequent [authored native stream checkpoint](PULSAR_LIVE_CUDA_NATIVE_STREAM.md) verifies three exchanges, final transcript/trace correspondence and replay/cancellation cleanup. The previous [measured admission checkpoint](PULSAR_LIVE_CUDA_MEMORY.md) proves actual memory observation and interactive admission, not this new inference path.
+
+The worker verifies mounted model/worker/native identities, loads one model, validates each issued RGB pair before running it, and accumulates successful exchanges. Explicit Finish must match the parent's transcript. Final evidence includes the live binding, actual native run count and original strict CUDA node trace. The parent independently reparses receipt/trace bytes and retires complete owned custody before returning successful final evidence. Cancellation, deadlines and errors prevent continuation.
+
+The current implementation retains preparation RAM/slot accounting through staging cleanup in addition to the GPU worker claim. Public integration, opaque issued-work adaptation, stream freshness, continuous scheduling and native failure coverage are still pending. Scalar temporal inference is not six-axis generation or learned-model qualification.
+
+See [ADR B3-055](../research/phase-b/ADR-B3-055-persistent-live-cuda-stream.md) and the [partial evidence packet](evidence/roadmap-2026-10-07/live-cuda-stream/). Broader native failure/expiry coverage, fastest-preset live six-axis, real-media/model quality, physical Handy, platform and human acceptance remain open.
+
+The preceding implementation checkpoint, before the native integration and JSON precision correction, passed 992 workspace tests (53 ignored), 523 CUDA-feature engine tests (50 ignored), all seven live-CUDA protocol tests, 258 structural checks and the CUDA-enabled application compile check. All 345 source/archive records match after those gates. That checkpoint contained software checks only; its later native continuation is linked above. Details are in the [partial checkpoint](evidence/roadmap-2026-10-07/live-cuda-stream/checkpoint.json).

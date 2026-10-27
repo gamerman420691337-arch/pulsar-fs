@@ -284,6 +284,105 @@ fn flow_zero_texture_is_missing_not_observed_pause() {
     assert_eq!(result[0].rejection, Some(FlowRejection::LowTexture));
     assert!(result[0].displacement.is_none());
 }
+
+#[test]
+fn multiscale_recovers_large_translation_with_checked_full_resolution_cycle() {
+    let old = texture(512, 512);
+    let new = shift(&old, 512, 512, 12, -10);
+    let points = [[128., 128.], [192., 192.], [240., 180.]];
+    let (flows, search) =
+        track_points_fb_multiscale(&old, &new, 512, 512, &points, FlowConfig::default()).unwrap();
+    assert_eq!(search.maximum_level, 2);
+    assert_eq!(search.component_displacement_bound, 26.0);
+    assert!(search.recovered_points > 0);
+    for (flow, point) in flows.iter().zip(points) {
+        assert_eq!(flow.source, point);
+        let delta = flow.displacement.unwrap();
+        assert!(
+            (delta[0] - 12.0).abs() < 0.05 && (delta[1] + 10.0).abs() < 0.05,
+            "{flow:?}"
+        );
+        assert!(flow.forward_backward_error.unwrap() < 0.05);
+    }
+    assert!(separate_target_motion(&flows, &flows).is_err());
+    let separation =
+        separate_target_motion_bounded(&flows, &flows, search.component_displacement_bound)
+            .unwrap();
+    assert_eq!(separation.target_relative_to_background, Some([0., 0.]));
+}
+
+#[test]
+fn multiscale_preserves_accepted_local_evidence_and_refuses_bad_admission() {
+    let image = texture(512, 512);
+    let points = [[128., 128.], [192., 192.], [240., 180.]];
+    let local = track_points_fb(&image, &image, 512, 512, &points, FlowConfig::default()).unwrap();
+    let (flows, search) =
+        track_points_fb_multiscale(&image, &image, 512, 512, &points, FlowConfig::default())
+            .unwrap();
+    for (flow, old) in flows.iter().zip(local) {
+        assert_eq!(
+            (
+                flow.source,
+                flow.displacement,
+                flow.forward_backward_error,
+                flow.mean_absolute_error,
+                flow.rejection
+            ),
+            (
+                old.source,
+                old.displacement,
+                old.forward_backward_error,
+                old.mean_absolute_error,
+                old.rejection
+            )
+        );
+    }
+    assert_eq!(search.recovered_points, 0);
+    let (missing, _) = track_points_fb_multiscale(
+        &vec![40; 512 * 512],
+        &vec![40; 512 * 512],
+        512,
+        512,
+        &points,
+        FlowConfig::default(),
+    )
+    .unwrap();
+    assert!(missing.iter().all(|f| f.displacement.is_none()));
+    assert!(track_points_fb_multiscale(
+        &image,
+        &image[..100],
+        512,
+        512,
+        &points,
+        FlowConfig::default()
+    )
+    .is_err());
+    assert!(track_points_fb_multiscale(
+        &image,
+        &image,
+        512,
+        512,
+        &[[f64::NAN, 128.]],
+        FlowConfig::default()
+    )
+    .is_err());
+    assert!(track_points_fb_multiscale(
+        &image,
+        &image,
+        512,
+        512,
+        &vec![[128., 128.]; 65],
+        FlowConfig::default()
+    )
+    .is_err());
+    let (edge, _) =
+        track_points_fb_multiscale(&image, &image, 512, 512, &[[4., 4.]], FlowConfig::default())
+            .unwrap();
+    assert_eq!(edge[0].rejection, Some(FlowRejection::OutOfBounds));
+    for bound in [f64::NAN, f64::INFINITY, 0., 34.1] {
+        assert!(separate_target_motion_bounded(&[], &[], bound).is_err());
+    }
+}
 #[test]
 fn flow_independent_reverse_pass_accepts_translation() {
     let old = texture(64, 64);
@@ -490,4 +589,50 @@ fn sampled_frame_stride_is_not_an_observed_absence() {
         .unwrap();
     assert_eq!(first.observations[0].track(), next.observations[0].track());
     assert_eq!(next.observations[0].evidence(), EvidenceKind::Observed);
+}
+
+#[test]
+fn tracker_ambiguity_marks_prior_and_fresh_affected_ids_but_not_other_classes() {
+    let mut tracker = TargetTracker::new(TrackerConfig::default()).unwrap();
+    let first = tracker
+        .update(
+            context(0),
+            100,
+            80,
+            &[detection(20., 0), detection(40., 0), detection(70., 1)],
+            false,
+        )
+        .unwrap();
+    let unaffected = first
+        .observations
+        .iter()
+        .find(|o| first.class_for(o.track().unwrap()) == Some(1))
+        .unwrap()
+        .track()
+        .unwrap()
+        .clone();
+    let next = tracker
+        .update(
+            context(1),
+            100,
+            80,
+            &[detection(30., 0), detection(70., 1)],
+            false,
+        )
+        .unwrap();
+    assert!(next.reviews.contains(&TrackingReview::AmbiguousAssociation));
+    assert!(!next.association_ambiguous(&unaffected));
+    for observation in &next.observations {
+        let id = observation.track().unwrap();
+        if next.class_for(id) == Some(0) {
+            assert!(next.association_ambiguous(id));
+        }
+    }
+    assert_eq!(
+        next.observations
+            .iter()
+            .filter(|o| next.class_for(o.track().unwrap()) == Some(0))
+            .count(),
+        3
+    );
 }

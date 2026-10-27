@@ -1,0 +1,14 @@
+# Audio-modulated oscillation
+
+`audio-synth --mode vibe` produces an energy-modulated 8 Hz carrier from strictly decoded audio. Historical CLI aliases `osc` and `oscillation` select the same mode. `audio-map --mode vibe` accepts an explicit axis and range. Desktop Audio mode offers Envelope, Amplitude-onset pulses, and 8 Hz energy-modulated oscillation.
+
+```sh
+pulsar audio-synth source.wav --mode vibe --band mid --threshold 0.2 --output mid-vibe.funscript
+pulsar audio-map source.wav --mode vibe --axis yaw --amplitude 0.2 --offset 0.4 --output yaw-vibe.funscript
+```
+
+Offset defines the lower range boundary and amplitude its complete span. Position is `offset + amplitude/2 + amplitude/2 * RMS * sin(2*pi*8*time_seconds)`. Thus offset 0.25/amplitude 0.5 centers at 0.5 and stays within 0.25–0.75; silence holds 0.5. Raw RMS scales the half-span without peak normalization or threshold rescaling. Explicit band/changed-threshold analysis gates quiet windows; the existing full/default and audio-map paths retain raw full-band RMS. These details differ from legacy FFT extraction and threshold-relative normalization; exact legacy numerical parity is not claimed.
+
+Core computes phase using integer nanosecond modulo 125 ms, avoiding large-time floating phase loss. It preserves all feature timestamps and the right endpoint, refuses non-increasing or more-than-31.25 ms feature spacing, and retains any leading unsupported gap. Worker supplies 10 ms RMS windows using the existing strict source clock admission and spectral analysis. Frequency-dependent filter delay remains uncompensated. Lineage records carrier period/frequency, relative-zero phase origin, arithmetic, center/half-span, energy coupling, source timeline and analysis options. Every action is synthesized and carries the existing uncalibrated audio review plus an explicit device-qualification warning.
+
+[ADR B3-140](../research/phase-b/ADR-B3-140-audio-modulated-oscillation.md) records architecture and verification requirements. The [audio-vibe checkpoint](evidence/roadmap-2026-10-12/audio-vibe/checkpoint.json) retains an actual predecessor refusal and rebuilt production results. Four Core carrier controls, a Protocol canonical-mode/refusal test and an actual Worker energy/clock/lineage test pass. Full selected Engine/Clients suites pass 839/309 with 70/8 ignored; Core/Protocol default suites also pass. Network-disabled actual CLI passes 21 authored workflows and four refusals, including seven new carrier cases and four independent 201-action raw-PCM/sine/quantization oracles. The two owned predecessor/final Engines join. Strict lint in both configurations, workspace check, formatting, native build, 437 architecture checks and 36 source guards pass. Native rendered GUI, useful-motion/media quality, audio bundles, actual device admission and independent platform/human/release gates remain open. This command does not actuate hardware.

@@ -1,0 +1,13 @@
+# Ordinary-storage synchronization diagnosis
+
+Status: synchronization delay reproduced outside Pulsar; storage reliability remains UNRESOLVED. No production fix is claimed.
+
+The exact fixture pending in the preceding 360-second Engine suite timeout now passes on ordinary NVMe storage in 0.29 seconds under syscall tracing. It completes 108 fsync calls in 0.1816 seconds combined (maximum 0.0392 seconds). Its 1,019 completed fcntl calls total about 0.005 seconds. This passing invocation does not reproduce the earlier stall or rule out intermittent lock contention.
+
+A separate serial default Engine suite reaches its 180-second timeout with no completed suite verdict. Active test-thread snapshots, including different test threads as the suite progresses, report `jbd2_log_wait_commit`; the main thread reports `futex_wait`. Attaching strace to this existing process is refused with `ptrace(PTRACE_SEIZE): Operation not permitted`. No security or kernel policy was changed to bypass the refusal.
+
+A minimal ordinary-storage probe exclusively creates one owned 0600 file, writes 25 bytes and calls fsync 20 times. It finishes successfully, but its first fsync takes 11.6382 seconds; the remaining 19 total 0.5171 seconds. This demonstrates that a substantial synchronization stall can occur without Engine or SQLite code. It overlaps the serial suite and is not an exclusive-storage benchmark. It supports intermittent filesystem synchronization as a contributor, without identifying the underlying host/storage trigger or proving the cause of every historical timeout. The traced fast fixture and slow probe are both retained rather than selecting only one outcome.
+
+All 370 preceding source/config hashes and the exact default test binary are revalidated unchanged. No production source, durability, deadline, model or scheduling behavior changed. No user media, training references, Stash library, keys or physical devices were accessed. The [checkpoint](evidence/roadmap-2026-10-11/storage-diagnosis/checkpoint.json) retains the commands, safe syscall trace, thread observations, completed fixture and incomplete suite logs, and individual sync timings. Private SQLite and fixture data are excluded.
+
+The next storage investigation requires a reproducible filesystem/host-load trigger and comparable blocked-thread/syscall evidence; a fast isolated fixture is insufficient to choose an Engine locking repair. Core roadmap software can continue against independently scoped tests while ordinary-storage, native reliability, model/media, platform/device and human/release gates remain open. See the [milestone ledger](PULSAR_MILESTONES.md) for independent closure obligations.

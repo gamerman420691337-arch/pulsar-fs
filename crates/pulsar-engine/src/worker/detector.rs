@@ -7,8 +7,7 @@
 use anyhow::{bail, Context, Result};
 use ndarray::Array4;
 use ort::session::{builder::GraphOptimizationLevel, Session};
-use ort::value::Tensor;
-use pulsar_protocol::{DetectorDecoder, ModelInputContract, TensorLayout};
+use pulsar_protocol::{DetectorDecoder, InferenceResize, ModelInputContract, TensorLayout};
 use std::path::Path;
 
 #[derive(Clone, Debug)]
@@ -19,8 +18,33 @@ pub struct RawDetection {
 }
 
 pub struct Detector {
-    session: Session,
+    session: super::model_session::ModelSession,
     contract: ModelInputContract,
+    resize: InferenceResize,
+    padding_byte: u8,
+    score_threshold: f32,
+}
+
+pub(super) fn cpu_session(model: &Path, runtime: &Path, threads: u16) -> Result<Session> {
+    super::telemetry::reset();
+    let committed = ort::init_from(runtime)
+        .map_err(|e| anyhow::anyhow!("failed to load pinned ONNX runtime: {e}"))?
+        .with_name("pulsar-isolated-worker")
+        .commit();
+    if !committed {
+        bail!("ONNX runtime was already initialized; a new attempt process is required");
+    }
+    let session = native(Session::builder())?;
+    let session = native(
+        session.with_execution_providers([ort::ep::CPU::default().build().error_on_failure()]),
+    )?;
+    let session = native(session.with_intra_threads(usize::from(threads)))?;
+    let session = native(session.with_inter_threads(1))?;
+    let mut session = native(session.with_optimization_level(GraphOptimizationLevel::Level3))?;
+    native(session.commit_from_file(model))
+}
+pub(super) fn native<T, E: std::fmt::Display>(value: std::result::Result<T, E>) -> Result<T> {
+    value.map_err(|e| anyhow::anyhow!("ONNX adapter failed: {e}"))
 }
 
 impl Detector {
@@ -30,6 +54,7 @@ impl Detector {
         contract: &ModelInputContract,
         threads: u16,
     ) -> Result<Self> {
+        super::telemetry::reset();
         if contract.channels != 3
             || !matches!(contract.layout, TensorLayout::Nchw)
             || !matches!(contract.decoder, DetectorDecoder::YoloChannelMajor)
@@ -42,74 +67,185 @@ impl Detector {
         {
             bail!("unsupported model contract: require bounded RGB NCHW YOLO channel-major input/output");
         }
-        let committed = ort::init_from(runtime)
-            .map_err(|error| anyhow::anyhow!("failed to load the pinned ONNX runtime: {error}"))?
-            .with_name("pulsar-isolated-worker")
-            .commit();
-        if !committed {
-            bail!("ONNX runtime was already initialized; a new attempt process is required");
-        }
-        let session = Session::builder()
-            .map_err(|error| anyhow::anyhow!("failed to create CPU session: {error}"))?
-            .with_intra_threads(usize::from(threads))
-            .map_err(|error| anyhow::anyhow!("failed to set inference thread budget: {error}"))?
-            .with_inter_threads(1)
-            .map_err(|error| anyhow::anyhow!("failed to set inter-op thread budget: {error}"))?
-            .with_optimization_level(GraphOptimizationLevel::Level3)
-            .map_err(|error| anyhow::anyhow!("failed to configure CPU inference: {error}"))?
-            .commit_from_file(model)
-            .map_err(|error| anyhow::anyhow!("failed to load the pinned model: {error}"))?;
+        let session = super::model_session::ModelSession::cpu(model, runtime, threads)?;
         Ok(Self {
             session,
             contract: contract.clone(),
+            resize: InferenceResize::Stretch,
+            padding_byte: 0,
+            score_threshold: 0.25,
+        })
+    }
+
+    /// Caller owns image/device binding, reservations and process confinement.
+    #[cfg(all(target_os = "linux", feature = "cuda"))]
+    pub fn new_cuda(
+        model: &Path,
+        runtime: &Path,
+        driver: &Path,
+        contract: &ModelInputContract,
+        options: super::cuda_session::CudaSessionOptions,
+    ) -> Result<Self> {
+        contract.validate()?;
+        if contract.channels != 3
+            || !matches!(contract.layout, TensorLayout::Nchw)
+            || contract.decoder != DetectorDecoder::YoloChannelMajor
+            || contract.width > 1024
+            || contract.height > 1024
+            || contract.class_count > 256
+        {
+            bail!("unsupported CUDA detector tensor contract");
+        }
+        let session = super::model_session::ModelSession::cuda(model, runtime, driver, options)?;
+        Ok(Self {
+            session,
+            contract: contract.clone(),
+            resize: InferenceResize::Stretch,
+            padding_byte: 0,
+            score_threshold: 0.25,
+        })
+    }
+    /// CUDA evidence requires consumed trace finalization. CPU telemetry stays
+    /// unchanged and is read separately by the worker.
+    pub fn finish(self) -> Result<Option<serde_json::Value>> {
+        self.session.finish()
+    }
+    pub fn from_request(request: &pulsar_protocol::WorkerRequest) -> Result<Self> {
+        let deadline = std::time::Instant::now()
+            .checked_add(std::time::Duration::from_millis(
+                request.budget.wall_time_ms,
+            ))
+            .context("detector deadline overflow")?;
+        Self::from_request_at(request, deadline)
+    }
+    pub fn from_request_at(
+        request: &pulsar_protocol::WorkerRequest,
+        deadline: std::time::Instant,
+    ) -> Result<Self> {
+        let contract = super::model_session::contract(request)?;
+        contract.validate()?;
+        if contract.channels != 3
+            || !matches!(contract.layout, TensorLayout::Nchw)
+            || contract.decoder != DetectorDecoder::YoloChannelMajor
+            || contract.width > 1024
+            || contract.height > 1024
+            || contract.class_count > 256
+        {
+            bail!("unsupported detector tensor contract");
+        }
+        let profile = crate::inference_profiles::resolve_bound_profile(request)?
+            .context("detector requires a resolved preprocessing profile")?;
+        let score_threshold = match &request.operation {
+            pulsar_protocol::WorkerOperation::Generate { settings, .. } => {
+                settings.effective_detector_score_threshold()
+            }
+            pulsar_protocol::WorkerOperation::Preview { .. } => 0.25,
+            _ => bail!("detector requires generation or preview"),
+        };
+        Ok(Self {
+            session: super::model_session::ModelSession::from_request_at(request, deadline)?,
+            contract: contract.clone(),
+            resize: profile.preprocessing.resize,
+            padding_byte: profile.preprocessing.padding_byte,
+            score_threshold,
         })
     }
 
     pub fn detect(&mut self, rgb: &[u8], width: u32, height: u32) -> Result<Vec<RawDetection>> {
-        let expected = super::media::frame_bytes(width, height)?;
-        if rgb.len() != expected {
-            bail!("RGB tensor source violates its declared layout");
-        }
-        let w = self.contract.width as usize;
-        let h = self.contract.height as usize;
-        let mut input = Array4::<f32>::zeros((1, 3, h, w));
-        for y in 0..h {
-            let source_y = y * height as usize / h;
-            for x in 0..w {
-                let source_x = x * width as usize / w;
-                let base = (source_y * width as usize + source_x) * 3;
-                for c in 0..3 {
-                    input[[0, c, y, x]] = rgb[base + c] as f32 / 255.0;
-                }
-            }
-        }
-        let tensor = Tensor::from_array(input)
-            .map_err(|error| anyhow::anyhow!("input tensor creation failed: {error}"))?;
-        let outputs = self
-            .session
-            .run(ort::inputs![tensor])
-            .map_err(|error| anyhow::anyhow!("CPU inference failed: {error}"))?;
-        if outputs.len() != 1 {
-            bail!("model contract requires exactly one detection output");
-        }
-        let (_, output) = outputs
-            .into_iter()
-            .next()
-            .context("model returned no tensor")?;
-        let (shape, values) = output
-            .try_extract_tensor::<f32>()
-            .map_err(|error| anyhow::anyhow!("model output must be float32: {error}"))?;
-        decode_channel_major(
-            values,
-            shape.as_ref(),
-            self.contract.class_count as usize,
-            self.contract.width,
-            self.contract.height,
-            0.25,
+        use pulsar_core::perception::DetectorTransform;
+        let transform = std::cell::RefCell::new(None);
+        self.session.run(
+            || {
+                let (input, geometry) = match self.resize {
+                    InferenceResize::Stretch => (
+                        detector_tensor(rgb, width, height, &self.contract)?,
+                        DetectorTransform::resize(
+                            width,
+                            height,
+                            self.contract.width,
+                            self.contract.height,
+                        )?,
+                    ),
+                    InferenceResize::Letterbox => {
+                        letterbox::tensor(rgb, width, height, &self.contract, self.padding_byte)?
+                    }
+                    _ => bail!("unsupported detector resize recipe"),
+                };
+                transform.replace(Some(geometry));
+                Ok(input)
+            },
+            |shape, values| {
+                decode_transformed(
+                    values,
+                    shape,
+                    self.contract.class_count as usize,
+                    transform
+                        .borrow()
+                        .as_ref()
+                        .context("detector tensor transform absent")?,
+                    self.score_threshold,
+                )
+            },
         )
     }
 }
 
+// Keep the exact production tensor recipe available to the opt-in numerical
+// campaign. This does not load a model or grant native execution authority.
+fn detector_tensor(
+    rgb: &[u8],
+    width: u32,
+    height: u32,
+    contract: &ModelInputContract,
+) -> Result<Array4<f32>> {
+    validate_tensor_source(rgb, width, height, contract)?;
+    let w = contract.width as usize;
+    let h = contract.height as usize;
+    let mut input = Array4::<f32>::zeros((1, 3, h, w));
+    for y in 0..h {
+        let source_y = y * height as usize / h;
+        for x in 0..w {
+            let source_x = x * width as usize / w;
+            let base = (source_y * width as usize + source_x) * 3;
+            for c in 0..3 {
+                input[[0, c, y, x]] = rgb[base + c] as f32 / 255.0;
+            }
+        }
+    }
+    Ok(input)
+}
+
+fn validate_tensor_source(
+    rgb: &[u8],
+    width: u32,
+    height: u32,
+    contract: &ModelInputContract,
+) -> Result<()> {
+    contract.validate()?;
+    if contract.channels != 3
+        || contract.layout != TensorLayout::Nchw
+        || contract.decoder != DetectorDecoder::YoloChannelMajor
+        || contract.width > 1024
+        || contract.height > 1024
+        || contract.class_count > 256
+    {
+        bail!("unsupported detector tensor contract");
+    }
+    let expected = super::media::frame_bytes(width, height)?;
+    if rgb.len() != expected {
+        bail!("RGB tensor source violates its declared layout");
+    }
+    Ok(())
+}
+
+#[path = "detector_letterbox.rs"]
+mod letterbox;
+
+#[cfg(test)]
+#[path = "detector_parity.rs"]
+mod parity;
+
+#[cfg(test)]
 fn decode_channel_major(
     values: &[f32],
     shape: &[i64],
@@ -118,26 +254,38 @@ fn decode_channel_major(
     input_height: u32,
     threshold: f32,
 ) -> Result<Vec<RawDetection>> {
-    use pulsar_core::perception::{decode_detections, DetectorLayout, DetectorTransform};
+    let transform = pulsar_core::perception::DetectorTransform::resize(
+        input_width,
+        input_height,
+        input_width,
+        input_height,
+    )?;
+    decode_transformed(values, shape, classes, &transform, threshold)
+}
+
+fn decode_transformed(
+    values: &[f32],
+    shape: &[i64],
+    classes: usize,
+    transform: &pulsar_core::perception::DetectorTransform,
+    threshold: f32,
+) -> Result<Vec<RawDetection>> {
+    use pulsar_core::perception::{decode_detections, DetectorLayout};
     let shape = shape
         .iter()
         .map(|dimension| usize::try_from(*dimension))
         .collect::<std::result::Result<Vec<_>, _>>()
         .context("negative or overflowing detector dimension")?;
-    // The adapter currently stretches RGB into the declared model dimensions.
-    // Canonicalization therefore uses that exact transform, not letterbox math.
-    // The public legacy adapter shape remains normalized for existing preview.
-    let transform =
-        DetectorTransform::resize(input_width, input_height, input_width, input_height)?;
     let detections = decode_detections(
         values,
         &shape,
         DetectorLayout::YoloChannelMajor,
         classes,
-        &transform,
+        transform,
         f64::from(threshold),
         0.45,
     )?;
+    let (input_width, input_height) = transform.source_dimensions();
     Ok(detections
         .into_iter()
         .map(|detection| {
@@ -159,6 +307,26 @@ fn decode_channel_major(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn declared_score_changes_filtering_and_includes_exact_boundary() {
+        let output = [320.0, 320.0, 100.0, 200.0, 0.35];
+        assert_eq!(
+            decode_channel_major(&output, &[1, 5, 1], 1, 640, 640, 0.25)
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            decode_channel_major(&output, &[1, 5, 1], 1, 640, 640, 0.35)
+                .unwrap()
+                .len(),
+            1
+        );
+        assert!(decode_channel_major(&output, &[1, 5, 1], 1, 640, 640, 0.5)
+            .unwrap()
+            .is_empty());
+    }
 
     #[test]
     fn decoder_rejects_shape_guessing_nonfinite_and_reversed_boxes() {

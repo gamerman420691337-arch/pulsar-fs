@@ -1,0 +1,23 @@
+# ADR B3-055: Persistent live CUDA stream and final transcript evidence
+
+Status: Private implementation and authored native three-exchange stream verified. Public live integration and broader qualification remain unfinished.
+
+Use the existing live CUDA manifest and original absolute deadline throughout a private persistent inference role. Keep its sealed relay role distinct from memory observation and the offline worker relay. Verify the captured native image, pinned devices/modules, fixed `/input/model` snapshot and `/pulsar` identity before the loader transition and again before model initialization. Retain captured CuDNN and the single loaded model for the bounded stream lifetime.
+
+Validate issued pair identity, sequence, increasing frame/source clocks and pixel hashes before each native run. Transcript preflight does not advance the successful-run chain; any invalid preflight poisons it. Append the exact input, decoded position and elapsed duration only after a successful native call. Intermediate results are provisional, unqualified scalar estimates. They grant no project commit or physical-device authority.
+
+Only explicit Finish can produce successful final evidence. Consume and compare the worker transcript against the parent's independently accumulated summary before finalizing the native session. Bind the raw CUDA receipt to that summary; retain the original node trace bytes, verify strict CUDA computation and exact run count, and send bounded receipt/trace chunks. EOF, replay, changed pixels, failed decode, expiry, mismatched Finish and malformed commands terminate without successful evidence.
+
+The private parent launcher consumes actual observed/admitted image custody and prepared worker/model snapshots. It preserves the manifest and inherited deadline, monitors all pipes for cancellation/time, and retains an independent watchdog while idle or waiting on native work. Any exchange error closes the stream. On Finish it checks the exact transcript, bounded artifact lengths/hashes, original trace, trailing EOF, direct-child success and whole-tree retirement before returning final evidence. Uncertain cleanup remains owned by the existing reaper and worker fence.
+
+Prepared snapshot accounting is deliberately conservative: the preparation RAM/slot claim stays retained alongside the GPU worker claim through cleanup. This is not a final efficient scheduling policy. Public engine integration still needs issued `LiveRgbWork` adaptation, freshness handling, continuous epoch scheduling and measured latency. The current scalar temporal model contract does not implement six-axis reconstruction.
+
+The [implementation packet](../../docs/evidence/roadmap-2026-10-07/live-cuda-stream/) preserves exact baselines, compile failures and scoped verification. Unit/structural checks establish consistency and refusal behavior only. The original implementation checkpoint deferred native owned multi-exchange inference, cancellation/replay/expiry and exact retirement. The native continuation below closes the declared successful-stream, replay and cancellation cases against a newly built CUDA-enabled worker; broader expiry and failure coverage remains open. Real-media quality, fastest-preset six-axis, Handy, platform and human release gates remain open.
+
+## Native integration and numeric identity
+
+The [authored native continuation](../../docs/PULSAR_LIVE_CUDA_NATIVE_STREAM.md) verifies three successful exchanges through one model, exact final transcripts, three native model runs/nine CUDA computation events and complete cleanup after successful Finish, replay and cancellation. The source generator and supplied 302-byte ONNX graph are byte-identical. Its oracle includes both frames; the original fixture incorrectly omitted the changing previous frame.
+
+Native Finish then reproduced a real JSON parsing defect: a promoted float32 position changed by one f64 bit after reply decoding, so the independent transcripts correctly refused to match. Preserve exact numeric identity by enabling `serde_json/float_roundtrip` in the protocol crate. Do not quantize the transcript or loosen comparison. The 256-value reply roundtrip regression checks both numeric bits and independently accumulated transcripts. Broad protocol consumers require regression checks because the parser feature is shared. Bounded final-reply diagnostics now retain the native refusal reason.
+
+The evidence retains separate failed fixture, corrected-oracle, diagnostic and numeric reproduction subjects. The successful run uses the final rebuilt CUDA worker. Idle lease expiry, invalid worker-side streams and wider failure coverage remain required alongside public integration and the full roadmap gates.

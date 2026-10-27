@@ -1,0 +1,7 @@
+# ADR B3-050: Engine-owned CUDA generation
+
+Status: Implemented and verified for configured explicit Engine generation and fresh explicit resume with an authored model. Selected-pack native CUDA, Preview/live, automatic GPU recovery and independent acceptance gates remain open.
+
+Carry a supervised capture/device owner beside queued generation work. Prepare the capture outside the database lock after a committed schema-20/format-4 creation barrier and authorization/revision checks. Bind captured metadata into the immutable request and durable CUDA intent inside the final transaction. Dispatch retires the queued CPU claim with the memory observer before acquiring fresh GPU admission, then consumes the exact-request owned launcher. Keep a completion reference to the same admitted claim through existing candidate/receipt acceptance. Never reconstruct admission from a durable declaration or silently reuse a vanished image after restart.
+
+Ordinary generation, selected model-pack generation and explicit interrupted-job resume use this path. Automatic GPU recovery and Preview stay unavailable until their separate correspondence is implemented and exercised. Catalog support must distinguish those limitations. This decision changes no model, client protocol or database schema. Native authored runtime checks establish integration only; model/media, platform, physical Handy and human acceptance remain independent.

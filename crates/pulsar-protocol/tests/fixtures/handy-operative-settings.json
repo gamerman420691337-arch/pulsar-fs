@@ -1,0 +1,29 @@
+{
+  "slider": {
+    "x_limit_start": 0.0,
+    "x_limit_stop": 100.0,
+    "x_end_buffer": 5.0,
+    "x_end_zone_size": 10.0,
+    "x_end_zone_speed": 20.0,
+    "x_min_speed": 10.0,
+    "x_max_speed": 100.0,
+    "x_min_speed_theoretical": 5.0,
+    "x_max_speed_theoretical": 150.0,
+    "turn_time": 500.0,
+    "regulator_timeout": 2000.0,
+    "temp_high_trigger": 75.0,
+    "temp_offset": 0.0,
+    "x_stroke_min": 20.0,
+    "x_stroke_max": 100.0,
+    "temp_hysteresis": 5.0,
+    "overclock_enabled": false,
+    "x_inverse_motor": false,
+    "x_inverse_hall": false
+  },
+  "stroke": {
+    "min": 0.0,
+    "max": 1.0,
+    "min_absolute": 0.0,
+    "max_absolute": 100.0
+  }
+}

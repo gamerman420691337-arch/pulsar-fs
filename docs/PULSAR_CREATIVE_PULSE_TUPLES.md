@@ -1,0 +1,15 @@
+# Creative pulse duties and declared channels
+
+2026-10-11. Software repair PASS within recorded scope; broad learned intent gate FAIL; roadmap incomplete.
+
+The native assistant can now propose pulse duty 0.25, 0.5 or 0.75. Each choice admits only frequencies with at least two sample intervals on both plateaus. At eight samples/sec, 25% and 75% duty may offer one hertz but cannot offer two hertz. Other patterns retain default duty 0.5. This is a finite native palette; it does not cover every continuous duty value Core can represent.
+
+For multiple declared channels, the native grammar now fixes one tuple slot per host channel. Each slot independently selects an admitted pattern and its parameters. This prevents grammar-generated duplicate or omitted channels without pretending to infer unavailable axes. The pinned llama.cpp parser accepts tuple item schemas and its converter emits every slot exactly. Ordinary native schemas remain byte-identical. Protocol/Core admission still checks the complete response independently.
+
+The prior worker changed both explicit quarter/three-quarter-duty requests to duty 0.5. The repaired worker honors both. Triangle, hold, six-axis hold/triangle and malformed-scope refusal remain passing. Six-axis prompts already passed in the baseline; the tuple change improves structural admission, not an asserted baseline semantic failure. Unavailable yaw still incorrectly produces stroke, so the full bounded prompt campaign still exits nonzero. These constrained structural probes support CREATIVE-03; they are not a general creative rubric, statistical accuracy gate or model selection.
+
+Actual owned Engine/CLI runs separately approve both pulse proposals, then compare all 17 candidate samples and funscript positions with independently authored plateau sequences. Master motion stays unchanged before explicit commit; Undo/Redo, exact request retries, private no-overwrite saved declarations, missing approval and stale revision refusal pass. The controller accepts explicit `pulse25`/`pulse75` oracle cases. Temporary credentials/state are removed, and only safe evidence is retained.
+
+Evidence: [source-bound checkpoint](evidence/roadmap-2026-10-11/creative-pulse-tuples/checkpoint.json). The reusable worker probe adds `--extended`; the application probe adds `--pattern-case pulse25` or `pulse75`. They preserve mismatches as failures. The original approved-candidate and desktop packets remain separately scoped to their earlier executable identities. Rendered GUI, platform, offline bundles, broader model/media/device/human qualification remain open.
+
+Final Engine library: 813 PASS, 61 ignored. All-feature workspace binaries and authored candidate controller build PASS. Both strict workspace all-target Clippy configurations, formatting, 397 architecture checks and 36 guards PASS. The protocol/client full library suites were not rerun for this private Engine schema and test-controller change; their compilation is covered by the paired build/lints, and actual candidate workflows are recorded separately. Full all-feature runtime and release gates are not inferred.

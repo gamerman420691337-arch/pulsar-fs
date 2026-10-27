@@ -1,0 +1,15 @@
+# LiquidAI compact assistant candidate boundaries
+
+2026-10-12. Development comparison; no default model selected and full roadmap PARTIAL.
+
+Two pinned publisher candidates use the unchanged native assistant Worker/runtime, original production-context fixtures and fixed fourteen-case creative campaign. Exact identities, commands, publisher declarations, raw requests/responses, terminal unit receipts and resource limits are retained in the [checkpoint](evidence/roadmap-2026-10-12/lfm-candidates/checkpoint.json).
+
+The [publisher 700M repository](https://huggingface.co/LiquidAI/LFM2-700M-GGUF/tree/fd39e80d7a5ac61494ffff577e61bbbfddbd0d02) supplies `LFM2-700M-Q4_K_M.gguf`, 468,624,320 bytes, SHA-256 `684e8406dc13321452b3f6aeca432776e2a6a7e1ad6c23f7887b8fe3efbe2efa`. The [publisher 1.2B instruction repository](https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF/tree/8ed288026e23958ad9dfa92d53ed773a8eee7125) supplies `LFM2.5-1.2B-Instruct-Q4_K_M.gguf`, 730,895,168 bytes, SHA-256 `b1b3de114215d9507409a662a501a631095a479a419584e8a2ded6304b19b4f5`. Both fit the unchanged 2 GiB model ceiling. Each requested GGUF, README and LICENSE verifies against its pinned publisher revision; this does not verify unrequested quantizations. Both metadata records declare the LFM license. Retained declarations are not independent product redistribution approval.
+
+The 700M campaign completes all fourteen native worker replies within deadline, with four exact intent matches. Valid typed replies do not imply correct intent: hold requests return NoAction, requested pulse becomes sine, unavailable axes become stroke, and unavailable numerical values are replaced by available values. These authored-case results are not population accuracy measurements.
+
+The 1.2B campaign reaches the native Worker deadline on all fourteen cases, without a completed proposal. Deployment under these bounds fails; semantic quality remains unassessed. This is not a zero-accuracy comparison with the 700M candidate.
+
+Execution is sequential, with isolated network/filesystem namespaces, four CPU threads, a 45-second native Worker deadline, a 50-second supervisor deadline and a 3 GiB address-space ceiling. No prompt, grammar, admission limit, sampling setting or deadline is changed to obtain a pass. An initial service launch fails before dispatch because the tool environment has no user-bus address; the corrected invocation uses the existing owned user socket. No campaign overlap occurs.
+
+Two diagnostic registry entries retain exact candidate identities; defaults are unchanged. All 520 preceding Rust/Cargo source identities and both native executable identities are revalidated, with no production Rust changes or new Cargo suite. Python syntax/registry checks and architecture/source guards pass. This namespace worker comparison does not exercise actual Engine dispatch, cgroup custody, ordinary intent, generation approvals, GUI, training, real-media accuracy, physical devices, edition/platform packaging or human acceptance. No annotation manifest or labels are fabricated.

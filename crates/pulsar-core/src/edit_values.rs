@@ -422,6 +422,61 @@ impl<'a> TrackCursor<'a> {
     }
 }
 
+/// Compute structural authored footprints from authoritative before/after motion.
+/// No caller-provided range or review envelope is trusted as protection policy.
+pub fn changed_motion_regions(
+    before: &MotionProgram,
+    after: &MotionProgram,
+) -> Result<Vec<(Axis, TimeRange)>, CoreError> {
+    validate_base(before)?;
+    validate_base(after)?;
+    let mut changed = Vec::new();
+    for axis in Axis::ALL {
+        let mut inherited = Vec::new();
+        compare_axis(
+            axis,
+            before.track(axis),
+            after.track(axis),
+            &mut changed,
+            &mut inherited,
+        )?;
+    }
+    Ok(changed)
+}
+
+/// Union automatic manual-edit protection with existing policy, without dropping
+/// any protected support. Overlapping/adjacent regions of one axis coalesce.
+pub fn protect_changed_motion(
+    existing: &[crate::ProtectedRegion],
+    changed: &[(Axis, TimeRange)],
+    limit: usize,
+) -> Result<Vec<crate::ProtectedRegion>, CoreError> {
+    if limit > 1024 || existing.len() > 1024 || changed.len() > EDIT_VALUES_MAX_RANGES {
+        return Err(invalid("manual protection exceeds bounded policy"));
+    }
+    let mut regions = existing.to_vec();
+    regions.extend(changed.iter().map(|(axis, range)| crate::ProtectedRegion {
+        axis: Some(*axis),
+        range: *range,
+    }));
+    regions.sort_by_key(|region| (region.axis, region.range.start(), region.range.end()));
+    let mut merged: Vec<crate::ProtectedRegion> = Vec::new();
+    for region in regions {
+        if let Some(last) = merged.last_mut() {
+            if last.axis == region.axis && region.range.start() <= last.range.end() {
+                last.range =
+                    TimeRange::new(last.range.start(), last.range.end().max(region.range.end()))?;
+                continue;
+            }
+        }
+        merged.push(region);
+    }
+    if merged.len() > limit {
+        return Err(invalid("manual protection would exceed the region limit; explicitly manage existing protection before committing"));
+    }
+    Ok(merged)
+}
+
 fn compare_axis(
     axis: Axis,
     before: Option<&MotionTrack>,

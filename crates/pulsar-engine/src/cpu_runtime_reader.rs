@@ -1,0 +1,468 @@
+//! Reader barrier for retained CPU runtimes and closed attempts, nested beneath
+//! any qualified fallback transition reader requirement.
+//!
+//! This module validates only the storage header. Runtime and attempt validators
+//! separately establish which retained records require this barrier. Arming
+//! grants no scheduling or qualification authority and never removes the marker.
+use anyhow::{ensure, Context, Result};
+use rusqlite::{Connection, OptionalExtension, Transaction};
+
+const NAME: &str = "cpu_runtime_reader";
+const MARKER: &str = "CREATE TABLE cpu_runtime_reader(singleton INTEGER PRIMARY KEY NOT NULL CHECK(singleton=1),underlying_version INTEGER NOT NULL CHECK(underlying_version BETWEEN 2 AND 35))";
+const OUTER_VERSION: i64 = 36;
+
+/// Returns the preserved version and whether the outer barrier is armed.
+/// All queries are read-only and name the main database explicitly.
+fn header(db: &Connection) -> Result<(i64, bool)> {
+    let raw = crate::inference_fallback_reader::version(db)?;
+    ensure!(
+        raw == 0 || (2..=OUTER_VERSION).contains(&raw),
+        "unknown CPU runtime reader version"
+    );
+    let temporary: bool = db.query_row(
+        "SELECT EXISTS(SELECT 1 FROM temp.sqlite_master WHERE name=?1 COLLATE NOCASE OR tbl_name=?1 COLLATE NOCASE)",
+        [NAME],
+        |r| r.get(0),
+    )?;
+    ensure!(!temporary, "CPU runtime reader temporary object differs");
+    // A canonical marker has no associated index or trigger. Count at most two
+    // objects before admitting its exact SQL, without allocating schema text.
+    let objects: i64 = db.query_row(
+        "SELECT COUNT(*) FROM (SELECT 1 FROM main.sqlite_master WHERE name=?1 COLLATE NOCASE OR tbl_name=?1 COLLATE NOCASE LIMIT 2)",
+        [NAME],
+        |r| r.get(0),
+    )?;
+    if raw != OUTER_VERSION {
+        ensure!(
+            objects == 0,
+            "CPU runtime reader barrier downgraded or misplaced"
+        );
+        return Ok((raw, false));
+    }
+    ensure!(
+        objects == 1,
+        "CPU runtime reader marker missing or associated objects differ"
+    );
+    let layout: bool = db.query_row(
+        "SELECT EXISTS(SELECT 1 FROM main.sqlite_master WHERE type='table' AND name=?1 AND tbl_name=?1 AND typeof(sql)='text' AND length(CAST(sql AS BLOB))=?2 AND sql=?3)",
+        rusqlite::params![NAME, MARKER.len() as i64, MARKER],
+        |r| r.get(0),
+    )?;
+    ensure!(layout, "CPU runtime reader layout differs");
+    let count: i64 = db.query_row(
+        "SELECT COUNT(*) FROM (SELECT 1 FROM main.cpu_runtime_reader LIMIT 2)",
+        [],
+        |r| r.get(0),
+    )?;
+    ensure!(count == 1, "CPU runtime reader singleton differs");
+    let underlying: Option<i64> = db
+        .query_row(
+            "SELECT underlying_version FROM main.cpu_runtime_reader WHERE singleton=1 AND typeof(singleton)='integer' AND typeof(underlying_version)='integer' AND underlying_version BETWEEN 2 AND 35",
+            [],
+            |r| r.get(0),
+        )
+        .optional()?;
+    Ok((
+        underlying.context("CPU runtime reader scalar admission differs")?,
+        true,
+    ))
+}
+
+/// Read the previous outer header, preserving its own wrapper semantics.
+/// Its reader validates the inner layer; this layer does not parse its records.
+pub(crate) fn version(db: &Connection) -> Result<i64> {
+    Ok(header(db)?.0)
+}
+
+/// Publish an inner header monotonically without erasing an armed barrier.
+pub(crate) fn publish(db: &Connection, new_version: i64) -> Result<()> {
+    let (old, armed) = header(db)?;
+    ensure!(
+        (2..=35).contains(&new_version) && new_version >= old,
+        "CPU runtime reader publication would downgrade or exceed supported storage"
+    );
+    if new_version == old {
+        return Ok(());
+    }
+    if armed {
+        let changed = db.execute(
+            "UPDATE main.cpu_runtime_reader SET underlying_version=?1 WHERE singleton=1 AND underlying_version=?2",
+            rusqlite::params![new_version, old],
+        )?;
+        ensure!(
+            changed == 1,
+            "CPU runtime reader publication lost its retained header"
+        );
+    } else {
+        crate::inference_fallback_reader::publish(db, new_version)?;
+    }
+    Ok(())
+}
+
+/// Arm in the same transaction as the runtime or attempt record requiring it.
+/// The caller must commit both; rolling back retains the prior header exactly.
+pub(crate) fn arm(tx: &Transaction<'_>) -> Result<()> {
+    let (old, armed) = header(tx)?;
+    ensure!(
+        (2..=35).contains(&old),
+        "CPU runtime requires supported initialized storage"
+    );
+    if !armed {
+        tx.execute_batch(MARKER)?;
+        tx.execute(
+            "INSERT INTO main.cpu_runtime_reader(singleton,underlying_version) VALUES(1,?1)",
+            [old],
+        )?;
+        crate::inference_fallback_reader::publish(tx, OUTER_VERSION)?;
+    }
+    ensure!(
+        header(tx)? == (old, true),
+        "CPU runtime reader arming did not preserve storage"
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn db(raw: i64) -> Connection {
+        let db = Connection::open_in_memory().unwrap();
+        db.pragma_update(Some(rusqlite::DatabaseName::Main), "user_version", raw)
+            .unwrap();
+        db
+    }
+
+    fn raw(db: &Connection) -> i64 {
+        db.query_row("PRAGMA main.user_version", [], |r| r.get(0))
+            .unwrap()
+    }
+
+    fn marker_count(db: &Connection) -> i64 {
+        db.query_row(
+            "SELECT COUNT(*) FROM main.sqlite_master WHERE name=?1 COLLATE NOCASE",
+            [NAME],
+            |r| r.get(0),
+        )
+        .unwrap()
+    }
+
+    fn armed(old: i64) -> Connection {
+        let mut db = db(old);
+        let tx = db.transaction().unwrap();
+        arm(&tx).unwrap();
+        tx.commit().unwrap();
+        db
+    }
+
+    fn assert_read_only_rejection(db: &Connection) {
+        let before = raw(db);
+        let changes: i64 = db
+            .query_row("SELECT total_changes()", [], |r| r.get(0))
+            .unwrap();
+        db.execute_batch("PRAGMA query_only=ON").unwrap();
+        assert!(version(db).is_err());
+        assert_eq!(raw(db), before);
+        assert_eq!(
+            db.query_row("SELECT total_changes()", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            changes
+        );
+    }
+
+    #[test]
+    fn every_supported_underlying_header_is_preserved_and_arming_is_idempotent() {
+        for old in 2..=35 {
+            let mut db = db(old);
+            assert_eq!(version(&db).unwrap(), old);
+            let tx = db.transaction().unwrap();
+            arm(&tx).unwrap();
+            arm(&tx).unwrap();
+            assert_eq!(version(&tx).unwrap(), old);
+            assert_eq!(raw(&tx), 36);
+            tx.commit().unwrap();
+            assert_eq!(version(&db).unwrap(), old);
+            assert_eq!(raw(&db), 36);
+            assert_eq!(marker_count(&db), 1);
+        }
+    }
+
+    #[test]
+    fn empty_storage_is_readable_but_cannot_arm_until_initialized() {
+        let mut db = db(0);
+        db.execute_batch("PRAGMA query_only=ON").unwrap();
+        assert_eq!(version(&db).unwrap(), 0);
+        assert_eq!(marker_count(&db), 0);
+        db.execute_batch("PRAGMA query_only=OFF").unwrap();
+        let tx = db.transaction().unwrap();
+        assert!(arm(&tx).is_err());
+        tx.commit().unwrap();
+        assert_eq!(raw(&db), 0);
+        assert_eq!(marker_count(&db), 0);
+        publish(&db, 2).unwrap();
+        assert_eq!(version(&db).unwrap(), 2);
+    }
+
+    #[test]
+    fn unsupported_raw_headers_refuse_read_only() {
+        for invalid in [-1, 1, 37, i32::MAX.into()] {
+            assert_read_only_rejection(&db(invalid));
+        }
+    }
+
+    #[test]
+    fn arming_and_inner_publication_roll_back_with_the_owner_transaction() {
+        for old in 2..=35 {
+            let mut db = db(old);
+            {
+                let tx = db.transaction().unwrap();
+                arm(&tx).unwrap();
+                publish(&tx, 35).unwrap();
+                assert_eq!(raw(&tx), 36);
+                tx.rollback().unwrap();
+            }
+            assert_eq!(raw(&db), old);
+            assert_eq!(version(&db).unwrap(), old);
+            assert_eq!(marker_count(&db), 0);
+        }
+        let mut db = armed(20);
+        let tx = db.transaction().unwrap();
+        publish(&tx, 35).unwrap();
+        tx.rollback().unwrap();
+        assert_eq!(raw(&db), 36);
+        assert_eq!(version(&db).unwrap(), 20);
+        assert_eq!(marker_count(&db), 1);
+    }
+
+    #[test]
+    fn publication_advances_only_the_preserved_header_and_never_erases_marker() {
+        let mut db = armed(2);
+        for target in 2..=35 {
+            publish(&db, target).unwrap();
+            publish(&db, target).unwrap();
+            assert_eq!(raw(&db), 36);
+            assert_eq!(version(&db).unwrap(), target);
+            assert_eq!(marker_count(&db), 1);
+        }
+        for invalid in [-1, 0, 1, 2, 34, 36, 37] {
+            assert!(publish(&db, invalid).is_err());
+            assert_eq!(raw(&db), 36);
+            assert_eq!(version(&db).unwrap(), 35);
+        }
+        let tx = db.transaction().unwrap();
+        arm(&tx).unwrap();
+        tx.commit().unwrap();
+        assert_eq!(raw(&db), 36);
+        assert_eq!(version(&db).unwrap(), 35);
+    }
+
+    #[test]
+    fn unarmed_publication_advances_the_actual_header_without_creating_marker() {
+        let db = db(0);
+        for target in 2..=35 {
+            publish(&db, target).unwrap();
+            assert_eq!(raw(&db), target);
+            assert_eq!(version(&db).unwrap(), target);
+            assert_eq!(marker_count(&db), 0);
+        }
+        for invalid in [-1, 0, 1, 2, 34, 36, 37] {
+            assert!(publish(&db, invalid).is_err());
+            assert_eq!(raw(&db), 35);
+            assert_eq!(marker_count(&db), 0);
+        }
+    }
+
+    #[test]
+    fn stripped_marker_and_every_lowered_header_refuse_read_only() {
+        let db = armed(20);
+        db.execute_batch("DROP TABLE main.cpu_runtime_reader")
+            .unwrap();
+        assert_read_only_rejection(&db);
+        for lower in std::iter::once(0).chain(2..=35) {
+            let db = armed(20);
+            db.pragma_update(Some(rusqlite::DatabaseName::Main), "user_version", lower)
+                .unwrap();
+            assert_read_only_rejection(&db);
+        }
+    }
+
+    #[test]
+    fn altered_layout_case_and_view_refuse_before_reading_marker_rows() {
+        for sql in [
+            "CREATE TABLE cpu_runtime_reader(singleton INTEGER,underlying_version INTEGER);INSERT INTO cpu_runtime_reader VALUES(1,20)",
+            "CREATE TABLE Cpu_Runtime_Reader(singleton INTEGER PRIMARY KEY NOT NULL CHECK(singleton=1),underlying_version INTEGER NOT NULL CHECK(underlying_version BETWEEN 2 AND 35));INSERT INTO Cpu_Runtime_Reader VALUES(1,20)",
+            "CREATE VIEW cpu_runtime_reader AS SELECT 1 AS singleton,20 AS underlying_version",
+        ] {
+            let db = db(36);
+            db.execute_batch(sql).unwrap();
+            assert_read_only_rejection(&db);
+        }
+    }
+
+    #[test]
+    fn missing_extra_wrong_singleton_and_invalid_scalar_rows_refuse_read_only() {
+        for sql in [
+            "DELETE FROM cpu_runtime_reader",
+            "INSERT INTO cpu_runtime_reader VALUES(2,20)",
+            "UPDATE cpu_runtime_reader SET singleton=2",
+            "UPDATE cpu_runtime_reader SET underlying_version=1",
+            "UPDATE cpu_runtime_reader SET underlying_version=36",
+            "UPDATE cpu_runtime_reader SET underlying_version=20.5",
+            "UPDATE cpu_runtime_reader SET underlying_version='invalid'",
+            "UPDATE cpu_runtime_reader SET underlying_version=X'3230'",
+        ] {
+            let db = armed(20);
+            db.execute_batch("PRAGMA ignore_check_constraints=ON")
+                .unwrap();
+            db.execute_batch(sql).unwrap();
+            assert_read_only_rejection(&db);
+        }
+    }
+
+    #[test]
+    fn associated_triggers_and_indexes_are_rejected_before_publication() {
+        for sql in [
+            "CREATE TABLE unrelated(value INTEGER);CREATE TRIGGER redirect AFTER UPDATE ON cpu_runtime_reader BEGIN INSERT INTO unrelated VALUES(1);END",
+            "CREATE INDEX extra_marker_index ON cpu_runtime_reader(underlying_version)",
+            "CREATE TEMP TRIGGER temporary_redirect AFTER UPDATE ON main.cpu_runtime_reader BEGIN SELECT RAISE(IGNORE);END",
+        ] {
+            let db = armed(20);
+            db.execute_batch(sql).unwrap();
+            assert!(publish(&db, 21).is_err());
+            assert_eq!(raw(&db), 36);
+            let old: i64 = db.query_row("SELECT underlying_version FROM main.cpu_runtime_reader", [], |r| r.get(0)).unwrap();
+            assert_eq!(old, 20);
+            assert_read_only_rejection(&db);
+        }
+    }
+
+    #[test]
+    fn temporary_marker_shadowing_refuses_both_armed_and_unarmed_storage() {
+        for armed_storage in [false, true] {
+            let mut db = if armed_storage { armed(20) } else { db(20) };
+            db.execute_batch("CREATE TEMP TABLE cpu_runtime_reader(singleton INTEGER,underlying_version INTEGER);INSERT INTO temp.cpu_runtime_reader VALUES(1,2)").unwrap();
+            assert!(publish(&db, 21).is_err());
+            let tx = db.transaction().unwrap();
+            assert!(arm(&tx).is_err());
+            tx.rollback().unwrap();
+            assert_eq!(raw(&db), if armed_storage { 36 } else { 20 });
+            assert_eq!(marker_count(&db), i64::from(armed_storage));
+            assert_read_only_rejection(&db);
+        }
+    }
+
+    #[test]
+    fn attached_database_marker_is_neither_read_nor_modified() {
+        let mut db = db(20);
+        db.execute_batch("ATTACH DATABASE ':memory:' AS unrelated;CREATE TABLE unrelated.cpu_runtime_reader(singleton INTEGER,underlying_version INTEGER);INSERT INTO unrelated.cpu_runtime_reader VALUES(1,2);PRAGMA unrelated.user_version=2").unwrap();
+        assert_eq!(version(&db).unwrap(), 20);
+        let tx = db.transaction().unwrap();
+        arm(&tx).unwrap();
+        publish(&tx, 35).unwrap();
+        tx.commit().unwrap();
+        assert_eq!(raw(&db), 36);
+        assert_eq!(version(&db).unwrap(), 35);
+        let other: i64 = db
+            .query_row(
+                "SELECT underlying_version FROM unrelated.cpu_runtime_reader",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(other, 2);
+        assert_eq!(
+            db.query_row("PRAGMA unrelated.user_version", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            2
+        );
+    }
+
+    #[test]
+    fn fallback_outer_reader_preserves_cpu_in_either_activation_order() {
+        for underlying in 2..=35 {
+            for fallback_first in [false, true] {
+                let mut db = db(underlying);
+                let tx = db.transaction().unwrap();
+                if fallback_first {
+                    crate::inference_fallback_reader::arm(&tx).unwrap();
+                    arm(&tx).unwrap();
+                } else {
+                    arm(&tx).unwrap();
+                    crate::inference_fallback_reader::arm(&tx).unwrap();
+                }
+                assert_eq!(raw(&tx), 37);
+                assert_eq!(crate::inference_fallback_reader::version(&tx).unwrap(), 36);
+                assert_eq!(version(&tx).unwrap(), underlying);
+                publish(&tx, 35).unwrap();
+                assert!(crate::inference_fallback_reader::publish(&tx, 35).is_err());
+                arm(&tx).unwrap();
+                tx.commit().unwrap();
+                assert_eq!(raw(&db), 37);
+                assert_eq!(version(&db).unwrap(), 35);
+            }
+        }
+    }
+
+    #[test]
+    fn fallback_reader_preserves_equivalence_portable_and_batch_publication() {
+        let mut db = db(18);
+        db.execute_batch("CREATE TABLE sessions(id TEXT PRIMARY KEY)")
+            .unwrap();
+        let tx = db.transaction().unwrap();
+        crate::portable_annotated_db::arm(&tx).unwrap();
+        crate::portable_wasm_db::arm(&tx).unwrap();
+        crate::wasm_archive_db::arm(&tx).unwrap();
+        crate::library_batch_db::arm(&tx).unwrap();
+        crate::inference_equivalence_reader::arm(&tx).unwrap();
+        arm(&tx).unwrap();
+        crate::inference_fallback_reader::arm(&tx).unwrap();
+        crate::portable_annotated_db::publish(&tx, 20).unwrap();
+        crate::library_batch_db::arm_partial_audio(&tx).unwrap();
+        crate::library_batch_db::arm_cancel(&tx).unwrap();
+        tx.commit().unwrap();
+        assert_eq!(raw(&db), 37);
+        assert_eq!(crate::inference_fallback_reader::version(&db).unwrap(), 36);
+        assert_eq!(version(&db).unwrap(), 35);
+        assert_eq!(
+            crate::inference_equivalence_reader::version(&db).unwrap(),
+            34
+        );
+        assert_eq!(crate::library_batch_db::version(&db).unwrap(), 26);
+        assert_eq!(
+            crate::portable_annotated_db::storage_version(&db).unwrap(),
+            20
+        );
+        for expected in [35, 36, 37] {
+            assert_eq!(
+                crate::live_cuda_evidence_db::base_version(&db, expected).unwrap(),
+                20
+            );
+        }
+        db.execute_batch("DELETE FROM main.inference_equivalence_reader")
+            .unwrap();
+        assert!(crate::live_cuda_evidence_db::base_version(&db, 37).is_err());
+    }
+
+    #[test]
+    fn fallback_activation_rolls_back_without_lowering_existing_cpu_requirement() {
+        let mut db = armed(20);
+        assert!(crate::live_cuda_evidence_db::base_version(&db, 37).is_err());
+        let tx = db.transaction().unwrap();
+        crate::inference_fallback_reader::arm(&tx).unwrap();
+        publish(&tx, 35).unwrap();
+        tx.rollback().unwrap();
+        assert_eq!(raw(&db), 36);
+        assert_eq!(version(&db).unwrap(), 20);
+        let tx = db.transaction().unwrap();
+        crate::inference_fallback_reader::arm(&tx).unwrap();
+        tx.commit().unwrap();
+        assert_eq!(
+            crate::live_cuda_evidence_db::base_version(&db, 37).unwrap(),
+            20
+        );
+        db.execute_batch("DROP TABLE main.cpu_runtime_reader")
+            .unwrap();
+        assert_read_only_rejection(&db);
+        assert!(crate::live_cuda_evidence_db::base_version(&db, 37).is_err());
+    }
+}

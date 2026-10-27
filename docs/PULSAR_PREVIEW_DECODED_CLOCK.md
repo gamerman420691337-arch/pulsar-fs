@@ -1,0 +1,15 @@
+# Preview pixels and decoded source-clock correspondence
+
+Date: 2026-10-10. Status: software correction and focused verification PASS; full roadmap PARTIAL.
+
+Snapshot extraction previously selected a frame by ordinal, checked its RGB byte count, and labeled the result using the separate media index. It did not verify the decoded packet timestamp against that index. Generation already checked its timestamped decoder output.
+
+Ordinary/projected and annotated temporal-pair previews now require a SnapshotFrame containing the selected ordinal and exact expected source timestamp. Single-frame extraction uses the same bounded timestamped RGB/framehash decoder as generation, preserves input timestamps with copyts and the demux time base, checks exact rational time equality, requires exactly one frame and successful decoder completion, and only then returns pixels. Still-image validation also binds its indexed timestamp. Missing, changed or extra frame evidence fails before preview artifacts or observations are produced. The engine remains the authority for immutable input admission, cancellation, confinement and publication; this internal decoder interface adds no imported or physical authority.
+
+FrameTransform groups the output dimensions and fixed filter for both snapshot and streaming extraction. Streaming generation retains its existing frame/order/time validation and original deadlines. No wire schema, fallback, model approval, project revision or device behavior changed.
+
+The new real FFmpeg regression has an unchanged-clock control and an authored proxy that adds one second to decoded timestamps. The strengthened final test independently decodes that shifted timestamp, proves its pixels are identical to the unchanged control, then verifies that the original indexed preview request rejects it with "decoded snapshot timestamp differs from indexed source frame" and leaves the output directory empty.
+
+The first focused integration run passes 24 tests, including projected, offset/variable-PTS, placement and preview cases. The final all-feature engine run includes the stronger identical-pixel control and passes 705 unit tests plus 12 integration tests, with 79 qualification cases ignored. Default engine and all-feature/all-target workspace compilation pass. Architecture passes 350 checks and source guards pass 36. Strict engine Clippy remains FAIL, exit 101, with 19 distinct findings (14 library and 14 test-target errors); the two media interface findings are gone. Global formatting and earlier full-workspace runtime failures remain unresolved.
+
+The [checkpoint](evidence/roadmap-2026-10-10/preview-decoded-clock/checkpoint.json) retains source identities, before-this-turn patches, both test commands and gates. This verifies native decoding and worker consumer behavior on authored media; it does not qualify real-media model quality, rendered UI, installed Stash, physical Handy, the platform matrix or human/release acceptance. The full roadmap stays active.

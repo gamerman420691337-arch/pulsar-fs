@@ -21,3 +21,5 @@ Required correspondence fixtures use the actual engine/protocol:
 | Reconnect | Snapshot/session resynchronization; physical state remains disarmed and old authority is not replayed. |
 
 Phase A requires models and real correspondence-test entry points. Required critical formal results gate Preview; no TLC/Kani success is asserted by checking these files into the workspace.
+
+The [WASM start-resolution model](WASM_START_RESOLUTION.md) separately checks delayed publication, atomic withdrawal and current resolution/replay authority with four invariant-specific negative mutation controls. Its bounded result and concrete correspondence remain distinct.

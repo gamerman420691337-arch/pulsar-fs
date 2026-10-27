@@ -130,6 +130,16 @@ impl PatternSpec {
         }
         sampled_action_count(self.parameters.duration, self.parameters.sample_hz)
     }
+
+    /// Exact generation samples, streamed without allocating a motion program.
+    /// Every sample is synthesized and the final sample retains the exact duration.
+    pub fn sampled_actions(
+        &self,
+    ) -> Result<impl ExactSizeIterator<Item = Result<MotionAction, CoreError>> + '_, CoreError>
+    {
+        let count = self.action_count()?;
+        Ok((0..count).map(move |index| pattern_action(self, index, count)))
+    }
 }
 
 impl TryFrom<PatternParameters> for PatternSpec {
@@ -240,7 +250,7 @@ pub fn synthesize_pattern(spec: &PatternSpec) -> Result<MotionProgram, CoreError
 
 /// Six aligned axes at most. Preflight checks aggregate allocation before any
 /// track is generated; duplicate axes or mismatched master durations fail.
-pub fn synthesize_patterns(specs: &[PatternSpec]) -> Result<MotionProgram, CoreError> {
+pub fn validate_patterns(specs: &[PatternSpec]) -> Result<(), CoreError> {
     if specs.is_empty() || specs.len() > 6 {
         return Err(invalid("synthesis requires one through six unique axes"));
     }
@@ -261,6 +271,12 @@ pub fn synthesize_patterns(specs: &[PatternSpec]) -> Result<MotionProgram, CoreE
     if action_count > MAX_SYNTHESIS_ACTIONS {
         return Err(invalid("combined synthesis exceeds the action budget"));
     }
+    Ok(())
+}
+
+/// Execute only a preflighted pattern family; all actions remain synthesized.
+pub fn synthesize_patterns(specs: &[PatternSpec]) -> Result<MotionProgram, CoreError> {
+    validate_patterns(specs)?;
     MotionProgram::new(
         specs
             .iter()
@@ -270,40 +286,41 @@ pub fn synthesize_patterns(specs: &[PatternSpec]) -> Result<MotionProgram, CoreE
 }
 
 fn synthesize_track(spec: &PatternSpec) -> Result<MotionTrack, CoreError> {
+    let mut actions = Vec::with_capacity(spec.action_count()?);
+    for action in spec.sampled_actions()? {
+        actions.push(action?);
+    }
+    MotionTrack::new(spec.axis(), actions)
+}
+
+fn pattern_action(
+    spec: &PatternSpec,
+    index: usize,
+    count: usize,
+) -> Result<MotionAction, CoreError> {
     let p = &spec.parameters;
-    let count = spec.action_count()?;
-    let mut actions = Vec::with_capacity(count);
-    if p.pattern == PatternKind::Hold {
-        actions.push(synthesized_action(ProjectTime::ZERO, p.offset.value())?);
-        actions.push(synthesized_action(p.duration, p.offset.value())?);
-        return MotionTrack::new(p.axis, actions);
-    }
-    for index in 0..count {
-        let time = if index == count - 1 {
-            p.duration
-        } else {
-            ProjectTime::from_nanos(
-                i64::try_from((index as i128) * 1_000_000_000 / i128::from(p.sample_hz))
-                    .map_err(|_| CoreError::Overflow)?,
-            )
-        };
-        let phase = (p.phase_cycles + p.frequency_hz * (time.as_nanos() as f64 / 1_000_000_000.0))
-            .rem_euclid(1.0);
-        let wave = match p.pattern {
-            PatternKind::Sine => (std::f64::consts::TAU * phase).sin(),
-            PatternKind::Triangle if phase < 0.25 => 4.0 * phase,
-            PatternKind::Triangle if phase < 0.75 => 2.0 - 4.0 * phase,
-            PatternKind::Triangle => 4.0 * phase - 4.0,
-            PatternKind::Pulse if phase < p.duty_cycle => 1.0,
-            PatternKind::Pulse => -1.0,
-            PatternKind::Hold => 0.0,
-        };
-        actions.push(synthesized_action(
-            time,
-            p.offset.value() + p.amplitude * wave,
-        )?);
-    }
-    MotionTrack::new(p.axis, actions)
+    let time = if index == count - 1 {
+        p.duration
+    } else if p.pattern == PatternKind::Hold {
+        ProjectTime::ZERO
+    } else {
+        ProjectTime::from_nanos(
+            i64::try_from((index as i128) * 1_000_000_000 / i128::from(p.sample_hz))
+                .map_err(|_| CoreError::Overflow)?,
+        )
+    };
+    let phase = (p.phase_cycles + p.frequency_hz * (time.as_nanos() as f64 / 1_000_000_000.0))
+        .rem_euclid(1.0);
+    let wave = match p.pattern {
+        PatternKind::Sine => (std::f64::consts::TAU * phase).sin(),
+        PatternKind::Triangle if phase < 0.25 => 4.0 * phase,
+        PatternKind::Triangle if phase < 0.75 => 2.0 - 4.0 * phase,
+        PatternKind::Triangle => 4.0 * phase - 4.0,
+        PatternKind::Pulse if phase < p.duty_cycle => 1.0,
+        PatternKind::Pulse => -1.0,
+        PatternKind::Hold => 0.0,
+    };
+    synthesized_action(time, p.offset.value() + p.amplitude * wave)
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -685,6 +702,25 @@ pub fn extract_audio_features(
     sample_rate: u32,
     window_samples: u32,
 ) -> Result<AudioFeatures, CoreError> {
+    extract_audio_features_impl(
+        mono_pcm,
+        sample_rate,
+        window_samples,
+        AUDIO_ONSET_THRESHOLD,
+        false,
+        &mut |x| x,
+    )
+    .map(|(features, _)| features)
+}
+
+pub(crate) fn extract_audio_features_impl(
+    mono_pcm: &[f32],
+    sample_rate: u32,
+    window_samples: u32,
+    threshold: f64,
+    gate: bool,
+    filter: &mut impl FnMut(f64) -> f64,
+) -> Result<(AudioFeatures, usize), CoreError> {
     if mono_pcm.is_empty() || mono_pcm.len() > MAX_AUDIO_PCM_SAMPLES {
         return Err(invalid("PCM input must contain 1..=96000000 mono samples"));
     }
@@ -731,28 +767,53 @@ pub fn extract_audio_features(
     let mut envelope = Vec::with_capacity(envelope_count);
     let mut amplitude_onsets = Vec::with_capacity(windows);
     let mut previous_level = 0.0;
+    let mut saturated_windows = 0;
     for (window_index, chunk) in mono_pcm.chunks(window).enumerate() {
         let start = window_index
             .checked_mul(window)
             .ok_or(CoreError::Overflow)?;
         let time = sample_time(start)?;
         let square_sum = chunk.iter().fold(0.0_f64, |sum, sample| {
-            let value = f64::from(*sample);
+            let value = filter(f64::from(*sample));
             sum + value * value
         });
         let level = (square_sum / chunk.len() as f64).sqrt();
-        if previous_level < AUDIO_ONSET_THRESHOLD && level >= AUDIO_ONSET_THRESHOLD {
+        if !level.is_finite() {
+            return Err(CoreError::NonFinite);
+        }
+        if level > 1.0 {
+            saturated_windows += 1;
+        }
+        let level = level.min(1.0);
+        if previous_level < threshold && level >= threshold {
             amplitude_onsets.push(time);
         }
-        envelope.push(AudioEnvelopeSample::new(time, level)?);
+        envelope.push(AudioEnvelopeSample::new(
+            time,
+            if gate && level < threshold {
+                0.0
+            } else {
+                level
+            },
+        )?);
         previous_level = level;
     }
     // A right endpoint preserves the final window level; it is not a
     // fabricated return to baseline or an invented extra amplitude onset.
-    envelope.push(AudioEnvelopeSample::new(duration, previous_level)?);
-    Ok(AudioFeatures {
-        envelope,
-        amplitude_onsets,
+    envelope.push(AudioEnvelopeSample::new(
         duration,
-    })
+        if gate && previous_level < threshold {
+            0.0
+        } else {
+            previous_level
+        },
+    )?);
+    Ok((
+        AudioFeatures {
+            envelope,
+            amplitude_onsets,
+            duration,
+        },
+        saturated_windows,
+    ))
 }

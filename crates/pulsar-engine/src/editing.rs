@@ -19,11 +19,21 @@ struct FunscriptInput {
 #[derive(Deserialize)]
 struct FunscriptAction {
     at: u64,
-    pos: u8,
+    pos: i64,
 }
 
 impl Engine {
     pub(super) fn prepare_funscript(&self, source: &Path) -> PResult<PreparedFunscript> {
+        self.prepare_funscript_policy(source, false)
+    }
+    pub(super) fn prepare_funscript_for_repair(&self, source: &Path) -> PResult<PreparedFunscript> {
+        self.prepare_funscript_policy(source, true)
+    }
+    fn prepare_funscript_policy(
+        &self,
+        source: &Path,
+        sanitize: bool,
+    ) -> PResult<PreparedFunscript> {
         let (path, hash, bytes) = artifacts::snapshot_reserved(
             source,
             &self.config.state_dir.join("snapshots"),
@@ -31,7 +41,7 @@ impl Engine {
             self.pool.reserved_storage(),
         )
         .map_err(|error| ProtocolError::invalid(error.to_string()))?;
-        let input: FunscriptInput = serde_json::from_reader(
+        let mut input: FunscriptInput = serde_json::from_reader(
             artifacts::open_regular(&path)
                 .map_err(unavailable)?
                 .take(MAX_MOTION_BYTES + 1),
@@ -40,9 +50,29 @@ impl Engine {
         if input.actions.is_empty() {
             return Err(ProtocolError::invalid("funscript contains no actions"));
         }
+        if input.actions.len() > EDIT_VALUES_MAX_ACTIONS {
+            return Err(ProtocolError::new(
+                ErrorCode::ResourceExhausted,
+                "funscript exceeds action budget",
+            ));
+        }
+        if sanitize {
+            input.actions.sort_by_key(|a| a.at);
+            for action in &mut input.actions {
+                action.pos = action.pos.clamp(0, 100);
+            }
+            input.actions.dedup_by(|later, earlier| {
+                if later.at == earlier.at {
+                    earlier.pos = later.pos;
+                    true
+                } else {
+                    false
+                }
+            });
+        }
         let mut actions = Vec::with_capacity(input.actions.len());
         for action in input.actions {
-            if action.pos > 100 {
+            if !(0..=100).contains(&action.pos) {
                 return Err(ProtocolError::invalid("funscript position exceeds 100"));
             }
             let time = action
@@ -50,11 +80,12 @@ impl Engine {
                 .checked_mul(1_000_000)
                 .and_then(|time| i64::try_from(time).ok())
                 .ok_or_else(|| ProtocolError::invalid("funscript timestamp overflow"))?;
-            let position = f64::from(if input.inverted {
+            let position = (if input.inverted {
                 100 - action.pos
             } else {
                 action.pos
-            }) / 100.0;
+            }) as f64
+                / 100.0;
             actions.push(
                 MotionAction::new(
                     ProjectTime::from_nanos(time),
@@ -76,7 +107,11 @@ impl Engine {
         let review = vec![ReviewFlag {
             axis: Some(Axis::Stroke),
             range,
-            reason: ReviewReason::new("imported_motion")?,
+            reason: ReviewReason::new(if sanitize {
+                "imported_motion_sanitized"
+            } else {
+                "imported_motion"
+            })?,
             evidence: EvidenceKind::Synthesized,
             confidence: None,
         }];
@@ -119,6 +154,16 @@ impl Engine {
         request: &Request,
         prepared: PreparedFunscript,
     ) -> PResult<ResponseBody> {
+        self.stage_captured_candidate(tx, request, prepared, SourceKind::Funscript)
+    }
+
+    pub(super) fn stage_captured_candidate(
+        &self,
+        tx: &Transaction<'_>,
+        request: &Request,
+        prepared: PreparedFunscript,
+        kind: SourceKind,
+    ) -> PResult<ResponseBody> {
         let snapshot = project_snapshot(tx, project(request)?)?;
         let candidate = id!(CandidateId);
         let registered: bool = tx
@@ -143,14 +188,15 @@ impl Engine {
         }
         tx.execute(
             "INSERT INTO sources(project,version,path,original,label,sha256,bytes,kind)
-            VALUES(?1,?2,?3,'',?4,?2,?5,'funscript') ON CONFLICT(project,version)
+            VALUES(?1,?2,?3,'',?4,?2,?5,?6) ON CONFLICT(project,version)
             DO UPDATE SET evicted=0,path=excluded.path,kind=excluded.kind",
             params![
                 snapshot.project_id.as_str(),
                 prepared.identity.sha256,
                 prepared.path.to_string_lossy(),
                 prepared.label,
-                i64::try_from(prepared.identity.byte_len).map_err(internal)?
+                i64::try_from(prepared.identity.byte_len).map_err(internal)?,
+                kind.as_str()
             ],
         )
         .map_err(internal)?;
@@ -166,11 +212,9 @@ impl Engine {
                 candidate_id: candidate.clone(),
             },
         )?;
-        Ok(ResponseBody::Candidate(candidate_snapshot(
-            tx,
-            &candidate,
-            &snapshot.project_id,
-        )?))
+        Ok(ResponseBody::Candidate(
+            (candidate_snapshot(tx, &candidate, &snapshot.project_id)?).into(),
+        ))
     }
 
     pub(super) fn merge_candidate(
@@ -203,6 +247,15 @@ impl Engine {
                 "candidate already committed",
             ));
         }
+        if let Some(interval) =
+            candidate_generation_interval(tx, candidate_id, &snapshot.project_id)?
+        {
+            if range.is_none_or(|selected| {
+                selected.start() < interval.start() || selected.end() > interval.end()
+            }) {
+                return Err(ProtocolError::invalid("interval candidate requires an explicit merge range contained in its original project interval"));
+            }
+        }
         let protected = protected_regions(tx, &snapshot.project_id)?;
         let merged = pulsar_core::merge_candidate_preserving_protection(
             &snapshot.program,
@@ -232,10 +285,9 @@ impl Engine {
             params![candidate_id.as_str(), rev_sql(revision)?],
         )
         .map_err(internal)?;
-        Ok(ResponseBody::Project(project_snapshot(
-            tx,
-            &snapshot.project_id,
-        )?))
+        Ok(ResponseBody::Project(
+            (project_snapshot(tx, &snapshot.project_id)?).into(),
+        ))
     }
 
     pub(super) fn diagnostics(
@@ -243,6 +295,7 @@ impl Engine {
         tx: &Transaction<'_>,
         request: &Request,
         candidate_id: Option<&CandidateId>,
+        maximum_speed_percent_per_second: Option<f64>,
     ) -> PResult<ResponseBody> {
         let snapshot = project_state(tx, project(request)?)?;
         let candidate = candidate_id
@@ -258,9 +311,32 @@ impl Engine {
             Some(lineage::state(tx, &snapshot.project_id, snapshot.revision)?)
         };
         let protected = protected_regions(tx, &snapshot.project_id)?;
+        let segment_speed = maximum_speed_percent_per_second
+            .map(|limit| {
+                scan_segment_speeds(program, limit, 128)
+                    .map_err(|error| ProtocolError::invalid(error.to_string()))
+            })
+            .transpose()?;
         let mut issues = Vec::new();
-        let imported = if let Some(id)=candidate_id { project_package_imports::candidate_review(tx,id)?.is_some() } else { project_package_imports::imported_revision(tx,&snapshot.project_id,snapshot.revision)? };
-        if imported { issues.push(DiagnosticIssue{code:"imported_origin_unverified".into(),message:"Original archive review and evidence are retained exactly; imported provenance is not locally verified human resolution or authored-edit authority.".into(),axis:None,range:None}); }
+        if let Some(scan) = &segment_speed {
+            for violation in &scan.violations {
+                issues.push(DiagnosticIssue { code: "segment_average_speed_exceeded".into(),
+                    message: format!("Average segment slope {:.6} exceeds {:.6} percent/second; this is not measured device velocity.", violation.average_percent_per_second, scan.maximum_percent_per_second),
+                    axis: Some(violation.axis), range: Some(violation.range) });
+            }
+            if scan.truncated {
+                issues.push(DiagnosticIssue { code: "segment_speed_truncated".into(),
+                message: "Segment-speed scan stopped after its bounded violation page; counts cover only the visited prefix.".into(), axis: None, range: None });
+            }
+        }
+        let imported = if let Some(id) = candidate_id {
+            project_package_imports::candidate_review(tx, id)?.is_some()
+        } else {
+            project_package_imports::imported_revision(tx, &snapshot.project_id, snapshot.revision)?
+        };
+        if imported {
+            issues.push(DiagnosticIssue{code:"imported_origin_unverified".into(),message:"Original archive review and evidence are retained exactly; imported provenance is not locally verified human resolution or authored-edit authority.".into(),axis:None,range:None});
+        }
         if review_state.as_ref().is_some_and(|state| state.unknown) {
             issues.push(DiagnosticIssue { code: "review_history_unknown".into(),
                 message: "Review ancestry is explicitly unknown; missing links are not inferred and no human resolution is claimed.".into(),
@@ -318,10 +394,15 @@ impl Engine {
                 range: Some(region.range),
             });
         }
+        let unresolved = review_state
+            .as_ref()
+            .map(|state| state.unresolved())
+            .transpose()?
+            .unwrap_or_default();
         let reviews = candidate
             .as_ref()
             .map(|candidate| candidate.review.as_slice())
-            .or_else(|| review_state.as_ref().map(|state| state.flags.as_slice()))
+            .or(Some(unresolved.as_slice()))
             .unwrap_or(&[]);
         for flag in reviews {
             if issues.len() >= 510 {
@@ -331,7 +412,7 @@ impl Engine {
                 .as_ref()
                 .is_some_and(|state| state.conservative)
             {
-                "Conservative unresolved review envelope; no human resolution recorded"
+                "Conservative unresolved review envelope"
             } else if candidate.is_some() {
                 "Candidate review required"
             } else {
@@ -358,6 +439,7 @@ impl Engine {
             candidate_id: candidate_id.cloned(),
             base_revision: candidate.as_ref().map(|candidate| candidate.base_revision),
             protected_regions: protected,
+            segment_speed,
             issues,
         }))
     }
@@ -404,7 +486,7 @@ mod tests {
                 .call(Command::ImportFunscript { path }, Some(revision))
                 .unwrap()
             {
-                ResponseBody::Candidate(candidate) => candidate,
+                ResponseBody::Candidate(candidate) => *candidate,
                 _ => panic!("candidate expected"),
             }
         }
@@ -456,6 +538,378 @@ mod tests {
             dir,
         }
     }
+    fn dynamics_profile() -> DynamicsProfile {
+        DynamicsProfile {
+            axes: vec![AxisDynamics {
+                axis: Axis::Stroke,
+                unit: "mm".into(),
+                minimum: 10.0,
+                maximum: 90.0,
+                max_velocity: 60.0,
+                max_acceleration: 10000.0,
+                max_jerk: 100000.0,
+            }],
+            coupled: vec![],
+            minimum_gain: 0.01,
+        }
+    }
+    #[test]
+    fn stash_discovery_requires_authenticated_distinct_owner_authority_before_network() {
+        let f = fixture();
+        let command = |proof: String| Command::StashListMissing {
+            connection: StashConnection {
+                endpoint: "http://127.0.0.1:1/graphql".into(),
+                credential_env: None,
+            },
+            limit: 10,
+            owner_proof: proof,
+        };
+        let make = |command| {
+            Request::new(id!(RequestId), command)
+                .with_session(f.session.clone())
+                .with_auth_token(f.token.clone())
+        };
+        assert_eq!(
+            f.engine
+                .handle(make(command("0".repeat(64))))
+                .result
+                .unwrap_err()
+                .code,
+            ErrorCode::Forbidden
+        );
+        assert_eq!(
+            f.engine
+                .handle(make(command(f.engine.package_owner_token.clone())))
+                .result
+                .unwrap_err()
+                .code,
+            ErrorCode::Forbidden
+        );
+        let valid = command(f.engine.stash_owner_token.clone());
+        assert!(!format!("{:?}", valid).contains(&f.engine.stash_owner_token));
+        let mut unauthorized = make(valid.clone());
+        unauthorized.auth_token = Some("incorrect".into());
+        assert_eq!(
+            f.engine.handle(unauthorized).result.unwrap_err().code,
+            ErrorCode::Unauthorized
+        );
+        assert_eq!(
+            f.engine.handle(make(valid)).result.unwrap_err().code,
+            ErrorCode::Unavailable
+        );
+    }
+    #[test]
+    fn stash_scan_and_tag_require_owner_and_current_export_grant_before_network() {
+        let f = fixture();
+        let connection = StashConnection {
+            endpoint: "http://127.0.0.1:1/graphql".into(),
+            credential_env: None,
+        };
+        let commands = [
+            Command::StashSubmitScan {
+                connection: connection.clone(),
+                publication_request_id: id!(RequestId),
+                owner_proof: f.engine.stash_owner_token.clone(),
+            },
+            Command::StashScanStatus {
+                connection: connection.clone(),
+                scan_request_id: id!(RequestId),
+                owner_proof: f.engine.stash_owner_token.clone(),
+            },
+            Command::StashAddTag {
+                connection: connection.clone(),
+                scan_request_id: id!(RequestId),
+                tag_name: "authored".into(),
+                create: true,
+                owner_proof: f.engine.stash_owner_token.clone(),
+            },
+            Command::StashTagStatus {
+                connection: connection.clone(),
+                tag_request_id: id!(RequestId),
+                owner_proof: f.engine.stash_owner_token.clone(),
+            },
+            Command::StashResumeTag {
+                connection,
+                tag_request_id: id!(RequestId),
+                owner_proof: f.engine.stash_owner_token.clone(),
+            },
+        ];
+        let mut bad = commands[0].clone();
+        if let Command::StashSubmitScan { owner_proof, .. } = &mut bad {
+            *owner_proof = f.engine.package_owner_token.clone();
+        }
+        assert_eq!(f.call(bad, Some(0)).unwrap_err().code, ErrorCode::Forbidden);
+        f.call(
+            Command::Revoke {
+                project_id: f.project.clone(),
+                session: f.session.clone(),
+            },
+            None,
+        )
+        .unwrap();
+        for command in commands {
+            assert_eq!(
+                f.call(command, Some(0)).unwrap_err().code,
+                ErrorCode::Forbidden
+            );
+        }
+    }
+    #[cfg(unix)]
+    #[test]
+    fn stash_capture_uses_bound_immutable_bytes_and_durable_authorized_replay() {
+        let f = fixture();
+        let media = f.dir.path().join("source.mp4");
+        fs::write(&media, b"authored immutable source").unwrap();
+        let (connection,server)=crate::stash::tests::mock(vec![(200,String::new(),serde_json::json!({"data":{"findScene":{"id":"scene","title":"authored","interactive":false,"files":[{"id":"file","path":"/stash/source.mp4"}]}}}).to_string())]);
+        let command = Command::StashImportSource {
+            connection,
+            scene_id: "scene".into(),
+            file_id: "file".into(),
+            expected_server_path: None,
+            expected_source_version: None,
+            mappings: vec![StashRootMapping {
+                server_root: "/stash".into(),
+                local_root: f.dir.path().into(),
+            }],
+            owner_proof: f.engine.stash_owner_token.clone(),
+        };
+        let request = f.request(command, Some(0));
+        let mut stale = request.clone();
+        stale.expected_revision = Some(RevisionId::new(1));
+        assert_eq!(
+            f.engine.handle(stale).result.unwrap_err().code,
+            ErrorCode::RevisionConflict
+        );
+        let mut forbidden = request.clone();
+        if let Command::StashImportSource { owner_proof, .. } = &mut forbidden.command {
+            *owner_proof = f.engine.package_owner_token.clone();
+        }
+        assert_eq!(
+            f.engine.handle(forbidden).result.unwrap_err().code,
+            ErrorCode::Forbidden
+        );
+        let receipt = f.engine.handle(request.clone()).result.unwrap();
+        let capture = match &receipt {
+            ResponseBody::StashSourceCaptured(value) => value,
+            _ => panic!(),
+        };
+        assert_eq!(capture.scene_id, "scene");
+        assert_eq!(capture.file_id, "file");
+        assert_eq!(capture.server_path, "/stash/source.mp4");
+        assert_eq!(capture.local_source, media);
+        assert_eq!(capture.identity.byte_len, 25);
+        assert_eq!(capture.source_version.as_str(), capture.identity.sha256);
+        assert_eq!(server.join().unwrap()[0]["variables"]["id"], "scene");
+        let immutable = f
+            .engine
+            .config
+            .state_dir
+            .join("snapshots")
+            .join(&capture.identity.sha256);
+        fs::write(&media, b"later mutable contents").unwrap();
+        assert_eq!(fs::read(&immutable).unwrap(), b"authored immutable source");
+        assert!(!capture.script_destination.exists());
+        let f = reopen_fixture(f);
+        assert_eq!(
+            encode(&f.engine.handle(request.clone()).result.unwrap()).unwrap(),
+            encode(&receipt).unwrap()
+        );
+        f.call(
+            Command::Revoke {
+                project_id: f.project.clone(),
+                session: f.session.clone(),
+            },
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            f.engine.handle(request).result.unwrap_err().code,
+            ErrorCode::Forbidden
+        );
+    }
+    #[cfg(unix)]
+    #[test]
+    fn stash_publication_rejects_unrelated_master_and_stale_revision_before_effects() {
+        let f = fixture();
+        let media = f.dir.path().join("source.mp4");
+        fs::write(&media, b"authored source").unwrap();
+        let body=serde_json::json!({"data":{"findScene":{"id":"scene","title":"authored","interactive":false,"files":[{"id":"file","path":"/stash/source.mp4"}]}}}).to_string();
+        let (connection, server) = crate::stash::tests::mock(vec![
+            (200, String::new(), body.clone()),
+            (200, String::new(), body),
+        ]);
+        let ResponseBody::StashSourceCaptured(capture) = f
+            .call(
+                Command::StashImportSource {
+                    connection: connection.clone(),
+                    scene_id: "scene".into(),
+                    file_id: "file".into(),
+                    expected_server_path: None,
+                    expected_source_version: None,
+                    mappings: vec![StashRootMapping {
+                        server_root: "/stash".into(),
+                        local_root: f.dir.path().into(),
+                    }],
+                    owner_proof: f.engine.stash_owner_token.clone(),
+                },
+                Some(0),
+            )
+            .unwrap()
+        else {
+            panic!()
+        };
+        let candidate = f.import(
+            br#"{"actions":[{"at":0,"pos":20},{"at":1000,"pos":80}]}"#,
+            0,
+        );
+        f.call(
+            Command::CommitCandidate {
+                candidate_id: candidate.candidate_id.clone(),
+            },
+            Some(0),
+        )
+        .unwrap();
+        let command = Command::StashExportScript {
+            connection,
+            source_version: capture.source_version,
+            scene_id: "scene".into(),
+            file_id: "file".into(),
+            candidate_id: candidate.candidate_id,
+            job_id: id!(JobId),
+            source_time: false,
+            archived_origin: None,
+            owner_proof: f.engine.stash_owner_token.clone(),
+        };
+        assert_eq!(
+            f.call(command.clone(), Some(0)).unwrap_err().code,
+            ErrorCode::RevisionConflict
+        );
+        assert_eq!(
+            f.call(command, Some(1)).unwrap_err().code,
+            ErrorCode::DependencyMismatch
+        );
+        assert!(!capture.script_destination.exists());
+        assert_eq!(server.join().unwrap().len(), 2);
+        let db = f.engine.db.lock().unwrap();
+        let exports: i64 = db
+            .query_row("SELECT COUNT(*) FROM exports", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(exports, 0);
+    }
+    #[test]
+    fn device_motion_export_is_revision_bound_durable_and_preserves_master() {
+        let f = fixture();
+        let incoming = f.import(
+            br#"{"actions":[{"at":0,"pos":20},{"at":1000,"pos":80}]}"#,
+            0,
+        );
+        f.call(
+            Command::CommitCandidate {
+                candidate_id: incoming.candidate_id,
+            },
+            Some(0),
+        )
+        .unwrap();
+        let path = f.dir.path().join("adapted.json");
+        let request = f.request(
+            Command::ExportDeviceMotion {
+                path: path.clone(),
+                profile: dynamics_profile(),
+            },
+            Some(1),
+        );
+        let receipt = f.engine.handle(request.clone()).result.unwrap();
+        let (gain, profile_hash, master_hash) = match &receipt {
+            ResponseBody::DeviceMotionExported {
+                revision,
+                gain,
+                profile_sha256,
+                master_sha256,
+                ..
+            } => {
+                assert_eq!(*revision, RevisionId::new(1));
+                (*gain, profile_sha256.clone(), master_sha256.clone())
+            }
+            _ => panic!(),
+        };
+        assert!(gain < 1.0);
+        let raw = fs::read(&path).unwrap();
+        let value: serde_json::Value = serde_json::from_slice(&raw).unwrap();
+        assert_eq!(value["admitted"], false);
+        assert_eq!(value["profile_sha256"], profile_hash);
+        assert_eq!(value["master_sha256"], master_hash);
+        assert_eq!(
+            value["motion"]["tracks"][0]["actions"][1]["time"],
+            1_000_000_000_i64
+        );
+        let snapshot = match f.call(Command::GetSnapshot, None).unwrap() {
+            ResponseBody::Project(p) => p,
+            _ => panic!(),
+        };
+        assert_eq!(snapshot.revision, RevisionId::new(1));
+        assert_eq!(snapshot.motion.program.sha256, master_hash);
+        let f = reopen_fixture(f);
+        assert_eq!(
+            encode(&f.engine.handle(request).result.unwrap()).unwrap(),
+            encode(&receipt).unwrap()
+        );
+        assert_eq!(fs::read(&path).unwrap(), raw);
+    }
+    #[test]
+    fn device_motion_export_rejects_stale_invalid_and_revoked_requests_without_effects() {
+        let f = fixture();
+        let incoming = f.import(
+            br#"{"actions":[{"at":0,"pos":20},{"at":1000,"pos":80}]}"#,
+            0,
+        );
+        f.call(
+            Command::CommitCandidate {
+                candidate_id: incoming.candidate_id,
+            },
+            Some(0),
+        )
+        .unwrap();
+        let path = f.dir.path().join("adapted.json");
+        let command = Command::ExportDeviceMotion {
+            path: path.clone(),
+            profile: dynamics_profile(),
+        };
+        assert_eq!(
+            f.call(command.clone(), None).unwrap_err().code,
+            ErrorCode::InvalidRequest
+        );
+        assert_eq!(
+            f.call(command.clone(), Some(0)).unwrap_err().code,
+            ErrorCode::RevisionConflict
+        );
+        assert!(!path.exists());
+        let mut profile = dynamics_profile();
+        profile.minimum_gain = 1.0;
+        assert!(f
+            .call(
+                Command::ExportDeviceMotion {
+                    path: path.clone(),
+                    profile
+                },
+                Some(1)
+            )
+            .is_err());
+        assert!(!path.exists());
+        let request = f.request(command, Some(1));
+        f.engine.handle(request.clone()).result.unwrap();
+        f.call(
+            Command::Revoke {
+                session: f.session.clone(),
+                project_id: f.project.clone(),
+            },
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            f.engine.handle(request).result.unwrap_err().code,
+            ErrorCode::Forbidden
+        );
+    }
     // Stage only a proposal; the public command still checks all authority and revision rules.
     fn commit_program(f: &Fixture, revision: u64, program: MotionProgram) -> Command {
         let candidate_id = id!(CandidateId);
@@ -490,6 +944,7 @@ mod tests {
         let diagnostic = f.request(
             Command::Diagnostics {
                 candidate_id: Some(candidate.candidate_id.clone()),
+                maximum_speed_percent_per_second: None,
             },
             None,
         );
@@ -552,6 +1007,94 @@ mod tests {
                 .code,
             ErrorCode::Forbidden
         );
+    }
+
+    #[test]
+    fn repair_import_sanitizes_explicitly_and_retains_raw_identity_and_replay() {
+        let f = fixture();
+        let path = f.dir.path().join("repair.funscript");
+        let raw=br#"{"actions":[{"at":40,"pos":150},{"at":0,"pos":-5},{"at":20,"pos":2},{"at":10,"pos":1},{"at":20,"pos":100},{"at":100,"pos":50}]}"#;
+        fs::write(&path, raw).unwrap();
+        assert!(f
+            .call(Command::ImportFunscript { path: path.clone() }, Some(0))
+            .is_err());
+        let request = f.request(
+            Command::ImportFunscriptForRepair { path: path.clone() },
+            Some(0),
+        );
+        let response = f.engine.handle(request.clone()).result.unwrap();
+        let ResponseBody::Candidate(candidate) = &response else {
+            panic!()
+        };
+        let program = f
+            .engine
+            .motion_store
+            .read(&candidate.motion.program)
+            .unwrap();
+        let actions = program.track(Axis::Stroke).unwrap().actions();
+        assert_eq!(actions.len(), 5);
+        for (action, (t, p)) in
+            actions
+                .iter()
+                .zip([(0, 0.0), (10, 1.0), (20, 100.0), (40, 100.0), (100, 50.0)])
+        {
+            assert_eq!(action.time().as_nanos(), t * 1_000_000);
+            assert_eq!(action.position().value(), p / 100.0);
+        }
+        assert_eq!(
+            candidate.review[0].reason.as_str(),
+            "imported_motion_sanitized"
+        );
+        assert_eq!(fs::read(&path).unwrap(), raw);
+        let hash = format!("{:x}", Sha256::digest(raw));
+        let db = f.engine.db.lock().unwrap();
+        let saved: String = db
+            .query_row(
+                "SELECT sha256 FROM sources WHERE project=?1",
+                [f.project.as_str()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(saved, hash);
+        drop(db);
+        fs::write(&path, b"changed external input").unwrap();
+        assert_eq!(
+            encode(&response).unwrap(),
+            encode(&f.engine.handle(request).result.unwrap()).unwrap()
+        );
+    }
+
+    #[test]
+    fn repair_import_requires_current_revision_and_refuses_invalid_clocks() {
+        let f = fixture();
+        let path = f.dir.path().join("repair-refusal.funscript");
+        fs::write(&path, br#"{"actions":[{"at":0,"pos":20}]}"#).unwrap();
+        assert!(f
+            .call(
+                Command::ImportFunscriptForRepair { path: path.clone() },
+                None
+            )
+            .is_err());
+        assert!(f
+            .call(
+                Command::ImportFunscriptForRepair { path: path.clone() },
+                Some(99)
+            )
+            .is_err());
+        for raw in [
+            br#"{"actions":[]}"#.as_slice(),
+            br#"{"actions":[{"at":-1,"pos":0}]}"#.as_slice(),
+            br#"{"actions":[{"at":18446744073709551615,"pos":0}]}"#.as_slice(),
+            b"not-json".as_slice(),
+        ] {
+            fs::write(&path, raw).unwrap();
+            assert!(f
+                .call(
+                    Command::ImportFunscriptForRepair { path: path.clone() },
+                    Some(0)
+                )
+                .is_err());
+        }
     }
     #[test]
     fn selective_merge_preserves_protection_and_supports_undo_redo() {
@@ -798,9 +1341,156 @@ mod tests {
         assert!(neutral_export_axis(&program, Axis::Roll).is_err());
     }
 
+    #[test]
+    fn segment_speed_query_preserves_motion_protection_history_and_gap_uncertainty() {
+        let f = fixture();
+        let track = MotionTrack::with_gaps(
+            Axis::Stroke,
+            vec![
+                MotionAction::new(
+                    ProjectTime::ZERO,
+                    NormalizedPosition::new(0.0).unwrap(),
+                    EvidenceKind::Observed,
+                )
+                .unwrap(),
+                MotionAction::new(
+                    ProjectTime::from_nanos(100_000_000),
+                    NormalizedPosition::new(1.0).unwrap(),
+                    EvidenceKind::Observed,
+                )
+                .unwrap(),
+                MotionAction::new(
+                    ProjectTime::from_nanos(200_000_000),
+                    NormalizedPosition::new(0.0).unwrap(),
+                    EvidenceKind::Observed,
+                )
+                .unwrap(),
+            ],
+            vec![TimeRange::new(
+                ProjectTime::from_nanos(150_000_000),
+                ProjectTime::from_nanos(180_000_000),
+            )
+            .unwrap()],
+        )
+        .unwrap();
+        let program = MotionProgram::new(vec![track]).unwrap();
+        let commit = commit_program(&f, 0, program.clone());
+        let Command::CommitCandidate { candidate_id } = &commit else {
+            panic!()
+        };
+        let query = |candidate, limit| {
+            f.call(
+                Command::Diagnostics {
+                    candidate_id: candidate,
+                    maximum_speed_percent_per_second: limit,
+                },
+                None,
+            )
+            .unwrap()
+        };
+        let ResponseBody::Diagnostics(candidate) = query(Some(candidate_id.clone()), Some(450.0))
+        else {
+            panic!()
+        };
+        assert_eq!(candidate.revision.value(), 0);
+        assert_eq!(candidate.segment_speed.unwrap().violations.len(), 1);
+        f.call(commit, Some(0)).unwrap();
+        let region = ProtectedRegion {
+            axis: Some(Axis::Stroke),
+            range: TimeRange::new(ProjectTime::ZERO, ProjectTime::from_nanos(100_000_000)).unwrap(),
+        };
+        f.call(
+            Command::SetProtectedRegions {
+                regions: vec![region],
+            },
+            Some(1),
+        )
+        .unwrap();
+        let before = f
+            .call(
+                Command::OpenProject {
+                    project_id: f.project.clone(),
+                },
+                None,
+            )
+            .unwrap();
+        let review = f.call(Command::ReviewStatus, None).unwrap();
+        for _ in 0..3 {
+            let ResponseBody::Diagnostics(report) = query(None, Some(450.0)) else {
+                panic!()
+            };
+            report.validate().unwrap();
+            let scan = report.segment_speed.unwrap();
+            assert_eq!(scan.scanned_segments, 2);
+            assert_eq!(scan.unavailable_segments, 1);
+            assert_eq!(scan.violations[0].average_percent_per_second, 1000.0);
+            assert_eq!(report.protected_regions.len(), 1);
+        }
+        let ResponseBody::Diagnostics(report) = query(None, Some(1000.0)) else {
+            panic!()
+        };
+        assert!(report.segment_speed.unwrap().violations.is_empty());
+        let ResponseBody::Diagnostics(report) = query(None, None) else {
+            panic!()
+        };
+        assert!(report.segment_speed.is_none());
+        assert_eq!(
+            encode(&before).unwrap(),
+            encode(
+                &f.call(
+                    Command::OpenProject {
+                        project_id: f.project.clone()
+                    },
+                    None
+                )
+                .unwrap()
+            )
+            .unwrap()
+        );
+        assert_eq!(
+            encode(&review).unwrap(),
+            encode(&f.call(Command::ReviewStatus, None).unwrap()).unwrap()
+        );
+        let f = reopen_fixture(f);
+        let ResponseBody::Diagnostics(report) = f
+            .call(
+                Command::Diagnostics {
+                    candidate_id: None,
+                    maximum_speed_percent_per_second: Some(450.0),
+                },
+                None,
+            )
+            .unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(report.segment_speed.unwrap().unavailable_segments, 1);
+        f.call(Command::Undo, Some(report.revision.value()))
+            .unwrap();
+        let ResponseBody::Diagnostics(report) = f
+            .call(
+                Command::Diagnostics {
+                    candidate_id: None,
+                    maximum_speed_percent_per_second: Some(450.0),
+                },
+                None,
+            )
+            .unwrap()
+        else {
+            panic!()
+        };
+        assert!(report.protected_regions.is_empty());
+    }
+
     fn project_review_issues(f: &Fixture) -> Vec<DiagnosticIssue> {
         match f
-            .call(Command::Diagnostics { candidate_id: None }, None)
+            .call(
+                Command::Diagnostics {
+                    candidate_id: None,
+                    maximum_speed_percent_per_second: None,
+                },
+                None,
+            )
             .unwrap()
         {
             ResponseBody::Diagnostics(report) => report.issues,
@@ -815,8 +1505,7 @@ mod tests {
             project,
             dir,
         } = f;
-        let config = engine.config.clone();
-        drop(engine);
+        let config = Engine::retire_for_test(engine);
         let engine = Engine::open(config).unwrap();
         Fixture {
             engine,
@@ -825,6 +1514,38 @@ mod tests {
             project,
             dir,
         }
+    }
+    #[test]
+    fn fixture_reopen_waits_for_a_retained_engine_owner() {
+        let f = fixture();
+        // Match a maintenance task retaining a strong owner after the caller drops it.
+        let retained = f.engine.clone();
+        let owner = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            drop(retained);
+        });
+        let reopened = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| reopen_fixture(f)));
+        owner.join().unwrap();
+        assert!(
+            reopened.is_ok(),
+            "fixture reopened before retained Engine owner retired"
+        );
+    }
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn fixture_reopen_waits_for_independent_worker_fence_custody() {
+        let f = fixture();
+        let retained = f.engine.worker_fence.clone();
+        let owner = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(300));
+            drop(retained);
+        });
+        let reopened = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| reopen_fixture(f)));
+        owner.join().unwrap();
+        assert!(
+            reopened.is_ok(),
+            "fixture reopened before independent fence custody retired"
+        );
     }
     #[test]
     fn committed_reviews_and_explicit_history_edges_survive_restart_and_replay() {
@@ -873,6 +1594,341 @@ mod tests {
             project_snapshot(&db, &f.project).unwrap().revision.value(),
             4
         );
+    }
+    fn review_status(f: &Fixture) -> ReviewStatus {
+        match f.call(Command::ReviewStatus, None).unwrap() {
+            ResponseBody::ReviewStatus(r) => r,
+            _ => panic!("review status"),
+        }
+    }
+    #[test]
+    fn review_decisions_retain_evidence_actor_motion_protection_history_and_replay() {
+        let f = fixture();
+        let candidate = f.import(
+            br#"{"actions":[{"at":0,"pos":20},{"at":1000,"pos":80}]}"#,
+            0,
+        );
+        f.call(
+            Command::CommitCandidate {
+                candidate_id: candidate.candidate_id.clone(),
+            },
+            Some(0),
+        )
+        .unwrap();
+        let initial = review_status(&f);
+        let entry = initial
+            .entries
+            .iter()
+            .find(|e| e.flag.reason.as_str() == "imported_motion")
+            .unwrap();
+        let snapshot = project_snapshot(&f.engine.db.lock().unwrap(), &f.project).unwrap();
+        let request = f.request(
+            Command::SetReviewDisposition {
+                review_id: entry.review_id.clone(),
+                disposition: ReviewDisposition::Resolved,
+                note: "Fixture declaration only; interval reviewed".into(),
+            },
+            Some(1),
+        );
+        let resolved = f.engine.handle(request.clone()).result.unwrap();
+        let r = review_status(&f);
+        assert_eq!(r.entries.len(), initial.entries.len());
+        let decision = r
+            .entries
+            .iter()
+            .find(|e| e.review_id == entry.review_id)
+            .unwrap()
+            .decision
+            .as_ref()
+            .unwrap();
+        assert_eq!(
+            decision.actor.as_str(),
+            actor(&f.engine.db.lock().unwrap(), &f.session).unwrap()
+        );
+        assert_eq!(decision.recorded_revision.value(), 2);
+        assert!(!project_review_issues(&f)
+            .iter()
+            .any(|i| i.code == "imported_motion"));
+        let changed = project_snapshot(&f.engine.db.lock().unwrap(), &f.project).unwrap();
+        assert_eq!(
+            encode(&snapshot.motion.program).unwrap(),
+            encode(&changed.motion.program).unwrap()
+        );
+        let db = f.engine.db.lock().unwrap();
+        let protected: String = db
+            .query_row(
+                "SELECT protected FROM projects WHERE id=?1",
+                [f.project.as_str()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(protected, "[]");
+        drop(db);
+        assert_eq!(
+            encode(&f.engine.handle(request.clone()).result.unwrap()).unwrap(),
+            encode(&resolved).unwrap()
+        );
+        assert_eq!(review_status(&f).revision.value(), 2);
+        f.call(Command::Undo, Some(2)).unwrap();
+        assert!(project_review_issues(&f)
+            .iter()
+            .any(|i| i.code == "imported_motion"));
+        f.call(Command::Redo, Some(3)).unwrap();
+        assert!(!project_review_issues(&f)
+            .iter()
+            .any(|i| i.code == "imported_motion"));
+        f.call(Command::SetProtectedRegions { regions: vec![] }, Some(4))
+            .unwrap();
+        assert_eq!(
+            review_status(&f)
+                .entries
+                .iter()
+                .filter(|e| e.decision.is_some())
+                .count(),
+            1
+        );
+        let f = reopen_fixture(f);
+        assert!(!project_review_issues(&f)
+            .iter()
+            .any(|i| i.code == "imported_motion"));
+        assert_eq!(
+            encode(&f.engine.handle(request).result.unwrap()).unwrap(),
+            encode(&resolved).unwrap()
+        );
+        f.call(
+            Command::SetReviewDisposition {
+                review_id: entry.review_id.clone(),
+                disposition: ReviewDisposition::Reopened,
+                note: "Fixture reopened after review".into(),
+            },
+            Some(5),
+        )
+        .unwrap();
+        assert!(project_review_issues(&f)
+            .iter()
+            .any(|i| i.code == "imported_motion"));
+        let db = f.engine.db.lock().unwrap();
+        let old = lineage::state(&db, &f.project, RevisionId::new(2)).unwrap();
+        assert_eq!(old.flags.len(), initial.entries.len());
+        assert_eq!(old.decisions[0].disposition, ReviewDisposition::Resolved);
+    }
+    #[test]
+    fn review_decisions_require_edit_scope_exact_revision_and_present_evidence() {
+        let f = fixture();
+        let candidate = f.import(
+            br#"{"actions":[{"at":0,"pos":20},{"at":1000,"pos":80}]}"#,
+            0,
+        );
+        f.call(
+            Command::CommitCandidate {
+                candidate_id: candidate.candidate_id,
+            },
+            Some(0),
+        )
+        .unwrap();
+        let id = review_status(&f).entries[0].review_id.clone();
+        let intent = Command::SetReviewDisposition {
+            review_id: id.clone(),
+            disposition: ReviewDisposition::Resolved,
+            note: "Fixture only".into(),
+        };
+        assert_eq!(
+            f.call(intent.clone(), Some(0)).unwrap_err().code,
+            ErrorCode::RevisionConflict
+        );
+        assert_eq!(
+            f.call(
+                Command::SetReviewDisposition {
+                    review_id: "f".repeat(64),
+                    disposition: ReviewDisposition::Resolved,
+                    note: "Absent evidence".into()
+                },
+                Some(1)
+            )
+            .unwrap_err()
+            .code,
+            ErrorCode::NotFound
+        );
+        {
+            let db = f.engine.db.lock().unwrap();
+            db.execute(
+                "DELETE FROM grants WHERE session=?1 AND project=?2 AND scope=?3",
+                params![
+                    f.session.as_str(),
+                    f.project.as_str(),
+                    scope_name(Scope::Edit)
+                ],
+            )
+            .unwrap();
+        }
+        assert_eq!(
+            f.call(intent, Some(1)).unwrap_err().code,
+            ErrorCode::Forbidden
+        );
+        assert_eq!(review_status(&f).revision.value(), 1);
+        assert!(review_status(&f)
+            .entries
+            .iter()
+            .all(|e| e.decision.is_none()));
+    }
+    #[test]
+    fn regenerated_and_rebased_candidates_do_not_inherit_review_acceptance() {
+        let f = fixture();
+        let candidate = f.import(
+            br#"{"actions":[{"at":0,"pos":20},{"at":1000,"pos":80}]}"#,
+            0,
+        );
+        f.call(
+            Command::CommitCandidate {
+                candidate_id: candidate.candidate_id.clone(),
+            },
+            Some(0),
+        )
+        .unwrap();
+        let id = review_status(&f).entries[0].review_id.clone();
+        f.call(
+            Command::SetReviewDisposition {
+                review_id: id,
+                disposition: ReviewDisposition::Resolved,
+                note: "Fixture only".into(),
+            },
+            Some(1),
+        )
+        .unwrap();
+        let rebase = f
+            .call(
+                Command::RebaseCandidate {
+                    candidate_id: candidate.candidate_id,
+                },
+                Some(2),
+            )
+            .unwrap();
+        let ResponseBody::Candidate(rebased) = rebase else {
+            panic!("candidate")
+        };
+        f.call(
+            Command::CommitCandidate {
+                candidate_id: rebased.candidate_id,
+            },
+            Some(2),
+        )
+        .unwrap();
+        assert!(review_status(&f)
+            .entries
+            .iter()
+            .all(|e| e.decision.is_none()));
+        assert!(project_review_issues(&f)
+            .iter()
+            .any(|i| i.code == "imported_motion"));
+    }
+    #[test]
+    fn review_acceptance_does_not_fill_gaps_or_bypass_protection_and_alignment_changes_reopen() {
+        let f = fixture();
+        let range = TimeRange::new(ProjectTime::ZERO, ProjectTime::from_nanos(100)).unwrap();
+        let program = MotionProgram::new(vec![MotionTrack::with_gaps(
+            Axis::Stroke,
+            vec![],
+            vec![range],
+        )
+        .unwrap()])
+        .unwrap();
+        let proposal = commit_program(&f, 0, program);
+        let Command::CommitCandidate { candidate_id } = &proposal else {
+            panic!("candidate")
+        };
+        let flag = ReviewFlag {
+            axis: Some(Axis::Stroke),
+            range,
+            reason: ReviewReason::new("missing_support_fixture").unwrap(),
+            evidence: EvidenceKind::Unavailable,
+            confidence: None,
+        };
+        f.engine
+            .db
+            .lock()
+            .unwrap()
+            .execute(
+                "UPDATE candidates SET review=?2 WHERE id=?1",
+                params![candidate_id.as_str(), encode(&vec![flag.clone()]).unwrap()],
+            )
+            .unwrap();
+        f.call(proposal, Some(0)).unwrap();
+        let protected = vec![ProtectedRegion {
+            axis: Some(Axis::Stroke),
+            range,
+        }];
+        f.call(
+            Command::SetProtectedRegions {
+                regions: protected.clone(),
+            },
+            Some(1),
+        )
+        .unwrap();
+        f.call(
+            Command::SetReviewDisposition {
+                review_id: review_identity(&flag).unwrap(),
+                disposition: ReviewDisposition::Resolved,
+                note: "Fixture gap warning reviewed; evidence still unavailable".into(),
+            },
+            Some(2),
+        )
+        .unwrap();
+        let db = f.engine.db.lock().unwrap();
+        let state = project_state(&db, &f.project).unwrap();
+        assert_eq!(state.program.track(Axis::Stroke).unwrap().gaps(), &[range]);
+        let raw: String = db
+            .query_row(
+                "SELECT protected FROM projects WHERE id=?1",
+                [f.project.as_str()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(raw, encode(&protected).unwrap());
+        drop(db);
+        let output = f.dir.path().join("must-not-export.funscript");
+        assert!(f
+            .call(
+                Command::ExportAxis {
+                    path: output.clone(),
+                    axis: Axis::Stroke
+                },
+                Some(3)
+            )
+            .is_err());
+        assert!(!output.exists());
+        assert!(project_review_issues(&f)
+            .iter()
+            .any(|i| i.code == "unresolved_gap"));
+        let media = f.dir.path().join("nonexecuted-media.fixture");
+        fs::write(&media, b"synthetic source; no decode performed").unwrap();
+        let ResponseBody::Source { source_version } =
+            f.call(Command::ImportSource { path: media }, None).unwrap()
+        else {
+            panic!("source")
+        };
+        let spec = SourcePlacementSpec {
+            source_version,
+            source_start: SourceTimestamp::new(0, 1).unwrap(),
+            source_end: SourceTimestamp::new(1, 1).unwrap(),
+            source_anchor: SourceTimestamp::new(0, 1).unwrap(),
+            project_anchor: ProjectTime::ZERO,
+            rate_numerator: 1,
+            rate_denominator: 1,
+        };
+        f.call(
+            Command::SetSourcePlacement {
+                spec,
+                replace: None,
+            },
+            Some(3),
+        )
+        .unwrap();
+        let status = review_status(&f);
+        assert!(status.entries.iter().all(|e| e.decision.is_none()));
+        assert!(status
+            .entries
+            .iter()
+            .any(|e| e.flag.reason.as_str() == "source_alignment_changed_motion_not_retimed"));
     }
     #[test]
     fn partial_merge_review_excludes_protected_and_omitted_axes() {
@@ -1084,6 +2140,8 @@ mod tests {
         let source = project.sources[0].source_version.clone();
         let result = f.call(
             Command::PreviewFrame {
+                time_basis: PreviewTimeBasis::SourcePts,
+                video_view: None,
                 context: FrameContext {
                     source_version: source,
                     source_placement: SourcePlacementId::new("source").unwrap(),
@@ -1095,6 +2153,7 @@ mod tests {
                 source_time: SourceTimestamp::new(0, 1).unwrap(),
                 model_path: None,
                 model_input: None,
+                inference_profile: None,
             },
             None,
         );
@@ -1246,6 +2305,8 @@ mod tests {
             path: source.path.clone(),
         };
         let manifest = WorkerRequest {
+            cuda_execution: None,
+            independent_audio: None,
             version: PROTOCOL_VERSION,
             job_id: job.clone(),
             attempt_id: attempt.clone(),

@@ -1,0 +1,17 @@
+# ADR B3-053: Owned CUDA mounts for a live stream
+
+Status: Implemented and verified for owned mount inspection. GPU live execution remains disabled.
+
+The private live contract must reach a confined native process without inventing an offline job. Introduce a separate `LiveCudaMountWitness` containing the exact live manifest and hash, inherited absolute monotonic deadline, pinned native alias metadata, device nodes and kernel module states. It is not deserializable as an offline `CudaMountWitness`, and ordinary CPU live validation continues to refuse CUDA.
+
+Share physical pinning, alias/device/module correspondence and fresh mounted-byte verification with the existing offline mount path. Preserve the offline witness serialization and profile admission. The live mount constructor installs the supervised image and pinned devices into existing admitted worker custody before fallible validation or command construction. It retains native/module descriptors in the same asset owner, so failed setup and blocked transport/staging cleanup cannot release resources early.
+
+The new `cuda-live-mount-check` role is read/hash-only. It requires confinement, erases inherited descriptors, checks the manifest/mounted-byte correspondence and enforces the original deadline without renewing it. It loads no native supplier code, performs no GPU device IO and grants no fresh GPU memory admission, stream readiness or motion authority. Inspection does not mount a model or media source.
+
+Two metadata tests cover altered manifest, aliases, device/module tables, expired/excessive deadlines, unknown fields and separate contracts. Actual namespace tests cover seven live cases: replaced alias pathname, corrupt backing bytes, failed spawn, invalid declaration, blocked staging cleanup, altered manifest hash and expired deadline. The existing five offline custody cases are rerun after extracting the shared checks. Both suites verify resource/image/group/fence ownership through retirement. An unconfined direct role must refuse before input. Raw logs and exact sources are retained in the [packet](../../docs/evidence/roadmap-2026-10-07/live-cuda-mounts/).
+
+The first focused run refused the authored CUDA fixture because it retained CPU profile version 1. The corrected fixture explicitly declares CUDA profile version 2; the failed source/log are retained. This is test-fixture evidence, not a runtime model failure.
+
+Activation still requires live-specific native memory observation and interactive reservation, verified sealed loader transition, actual persistent inference, parent/worker transcript correspondence, bounded original final receipt/trace verification and retained custody through exact retirement. The required fastest-preset live six-axis capability and measured latency remain separate completion requirements. No model/media, physical Handy, platform or human/release qualification follows from mount checks.
+
+The [terminal checkpoint](../../docs/evidence/roadmap-2026-10-07/live-cuda-mounts/checkpoint.json) records 984 workspace passes (52 ignored), 516 CUDA-feature passes (49 ignored), both explicit native custody suites, five shipped CPU application cases without skips and 252 structural checks. All 339 live/archive source records and 64 executable identities match. Native checks use authored library bytes and real pinned device/module mounts, with no native supplier loading or GPU IO.

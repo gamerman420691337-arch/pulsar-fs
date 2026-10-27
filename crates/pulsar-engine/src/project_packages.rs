@@ -154,6 +154,7 @@ fn review(raw: &str) -> PResult<PackageReviewState> {
     let state: lineage::ReviewState = decode(raw)?;
     validate_reviews(&state.flags)?;
     Ok(PackageReviewState {
+        decisions: state.decisions,
         flags: state.flags,
         unknown: state.unknown,
         conservative: state.conservative,
@@ -301,6 +302,107 @@ struct WorkerReceiptEnvelope {
     dependencies: Vec<ArtifactIdentity>,
 }
 
+/// Re-exported ancestors have inert worker manifests without local attempts.
+/// Check the final object closure as well as the live history snapshot, before
+/// returning a publication plan. Only bounded typed declaration bytes are read.
+fn cpu_mode_bytes(object: &CapturedObject, limit: u64) -> PResult<Vec<u8>> {
+    if object.descriptor.byte_len == 0 || object.descriptor.byte_len > limit {
+        return Err(ProtocolError::new(
+            ErrorCode::ResourceExhausted,
+            "portable mode declaration exceeds byte admission",
+        ));
+    }
+    let mut bytes = Vec::new();
+    open_object(object)?
+        .take(limit + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| missing(&object.descriptor, "mode declaration read failed"))?;
+    if bytes.len() as u64 != object.descriptor.byte_len
+        || format!("{:x}", Sha256::digest(&bytes)) != object.descriptor.sha256
+    {
+        return Err(missing(
+            &object.descriptor,
+            "mode declaration identity changed",
+        ));
+    }
+    Ok(bytes)
+}
+fn check_cpu_origin_objects(
+    manifest: &PortableProjectManifest,
+    objects: &BTreeMap<String, CapturedObject>,
+) -> PResult<()> {
+    for origin in &manifest.generated_origins {
+        let object = objects
+            .get(&origin.manifest.sha256)
+            .filter(|object| {
+                object.descriptor.byte_len == origin.manifest.byte_len
+                    && object
+                        .descriptor
+                        .roles
+                        .contains(&PackageObjectRole::WorkerManifest)
+            })
+            .ok_or_else(|| ProtocolError::invalid("portable CPU origin worker object absent"))?;
+        let request: WorkerRequest = serde_json::from_slice(&cpu_mode_bytes(object, 1024 * 1024)?)
+            .map_err(|_| ProtocolError::invalid("invalid portable worker mode declaration"))?;
+        crate::project_package_imports::checked_worker_scope(manifest, origin, &request)?;
+    }
+    Ok(())
+}
+fn require_portable_cpu_objects(
+    manifest: &PortableProjectManifest,
+    objects: &BTreeMap<String, CapturedObject>,
+) -> PResult<()> {
+    let mut index = crate::portable_cpu_archives::CpuArchiveIndex::default();
+    index.observe_manifest(manifest)?;
+    for object in objects.values().filter(|object| {
+        object
+            .descriptor
+            .roles
+            .contains(&PackageObjectRole::ImportedManifest)
+    }) {
+        let ancestor: PortableProjectManifest = serde_json::from_slice(&cpu_mode_bytes(
+            object,
+            MAX_PROJECT_PACKAGE_MANIFEST_BYTES as u64,
+        )?)
+        .map_err(|_| ProtocolError::invalid("invalid portable ancestor mode declaration"))?;
+        index.observe_manifest(&ancestor)?;
+    }
+    // Check every role, including opaque inherited workers that have no local
+    // attempt rows. A CPU tag needs an exact original declaration in this graph.
+    for object in objects.values().filter(|object| {
+        object
+            .descriptor
+            .roles
+            .contains(&PackageObjectRole::WorkerManifest)
+    }) {
+        let request: WorkerRequest = serde_json::from_slice(&cpu_mode_bytes(object, 1024 * 1024)?)
+            .map_err(|_| ProtocolError::invalid("invalid portable worker mode declaration"))?;
+        index.check_worker(
+            &PackageObjectRef {
+                sha256: object.descriptor.sha256.clone(),
+                byte_len: object.descriptor.byte_len,
+            },
+            &request,
+        )?;
+    }
+    index.finish()?;
+    check_cpu_origin_objects(manifest, objects)?;
+    for object in objects.values().filter(|object| {
+        object
+            .descriptor
+            .roles
+            .contains(&PackageObjectRole::ImportedManifest)
+    }) {
+        let ancestor: PortableProjectManifest = serde_json::from_slice(&cpu_mode_bytes(
+            object,
+            MAX_PROJECT_PACKAGE_MANIFEST_BYTES as u64,
+        )?)
+        .map_err(|_| ProtocolError::invalid("invalid portable ancestor mode declaration"))?;
+        check_cpu_origin_objects(&ancestor, objects)?;
+    }
+    Ok(())
+}
+
 fn read_compact(
     path: &Path,
     identity: &ArtifactIdentity,
@@ -333,7 +435,7 @@ fn read_compact(
 
 /// Private capture seam only: no request replay, operation readiness or transfer
 /// authority is created. All record reads share one mutex-protected transaction.
-
+#[cfg(test)]
 pub(super) fn capture(
     engine: &Engine,
     session: &SessionId,
@@ -371,13 +473,28 @@ fn capture_inner(
     };
     let mut retained_holds = None;
     let root = &engine.config.state_dir;
-    let (mut manifest, mut objects, legacy, authored, attempts, imported_archives, imported_aliases) = {
+    let (
+        mut manifest,
+        mut objects,
+        legacy,
+        authored,
+        attempts,
+        imported_archives,
+        imported_aliases,
+        mut cuda_members,
+        wasm_invocations,
+    ) = {
         let mut db = engine.db.lock().map_err(internal)?;
         let tx = db
             .transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)
             .map_err(internal)?;
         authenticate_capture(engine, &tx, session, token, project, expected_revision)?;
+        crate::annotated_generation_db::validate(&tx, &engine.pool).map_err(unavailable)?;
         let mut budget = SnapshotBudget::default();
+        let (cuda_metadata_bytes, cuda_members) =
+            crate::cuda_acceptance::portable_members(&tx, project).map_err(internal)?;
+        budget.bytes = cuda_metadata_bytes;
+        budget.rows = cuda_members.len();
         let mut objects = BTreeMap::new();
         let head: (String, i64, String, i64, String) = tx
             .query_row(
@@ -419,17 +536,20 @@ fn capture_inner(
             "SELECT revision,parent_revision,restored_from_revision,restored_history_position,candidate,operation,contributions,review_state FROM revision_lineage WHERE project=?1 ORDER BY revision",
             project,&mut budget,|r|Ok((r.get::<_,i64>(0)?,r.get::<_,Option<i64>>(1)?,r.get::<_,Option<i64>>(2)?,r.get::<_,Option<i64>>(3)?,
                 r.get::<_,Option<String>>(4)?,r.get::<_,String>(5)?,r.get::<_,String>(6)?,r.get::<_,String>(7)?)))? {
+            let checked_review=review(&state)?;
+            if !project_package_imports::imported_revision(&tx,project,revision(rev)?)? {for d in checked_review.decisions.iter().filter(|d|d.range.is_some()){review_interval_receipts::require(&tx,project,d)?;}}
             revision_lineage.push(PackageRevisionLineage {revision:revision(rev)?,parent_revision:optional_revision(parent)?,
                 restored_from_revision:optional_revision(restored)?,restored_history_position:position.map(unsigned).transpose()?,
                 candidate:candidate.map(CandidateId::new).transpose().map_err(internal)?,operation,
-                contributions:decode(&contributions)?,review:review(&state)?});
+                contributions:decode(&contributions)?,review:checked_review});
         }
         let mut candidates = Vec::new();
+        let mut rebase_parents:BTreeMap<String,CandidateId>=rows(&tx,"SELECT c.id,CASE WHEN typeof(b.parent)='text' AND length(CAST(b.parent AS BLOB)) BETWEEN 1 AND 128 THEN b.parent ELSE '' END FROM candidates c JOIN candidate_rebases b ON b.candidate=c.id WHERE c.project=?1 ORDER BY c.id",project,&mut budget,|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?)))?.into_iter().map(|(id,parent)|Ok((id,CandidateId::new(parent).map_err(internal)?))).collect::<PResult<_>>()?;
         for (id,base,program,job,lineage,committed,flags) in rows(&tx,
             "SELECT id,base_revision,program,job,lineage,committed_revision,review FROM candidates WHERE project=?1 ORDER BY id",
             project,&mut budget,|r|Ok((r.get::<_,String>(0)?,r.get::<_,i64>(1)?,r.get::<_,String>(2)?,r.get::<_,Option<String>>(3)?,
                 r.get::<_,String>(4)?,r.get::<_,Option<i64>>(5)?,r.get::<_,String>(6)?)))? {
-            candidates.push(PackageCandidate {candidate_id:CandidateId::new(id).map_err(internal)?,base_revision:revision(base)?,
+            candidates.push(PackageCandidate {rebased_from:rebase_parents.remove(&id),project_interval:candidate_generation_interval(&tx,&CandidateId::new(id.clone()).map_err(internal)?,project)?,candidate_id:CandidateId::new(id).map_err(internal)?,base_revision:revision(base)?,
                 motion:motion(&tx,root,&program,&mut objects)?,job_origin:job.map(JobId::new).transpose().map_err(internal)?,
                 lineage:decode(&lineage)?,committed_revision:optional_revision(committed)?,review:decode(&flags)?});
         }
@@ -447,7 +567,50 @@ fn capture_inner(
             }
             add_object(&mut objects,object_ref(&identity),PackageObjectRole::SourceSnapshot,ObjectLocation::File(expected_path))?;
             sources.push(PackageSource {source_version:SourceVersionId::new(version).map_err(internal)?,
-                kind:decode(&encode(&kind)?)?,label,identity,pinned,evicted});
+                kind:decode(&encode(&kind)?)?,label,identity,pinned,evicted,stash_associations:vec![]});
+        }
+        // Original association receipts are compact inert provenance. Bound each
+        // SQLite cell before String allocation, then bind every declaration to
+        // its exact same-project source bytes. No remote or host path is opened.
+        for row in rows(&tx,"SELECT version,scene,file,receipt FROM stash_sources WHERE project=?1 ORDER BY version,scene,file",project,&mut budget,|r| {
+            let version=r.get_ref(0)?.as_str()?;let scene=r.get_ref(1)?.as_str()?;let file=r.get_ref(2)?.as_str()?;let receipt=r.get_ref(3)?.as_str()?;
+            Ok((version.len()<=128 && scene.len()<=128 && file.len()<=128 && receipt.len()<=64*1024).then(||(version.to_owned(),scene.to_owned(),file.to_owned(),receipt.to_owned())))
+        })? {
+            let (version,scene,file,raw)=row.ok_or_else(||ProtocolError::new(ErrorCode::ResourceExhausted,"Stash association capture cell exceeds admitted bound"))?;
+            let capture:StashSourceCapture=decode(&raw)?;
+            let source=sources.iter_mut().find(|source|source.source_version.as_str()==version).ok_or_else(||ProtocolError::invalid("Stash association source is absent"))?;
+            if capture.scene_id!=scene || capture.file_id!=file {return Err(ProtocolError::invalid("Stash association row identity differs from receipt"));}
+            let capture_receipt=PackageObjectRef {sha256:format!("{:x}",Sha256::digest(raw.as_bytes())),byte_len:raw.len() as u64};
+            let association=PackageStashAssociation {endpoint:capture.endpoint.clone(),scene_id:scene,file_id:file,server_path:capture.server_path.clone(),capture_receipt:capture_receipt.clone()};
+            association.check_capture(source,&capture)?;
+            if source.stash_associations.len()>=16 {return Err(ProtocolError::new(ErrorCode::ResourceExhausted,"source Stash association limit reached"));}
+            source.stash_associations.push(association);
+            add_object(&mut objects,capture_receipt,PackageObjectRole::DependencyEvidence,ObjectLocation::Inline(Arc::from(raw.into_bytes())))?;
+        }
+        for source in &mut sources {
+            source
+                .stash_associations
+                .sort_by(|a, b| a.capture_receipt.sha256.cmp(&b.capture_receipt.sha256));
+        }
+        let wasm_invocations = wasm_edits::portable_invocations(&tx, project)?;
+        for captured in wasm_invocations.values() {
+            budget.bytes = budget
+                .bytes
+                .checked_add(captured.module.len())
+                .and_then(|n| n.checked_add(captured.input.len()))
+                .and_then(|n| n.checked_add(16 * 1024))
+                .ok_or_else(|| {
+                    ProtocolError::new(
+                        ErrorCode::ResourceExhausted,
+                        "WASM capture metadata overflow",
+                    )
+                })?;
+            if budget.bytes > MAX_CAPTURE_METADATA {
+                return Err(ProtocolError::new(
+                    ErrorCode::ResourceExhausted,
+                    "WASM capture exceeds metadata admission",
+                ));
+            }
         }
         let authored=rows(&tx,
             "SELECT l.candidate,l.receipt,l.review_state,l.authored_count,l.inherited_count FROM edit_candidate_lineage l JOIN candidates c ON c.id=l.candidate WHERE c.project=?1 ORDER BY l.candidate",
@@ -458,6 +621,52 @@ fn capture_inner(
         let attempts=rows(&tx,
             "SELECT a.id,a.job,a.manifest,a.state FROM attempts a JOIN jobs j ON j.id=a.job WHERE j.project=?1 ORDER BY a.job,a.id",
             project,&mut budget,|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,String>(3)?)))?;
+        let mut fallback_tables = Vec::new();
+        for table in [
+            "inference_fallback_jobs",
+            "inference_fallback_attempts",
+            "inference_fallback_pending",
+        ] {
+            if tx
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM main.sqlite_master WHERE name=?1 COLLATE NOCASE)",
+                    [table],
+                    |row| row.get::<_, bool>(0),
+                )
+                .map_err(internal)?
+            {
+                fallback_tables.push(table);
+            }
+        }
+        for (_, _, raw, _) in &attempts {
+            let request: WorkerRequest = decode(raw)?;
+            crate::portable_cpu_archives::require_no_fallback(&request.dependencies)?;
+            for table in &fallback_tables {
+                // Only fixed module-owned names select SQL. Membership is bound
+                // to this actual captured job/attempt, including pending intent.
+                let sql = if *table == "inference_fallback_attempts" {
+                    "SELECT EXISTS(SELECT 1 FROM main.inference_fallback_attempts WHERE job=?1 OR attempt=?2)".to_owned()
+                } else {
+                    format!("SELECT EXISTS(SELECT 1 FROM main.{table} WHERE job=?1)")
+                };
+                let declared = if *table == "inference_fallback_attempts" {
+                    tx.query_row(
+                        &sql,
+                        params![request.job_id.as_str(), request.attempt_id.as_str()],
+                        |row| row.get::<_, bool>(0),
+                    )
+                } else {
+                    tx.query_row(&sql, [request.job_id.as_str()], |row| row.get::<_, bool>(0))
+                }
+                .map_err(internal)?;
+                if declared {
+                    super::inference_fallback_store::retained(&tx, &request)?;
+                    return Err(ProtocolError::unsupported(
+                        "portable inference fallback history is not implemented",
+                    ));
+                }
+            }
+        }
         let mut export_receipts = Vec::new();
         for (rev,axis,hash,state,path) in rows(&tx,
             "SELECT revision,axis,sha256,state,path FROM exports WHERE project=?1 ORDER BY revision,axis,sha256,state,path",
@@ -466,10 +675,66 @@ fn capture_inner(
                 "failed_or_unknown"=>PackageExportState::FailedOrUnknown,_=>return Err(ProtocolError::unsupported("unknown archival export state"))};
             export_receipts.push(PackageExportReceipt {revision:revision(rev)?,axis:decode(&encode(&axis)?)?,sha256:hash,state,archival_path:Some(path)});
         }
-        let imported_archives = rows(&tx, "SELECT manifest FROM project_import_archives WHERE project=?1", project, &mut budget, |row| row.get::<_,String>(0))?;
+        let imported_archives = rows(
+            &tx,
+            "SELECT manifest FROM project_import_archives WHERE project=?1",
+            project,
+            &mut budget,
+            |row| row.get::<_, String>(0),
+        )?;
         let imported_aliases = rows(&tx, "SELECT candidate,imported_candidate FROM project_import_candidate_aliases WHERE project=?1 ORDER BY candidate", project, &mut budget, |row| Ok((row.get::<_,String>(0)?,row.get::<_,String>(1)?)))?;
+        let mut definitions = Vec::new();
+        for (id,source,raw) in rows(&tx,"SELECT id,source,descriptor FROM source_placement_definitions WHERE project=?1 ORDER BY id",project,&mut budget,|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?)))? {
+            let definition:SourcePlacement=decode(&raw)?;
+            if definition.placement_id.as_str()!=id || definition.spec.source_version.as_str()!=source {
+                return Err(ProtocolError::invalid("stored placement identity/source binding mismatch"));
+            }
+            definitions.push(definition);
+        }
+        let placements = if definitions.is_empty() {
+            None
+        } else {
+            let mut placement_revisions = Vec::new();
+            for (rev,raw) in rows(&tx,"SELECT revision,ids FROM source_placement_revisions WHERE project=?1 ORDER BY revision",project,&mut budget,|r|Ok((r.get::<_,i64>(0)?,r.get::<_,String>(1)?)))? {
+                placement_revisions.push(PackageRevisionPlacements{revision:revision(rev)?,placements:decode(&raw)?});
+            }
+            let mut placement_history = Vec::new();
+            for (position,raw) in rows(&tx,"SELECT position,ids FROM source_placement_history WHERE project=?1 ORDER BY position",project,&mut budget,|r|Ok((r.get::<_,i64>(0)?,r.get::<_,String>(1)?)))? {
+                placement_history.push(PackageHistoryPlacements{position:unsigned(position)?,placements:decode(&raw)?});
+            }
+            Some(PackagePlacementClosure {
+                definitions,
+                active: source_placements::snapshot(&tx, project)?
+                    .into_iter()
+                    .map(|d| d.placement_id)
+                    .collect(),
+                revisions: placement_revisions,
+                history: placement_history,
+            })
+        };
+        let mut retiming_receipts = Vec::new();
+        for rev in rows(
+            &tx,
+            "SELECT revision FROM motion_retime_receipts WHERE project=?1 ORDER BY revision",
+            project,
+            &mut budget,
+            |r| r.get::<_, i64>(0),
+        )? {
+            retiming_receipts.push(motion_retime_receipts::load_verified(
+                &tx,
+                project,
+                revision(rev)?,
+                &engine.pool,
+            )?);
+        }
         let manifest = PortableProjectManifest {
-            format_version: 1,
+            retiming_receipts,
+            placements,
+            format_version: if source_placements::has_definitions(&tx, project)? {
+                PROJECT_PACKAGE_FORMAT_VERSION_WITH_PLACEMENTS
+            } else {
+                PROJECT_PACKAGE_FORMAT_VERSION
+            },
             imported_origins: vec![],
             origin_project_id: project.clone(),
             captured_revision: expected_revision,
@@ -510,10 +775,26 @@ fn capture_inner(
             retained_holds = Some(engine.package_holds.acquire(&identities)?);
         }
         tx.commit().map_err(internal)?;
-        (manifest, objects, legacy, authored, attempts, imported_archives, imported_aliases)
+        (
+            manifest,
+            objects,
+            legacy,
+            authored,
+            attempts,
+            imported_archives,
+            imported_aliases,
+            cuda_members,
+            wasm_invocations,
+        )
     };
     drop(gate);
-    let imported_candidates=merge_imported_capture(root,&mut manifest,&mut objects,imported_archives,imported_aliases)?;
+    let imported_candidates = merge_imported_capture(
+        root,
+        &mut manifest,
+        &mut objects,
+        imported_archives,
+        imported_aliases,
+    )?;
     // No external object read or hash occurs while the authority mutex is held.
     // Snapshot/source holds already exist; receipt/input/attempt files have no deletion path.
     for (owner, key, raw) in legacy {
@@ -619,7 +900,26 @@ fn capture_inner(
             PackageObjectRole::EditReceipt,
             ObjectLocation::File(path),
         )?;
+        let wasm_invocation = wasm_invocations
+            .get(&identity.sha256)
+            .map(|captured| -> PResult<_> {
+                add_object(
+                    &mut objects,
+                    object_ref(&captured.metadata.manifest.artifact),
+                    PackageObjectRole::WasmModule,
+                    ObjectLocation::Inline(Arc::from(captured.module.clone())),
+                )?;
+                add_object(
+                    &mut objects,
+                    captured.metadata.input.clone(),
+                    PackageObjectRole::WasmInput,
+                    ObjectLocation::Inline(Arc::from(captured.input.clone())),
+                )?;
+                Ok(captured.metadata.clone())
+            })
+            .transpose()?;
         manifest.authored_lineage.push(PackageAuthoredLineage {
+            wasm_invocation,
             candidate_id,
             receipt: identity,
             input,
@@ -632,6 +932,43 @@ fn capture_inner(
     for (attempt, job, raw, state) in attempts {
         let request: WorkerRequest = decode(&raw)?;
         request.validate()?;
+        let cpu_runtime = crate::cpu_runtime_db::retained(&tx, &request)
+            .map_err(internal)?
+            .map(Box::new);
+        if let Some(image) = &cpu_runtime {
+            budget.bytes = budget
+                .bytes
+                .checked_add(image.identity()?.byte_len as usize)
+                .filter(|bytes| *bytes <= MAX_CAPTURE_METADATA)
+                .ok_or_else(|| {
+                    ProtocolError::new(
+                        ErrorCode::ResourceExhausted,
+                        "CPU archive metadata admission exceeded",
+                    )
+                })?;
+        }
+        crate::portable_cpu_archives::require_no_fallback(&request.dependencies)?;
+        let annotated_model = match &request.operation {
+            WorkerOperation::Generate {
+                settings,
+                model: Some(model),
+                ..
+            } if settings.annotated_view.is_some() => {
+                if model.identity.byte_len == 0 || model.identity.byte_len > 256 * 1024 * 1024 {
+                    return Err(ProtocolError::invalid(
+                        "unsupported annotated portable model size",
+                    ));
+                }
+                add_object(
+                    &mut objects,
+                    object_ref(&model.identity),
+                    PackageObjectRole::AnnotatedModel,
+                    ObjectLocation::File(model.path.clone()),
+                )?;
+                Some(model.identity.clone())
+            }
+            _ => None,
+        };
         let attempt_id = AttemptId::new(attempt).map_err(internal)?;
         let job_id = JobId::new(job).map_err(internal)?;
         if request.project_id != *project
@@ -672,7 +1009,64 @@ fn capture_inner(
                 ),
             ));
         }
+        let image_origin = if let Some((identity, bytes, image)) =
+            assistant_image_origin::retained(root, &request)?
+        {
+            let original = indexes
+                .sources
+                .get(image.source_version.as_str())
+                .ok_or_else(|| {
+                    ProtocolError::invalid("image origin source is absent from package")
+                })?;
+            if original.kind != SourceKind::Media || original.identity != image.source {
+                return Err(ProtocolError::invalid(
+                    "image origin source differs from package catalog",
+                ));
+            }
+            add_object(
+                &mut objects,
+                object_ref(&identity),
+                PackageObjectRole::DependencyEvidence,
+                ObjectLocation::Inline(Arc::from(bytes)),
+            )?;
+            add_object(
+                &mut objects,
+                object_ref(&image.rgb),
+                PackageObjectRole::DependencyEvidence,
+                ObjectLocation::File(root.join("snapshots").join(&image.rgb.sha256)),
+            )?;
+            Some(PackageImageOrigin {
+                record: identity,
+                rgb: image.rgb,
+            })
+        } else {
+            None
+        };
         let mut allowed_dependencies = request.dependencies.clone();
+        if let Some(audio) = &request.independent_audio {
+            let captured = indexes
+                .sources
+                .get(audio.source_version.as_str())
+                .ok_or_else(|| {
+                    ProtocolError::invalid("independent audio absent from captured source catalog")
+                })?;
+            if captured.kind != SourceKind::Media
+                || captured.identity != audio.identity
+                || !objects.get(&audio.identity.sha256).is_some_and(|object| {
+                    object.descriptor.byte_len == audio.identity.byte_len
+                        && object
+                            .descriptor
+                            .roles
+                            .contains(&PackageObjectRole::SourceSnapshot)
+                })
+            {
+                return Err(ProtocolError::new(
+                    ErrorCode::DependencyMismatch,
+                    "independent audio differs from captured source payload",
+                ));
+            }
+            allowed_dependencies.push(audio.identity.clone());
+        }
         allowed_dependencies.push(request.source.identity.clone());
         allowed_dependencies.push(request.tools.ffmpeg.identity.clone());
         allowed_dependencies.push(request.tools.ffprobe.identity.clone());
@@ -697,13 +1091,25 @@ fn capture_inner(
             .get(job_id.as_str())
             .map(Vec::as_slice)
             .unwrap_or(&[]);
+        let cuda = cuda_members.remove(&attempt_id);
+        if cuda.is_some() && (request.cuda_execution.is_none() || state != "completed")
+            || request.cuda_execution.is_some() && state == "completed" && cuda.is_none()
+        {
+            return Err(ProtocolError::invalid(
+                "portable CUDA completion lacks exact accepted membership",
+            ));
+        }
+        let cuda_evidence = cuda.as_ref().map(|(evidence, _)| evidence.clone());
         let mut receipt = None;
         let mut original_program_identity = None;
         if !candidates.is_empty() && state == "completed" {
             for candidate in candidates.iter() {
-                let identity = candidate.lineage.last().ok_or_else(|| {
-                    ProtocolError::invalid("generated candidate receipt identity is absent")
-                })?;
+                let identity = match &cuda_evidence {
+                    Some(cuda) => cuda.general_receipt(&candidate.lineage)?,
+                    None => candidate.lineage.last().ok_or_else(|| {
+                        ProtocolError::invalid("generated candidate receipt identity is absent")
+                    })?,
+                };
                 if receipt.as_ref().is_some_and(|old| old != identity) {
                     return Err(ProtocolError::invalid(
                         "generated candidates disagree on receipt identity",
@@ -718,8 +1124,11 @@ fn capture_inner(
             let raw_receipt = read_compact(&path, identity, PackageObjectRole::WorkerReceipt)?;
             let envelope: WorkerReceiptEnvelope = serde_json::from_slice(&raw_receipt)
                 .map_err(|_| ProtocolError::unsupported("unsupported generated receipt schema"))?;
-            if !matches!(envelope.schema_version, 1 | 2)
-                || envelope.recipe.is_empty()
+            if (if annotated_model.is_some() {
+                envelope.schema_version != 3
+            } else {
+                !matches!(envelope.schema_version, 1 | 2)
+            }) || envelope.recipe.is_empty()
                 || envelope.project_id != *project
                 || envelope.job_id != job_id
                 || envelope.attempt_id != attempt_id
@@ -743,7 +1152,20 @@ fn capture_inner(
                 }
             }
             for candidate in candidates.iter() {
-                if candidate.lineage[..candidate.lineage.len() - 1] != envelope.dependencies {
+                let suffix = if cuda_evidence.is_some() { 3 } else { 1 };
+                if annotated_model.is_some() {
+                    crate::worker::annotated_receipt::verify_file(
+                        &request,
+                        &envelope.program,
+                        &ArtifactReference {
+                            path: path.clone(),
+                            identity: identity.clone(),
+                        },
+                        &candidate.lineage[..candidate.lineage.len() - suffix],
+                        &candidate.review,
+                    )?;
+                }
+                if candidate.lineage[..candidate.lineage.len() - suffix] != envelope.dependencies {
                     return Err(ProtocolError::invalid(
                         "generated receipt dependency list differs from candidate lineage",
                     ));
@@ -790,12 +1212,29 @@ fn capture_inner(
                 ObjectLocation::File(path),
             )?;
         }
+        if let Some((_, artifacts)) = cuda {
+            for (reference, role) in [
+                (&artifacts.receipt, PackageObjectRole::CudaExecutionReceipt),
+                (&artifacts.trace, PackageObjectRole::CudaNodeTrace),
+            ] {
+                add_object(
+                    &mut objects,
+                    object_ref(&reference.identity),
+                    role,
+                    ObjectLocation::File(reference.path.clone()),
+                )?;
+            }
+        }
         let object = inline_object(
             &mut objects,
             raw.into_bytes(),
             PackageObjectRole::WorkerManifest,
         )?;
         manifest.generated_origins.push(PackageGeneratedOrigin {
+            cpu_runtime,
+            image_origin,
+            annotated_model,
+            cuda_evidence,
             job_id,
             attempt_id,
             base_revision: request.base_revision,
@@ -806,10 +1245,19 @@ fn capture_inner(
             state,
         });
     }
+    if !cuda_members.is_empty() {
+        return Err(ProtocolError::invalid(
+            "portable CUDA membership has no captured attempt",
+        ));
+    }
+    crate::project_package_import_plan::require_portable_cpu_manifest(&manifest)?;
+    require_portable_cpu_objects(&manifest, &objects)?;
     // Flat lineage may name executable dependencies without packaging them. Every
     // other declared identity must resolve to an explicitly required payload.
     for candidate in &manifest.candidates {
-        if imported_candidates.contains(candidate.candidate_id.as_str()) { continue; }
+        if imported_candidates.contains(candidate.candidate_id.as_str()) {
+            continue;
+        }
         for identity in &candidate.lineage {
             identity.validate()?;
             if !objects
@@ -838,6 +1286,7 @@ fn capture_inner(
         .values()
         .map(|object| object.descriptor.clone())
         .collect();
+    manifest.format_version = manifest.required_format_version();
     manifest.counts = manifest.record_counts()?;
     manifest.validate()?;
     let total = manifest
@@ -917,6 +1366,142 @@ fn capture_inner(
         _holds: retained_holds,
         _memory: memory,
     })
+}
+
+fn merge_imported_capture(
+    root: &Path,
+    manifest: &mut PortableProjectManifest,
+    objects: &mut BTreeMap<String, CapturedObject>,
+    archives: Vec<String>,
+    aliases: Vec<(String, String)>,
+) -> PResult<BTreeSet<String>> {
+    let mut imported_candidates = BTreeSet::new();
+    for raw in archives {
+        let archived: PortableProjectManifest = decode(&raw)?;
+        archived.validate()?;
+        if archived.origin_project_id != manifest.origin_project_id {
+            return Err(ProtocolError::invalid(
+                "stored imported archive project mismatch",
+            ));
+        }
+        for old in &archived.candidates {
+            if let Some(parent) = &old.rebased_from {
+                let current = manifest
+                    .candidates
+                    .iter_mut()
+                    .find(|c| c.candidate_id == old.candidate_id)
+                    .ok_or_else(|| {
+                        ProtocolError::invalid("retained rebase candidate disappeared")
+                    })?;
+                if current.rebased_from.as_ref().is_some_and(|p| p != parent) {
+                    return Err(ProtocolError::invalid(
+                        "retained rebase correspondence changed",
+                    ));
+                }
+                current.rebased_from = Some(parent.clone());
+            }
+        }
+        manifest.format_version = if manifest.placements.is_some() {
+            PROJECT_PACKAGE_FORMAT_VERSION_WITH_PLACEMENTS
+        } else {
+            PROJECT_PACKAGE_FORMAT_VERSION_WITH_ORIGINS
+        };
+        manifest.imported_origins = archived.imported_origins;
+        manifest.legacy_cells.extend(archived.legacy_cells);
+        manifest.export_receipts.extend(archived.export_receipts);
+        for original in &archived.sources {
+            if original.stash_associations.is_empty() {
+                continue;
+            }
+            let local = manifest
+                .sources
+                .iter_mut()
+                .find(|s| s.source_version == original.source_version)
+                .ok_or_else(|| {
+                    ProtocolError::invalid("archival Stash source absent during re-export")
+                })?;
+            if local.identity != original.identity || local.kind != original.kind {
+                return Err(ProtocolError::invalid(
+                    "archival Stash source identity changed during re-export",
+                ));
+            }
+            for association in &original.stash_associations {
+                if !local.stash_associations.contains(association) {
+                    local.stash_associations.push(association.clone());
+                }
+            }
+            local
+                .stash_associations
+                .sort_by(|a, b| a.capture_receipt.sha256.cmp(&b.capture_receipt.sha256));
+            if local.stash_associations.len() > 16 {
+                return Err(ProtocolError::new(
+                    ErrorCode::ResourceExhausted,
+                    "merged Stash association limit reached",
+                ));
+            }
+        }
+        for origin in &mut manifest.imported_origins {
+            let original: BTreeMap<_, _> = origin
+                .candidates
+                .iter()
+                .map(|map| (map.local.to_string(), map.origin.clone()))
+                .collect();
+            for (candidate, imported) in &aliases {
+                let Some(target) = original.get(imported) else {
+                    continue;
+                };
+                imported_candidates.insert(candidate.clone());
+                if !original.contains_key(candidate) {
+                    origin.candidates.push(PackageCandidateOrigin {
+                        local: CandidateId::new(candidate).map_err(internal)?,
+                        origin: target.clone(),
+                    });
+                }
+            }
+            origin.candidates.sort_by(|a, b| a.local.cmp(&b.local));
+            for object in &origin.objects {
+                let directory = if object.roles.contains(&PackageObjectRole::MotionProgram) {
+                    "motion-objects"
+                } else if object.roles.contains(&PackageObjectRole::SourceSnapshot) {
+                    "snapshots"
+                } else {
+                    "imported-project-evidence"
+                };
+                for role in &object.roles {
+                    add_object(
+                        objects,
+                        PackageObjectRef {
+                            sha256: object.sha256.clone(),
+                            byte_len: object.byte_len,
+                        },
+                        *role,
+                        ObjectLocation::File(root.join(directory).join(&object.sha256)),
+                    )?;
+                }
+            }
+            add_object(
+                objects,
+                origin.manifest.clone(),
+                PackageObjectRole::ImportedManifest,
+                ObjectLocation::File(
+                    root.join("imported-project-evidence")
+                        .join(&origin.manifest.sha256),
+                ),
+            )?;
+        }
+        for cell in &manifest.legacy_cells {
+            add_object(
+                objects,
+                cell.object.clone(),
+                PackageObjectRole::LegacyMotionBytes,
+                ObjectLocation::File(
+                    root.join("imported-project-evidence")
+                        .join(&cell.object.sha256),
+                ),
+            )?;
+        }
+    }
+    Ok(imported_candidates)
 }
 
 #[cfg(test)]
@@ -1016,6 +1601,8 @@ mod capture_review_tests {
                 path: self.engine.config.worker_executable.clone(),
             };
             let manifest = WorkerRequest {
+                cuda_execution: None,
+                independent_audio: None,
                 version: PROTOCOL_VERSION,
                 job_id,
                 attempt_id: attempt_id.clone(),
@@ -1031,7 +1618,7 @@ mod capture_review_tests {
                     .join(attempt_id.as_str()),
                 operation: WorkerOperation::Generate {
                     preset: "fixture".into(),
-                    settings: GenerationSettings::default(),
+                    settings: (GenerationSettings::default()).into(),
                     model: None,
                 },
                 budget: ResourceBudget {
@@ -1064,6 +1651,308 @@ mod capture_review_tests {
             tx.commit().unwrap();
             manifest
         }
+    }
+
+    fn cpu_portable_tag() -> ArtifactIdentity {
+        ArtifactIdentity {
+            artifact_id: ArtifactId::new(format!(
+                "{CPU_RUNTIME_IMAGE_ID_PREFIX}{}",
+                "a".repeat(64)
+            ))
+            .unwrap(),
+            sha256: "a".repeat(64),
+            byte_len: 1,
+        }
+    }
+
+    fn fallback_portable_tag() -> ArtifactIdentity {
+        ArtifactIdentity {
+            artifact_id: ArtifactId::new(format!(
+                "{INFERENCE_FALLBACK_SELECTION_ID_PREFIX}{}",
+                "a".repeat(64)
+            ))
+            .unwrap(),
+            sha256: "a".repeat(64),
+            byte_len: 1,
+        }
+    }
+
+    #[test]
+    fn portable_fallback_selection_refuses_export_import_and_inert_ancestor_objects() {
+        let f = fixture();
+        let source = f.import(b"neutral authored fallback portability fixture; never executed");
+        let mut request = f.failed_origin(source);
+        let plan = f.capture().unwrap();
+        let origin = &plan.manifest.generated_origins[0];
+        super::project_package_imports::checked_worker_scope(&plan.manifest, origin, &request)
+            .unwrap();
+        request.dependencies.push(fallback_portable_tag());
+        for state in ["failed", "cancelled", "completed", "fallback_pending"] {
+            let mut origin = origin.clone();
+            origin.state = state.into();
+            assert_eq!(
+                super::project_package_imports::checked_worker_scope(
+                    &plan.manifest,
+                    &origin,
+                    &request
+                )
+                .unwrap_err()
+                .code,
+                ErrorCode::Unsupported
+            );
+        }
+        let mut objects = BTreeMap::new();
+        inline_object(
+            &mut objects,
+            serde_json::to_vec(&request).unwrap(),
+            PackageObjectRole::WorkerManifest,
+        )
+        .unwrap();
+        assert_eq!(
+            require_portable_cpu_objects(&plan.manifest, &objects)
+                .unwrap_err()
+                .code,
+            ErrorCode::Unsupported
+        );
+        let mut ancestor = plan.manifest.clone();
+        ancestor.candidates.push(PackageCandidate {
+            rebased_from: None,
+            project_interval: None,
+            candidate_id: CandidateId::new("fallback-ancestor-candidate").unwrap(),
+            base_revision: RevisionId::new(0),
+            motion: ancestor.head.motion.clone(),
+            job_origin: None,
+            lineage: vec![fallback_portable_tag()],
+            committed_revision: None,
+            review: vec![],
+        });
+        let mut objects = BTreeMap::new();
+        inline_object(
+            &mut objects,
+            serde_json::to_vec(&ancestor).unwrap(),
+            PackageObjectRole::ImportedManifest,
+        )
+        .unwrap();
+        assert_eq!(
+            require_portable_cpu_objects(&plan.manifest, &objects)
+                .unwrap_err()
+                .code,
+            ErrorCode::Unsupported
+        );
+        assert_eq!(
+            super::project_package_imports::validate_evidence(
+                &ancestor,
+                &f.engine.pool,
+                |_| panic!("fallback mode refusal must precede payload reads"),
+                &mut || Ok(())
+            )
+            .unwrap_err()
+            .code,
+            ErrorCode::Unsupported
+        );
+        drop(plan);
+        let raw = encode(&request).unwrap();
+        {
+            let db = f.engine.db.lock().unwrap();
+            db.execute(
+                "UPDATE attempts SET manifest=?1 WHERE id=?2",
+                params![raw, request.attempt_id.as_str()],
+            )
+            .unwrap();
+            db.execute(
+                "UPDATE jobs SET manifest=?1 WHERE id=?2",
+                params![raw, request.job_id.as_str()],
+            )
+            .unwrap();
+        }
+        assert!(matches!(f.capture(),Err(error) if error.code==ErrorCode::Unsupported));
+    }
+
+    #[test]
+    fn portable_export_refuses_fallback_ledger_rows_after_manifest_tag_is_lost() {
+        for kind in 0..3 {
+            let f = fixture();
+            let source = f.import(b"neutral authored contradictory ledger fixture; never executed");
+            let request = f.failed_origin(source);
+            drop(f.capture().unwrap());
+            {
+                let db = f.engine.db.lock().unwrap();
+                // Deliberately incomplete post-open storage, not a fallback
+                // admission, accepted dossier or actual execution observation.
+                match kind {
+                    0 => {
+                        db.execute_batch("CREATE TABLE inference_fallback_jobs(job TEXT)")
+                            .unwrap();
+                        db.execute(
+                            "INSERT INTO inference_fallback_jobs VALUES(?1)",
+                            [request.job_id.as_str()],
+                        )
+                        .unwrap();
+                    }
+                    1 => {
+                        db.execute_batch(
+                            "CREATE TABLE inference_fallback_attempts(attempt TEXT,job TEXT)",
+                        )
+                        .unwrap();
+                        db.execute(
+                            "INSERT INTO inference_fallback_attempts VALUES(?1,?2)",
+                            params![request.attempt_id.as_str(), request.job_id.as_str()],
+                        )
+                        .unwrap();
+                    }
+                    _ => {
+                        db.execute_batch("CREATE TABLE inference_fallback_pending(job TEXT)")
+                            .unwrap();
+                        db.execute(
+                            "INSERT INTO inference_fallback_pending VALUES(?1)",
+                            [request.job_id.as_str()],
+                        )
+                        .unwrap();
+                    }
+                }
+            }
+            assert!(f.capture().is_err());
+        }
+    }
+
+    #[test]
+    fn portable_export_refuses_closed_cpu_attempt_before_dropping_mode_history() {
+        let f = fixture();
+        let source = f.import(b"neutral authored source; no native execution");
+        let mut request = f.failed_origin(source);
+        drop(f.capture().unwrap());
+        request.dependencies.push(cpu_portable_tag());
+        let raw = encode(&request).unwrap();
+        {
+            let db = f.engine.db.lock().unwrap();
+            db.execute(
+                "UPDATE attempts SET manifest=?1 WHERE id=?2",
+                params![raw, request.attempt_id.as_str()],
+            )
+            .unwrap();
+            db.execute(
+                "UPDATE jobs SET manifest=?1 WHERE id=?2",
+                params![raw, request.job_id.as_str()],
+            )
+            .unwrap();
+        }
+        assert!(matches!(f.capture(),Err(error) if error.code==ErrorCode::Unsupported));
+    }
+
+    #[test]
+    fn portable_export_refuses_retained_cpu_record_even_when_manifest_tag_is_missing() {
+        let f = fixture();
+        let source = f.import(b"neutral authored source; no native execution");
+        let request = f.failed_origin(source);
+        drop(f.capture().unwrap());
+        {
+            let db = f.engine.db.lock().unwrap();
+            // A deliberately corrupt post-open declaration must not be omitted.
+            // This is not a valid CPU image or an execution observation.
+            db.execute_batch("CREATE TABLE cpu_runtime_attempts(attempt TEXT PRIMARY KEY NOT NULL REFERENCES attempts(id),job TEXT NOT NULL REFERENCES jobs(id),manifest_sha256 TEXT NOT NULL,image_sha256 TEXT NOT NULL,image TEXT NOT NULL)").unwrap();
+            db.execute(
+                "INSERT INTO cpu_runtime_attempts VALUES(?1,?2,?3,?3,'{}')",
+                params![
+                    request.attempt_id.as_str(),
+                    request.job_id.as_str(),
+                    "a".repeat(64)
+                ],
+            )
+            .unwrap();
+        }
+        assert!(f.capture().is_err());
+    }
+
+    #[test]
+    fn portable_import_worker_validation_refuses_closed_cpu_mode_in_every_attempt_state() {
+        let f = fixture();
+        let source = f.import(b"neutral authored source; no native execution");
+        let mut request = f.failed_origin(source);
+        let plan = f.capture().unwrap();
+        let origin = &plan.manifest.generated_origins[0];
+        super::project_package_imports::checked_worker_scope(&plan.manifest, origin, &request)
+            .unwrap();
+        request.dependencies.push(cpu_portable_tag());
+        for state in ["failed", "cancelled", "completed"] {
+            let mut origin = origin.clone();
+            origin.state = state.into();
+            assert_eq!(
+                super::project_package_imports::checked_worker_scope(
+                    &plan.manifest,
+                    &origin,
+                    &request
+                )
+                .unwrap_err()
+                .code,
+                ErrorCode::Unsupported
+            );
+        }
+    }
+
+    #[test]
+    fn reexport_scans_inert_worker_objects_and_ancestor_candidate_lineage() {
+        let f = fixture();
+        let source = f.import(b"neutral authored source; no native execution");
+        let mut request = f.failed_origin(source);
+        let plan = f.capture().unwrap();
+        let mut objects = BTreeMap::new();
+        inline_object(
+            &mut objects,
+            serde_json::to_vec(&request).unwrap(),
+            PackageObjectRole::WorkerManifest,
+        )
+        .unwrap();
+        require_portable_cpu_objects(&plan.manifest, &objects).unwrap();
+        request.dependencies.push(cpu_portable_tag());
+        let mut objects = BTreeMap::new();
+        inline_object(
+            &mut objects,
+            serde_json::to_vec(&request).unwrap(),
+            PackageObjectRole::WorkerManifest,
+        )
+        .unwrap();
+        assert_eq!(
+            require_portable_cpu_objects(&plan.manifest, &objects)
+                .unwrap_err()
+                .code,
+            ErrorCode::Unsupported
+        );
+        let mut ancestor = plan.manifest.clone();
+        ancestor.candidates.push(PackageCandidate {
+            rebased_from: None,
+            project_interval: None,
+            candidate_id: CandidateId::new("synthetic-candidate").unwrap(),
+            base_revision: RevisionId::new(0),
+            motion: ancestor.head.motion.clone(),
+            job_origin: None,
+            lineage: vec![cpu_portable_tag()],
+            committed_revision: None,
+            review: vec![],
+        });
+        let mut objects = BTreeMap::new();
+        inline_object(
+            &mut objects,
+            serde_json::to_vec(&ancestor).unwrap(),
+            PackageObjectRole::ImportedManifest,
+        )
+        .unwrap();
+        assert_eq!(
+            require_portable_cpu_objects(&plan.manifest, &objects)
+                .unwrap_err()
+                .code,
+            ErrorCode::Unsupported
+        );
+        assert_eq!(
+            super::project_package_imports::validate_evidence(
+                &ancestor,
+                &f.engine.pool,
+                |_| panic!("CPU mode refusal must precede payload reads"),
+                &mut || Ok(())
+            )
+            .unwrap_err()
+            .code,
+            ErrorCode::Unsupported
+        );
     }
 
     #[test]
@@ -1105,6 +1994,77 @@ mod capture_review_tests {
     }
 
     #[test]
+    fn stash_capture_is_bounded_inert_portable_evidence_bound_to_the_exact_source() {
+        let f = fixture();
+        let source = f.import(b"authored source");
+        let local = f._dir.path().join("source.mp4");
+        let receipt = StashSourceCapture {
+            endpoint: Some("http://localhost:9999/graphql".into()),
+            source_version: source.source_version.clone(),
+            identity: source.identity.clone(),
+            scene_id: "scene".into(),
+            file_id: "file".into(),
+            server_path: "/stash/source.mp4".into(),
+            local_source: local.clone(),
+            script_destination: local.with_extension("funscript"),
+        };
+        let raw = encode(&receipt).unwrap();
+        f.engine
+            .db
+            .lock()
+            .unwrap()
+            .execute(
+                "INSERT INTO stash_sources VALUES(?1,?2,'scene','file',?3)",
+                params![f.project.as_str(), source.source_version.as_str(), raw],
+            )
+            .unwrap();
+        let plan = f.capture().unwrap();
+        assert_eq!(plan.manifest.format_version, 8);
+        assert_eq!(plan.manifest.sources[0].stash_associations.len(), 1);
+        let association = &plan.manifest.sources[0].stash_associations[0];
+        let descriptor = plan
+            .manifest
+            .objects
+            .iter()
+            .find(|o| o.sha256 == association.capture_receipt.sha256)
+            .unwrap();
+        assert!(descriptor
+            .roles
+            .contains(&PackageObjectRole::DependencyEvidence));
+        let mut bytes = vec![];
+        plan.open_object(descriptor)
+            .unwrap()
+            .read_to_end(&mut bytes)
+            .unwrap();
+        assert_eq!(bytes, raw.as_bytes());
+        let mut forged = plan.manifest.clone();
+        forged.sources[0].stash_associations[0].scene_id = "other-scene".into();
+        assert!(super::project_package_imports::validate_evidence(
+            &forged,
+            &f.engine.pool,
+            |reference| {
+                assert_eq!(reference.sha256, association.capture_receipt.sha256);
+                Ok(bytes.clone())
+            },
+            &mut || Ok(())
+        )
+        .is_err());
+        drop(plan);
+        f.engine
+            .db
+            .lock()
+            .unwrap()
+            .execute(
+                "UPDATE stash_sources SET receipt=printf('%.*c',65537,'x')",
+                [],
+            )
+            .unwrap();
+        assert_eq!(
+            f.capture().err().unwrap().code,
+            ErrorCode::ResourceExhausted
+        );
+    }
+    #[test]
     fn primary_source_identity_must_match_the_captured_source_catalog() {
         let f = fixture();
         let source = f.import(b"actual immutable primary source");
@@ -1140,6 +2100,58 @@ mod capture_review_tests {
     }
 
     #[test]
+    fn independent_audio_payload_must_match_captured_catalog_even_when_dependency_is_declared() {
+        let f = fixture();
+        let primary = f.import(b"immutable visual source");
+        let audio = f.import(b"immutable separate audio source");
+        let mut manifest = f.failed_origin(primary);
+        manifest.independent_audio = Some(audio.clone());
+        manifest.dependencies.push(audio.identity.clone());
+        if let WorkerOperation::Generate { settings, .. } = &mut manifest.operation {
+            settings.mixed_audio = Some(MixedAudioSettings {
+                intent: MultimodalIntent::Faithful,
+                mapping: AudioMapping::new(
+                    Axis::Stroke,
+                    0.2,
+                    NormalizedPosition::new(0.4).unwrap(),
+                )
+                .unwrap(),
+                independent: Some(IndependentAudio {
+                    source_version: audio.source_version.clone(),
+                    alignment: AudioAlignment {
+                        rate: None,
+                        video_anchor: SourceTimestamp::new(0, 1).unwrap(),
+                        audio_anchor: SourceTimestamp::new(0, 1).unwrap(),
+                    },
+                }),
+            });
+        }
+        let save = |manifest: &WorkerRequest| {
+            manifest.validate().unwrap();
+            let db = f.engine.db.lock().unwrap();
+            db.execute(
+                "UPDATE attempts SET manifest=?2 WHERE id=?1",
+                params![manifest.attempt_id.as_str(), encode(manifest).unwrap()],
+            )
+            .unwrap();
+            db.execute(
+                "UPDATE jobs SET manifest=?2 WHERE id=?1",
+                params![manifest.job_id.as_str(), encode(manifest).unwrap()],
+            )
+            .unwrap();
+        };
+        save(&manifest);
+        drop(f.capture().unwrap());
+        let captured = manifest.independent_audio.as_mut().unwrap();
+        captured.identity.sha256 = "0".repeat(64);
+        captured.identity.artifact_id = ArtifactId::new("0".repeat(64)).unwrap();
+        manifest.dependencies.retain(|d| d != &audio.identity);
+        manifest.dependencies.push(captured.identity.clone());
+        save(&manifest);
+        assert!(matches!(f.capture(),Err(error) if error.code==ErrorCode::DependencyMismatch));
+    }
+
+    #[test]
     fn capture_indexes_preserve_large_graph_membership_without_reordering_records() {
         let f = fixture();
         let plan = f.capture().unwrap();
@@ -1157,6 +2169,8 @@ mod capture_review_tests {
             .collect();
         let candidates: Vec<_> = (0..10_000)
             .map(|number| PackageCandidate {
+                rebased_from: None,
+                project_interval: None,
                 candidate_id: CandidateId::new(format!("candidate-{number:05}")).unwrap(),
                 base_revision: RevisionId::new(number),
                 motion: motion.clone(),
@@ -1232,49 +2246,4 @@ mod capture_review_tests {
             .iter()
             .any(|object| object.sha256 == digest));
     }
-}
-
-fn merge_imported_capture(
-    root:&Path,manifest:&mut PortableProjectManifest,objects:&mut BTreeMap<String,CapturedObject>,
-    archives:Vec<String>,aliases:Vec<(String,String)>,
-)->PResult<BTreeSet<String>> {
-    let mut imported_candidates=BTreeSet::new();
-    for raw in archives {
-        let archived:PortableProjectManifest=decode(&raw)?;
-        archived.validate()?;
-        if archived.origin_project_id!=manifest.origin_project_id {
-            return Err(ProtocolError::invalid("stored imported archive project mismatch"));
-        }
-        manifest.format_version=PROJECT_PACKAGE_FORMAT_VERSION_WITH_ORIGINS;
-        manifest.imported_origins=archived.imported_origins;
-        manifest.legacy_cells.extend(archived.legacy_cells);
-        manifest.export_receipts.extend(archived.export_receipts);
-        for origin in &mut manifest.imported_origins {
-            let original:BTreeMap<_,_>=origin.candidates.iter().map(|map|(map.local.to_string(),map.origin.clone())).collect();
-            for (candidate,imported) in &aliases {
-                let Some(target)=original.get(imported) else {continue};
-                imported_candidates.insert(candidate.clone());
-                if !original.contains_key(candidate) {
-                    origin.candidates.push(PackageCandidateOrigin{local:CandidateId::new(candidate).map_err(internal)?,origin:target.clone()});
-                }
-            }
-            origin.candidates.sort_by(|a,b|a.local.cmp(&b.local));
-            for object in &origin.objects {
-                let directory=if object.roles.contains(&PackageObjectRole::MotionProgram) {"motion-objects"}
-                    else if object.roles.contains(&PackageObjectRole::SourceSnapshot) {"snapshots"}
-                    else {"imported-project-evidence"};
-                for role in &object.roles {
-                    add_object(objects,PackageObjectRef{sha256:object.sha256.clone(),byte_len:object.byte_len},*role,
-                        ObjectLocation::File(root.join(directory).join(&object.sha256)))?;
-                }
-            }
-            add_object(objects,origin.manifest.clone(),PackageObjectRole::ImportedManifest,
-                ObjectLocation::File(root.join("imported-project-evidence").join(&origin.manifest.sha256)))?;
-        }
-        for cell in &manifest.legacy_cells {
-            add_object(objects,cell.object.clone(),PackageObjectRole::LegacyMotionBytes,
-                ObjectLocation::File(root.join("imported-project-evidence").join(&cell.object.sha256)))?;
-        }
-    }
-    Ok(imported_candidates)
 }

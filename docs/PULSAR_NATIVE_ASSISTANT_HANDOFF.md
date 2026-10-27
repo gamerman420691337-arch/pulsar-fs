@@ -1,0 +1,17 @@
+# Native CPU assistant handoff
+
+2026-10-12. Scoped native tests PASS; full roadmap PARTIAL.
+
+Current CPU progress integration: [checked generation recovery](PULSAR_GENERATION_PROGRESS.md) now waits for 32 completed analyses before an assistant interruption. It resumes automatically and saves exactly 32 model runs (928 versus 960 uninterrupted), with equal neutral motion, reviews and normalized lineage and unchanged master/revision. The measured native case passes in 185.25 seconds. Its [evidence packet](evidence/roadmap-2026-10-12/generation-progress/checkpoint.json) is the current subject for this capability. Decoder restart/discard, broader modality/placement/GPU/live campaigns and physical qualification remain separate.
+
+The following records the original 2026-10-11 initial-input restart campaign; its pending-custody limitation is historical and does not describe the new CPU progress case.
+
+An actual owned Engine now has evidence for YOLO11 generation and Qwen3 assistant contention through the production worker path. A 3 GiB pool cannot simultaneously hold the 1.5 GiB generation and 2 GiB assistant claims. After running generation has pending native custody, an authenticated assistant request pauses its attempt. The learned assistant returns sample stride 8; completion automatically resumes the same job on a new attempt and produces a candidate, without AssistantStatus/List or manual ResumeJob calls.
+
+The original attempt remains `assistant_paused`. Both initial checkpoints validate against their exact per-attempt manifests. The complete logical manifest basis is identical after excluding only attempt ID and output directory, and the generation operation is unchanged. Master motion and project revision remain unchanged throughout; the proposed stride is not applied by this test. Owned work is cancelled and custody retirement is confirmed before fixture cleanup.
+
+The source is an authored 32-second, 64x64, 30 fps MPEG-4 video; the declared detector tensor input is the pinned 640x640 profile. The permitted COCO detector and assistant are borrowed candidates, with identities retained in the [checkpoint](evidence/roadmap-2026-10-11/native-assistant-handoff/checkpoint.json). This establishes execution and lifecycle behavior, not useful target tracking or training. No source annotations were invented.
+
+The native case passes in 96.88 seconds. The default Engine library passes 813 tests with 62 qualification cases ignored; the new native case was run separately and explicitly. Both strict default/all-feature workspace all-target Clippy configurations, formatting, 398 architecture checks and 36 source guards pass. Full protocol/client suites, all-feature runtime suites and graphical workflows were not rerun for this test-only increment.
+
+Pending custody is not proof of a completed inference on the first attempt before pause. Recovery replays the immutable initial input checkpoint; partial decoder progress is not retained. Accounting claims and the reported assistant worker peak are not whole-application memory measurements. GPU/native live playback continuity, rendered desktop contention, ordinary-storage reliability, useful models/defaults/annotations/media, offline/platform distribution, Handy 2 Pro credentials/firmware/synchronization and human/release qualification remain open. Earlier timeout and failure evidence remains authoritative for its separate subjects.

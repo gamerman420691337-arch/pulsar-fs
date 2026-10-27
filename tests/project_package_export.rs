@@ -301,7 +301,7 @@ impl Actor {
 
 fn client_project(response: ClientResponse) -> Result<pulsar_clients::ProjectSnapshot> {
     match response {
-        ClientResponse::Project(project) => Ok(project),
+        ClientResponse::Project(project) => Ok(*project),
         _ => bail!("expected hydrated project"),
     }
 }
@@ -309,7 +309,7 @@ fn package(response: ResponseBody) -> Result<PackageExportStatus> {
     match response {
         ResponseBody::PackageExport(status) => {
             status.validate()?;
-            Ok(status)
+            Ok(*status)
         }
         _ => bail!("expected package status"),
     }
@@ -318,7 +318,7 @@ fn lease(response: ResponseBody) -> Result<PackageDownloadLease> {
     match response {
         ResponseBody::PackageDownload(lease) => {
             lease.validate()?;
-            Ok(lease)
+            Ok(*lease)
         }
         _ => bail!("expected package-only lease"),
     }
@@ -362,7 +362,7 @@ struct ProjectFixture {
 }
 fn indexed_source(path: &Path, length: u64) -> Result<String> {
     ensure!(
-        length % BLOCK as u64 == 0,
+        length.is_multiple_of(BLOCK as u64),
         "indexed sparse fixture needs whole blocks"
     );
     let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
@@ -537,7 +537,7 @@ fn begin(
         match f.call(&request)? {
             ResponseBody::PackageDownload(download) => {
                 download.validate()?;
-                return Ok(download);
+                return Ok(*download);
             }
             ResponseBody::PackageDownloadPending(pending) => {
                 pending.validate()?;
@@ -1143,9 +1143,15 @@ fn package_export_capture_stays_coherent_during_edit_catalog_change_and_eviction
         "P1b CONTROL: phase=streaming_concurrent_edit get_snapshot_ms={:.3}",
         probe.elapsed().as_secs_f64() * 1000.0
     );
+    // The captured archive remains at revision one while the owner explicitly unlocks.
+    let unlocked = client_project(owner.execute(
+        Command::SetProtectedRegions { regions: vec![] },
+        Some(p.project.clone()),
+        Some(p.revision),
+    )?)?;
     let candidate = owner.upload_edit(
         p.project.clone(),
-        p.revision,
+        unlocked.revision,
         &motion(true),
         "edit after package capture",
     )?;
@@ -1154,7 +1160,7 @@ fn package_export_capture_stays_coherent_during_edit_catalog_change_and_eviction
             candidate_id: candidate.candidate_id,
         },
         Some(p.project.clone()),
-        Some(p.revision),
+        Some(unlocked.revision),
     )?;
     let late = f.root.join("source-after-capture.bin");
     fs::write(&late, b"CATALOG ENTRY AFTER PINNED CAPTURE")?;
@@ -1205,7 +1211,7 @@ fn package_export_capture_stays_coherent_during_edit_catalog_change_and_eviction
     ensure!(
         client_project(owner.execute(Command::GetSnapshot, Some(p.project.clone()), None)?)?
             .revision
-            == RevisionId::new(2),
+            == RevisionId::new(3),
         "concurrent edit did not remain committed"
     );
     f.completed = true;
@@ -1287,9 +1293,10 @@ fn package_export_active_cancellation_releases_holds_without_publishing_ready() 
 
 #[test]
 fn package_export_lost_ack_and_restart_preserve_ready_and_interrupt_active_work() -> Result<()> {
-    let mut f = Fixture::new()?;
+    let mut f = Fixture::new().context("start package restart fixture")?;
     let mut owner = f.owner()?;
-    let p = setup(&f, &mut owner, Some(RACE_SOURCE_BYTES))?;
+    let p = setup(&f, &mut owner, Some(RACE_SOURCE_BYTES))
+        .context("prepare restart source and motion")?;
     f.approve(&p.project)?;
     let actor = f.pair("restart export owner")?;
     delegate(
@@ -1306,12 +1313,13 @@ fn package_export_lost_ack_and_restart_preserve_ready_and_interrupt_active_work(
         "lost acknowledgement duplicated operation"
     );
     let mut client = actor.client(&f)?;
-    let status = ready(&mut client, &p, &replay.operation_id)?;
+    let status =
+        ready(&mut client, &p, &replay.operation_id).context("await original ready package")?;
     let old_lease = begin(&actor, &f, &p, &status)?;
     let mut bulk = connect_bulk(&actor, &old_lease)?;
     bulk.download(0, 4096)?;
     drop(bulk);
-    f.restart()?;
+    f.restart().context("restart engine with ready package")?;
     client = actor.client(&f)?;
     ensure!(
         package(f.call(&request)?)?.operation_id == status.operation_id,
@@ -1322,7 +1330,7 @@ fn package_export_lost_ack_and_restart_preserve_ready_and_interrupt_active_work(
         verified.artifact.as_ref().unwrap().sha256 == status.artifact.as_ref().unwrap().sha256,
         "restart changed ready package bytes"
     );
-    let fresh = begin(&actor, &f, &p, &verified)?;
+    let fresh = begin(&actor, &f, &p, &verified).context("begin download after ready restart")?;
     let mut stale = old_lease.clone();
     stale.bulk_endpoint = fresh.bulk_endpoint.clone();
     rejected(
@@ -1337,13 +1345,15 @@ fn package_export_lost_ack_and_restart_preserve_ready_and_interrupt_active_work(
     )?;
     abandon(&actor, &f, &p, &fresh)?;
     let path = f.root.join("restarted-ready.pulsar");
-    client.download_project_package(
-        p.project.clone(),
-        status.operation_id.clone(),
-        &path,
-        &consent(),
-        &PackageDownloadControl::default(),
-    )?;
+    client
+        .download_project_package(
+            p.project.clone(),
+            status.operation_id.clone(),
+            &path,
+            &consent(),
+            &PackageDownloadControl::default(),
+        )
+        .context("download complete package after ready restart")?;
     check_project(
         &inspect_bundle(&path, verified.artifact.as_ref().unwrap())?,
         &p,
@@ -1352,11 +1362,16 @@ fn package_export_lost_ack_and_restart_preserve_ready_and_interrupt_active_work(
     )?;
 
     let active_request = actor.request(Command::StartProjectExport, &p.project, Some(p.revision));
-    let active = package(f.call(&active_request)?)?;
-    streaming(&mut client, &p, &active.operation_id)?;
-    f.restart()?;
+    let active = package(
+        f.call(&active_request)
+            .context("start export to interrupt")?,
+    )?;
+    streaming(&mut client, &p, &active.operation_id)
+        .context("observe active export streaming checkpoint")?;
+    f.restart().context("restart engine during active export")?;
     client = actor.client(&f)?;
-    let interrupted = terminal(&mut client, &p, &active.operation_id)?;
+    let interrupted = terminal(&mut client, &p, &active.operation_id)
+        .context("read interrupted export after restart")?;
     ensure!(
         interrupted.state == PackageExportOperationState::Interrupted
             && interrupted.artifact.is_none(),

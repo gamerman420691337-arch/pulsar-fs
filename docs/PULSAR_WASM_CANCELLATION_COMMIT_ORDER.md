@@ -1,0 +1,18 @@
+# Direct WASM cancellation commits before signalling
+
+Direct `CancelWasmEdit` now captures the exact invocation worker handle while changing running/interrupted state, persists the resulting cancellation report and replay receipt, commits, then signals the captured handle while retaining the database completion fence. A report/receipt/COMMIT failure rolls back without signalling. Historical replay and fresh requests for already terminal invocations do not signal a replacement handle.
+
+The change preserves protocol, storage/portable formats, ownership checks and cancellation report semantics. A Cancelled report records the accepted cancellation intent. It does not prove guest/process termination or release retained memory/storage claims. A crash after COMMIT but before signalling leaves a durable cancellation; existing restart interruption, worker retirement and fresh publication checks remain separate obligations.
+
+The regression drives the real authenticated handler against typed stored invocation records accepted by the existing invocation validator, for both Running and Interrupted states. No guest or worker process is launched. Tests cannot qualify real native WASM execution, physical effects, hardware or product acceptance.
+
+[Source-bound evidence](evidence/roadmap-2026-10-10/wasm-cancellation-commit-order/checkpoint.json) on dirty branch `codex/pulsar-roadmap-m1`, base `4da4c08b59dc7b90e6c5aa3b420908257194eb8d`:
+
+- Actual authenticated handler with SQLite receipt-write refusal reproduced the pre-fix worker signal after rollback: FAIL exit 101, 0.01 seconds on tmpfs.
+- Corrected regression crosses Running/Interrupted states with receipt-write/deferred foreign-key COMMIT refusal. It checks original state/error and validated invocation after rollback, absent receipt, explicit same-ID retry, historical replay, fresh terminal cancellation, untouched replacement handles and absent generated candidates. PASS, 0.03 seconds on tmpfs, and PASS in the ordinary-storage full engine run.
+- Complete ordinary-storage all-feature engine library: FAIL exit 101, 718 passed, one failed, 79 ignored, 71.47 seconds. `native_preparation_control_retains_and_releases_actual_file_custody` failed with **“assertion failed: f.engine.pool.reserved_storage() > 0”**. The unchanged case passed alone in 0.63 seconds. This does not establish repair or a full-suite PASS.
+- Default/all-feature workspace all-target strict Clippy PASS; formatting, 350 architecture checks and 36 source guards PASS. Whole-workspace runtime was not rerun; existing client/storage and earlier intermittent gates remain open.
+
+An initial edit script refused an ambiguous marker before production mutation; its following unchanged build is retained and is not fix evidence. The corrected script targeted only the cancellation handler. Only `authority.rs` (regression test) and `wasm_edits.rs` (handler) changed among the preceding checkpoint's 348 hashed source paths; 346 match unchanged. Raw logs, incremental patches, before/after files and source/binary identities are retained. No deadline, sync setting, unrelated service or active device/model authority changed.
+
+Together with [direct job cancellation](PULSAR_CANCELLATION_COMMIT_ORDER.md) and [grant revocation](PULSAR_REVOCATION_COMMIT_ORDER.md), these observed flag-before-COMMIT defects are corrected under their recorded scopes. Automatic model-pack approval withdrawal/in-flight cancellation, other lifecycle/resource defects and required assistant/plugin/device/distribution capabilities remain open. Complete model/media/device/platform/rendered/human/release roadmap remains active.

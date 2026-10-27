@@ -1,0 +1,15 @@
+# Qwen3 4B assistant candidate boundaries
+
+2026-10-12. Development comparison; no default model selected and full roadmap PARTIAL.
+
+Two exact Qwen3 4B quantizations were investigated against the unchanged native assistant Worker/runtime, production host-context fixtures and fixed fourteen-case creative campaign. Hashes, sizes, publisher metadata, raw requests/responses and explicit resource limits are retained in the [checkpoint](evidence/roadmap-2026-10-12/qwen3-4b-candidates/checkpoint.json).
+
+The [official Q4_K_M repository](https://huggingface.co/Qwen/Qwen3-4B-GGUF/tree/bc640142c66e1fdd12af0bd68f40445458f3869b) provides a 2,497,280,256-byte object with SHA-256 `7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5`. All three requested publisher objects verify. Its model exceeds the existing 2 GiB protocol ceiling, so all fourteen requests refuse before native inference. Those refusals do not measure semantic accuracy. The initial isolated Hub CLI attempt fails before download because its Python user package path is absent; the corrected anonymous, private-cache invocation is retained separately.
+
+The [community Q3_K_M repository](https://huggingface.co/bartowski/Qwen_Qwen3-4B-GGUF/tree/cb76885dc66d50759b207c5a48c4e78dfa00c638) provides a 2,075,618,240-byte object with SHA-256 `29183d72b1b4e9666287d82acb9aea189512c99cb3bf6d9c77c4a43ebcb30414`, within the protocol ceiling. Both requested objects verify. Its card identifies Qwen/Qwen3-4B as the original and describes its quantizer/imatrix provenance; the original model metadata identifies Apache 2.0. The quantizer repository has no explicit license field. These recorded declarations do not independently reproduce quantization or grant product redistribution acceptance.
+
+Execution uses isolated network/filesystem namespaces, four CPU threads, a 45-second Worker deadline, a 50-second supervisor deadline and 3 GiB per-process address space. Process point samples/high-water fields are retained separately from unit memory accounting; neither proves whole-application memory or release performance. No deadlines, admission limits or prompts are widened to obtain a pass. Semantic accuracy requires a completed proposal; worker refusal or timeout is recorded separately as unassessed quality.
+
+The complete Q3 campaign reaches the native Worker deadline on all fourteen cases, without a completed proposal. Deployment under the tested constraints fails; semantic quality remains unassessed. These results do not compare Q3 semantic accuracy with preceding completed-proposal campaigns.
+
+Two diagnostic registry entries preserve exact candidates with existing defaults unchanged. Rust production sources, native executables and library tests are unchanged; no fresh Cargo suite is claimed. No ordinary-intent, Engine/CLI generation, GUI, visual/real-media, training, physical-device, edition/platform or human acceptance follows from this comparison. Experimental payloads/private caches are removed after terminal and reference checks, while publisher text, exact identities and raw evidence are retained.

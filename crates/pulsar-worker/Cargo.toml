@@ -1,0 +1,18 @@
+[package]
+name = "pulsar-worker"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = "1.0"
+pulsar-engine = { path = "../pulsar-engine" }
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+default = []
+wasm = ["pulsar-engine/wasm"]
+cuda = ["pulsar-engine/cuda"]
+tensorrt = ["pulsar-engine/tensorrt", "cuda"]

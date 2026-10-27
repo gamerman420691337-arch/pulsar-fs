@@ -1,0 +1,25 @@
+# Durable Handy stop handoff — 2026-10-10
+
+The conditional Handy coordinator now has durable stop handoff paths for explicit requests, controller loss, revocation and stops produced by unknown play completion. `PreparedStopEffect` pairs the exact sealed stop with its committed metadata receipt. Its constructor and fields remain engine-owned. The owner must recheck current authority and `prepared_stop_is_current` immediately before transport handoff. No physical transport or public playback command is enabled.
+
+`complete_stop_durable` validates the receipt boot/content identity against the exact effect before changing runtime state. A valid callback retires host authority and marks `StopUnconfirmed` before attempting the outcome write. Journal failure therefore cannot leave the callback current, clear physical uncertainty or silently authorize a transport retry. A substituted receipt or incorrect journal handle leaves the original current stop and outcomes unchanged; completion borrows the token so the caller retains it for explicit retry with its original journal. Reconnect retires the old callback without settling its recorded outcome.
+
+Preparation failure returns no durable handoff request, retires the issued stop token and preserves physical uncertainty. Explicit fresh stop/revocation can try again; automatic replay/retry is absent. Existing full/private/ownership/integrity bounds remain enforced, with no history deletion to make room. This is a conditional metadata contract: emergency physical stopping under journal failure, actual transport ordering/cancellation and real-device response remain open dispatcher/qualification obligations.
+
+Existing low-level APIs and the durable start API remain compatible. The version-1 journal serialization, content IDs, schema/capacity and outcome vocabulary remain unchanged. Preparation and callback binding use the same immutable record construction. See [ADR B5-018](../research/phase-b/ADR-B5-018-durable-stop-handoff-and-correspondence.md).
+
+Local evidence uses actual private SQLite stores and synthetic qualification facts:
+
+- Final coordinator suite **28 PASS**, zero ignored. Seven new tests cover prepared/completed/reopened stop records and both acknowledgment outcomes, fenced preparation and explicit fresh stop, substituted receipt and incorrect journal retry, fenced completion retirement, reconnect, loss/revocation/unknown-play origins, pre-dispatch cancellation and approved headless compatibility. The existing quota test now also requires durable stop refusal at 1,024 records and unchanged history size.
+- Final all-feature engine library **712 PASS**, zero failures, **79 ignored**, 4.06 seconds. Previously intermittent staging/export/native cleanup cases pass in this run; their source/deadlines are unchanged and this does not establish repair or runtime/performance qualification.
+- Default and all-feature workspace/all-target strict Clippy, formatting, architecture 350 and source guards 36 PASS.
+- Full workspace/all-feature/all-target test command **FAIL, exit 101**: 227 passes, one failure, 11 ignored before Cargo stops. The client case `pack_recovery::tests::concurrent_windows_merge_distinct_requests_under_the_same_session` fails at `pack_recovery.rs:558` with **`assertion failed: done`**, then its parent join fails at line 564. Root composition and all completed project/package integration suites pass. The same client case passes unchanged in isolation; no retry count, wait, lock or durability rule was changed. Later workspace crate suites were not executed by this failed command; the separately completed engine run above remains its own scoped evidence.
+
+[Exact checkpoint](evidence/roadmap-2026-10-10/durable-stop-handoff/checkpoint.json) retains source/binary identities, original source snapshots and public gate logs. Only the coordinator and journal source files changed from the preceding desktop recovery checkpoint; 346 source identities remain unchanged. Earlier intermediate builds/tests are labeled separately from final source.
+
+The engine still reports `physical_playback: false`; `Arm`, `Stop` and `SwitchPlaybackRevision` remain unsupported. No Handy was contacted or actuated. The qualified registry/evidence store, engine authority/transport integration, full outcome reconciliation/retention, crash/power-loss, BLE/online firmware coverage, real Handy 2 Pro synchronization/stopping, six-axis physical behavior, models/media/annotations, platforms, rendered GUI, human and release acceptance remain open. Full architecture-first roadmap remains active and incomplete.
+
+
+## Observed metadata retry follow-up
+
+[Stop completion reconciliation](PULSAR_STOP_COMPLETION_RECONCILIATION.md) adds an opt-in sealed observation record for explicit original-receipt metadata retry after a valid callback retires authority. Legacy completion behavior, physical uncertainty and boot fencing remain unchanged. The updated coordinator/engine suites pass 32/716 tests respectively (79 engine cases ignored); client pack verification still times out. This is conditional metadata recovery, not transport or physical qualification.

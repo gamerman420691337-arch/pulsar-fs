@@ -1,0 +1,20 @@
+# Assistant capacity-release recovery
+
+Status: PARTIAL full roadmap progress; qualification INCOMPLETE.
+
+Authenticated asynchronous assistant completion already tries to publish its outcome and resume marked generation. If unrelated work still occupies capacity, the pending completion now schedules one Engine recovery thread. The thread watches the shared resource pool and retries after an external reservation releases CPU/RAM/GPU/storage capacity. It does not require an assistant status/list poll and never reruns inference.
+
+Register the watcher before its first retry so an earlier release cannot be missed between scheduling and subscription. Notifications are nonblocking and coalesce into one queued signal. Eight watcher registrations are the private pool ceiling; each is removed by its owned drop guard. The recovery thread ignores its own accounting releases, preventing a failed metadata/admission retry from waking itself indefinitely. Notification timeouts check weak Engine lifetime without database retries. Empty pending state drops the watcher, resets the singleton flag and rechecks for concurrent completion.
+
+Resume still uses current authenticated ordinary ResumeJob, exact checkpoint/dependency validation and normal native/GPU admission. The same generation job gets a new attempt at its captured input boundary. No token is written to disk, no inference is repeated, and no live/preview/device work joins the victim set. Revoked authority, damaged metadata or unavailable native/GPU resources can leave an interrupted job requiring explicit recovery. Existing observation-driven retry remains available.
+
+A native authenticated Qwen3 run on the preceding source subject returns stride 8, preserves project state and reports worker peak 1046200320 bytes. It qualifies that authored proposal path only. Complete learned offline-generation contention, live-device continuity and physical Handy behavior remain open. Final-source checks and the separate native rerun are recorded in the [checkpoint](evidence/roadmap-2026-10-11/assistant-capacity-recovery/checkpoint.json).
+
+Final-source private tmpfs fixtures PASS 32 assistant tests (one learned-runtime case ignored) and 13 resource tests. The capacity test fences an initial refused resume through the completion mutex, releases an external accounting claim, and observes the new attempt directly in SQLite without any assistant API poll. The lifetime test first observes watcher registration, then verifies weak Engine retirement and registration removal. Resource tests cover self-release suppression, external release, one-message coalescing, registration bounds and drop cleanup. These are authored accounting/inert-worker fixtures, not full native generation or physical worker retirement qualification.
+
+Both strict workspace/all-target lint configurations, formatting, the companion build, 376 architecture checks and 36 source guards PASS. Shared build-cache waits are retained in the logs. The broad workspace suite was not rerun; earlier broad storage/concurrency failures remain unresolved. Native rerun status and its exact source/binary subject are retained separately in the checkpoint.
+
+The final-source delegated native authenticated gate PASS one test in 125.47 seconds: Qwen3 proposes stride 8, retains Completed status and leaves the project unchanged; reported worker peak is 1046622208 bytes. The owned service is inactive/dead and collected. This test does not exercise a learned offline generation victim or physical live device. Its long overall wall time does not qualify startup/assistant response latency or establish a filesystem cause. The earlier source run PASS in 65.71 seconds with peak 1046200320 bytes is retained as a separate subject.
+
+
+A later [native CPU contention case](PULSAR_NATIVE_ASSISTANT_HANDOFF.md) separately passes actual pinned generation/assistant execution and automatic same-job recovery from the unchanged initial checkpoint basis. It does not upgrade the earlier fixture subjects or prove pre-pause inference, partial progress, aggregate memory or live-device continuity.

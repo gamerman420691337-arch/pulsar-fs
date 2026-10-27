@@ -93,3 +93,37 @@ These inputs do not excuse remaining software work listed above. Good phase rema
 ## 6. Next implementation work package
 
 [Large motion artifact transport](PULSAR_LARGE_PROGRAM_IMPLEMENTATION_PLAN.md) records the dependency-ordered protocol/core/engine/client changes, upload trust rules, lifecycle invariants and acceptance matrix. It remains proposed and unimplemented; writing the work package is not completion of the transport gate.
+
+## Successor: Good-phase closure inventory and P1d first implementation
+
+This successor supersedes the historical large-motion/portable-import gap as a
+current blocker. P1a-P1c and the scanner repair already have their separate
+base-4da4c08 local receipts. The entire Good phase remains incomplete.
+
+See `PULSAR_GOOD_PHASE_CLOSURE_MATRIX.md` for B1-B6 acceptance and remaining
+software/evidence work, and `PULSAR_PORTABLE_PROJECT_P1D_STATUS.md` for the latest
+desktop implementation and exact blocked qualification.
+
+Current P1d client component campaign: 76 tests passed, production build passed.
+The new actual-process target failed to compile (E0432, E0277), so zero process
+scenarios executed and the full P1d gate was not run. Seven confirmed findings
+remain pending repair confirmation. External review still returned
+`Transport closed`; no verdict exists.
+
+Original historical 20-case execution was attempted with preserved source/test
+bytes, but offline resolution stopped at yanked serialport 4.10.0 without an
+original lockfile: 0/20 executed, not a reproduced/passing original suite.
+Primary-source runtime/portability research now has a durable note under
+`research/phase-b/runtime-portability-research-2026-09-12.md`.
+
+## Successor: seven P1d repairs, 2026-09-14
+
+The historical P1d compile failures and seven findings above have a [repair successor](PULSAR_PORTABLE_PROJECT_P1D_REPAIR_STATUS.md). Seven focused regressions and the full portable-desktop gate passed, including actual-engine process and large-package scenarios. The gate recorded 559 Rust test executions (repeats included), 106 structure checks and 36 scanner tests. External repair diff review now returned primary PASS WITH NITS; critic output was truncated. New pre-existing P1D-008 is deferred pending approval. P1d and the Good phase remain incomplete. No commit, push, physical actuation or native-window qualification is implied.
+
+## Successor: P1D-008 repair
+
+[P1D-008](PULSAR_P1D008_REPAIR.md) is now implemented: unrelated export recovery cannot replace an unresolved Start binding. Nineteen portable tests, 85 client tests (including the 19) and four process-target tests passed. Current external review returned Transport closed; prior verdict/full-gate evidence is not relabelled. Good phase remains incomplete. No commit or push.
+\n## Item 1 successor, 2026-09-14\n\nP1D-001 through P1D-008 implementation and local qualification complete. 563 Rust executions passed with 0 failures (7 ignored); large export/import, actual-worker and process scenarios passed. External review remains blocked by repeated reviewer transport errors, so no full item-1 closure or Good-phase completion is claimed. Remaining implementation items 2-18 are ready.\n
+## Successor: 2026-10-01 roadmap execution
+
+[The current checkpoint](PULSAR_ROADMAP_EXECUTION_2026-10-01.md) records engine-owned Stash discovery/local-file planning/immutable source capture, analytic device proposal export and sterile-reference intake/window conversion. It includes the final validation receipt for 567 passing Rust tests, 67 passing native-enabled JavaScript tests and 118 structural architecture checks. The sterile production campaign has a retained negative result: zero matching strokes. Full roadmap, trained perception, Stash generation/linking, physical Handy qualification and release acceptance remain incomplete. Historical provisional counts above are superseded by that receipt.
