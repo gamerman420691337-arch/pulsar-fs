@@ -3,7 +3,8 @@ use super::*;
 use crate::project_package_format::PackageCodecLimits;
 use crate::project_package_import_plan::{plan_clone_import, CloneIdentityAssignment};
 use crate::project_package_import_storage::{
-    ImportStore, ProvisionalImportUpload, PublishedImportObjects, VerifiedImportBytes,
+    ImportStoragePhase, ImportStore, ProvisionalImportUpload, PublishedImportObjects,
+    VerifiedImportBytes,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
@@ -18,6 +19,13 @@ const IMPORT_LIFETIME: Duration = Duration::from_secs(60 * 60);
 #[derive(Default)]
 pub(super) struct ImportRuntime {
     active: HashMap<String, Arc<ActiveImport>>,
+}
+impl ImportRuntime {
+    pub(super) fn cancel_all(&mut self) {
+        for operation in self.active.values() {
+            operation.cancel.store(true, Ordering::Release);
+        }
+    }
 }
 struct ActiveImport {
     operation: PackageImportOperationId,
@@ -161,14 +169,12 @@ fn save(db: &Connection, status: &PackageImportStatus) -> PResult<()> {
     .map_err(internal)?;
     Ok(())
 }
-fn spawn(task: impl FnOnce() + Send + 'static) -> std::io::Result<std::thread::JoinHandle<()>> {
+fn spawn(owner: &Engine, task: impl FnOnce() + Send + 'static) -> std::io::Result<()> {
     #[cfg(test)]
     if FAIL_SPAWN.with(|flag| flag.replace(false)) {
         return Err(std::io::Error::other("injected import spawn failure"));
     }
-    std::thread::Builder::new()
-        .name("pulsar-clone-import".into())
-        .spawn(task)
+    owner.spawn_task("pulsar-clone-import", None, task)
 }
 #[cfg(test)]
 thread_local! { static FAIL_SPAWN: std::cell::Cell<bool> = const { std::cell::Cell::new(false) }; }
@@ -188,9 +194,8 @@ impl Engine {
             self.authorize(&db, request, session)?;
             if let Some(body) = replay(&db, session.as_str(), request, fingerprint)? {
                 return match body {
-                    ResponseBody::PackageImport(old) => {
-                        owned(&db, &old.operation_id, session).map(ResponseBody::PackageImport)
-                    }
+                    ResponseBody::PackageImport(old) => owned(&db, &old.operation_id, session)
+                        .map(|value| ResponseBody::PackageImport(value.into())),
                     ResponseBody::PackageUpload(old) => {
                         drop(db);
                         self.import_lease_view(session, &old.lease_id)
@@ -207,7 +212,8 @@ impl Engine {
             Command::ProjectImportStatus { operation_id } => {
                 let db = self.db.lock().map_err(internal)?;
                 self.authorize(&db, request, session)?;
-                owned(&db, operation_id, session).map(ResponseBody::PackageImport)
+                owned(&db, operation_id, session)
+                    .map(|value| ResponseBody::PackageImport(value.into()))
             }
             Command::BeginProjectPackageUpload { operation_id } => {
                 self.begin_import_upload(request, fingerprint, operation_id)
@@ -284,7 +290,7 @@ impl Engine {
                     ));
                     save(&tx, &status)?;
                 }
-                let body = ResponseBody::PackageImport(status);
+                let body = ResponseBody::PackageImport((status).into());
                 remember(&tx, session.as_str(), request, fingerprint, &body)?;
                 tx.commit().map_err(internal)?;
                 drop(db);
@@ -390,7 +396,7 @@ impl Engine {
             receipt: None,
             error: None,
         };
-        let body = ResponseBody::PackageImport(status.clone());
+        let body = ResponseBody::PackageImport((status.clone()).into());
         tx.execute(
             "INSERT INTO project_package_imports VALUES(?1,?2,?3,?4)",
             params![
@@ -665,7 +671,7 @@ impl Engine {
         }
         status.state = PackageImportOperationState::Sealing;
         save(&tx, &status)?;
-        let body = ResponseBody::PackageImport(status);
+        let body = ResponseBody::PackageImport((status).into());
         remember(&tx, session.as_str(), request, fingerprint, &body)?;
         tx.commit().map_err(internal)?;
         active.worker.store(true, Ordering::Release);
@@ -676,7 +682,7 @@ impl Engine {
         let engine = self.clone();
         let request_owned = request.clone();
         let active_owned = active.clone();
-        if let Err(error) = spawn(move || {
+        if let Err(error) = spawn(self, move || {
             #[cfg(test)]
             FAIL_PUBLICATION.with(|flag| flag.set(fail_publication));
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -803,11 +809,21 @@ impl Engine {
             sealed,
             || self.check_import(request, active),
             |progress| {
+                let state = match progress.phase {
+                    ImportStoragePhase::Extracting | ImportStoragePhase::Validating => {
+                        PackageImportOperationState::Validating
+                    }
+                    ImportStoragePhase::Publishing => {
+                        return Err(internal(
+                            "unexpected publication during import verification",
+                        ))
+                    }
+                };
                 if last.elapsed() >= Duration::from_millis(100) {
                     last = Instant::now();
                     self.import_progress(
                         active,
-                        PackageImportOperationState::Validating,
+                        state,
                         progress.completed_bytes,
                         progress.completed_objects,
                         None,
@@ -817,21 +833,46 @@ impl Engine {
             },
         )?;
         self.check_import(request, active)?;
-        validate_all_evidence(&verified, &self.import_store, || {
-            self.check_import(request, active)
-        })?;
+        let native_intervals =
+            validate_all_evidence(&verified, &self.import_store, &self.pool, || {
+                self.check_import(request, active)
+            })?;
         let manifest = verified.manifest();
         let container = verified.container().clone();
         let identities = CloneIdentityAssignment {
             project_id: id!(ProjectId),
+            placements: manifest
+                .placements
+                .iter()
+                .flat_map(|p| p.definitions.iter())
+                .map(|d| (d.placement_id.clone(), id!(SourcePlacementId)))
+                .collect(),
             candidates: manifest
                 .candidates
                 .iter()
                 .map(|candidate| (candidate.candidate_id.clone(), id!(CandidateId)))
                 .collect(),
         };
-        let plan = plan_clone_import(manifest, &container, verified.origins(), &identities)?;
-        let origin_map_bytes=serde_json::to_vec(&serde_json::json!({"project_id":plan.identities.project_id,"candidates":plan.identities.candidates})).map_err(internal)?;
+        let intervals = crate::project_package_import_plan::resolve_candidate_intervals(
+            manifest,
+            verified.origins(),
+            &native_intervals,
+        )?;
+        let mut plan = plan_clone_import(manifest, &container, verified.origins(), &identities)?;
+        for candidate in &mut plan.manifest.candidates {
+            let original = identities
+                .candidates
+                .iter()
+                .find(|(_, local)| **local == candidate.candidate_id)
+                .ok_or_else(|| ProtocolError::invalid("clone interval identity missing"))?
+                .0;
+            candidate.project_interval = *intervals
+                .get(original)
+                .ok_or_else(|| ProtocolError::invalid("clone interval policy missing"))?;
+        }
+        plan.manifest.format_version = plan.manifest.required_format_version();
+        plan.manifest.validate()?;
+        let origin_map_bytes=serde_json::to_vec(&serde_json::json!({"project_id":plan.identities.project_id,"candidates":plan.identities.candidates,"placements":plan.identities.placements})).map_err(internal)?;
         let additional = verified
             .publication_bytes()?
             .checked_add(origin_map_bytes.len() as u64)
@@ -905,8 +946,8 @@ impl Engine {
         self.check_import(request, active)?;
         let map_identity = ArtifactIdentity {
             artifact_id: ArtifactId::new(format!(
-                "import-map.{}",
-                format!("{:x}", Sha256::digest(&origin_map_bytes))
+                "import-map.{:x}",
+                Sha256::digest(&origin_map_bytes)
             ))
             .map_err(internal)?,
             sha256: format!("{:x}", Sha256::digest(&origin_map_bytes)),
@@ -951,6 +992,7 @@ impl Engine {
         receipt: &PackageImportReceipt,
         encoded_manifest: &str,
     ) -> PResult<()> {
+        published.validate_clone_binding(&active.operation, &active.declaration, plan)?;
         let manifest = &plan.manifest;
         let project = &manifest.origin_project_id;
         let mut db = self.db.lock().map_err(internal)?;
@@ -998,15 +1040,36 @@ impl Engine {
             )
             .map_err(internal)?;
         }
+        if manifest.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_REBASE_LINKS
+            && crate::inference_equivalence_reader::version(&tx).map_err(internal)? < 11
+        {
+            crate::inference_equivalence_reader::publish(&tx, 11).map_err(internal)?;
+        }
+        if manifest.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_CUDA_EVIDENCE {
+            crate::portable_cuda_db::arm(&tx).map_err(internal)?;
+        }
+        if manifest.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_ANNOTATED_MODELS {
+            crate::portable_annotated_db::arm(&tx).map_err(internal)?;
+        }
+        if manifest.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_WASM_INVOCATIONS {
+            crate::portable_wasm_db::arm(&tx).map_err(internal)?;
+        }
         for candidate in &manifest.candidates {
             tx.execute("INSERT INTO candidates(id,project,base_revision,program,job,lineage,committed_revision,review) VALUES(?1,?2,?3,?4,NULL,?5,?6,?7)",
                 params![candidate.candidate_id.as_str(),project.as_str(),rev_sql(candidate.base_revision)?,reference(&candidate.motion),
                     encode(&candidate.lineage)?,candidate.committed_revision.map(rev_sql).transpose()?,encode(&candidate.review)?]).map_err(internal)?;
+            imported_candidate_intervals::insert(
+                &tx,
+                &candidate.candidate_id,
+                project,
+                candidate.project_interval,
+            )?;
             let review = plan
                 .candidate_reviews
                 .get(&candidate.candidate_id)
                 .cloned()
                 .unwrap_or(PackageReviewState {
+                    decisions: vec![],
                     flags: candidate.review.clone(),
                     unknown: false,
                     conservative: false,
@@ -1078,7 +1141,50 @@ impl Engine {
                 .join(&source.identity.sha256);
             tx.execute("INSERT INTO sources(project,version,path,original,label,sha256,bytes,pinned,evicted,kind) VALUES(?1,?2,?3,'',?4,?5,?6,?7,0,?8)",
                 params![project.as_str(),source.source_version.as_str(),path.to_string_lossy(),source.label,source.identity.sha256,
-                    i64::try_from(source.identity.byte_len).map_err(internal)?,source.pinned,match &source.kind { SourceKind::Media=>"media",SourceKind::GenerationInput=>"generation_input",SourceKind::Funscript=>"funscript" }]).map_err(internal)?;
+                    i64::try_from(source.identity.byte_len).map_err(internal)?,source.pinned,source.kind.as_str()]).map_err(internal)?;
+        }
+        if let Some(closure) = &manifest.placements {
+            for definition in &closure.definitions {
+                tx.execute(
+                    "INSERT INTO source_placement_definitions VALUES(?1,?2,?3,?4)",
+                    params![
+                        definition.placement_id.as_str(),
+                        project.as_str(),
+                        definition.spec.source_version.as_str(),
+                        encode(definition)?
+                    ],
+                )
+                .map_err(internal)?;
+            }
+            for id in &closure.active {
+                tx.execute(
+                    "INSERT INTO source_placement_active VALUES(?1,?2)",
+                    params![project.as_str(), id.as_str()],
+                )
+                .map_err(internal)?;
+            }
+            for row in &closure.revisions {
+                tx.execute(
+                    "INSERT INTO source_placement_revisions VALUES(?1,?2,?3)",
+                    params![
+                        project.as_str(),
+                        rev_sql(row.revision)?,
+                        encode(&row.placements)?
+                    ],
+                )
+                .map_err(internal)?;
+            }
+            for row in &closure.history {
+                tx.execute(
+                    "INSERT INTO source_placement_history VALUES(?1,?2,?3)",
+                    params![
+                        project.as_str(),
+                        i64::try_from(row.position).map_err(internal)?,
+                        encode(&row.placements)?
+                    ],
+                )
+                .map_err(internal)?;
+            }
         }
         tx.execute(
             "INSERT INTO project_import_archives VALUES(?1,?2,?3,?4,?5)",
@@ -1356,24 +1462,26 @@ thread_local! {
     static FAIL_EXPIRY_SPAWN: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 fn spawn_expiry_sweeper(
+    owner: &Engine,
     task: impl FnOnce() + Send + 'static,
-) -> std::io::Result<std::thread::JoinHandle<()>> {
+) -> std::io::Result<()> {
     #[cfg(test)]
     if FAIL_EXPIRY_SPAWN.with(|flag| flag.replace(false)) {
         return Err(std::io::Error::other(
             "injected clone import expiry thread failure",
         ));
     }
-    std::thread::Builder::new()
-        .name("pulsar-import-expiry".into())
-        .spawn(task)
+    owner.spawn_task("pulsar-import-expiry", None, task)
 }
 
 pub(super) fn start_sweeper(engine: &Arc<Engine>) -> PResult<()> {
     let weak = Arc::downgrade(engine);
-    spawn_expiry_sweeper(move || loop {
+    spawn_expiry_sweeper(engine, move || loop {
         std::thread::sleep(Duration::from_millis(250));
         let Some(engine) = weak.upgrade() else { break };
+        if engine.is_shutting_down() {
+            break;
+        }
         let entries = match engine.package_imports.lock() {
             Ok(runtime) => runtime.active.values().cloned().collect::<Vec<_>>(),
             Err(_) => continue,
@@ -1416,6 +1524,7 @@ pub(super) fn candidate_review(
         validate_reviews(&state.flags)?;
         state.unknown = true;
         state.conservative = true;
+        state.decisions.clear();
         Ok(state)
     })
     .transpose()
@@ -1432,6 +1541,7 @@ pub(super) fn rebase_alias(db: &Connection, old: &CandidateId, new: &CandidateId
     db.execute("INSERT INTO project_import_candidate_aliases(candidate,project,imported_candidate,review_state)
         SELECT ?2,project,imported_candidate,review_state FROM project_import_candidate_aliases WHERE candidate=?1",
         params![old.as_str(),new.as_str()]).map_err(internal)?;
+    imported_candidate_intervals::rebase(db, old, new)?;
     Ok(())
 }
 
@@ -1468,18 +1578,21 @@ struct ArchivedWorkerReceipt {
 fn validate_all_evidence(
     verified: &VerifiedImportBytes,
     store: &ImportStore,
+    pool: &ResourcePool,
     mut check: impl FnMut() -> PResult<()>,
-) -> PResult<()> {
+) -> PResult<crate::project_package_import_plan::NativeCandidateIntervals> {
     let catalog: BTreeMap<_, _> = verified
         .manifest()
         .objects
         .iter()
         .map(|entry| (entry.sha256.as_str(), entry))
         .collect();
+    let mut scopes = BTreeMap::new();
     for manifest in std::iter::once(verified.manifest()).chain(verified.origins().values()) {
         check()?;
-        validate_evidence(
+        let native = validate_evidence(
             manifest,
+            pool,
             |reference| {
                 let descriptor = catalog
                     .get(reference.sha256.as_str())
@@ -1490,13 +1603,22 @@ fn validate_all_evidence(
                             "archival evidence not present in uploaded object catalog",
                         )
                     })?;
-                if descriptor.byte_len > 128 * 1024 * 1024 {
+                if descriptor.byte_len
+                    > if descriptor
+                        .roles
+                        .contains(&PackageObjectRole::AnnotatedModel)
+                    {
+                        256 * 1024 * 1024
+                    } else {
+                        128 * 1024 * 1024
+                    }
+                {
                     return Err(ProtocolError::new(
                         ErrorCode::ResourceExhausted,
                         "compact imported evidence exceeds128MiB",
                     ));
                 }
-                let mut file = store.open_staged_object(verified, descriptor)?;
+                let file = store.open_staged_object(verified, descriptor)?;
                 let mut bytes = Vec::new();
                 file.take(descriptor.byte_len + 1)
                     .read_to_end(&mut bytes)
@@ -1513,14 +1635,52 @@ fn validate_all_evidence(
             },
             &mut check,
         )?;
+        let namespace = format!("{:x}", Sha256::digest(manifest.canonical_bytes()?));
+        scopes.extend(
+            native
+                .into_iter()
+                .map(|(id, scope)| ((namespace.clone(), id), scope)),
+        );
     }
-    Ok(())
+    Ok(scopes)
 }
-fn validate_evidence(
+pub(crate) fn checked_worker_scope(
     manifest: &PortableProjectManifest,
+    origin: &PackageGeneratedOrigin,
+    request: &WorkerRequest,
+) -> PResult<Option<TimeRange>> {
+    request.validate()?;
+    crate::portable_cpu_archives::check_request(origin, request)?;
+    let source = manifest
+        .sources
+        .iter()
+        .find(|s| s.source_version == request.source.source_version)
+        .ok_or_else(|| ProtocolError::invalid("archived worker primary source absent"))?;
+    if request.project_id != manifest.origin_project_id
+        || request.job_id != origin.job_id
+        || request.attempt_id != origin.attempt_id
+        || request.base_revision != origin.base_revision
+        || request.source.source_version != origin.source_version
+        || request.source.identity != source.identity
+    {
+        return Err(ProtocolError::invalid(
+            "archived worker identity differs from logical graph",
+        ));
+    }
+    Ok(match &request.operation {
+        WorkerOperation::Generate { settings, .. } => settings.project_interval,
+        _ => None,
+    })
+}
+
+pub(crate) fn validate_evidence(
+    manifest: &PortableProjectManifest,
+    pool: &ResourcePool,
     mut bytes: impl FnMut(&PackageObjectRef) -> PResult<Vec<u8>>,
     check: &mut impl FnMut() -> PResult<()>,
-) -> PResult<()> {
+) -> PResult<BTreeMap<CandidateId, Option<TimeRange>>> {
+    crate::project_package_import_plan::require_portable_cpu_manifest(manifest)?;
+    let mut scopes = BTreeMap::new();
     let candidates: BTreeMap<_, _> = manifest
         .candidates
         .iter()
@@ -1536,10 +1696,58 @@ fn validate_evidence(
         .iter()
         .map(|value| (&value.source_version, value))
         .collect();
+    for source in &manifest.sources {
+        for association in &source.stash_associations {
+            check()?;
+            let capture: StashSourceCapture =
+                serde_json::from_slice(&bytes(&association.capture_receipt)?)
+                    .map_err(|_| ProtocolError::invalid("invalid inert Stash capture receipt"))?;
+            association.check_capture(source, &capture)?;
+        }
+    }
     let identity_ref = |identity: &ArtifactIdentity| PackageObjectRef {
         sha256: identity.sha256.clone(),
         byte_len: identity.byte_len,
     };
+    for receipt in &manifest.retiming_receipts {
+        check()?;
+        let needed = receipt
+            .before
+            .byte_len
+            .checked_add(receipt.after.byte_len)
+            .and_then(|n| n.checked_mul(8))
+            .and_then(|n| n.checked_add(16 * 1024 * 1024))
+            .ok_or_else(|| {
+                ProtocolError::new(
+                    ErrorCode::ResourceExhausted,
+                    "archived retiming memory overflow",
+                )
+            })?;
+        let _memory = pool.reserve_memory(needed)?;
+        let before: MotionProgram = serde_json::from_slice(&bytes(&identity_ref(&receipt.before))?)
+            .map_err(|_| ProtocolError::invalid("invalid retiming before motion"))?;
+        let after: MotionProgram =
+            serde_json::from_slice(&bytes(&identity_ref(&receipt.after))?)
+                .map_err(|_| ProtocolError::invalid("invalid retiming after motion"))?;
+        let recomputed = retime_motion_between_placements(
+            &before,
+            &receipt.from.spec,
+            &receipt.to.spec,
+            &receipt.axes,
+        )
+        .map_err(|_| {
+            ProtocolError::new(
+                ErrorCode::DependencyMismatch,
+                "archived retiming cannot be recomputed",
+            )
+        })?;
+        if recomputed != after {
+            return Err(ProtocolError::new(
+                ErrorCode::DependencyMismatch,
+                "archived retiming result differs from its facts",
+            ));
+        }
+    }
     for authored in &manifest.authored_lineage {
         check()?;
         let receipt: ArchivedEditReceipt =
@@ -1576,6 +1784,57 @@ fn validate_evidence(
                 ));
             }
         }
+        if let Some(invocation) = &authored.wasm_invocation {
+            invocation.validate()?;
+            if invocation.attempt_id.as_str() != receipt.lease_id.as_str()
+                || invocation.base_revision != receipt.base_revision
+            {
+                return Err(ProtocolError::invalid(
+                    "WASM invocation differs from original core receipt",
+                ));
+            }
+            let needed = receipt
+                .base_program
+                .byte_len
+                .checked_add(receipt.result_program.byte_len)
+                .and_then(|n| n.checked_mul(8))
+                .and_then(|n| n.checked_add(16 * 1024 * 1024))
+                .ok_or_else(|| {
+                    ProtocolError::new(
+                        ErrorCode::ResourceExhausted,
+                        "WASM archive validation memory overflow",
+                    )
+                })?;
+            let _memory = pool.reserve_memory(needed)?;
+            let base_program: MotionProgram = serde_json::from_slice(&bytes(&PackageObjectRef {
+                sha256: receipt.base_program.sha256.clone(),
+                byte_len: receipt.base_program.byte_len,
+            })?)
+            .map_err(|_| ProtocolError::invalid("invalid WASM archived base program"))?;
+            let result_program: MotionProgram =
+                serde_json::from_slice(&bytes(&PackageObjectRef {
+                    sha256: receipt.result_program.sha256.clone(),
+                    byte_len: receipt.result_program.byte_len,
+                })?)
+                .map_err(|_| ProtocolError::invalid("invalid WASM archived result program"))?;
+            let checked = crate::package_wasm_values::validate(
+                invocation,
+                &bytes(&identity_ref(&invocation.manifest.artifact))?,
+                &bytes(&invocation.input)?,
+                &bytes(&authored.input)?,
+                &base_program,
+                &result_program,
+            )?;
+            if checked.authored_ranges != receipt.authored_ranges
+                || checked.inherited_ranges != receipt.inherited_ranges
+                || checked.authored_provenance != receipt.authored_provenance
+            {
+                return Err(ProtocolError::new(
+                    ErrorCode::DependencyMismatch,
+                    "WASM authored range/provenance facts differ from kernel",
+                ));
+            }
+        }
         let _inert = (
             &receipt.lease_id,
             &receipt.authored_provenance,
@@ -1597,28 +1856,119 @@ fn validate_evidence(
         check()?;
         let request: WorkerRequest = serde_json::from_slice(&bytes(&origin.manifest)?)
             .map_err(|_| ProtocolError::invalid("invalid inert worker manifest"))?;
-        request.validate()?;
-        let source = sources
-            .get(&request.source.source_version)
-            .ok_or_else(|| ProtocolError::invalid("archived worker primary source absent"))?;
-        if request.project_id != manifest.origin_project_id
-            || request.job_id != origin.job_id
-            || request.attempt_id != origin.attempt_id
-            || request.base_revision != origin.base_revision
-            || request.source.source_version != origin.source_version
-            || request.source.identity != source.identity
+        let scope = checked_worker_scope(manifest, origin, &request)?;
+        if let Some(image) = assistant_image_origin::archived(&request, |identity| {
+            if !manifest.objects.iter().any(|o| {
+                o.sha256 == identity.sha256
+                    && o.byte_len == identity.byte_len
+                    && o.roles.contains(&PackageObjectRole::DependencyEvidence)
+            }) {
+                return Err(ProtocolError::invalid(
+                    "required image provenance payload is absent",
+                ));
+            }
+            bytes(&identity_ref(identity))
+        })? {
+            let declared = origin
+                .image_origin
+                .as_ref()
+                .ok_or_else(|| ProtocolError::invalid("image origin membership is absent"))?;
+            if !request.dependencies.contains(&declared.record) || declared.rgb != image.rgb {
+                return Err(ProtocolError::invalid(
+                    "image origin membership differs from worker declaration",
+                ));
+            }
+            let source = sources
+                .get(&image.source_version)
+                .ok_or_else(|| ProtocolError::invalid("archived image source absent"))?;
+            if source.kind != SourceKind::Media || source.identity != image.source {
+                return Err(ProtocolError::invalid(
+                    "archived image source identity differs",
+                ));
+            }
+        }
+        if origin.image_origin.is_some()
+            && !request.dependencies.iter().any(|d| {
+                d.artifact_id
+                    .as_str()
+                    .starts_with("assistant-image-origin-v1:")
+            })
         {
+            return Err(ProtocolError::invalid("unexpected image origin membership"));
+        }
+        let annotated = match &request.operation {
+            WorkerOperation::Generate {
+                settings, model, ..
+            } if settings.annotated_view.is_some() => Some(
+                model
+                    .as_ref()
+                    .ok_or_else(|| ProtocolError::invalid("annotated archival model absent"))?,
+            ),
+            _ => None,
+        };
+        if origin.annotated_model.as_ref() != annotated.map(|m| &m.identity) {
             return Err(ProtocolError::invalid(
-                "archived worker identity differs from logical graph",
+                "annotated worker model membership missing or unexpected",
             ));
         }
+        let completed_cuda = request.cuda_execution.is_some() && origin.state == "completed";
+        if origin.cuda_evidence.is_some() != completed_cuda {
+            return Err(ProtocolError::invalid(
+                "archived CUDA completion membership is missing or unexpected",
+            ));
+        }
+        if let Some(cuda) = &origin.cuda_evidence {
+            let _memory = pool.reserve_memory(128 * 1024 * 1024)?;
+            if format!(
+                "{:x}",
+                Sha256::digest(serde_json::to_vec(&request).map_err(internal)?)
+            ) != cuda.request_sha256
+            {
+                return Err(ProtocolError::invalid(
+                    "archived CUDA canonical request digest differs",
+                ));
+            }
+            check()?;
+            let receipt = bytes(&identity_ref(&cuda.receipt))?;
+            let trace = bytes(&identity_ref(&cuda.trace))?;
+            crate::cuda_result::verify_bytes(&request, &receipt, &trace).map_err(|_| {
+                ProtocolError::new(
+                    ErrorCode::DependencyMismatch,
+                    "archived CUDA receipt/trace correspondence failed",
+                )
+            })?;
+        }
+        for candidate in candidates_by_job.get(&origin.job_id).into_iter().flatten() {
+            if manifest.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_CANDIDATE_INTERVALS
+                && candidate.project_interval != scope
+            {
+                return Err(ProtocolError::invalid(
+                    "native portable interval differs from checked worker settings",
+                ));
+            }
+            scopes.insert(candidate.candidate_id.clone(), scope);
+        }
         // Paths remain inert text. Never open, execute, or translate WorkerRequest paths.
+        if let Some(audio) = &request.independent_audio {
+            let source = sources.get(&audio.source_version).ok_or_else(|| {
+                ProtocolError::invalid("archived independent audio source absent")
+            })?;
+            if source.kind != SourceKind::Media || audio.identity != source.identity {
+                return Err(ProtocolError::new(
+                    ErrorCode::DependencyMismatch,
+                    "archived independent audio differs from source payload",
+                ));
+            }
+        }
         if let Some(identity) = &origin.receipt {
             let receipt: ArchivedWorkerReceipt =
                 serde_json::from_slice(&bytes(&identity_ref(identity))?)
                     .map_err(|_| ProtocolError::invalid("invalid archived worker receipt"))?;
-            if !matches!(receipt.schema_version, 1 | 2)
-                || receipt.recipe.is_empty()
+            if (if annotated.is_some() {
+                receipt.schema_version != 3
+            } else {
+                !matches!(receipt.schema_version, 1 | 2)
+            }) || receipt.recipe.is_empty()
                 || receipt.project_id != manifest.origin_project_id
                 || receipt.job_id != origin.job_id
                 || receipt.attempt_id != origin.attempt_id
@@ -1663,12 +2013,65 @@ fn validate_evidence(
                     ProtocolError::invalid("archived worker output is not checked motion")
                 })?;
             for candidate in candidates_by_job.get(&origin.job_id).into_iter().flatten() {
-                if candidate.lineage.last() != Some(identity)
-                    || candidate.lineage[..candidate.lineage.len() - 1] != receipt.dependencies
-                {
+                let suffix = if origin.cuda_evidence.is_some() { 3 } else { 1 };
+                let end = candidate.lineage.len().checked_sub(suffix).ok_or_else(|| {
+                    ProtocolError::invalid("archived candidate receipt lineage incomplete")
+                })?;
+                let general = match &origin.cuda_evidence {
+                    Some(cuda) => cuda.general_receipt(&candidate.lineage)?,
+                    None => &candidate.lineage[end],
+                };
+                if general != identity || candidate.lineage[..end] != receipt.dependencies {
                     return Err(ProtocolError::invalid(
                         "archived candidate receipt lineage disagrees",
                     ));
+                }
+                if let Some(model) = annotated {
+                    let needed = model
+                        .identity
+                        .byte_len
+                        .checked_add(identity.byte_len)
+                        .and_then(|n| n.checked_mul(8))
+                        .and_then(|n| n.checked_add(16 * 1024 * 1024))
+                        .ok_or_else(|| {
+                            ProtocolError::invalid("annotated archival verification size overflow")
+                        })?;
+                    let _memory = pool.reserve_memory(needed)?;
+                    let raw_receipt = bytes(&identity_ref(identity))?;
+                    let raw_model = bytes(&identity_ref(&model.identity))?;
+                    crate::worker::annotated_receipt::verify_readers(
+                        &request,
+                        &receipt.program,
+                        identity,
+                        &candidate.lineage[..end],
+                        &candidate.review,
+                        std::io::Cursor::new(&raw_receipt),
+                        std::io::Cursor::new(raw_model),
+                    )?;
+                    if matches!(&request.operation,WorkerOperation::Generate {settings,..} if settings.source_placement.is_some())
+                    {
+                        let canonical = ArtifactIdentity {
+                            artifact_id: candidate.motion.artifact_id.clone(),
+                            sha256: candidate.motion.sha256.clone(),
+                            byte_len: candidate.motion.byte_len,
+                        };
+                        crate::source_clock_receipts::load_verified_readers(
+                            &request,
+                            &candidate.lineage,
+                            &canonical,
+                            std::io::Cursor::new(raw_receipt),
+                            identity.byte_len,
+                            |raw, _| {
+                                if origin.program.as_ref() != Some(raw) {
+                                    return Err(ProtocolError::invalid(
+                                        "annotated raw clock program differs from origin",
+                                    ));
+                                }
+                                Ok(Box::new(std::io::Cursor::new(bytes(&identity_ref(raw))?))
+                                    as Box<dyn std::io::Read>)
+                            },
+                        )?;
+                    }
                 }
                 let canonical: pulsar_core::MotionProgram =
                     serde_json::from_slice(&bytes(&PackageObjectRef {
@@ -1684,9 +2087,59 @@ fn validate_evidence(
             }
         }
     }
-    Ok(())
+    Ok(scopes)
 }
 
+#[cfg(test)]
+pub(super) fn exercise_authored_cuda_portable_lifecycle(
+    bytes: &[u8],
+    trace: &ArtifactIdentity,
+    old_reader: Option<&std::path::Path>,
+) {
+    tests::exercise_authored_cuda_portable_lifecycle(bytes, trace, old_reader);
+}
+#[cfg(all(test, feature = "wasm"))]
+pub(in crate::authority) fn exercise_authored_wasm_portable_lifecycle(
+    bytes: &[u8],
+    module: &ArtifactIdentity,
+    old_reader: Option<&std::path::Path>,
+) {
+    tests::exercise_authored_portable_lifecycle(bytes, module, old_reader, 12, None);
+}
+#[cfg(test)]
+pub(crate) fn exercise_authored_annotated_portable_lifecycle(
+    bytes: &[u8],
+    model: &ArtifactIdentity,
+    old_reader: Option<&std::path::Path>,
+) {
+    tests::exercise_authored_portable_lifecycle(bytes, model, old_reader, 11, None);
+}
+#[cfg(test)]
+pub(in crate::authority) fn exercise_authored_image_portable_lifecycle(
+    bytes: &[u8],
+    image: &PackageImageOrigin,
+) {
+    let reader = std::env::var_os("PULSAR_IMAGE_PRECEDING_READER").map(PathBuf::from);
+    let probe = std::env::var_os("PULSAR_IMAGE_PRECEDING_PACKAGE_PROBE").map(PathBuf::from);
+    assert_eq!(
+        reader.is_some(),
+        probe.is_some(),
+        "both preceding witnesses must be supplied"
+    );
+    if let Some(probe) = &probe {
+        tests::exercise_image_preceding_packages(bytes, probe);
+    }
+    // Independent subjects exercise refusal after either required payload changes.
+    for identity in [&image.record, &image.rgb] {
+        tests::exercise_authored_portable_lifecycle(
+            bytes,
+            identity,
+            reader.as_deref(),
+            13,
+            Some(image),
+        );
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1753,7 +2206,7 @@ mod tests {
             else {
                 panic!()
             };
-            (request, status)
+            (request, *status)
         }
         fn begin(&self, status: &PackageImportStatus) -> PackageUploadLease {
             let ResponseBody::PackageUpload(lease) = self
@@ -1818,7 +2271,7 @@ mod tests {
                     panic!()
                 };
                 if status.state.is_terminal() {
-                    return status;
+                    return *status;
                 }
                 assert!(Instant::now() < deadline, "import timed out");
                 std::thread::sleep(Duration::from_millis(1));
@@ -1864,6 +2317,570 @@ mod tests {
             self.drain();
             result.receipt.unwrap()
         }
+    }
+    pub(super) fn exercise_image_preceding_packages(bytes: &[u8], probe: &std::path::Path) {
+        let f = fixture();
+        let control = f.bytes(&f.project, 0);
+        assert!(package_format_version(&control[..52]).unwrap() <= 12);
+        for (name, package, code) in [("control", control.as_slice(), 0), ("image", bytes, 1)] {
+            let path = f.dir.path().join(format!("preceding-{name}.pulspkg"));
+            fs::write(&path, package).unwrap();
+            let before = format!("{:x}", Sha256::digest(package));
+            let result = std::process::Command::new("/usr/bin/timeout")
+                .args(["--signal=TERM", "--kill-after=1", "5"])
+                .arg(probe)
+                .arg(&path)
+                .env_clear()
+                .env("PATH", "/usr/bin:/bin")
+                .output()
+                .unwrap();
+            assert_eq!(
+                result.status.code(),
+                Some(code),
+                "preceding package probe: {}",
+                String::from_utf8_lossy(&result.stderr)
+            );
+            if code == 1 {
+                assert!(
+                    String::from_utf8_lossy(&result.stderr).contains("unsupported package format")
+                );
+            } else {
+                assert!(String::from_utf8_lossy(&result.stdout)
+                    .contains("preceding package prepared: format="));
+            }
+            assert_eq!(
+                format!("{:x}", Sha256::digest(fs::read(&path).unwrap())),
+                before
+            );
+            eprintln!(
+                "preceding package witness: {name} exit={code}; input unchanged; {}{}",
+                String::from_utf8_lossy(&result.stdout),
+                String::from_utf8_lossy(&result.stderr)
+            );
+        }
+        assert_eq!(f.count("project_import_archives"), 0);
+        assert_eq!(f.count("jobs"), 0);
+    }
+    pub(super) fn exercise_authored_cuda_portable_lifecycle(
+        bytes: &[u8],
+        trace: &ArtifactIdentity,
+        old_reader: Option<&std::path::Path>,
+    ) {
+        exercise_authored_portable_lifecycle(bytes, trace, old_reader, 10, None);
+    }
+    pub(super) fn exercise_authored_portable_lifecycle(
+        bytes: &[u8],
+        trace: &ArtifactIdentity,
+        old_reader: Option<&std::path::Path>,
+        format: u16,
+        image: Option<&PackageImageOrigin>,
+    ) {
+        fn check_image(
+            f: &Fixture,
+            project: &ProjectId,
+            revision: RevisionId,
+            image: &PackageImageOrigin,
+        ) {
+            let plan =
+                project_packages::capture(&f.engine, &f.session, &f.token, project, revision)
+                    .unwrap();
+            assert_eq!(plan.manifest.format_version, 13);
+            assert!(plan.manifest.generated_origins.is_empty());
+            for identity in [&image.record, &image.rgb] {
+                let object = plan
+                    .manifest
+                    .objects
+                    .iter()
+                    .find(|o| o.sha256 == identity.sha256 && o.byte_len == identity.byte_len)
+                    .expect("retained image object");
+                assert!(object
+                    .roles
+                    .contains(&PackageObjectRole::DependencyEvidence));
+                let mut bytes = Vec::new();
+                plan.open_object(object)
+                    .unwrap()
+                    .read_to_end(&mut bytes)
+                    .unwrap();
+                assert_eq!(bytes.len() as u64, identity.byte_len);
+                assert_eq!(format!("{:x}", Sha256::digest(&bytes)), identity.sha256);
+            }
+            let mut original_found = false;
+            for object in plan
+                .manifest
+                .objects
+                .iter()
+                .filter(|o| o.roles.contains(&PackageObjectRole::ImportedManifest))
+            {
+                let mut bytes = Vec::new();
+                plan.open_object(object)
+                    .unwrap()
+                    .read_to_end(&mut bytes)
+                    .unwrap();
+                let original: PortableProjectManifest = serde_json::from_slice(&bytes).unwrap();
+                assert_eq!(original.canonical_bytes().unwrap(), bytes);
+                for origin in &original.generated_origins {
+                    if origin.image_origin.as_ref() == Some(image) {
+                        original_found = true;
+                    }
+                }
+            }
+            assert!(
+                original_found,
+                "exact image origin remains in retained original namespace"
+            );
+            drop(plan);
+            let id: String = f
+                .engine
+                .db
+                .lock()
+                .unwrap()
+                .query_row(
+                    "SELECT id FROM candidates WHERE project=?1",
+                    [project.as_str()],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            let ResponseBody::CandidateImageOrigin(report) = f
+                .scoped(
+                    Command::CandidateImageOriginStatus {
+                        candidate_id: CandidateId::new(id).unwrap(),
+                    },
+                    project,
+                    None,
+                )
+                .unwrap()
+            else {
+                panic!("clone image inspection");
+            };
+            report.validate().unwrap();
+            assert_eq!(report.origins.len(), 1);
+            assert_eq!(report.origins[0].record, image.record);
+            assert_eq!(
+                report.origins[0]
+                    .approval
+                    .report
+                    .image
+                    .as_ref()
+                    .unwrap()
+                    .rgb,
+                image.rgb
+            );
+            assert!(report.origins[0].origin_manifest.is_some());
+            assert_ne!(report.origins[0].approval.report.project_id, *project);
+            assert!(
+                !report.execution_authority
+                    && !report.observed_temporal_motion
+                    && !report.qualified
+            );
+            assert_eq!(f.count("jobs"), 0);
+            assert_eq!(f.count("attempts"), 0);
+            assert!(f.engine.workers.lock().unwrap().is_empty());
+            #[cfg(unix)]
+            assert!(!f.engine.worker_fence.has_pending_worker_custody().unwrap());
+            let ResponseBody::CandidateImageOriginPixels(pixels) = f
+                .scoped(
+                    Command::CandidateImageOriginPixels {
+                        candidate_id: report.candidate_id.clone(),
+                        record_sha256: image.record.sha256.clone(),
+                    },
+                    project,
+                    None,
+                )
+                .unwrap()
+            else {
+                panic!("inert retained pixels");
+            };
+            pixels.validate().unwrap();
+            assert_eq!(pixels.frame.artifact.identity, image.rgb);
+            assert!(pixels
+                .frame
+                .artifact
+                .path
+                .starts_with(f.engine.config.state_dir.join("imported-project-evidence")));
+            candidate_image_origin::retain_pixel_observation(&pixels);
+            assert_eq!(f.count("jobs"), 0);
+            assert_eq!(f.count("attempts"), 0);
+            eprintln!("inert conditioning pixels: exact retained RGB selected from current clone CAS; no old host paths or workers");
+            eprintln!("inert image clone inspection: format=13 exact approval/origin/RGB and original namespace verified; jobs=0 attempts=0 workers=0");
+        }
+        fn refuse_old_reader(config: &EngineConfig, old: &std::path::Path, format: u16) {
+            let database = config.state_dir.join("projects.sqlite3");
+            let wal = config.state_dir.join("projects.sqlite3-wal");
+            assert!(fs::metadata(&wal).unwrap().len() > 32);
+            let identity = |path: &std::path::Path| {
+                fs::read(path)
+                    .ok()
+                    .map(|bytes| (bytes.len(), format!("{:x}", Sha256::digest(&bytes))))
+            };
+            let before = [identity(&database), identity(&wal)];
+            let mut command = std::process::Command::new("/usr/bin/timeout");
+            command
+                .args(["--signal=TERM", "--kill-after=1", "5"])
+                .arg(old)
+                .arg("engine")
+                .env_clear()
+                .env("PATH", "/usr/bin:/bin")
+                .env("PULSAR_STATE_DIR", &config.state_dir);
+            if format == 13 {
+                command.env("PULSAR_WORKER_EXECUTABLE", &config.worker_executable);
+            }
+            let result = command.output().unwrap();
+            assert_eq!(
+                result.status.code(),
+                Some(1),
+                "old clone reader refusal: {}",
+                String::from_utf8_lossy(&result.stderr)
+            );
+            let stderr = String::from_utf8_lossy(&result.stderr);
+            if format == 13 {
+                assert!(
+                    stderr.contains("unsupported portable project format")
+                        || (stderr.contains("unknown field") && stderr.contains("image_origin")),
+                    "preceding format-12 reader must refuse image origin: {stderr}"
+                );
+                assert!(!config.state_dir.join("engine.sock").exists());
+                eprintln!("preceding image state refusal: exit=1; {stderr}");
+            } else {
+                assert!(stderr.contains("explicit recoverable migration"));
+            }
+            assert_eq!(
+                [identity(&database), identity(&wal)],
+                before,
+                "old clone reader must preserve committed DB/WAL"
+            );
+        }
+        fn release_owned_reader_probe(f: Fixture, old: &std::path::Path) -> Fixture {
+            f.drain();
+            let config = f.engine.config.clone();
+            let keeper = Connection::open(config.state_dir.join("projects.sqlite3")).unwrap();
+            keeper
+                .execute_batch("PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0;")
+                .unwrap();
+            let _: i64 = keeper
+                .query_row("SELECT COUNT(*) FROM projects", [], |r| r.get(0))
+                .unwrap();
+            let lifetime = Arc::downgrade(&f.engine);
+            let Fixture {
+                engine,
+                session,
+                token,
+                project,
+                dir,
+            } = f;
+            drop(engine);
+            let deadline = Instant::now() + Duration::from_secs(20);
+            while lifetime.strong_count() != 0 {
+                assert!(Instant::now() < deadline, "owned import engine still live");
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            refuse_old_reader(&config, old, 13);
+            let engine = Engine::open(config).unwrap();
+            drop(keeper);
+            Fixture {
+                engine,
+                session,
+                token,
+                project,
+                dir,
+            }
+        }
+        let f = fixture();
+        let first = f.import(bytes);
+        assert_eq!(first.package.format_version, format);
+        {
+            let db = f.engine.db.lock().unwrap();
+            assert_eq!(
+                db.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
+                    .unwrap(),
+                if format >= 12 {
+                    25
+                } else if format == 11 {
+                    24
+                } else {
+                    18
+                }
+            );
+            let state = crate::portable_cuda_db::validate(&db, 18).unwrap().unwrap();
+            assert!(!state.worker_fence && !state.cuda_intents && !state.cuda_evidence);
+        }
+        let f = if let Some(old) = old_reader {
+            if format == 13 {
+                release_owned_reader_probe(f, old)
+            } else {
+                refuse_old_reader(&f.engine.config, old, format);
+                f
+            }
+        } else {
+            f
+        };
+        let f = restart(f);
+        if let Some(image) = image {
+            check_image(&f, &first.project_id, first.revision, image);
+        }
+        let first_cuda_origin = if format == 10 {
+            let id: String = f
+                .engine
+                .db
+                .lock()
+                .unwrap()
+                .query_row(
+                    "SELECT id FROM candidates WHERE project=?1",
+                    [first.project_id.as_str()],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            let candidate = CandidateId::new(id).unwrap();
+            let ResponseBody::ArchivedGeneration(report) = f
+                .scoped(
+                    Command::ArchivedGenerationStatus {
+                        candidate_id: candidate.clone(),
+                        master_revision: None,
+                    },
+                    &first.project_id,
+                    None,
+                )
+                .unwrap()
+            else {
+                panic!("archived CUDA generation")
+            };
+            assert_eq!(report.origins.len(), 1);
+            assert!(
+                report.origins[0].clock.is_none(),
+                "unplaced fixture must not invent sampled clocks"
+            );
+            assert_ne!(
+                report.origins[0].worker_receipt, *trace,
+                "node trace is not the producer receipt"
+            );
+            assert!(
+                report.archival
+                    && !report.active_job
+                    && !report.publication_authority
+                    && !report.release_qualified
+            );
+            {
+                let db = f.engine.db.lock().unwrap();
+                let mut links = stash_archived_lineage::Links::new(
+                    &db,
+                    &first.project_id,
+                    &f.engine.pool,
+                    &f.engine.import_store,
+                    &report.origins,
+                )
+                .unwrap();
+                assert!(matches!(
+                    links
+                        .candidate(&db, &first.project_id, candidate.as_str())
+                        .unwrap(),
+                    Some(stash_archived_lineage::CandidateLink::Generation)
+                ));
+            }
+            Some(report.origins)
+        } else {
+            None
+        };
+        if format == 11 {
+            let id: String = f
+                .engine
+                .db
+                .lock()
+                .unwrap()
+                .query_row(
+                    "SELECT id FROM candidates WHERE project=?1",
+                    [first.project_id.as_str()],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            let report = f
+                .scoped(
+                    Command::ArchivedGenerationStatus {
+                        candidate_id: CandidateId::new(id).unwrap(),
+                        master_revision: None,
+                    },
+                    &first.project_id,
+                    None,
+                )
+                .unwrap();
+            let ResponseBody::ArchivedGeneration(report) = report else {
+                panic!("archived generation")
+            };
+            assert_eq!(report.origins.len(), 1);
+            assert_eq!(report.origins[0].clock.as_ref().unwrap().sample_count, 28);
+            assert!(report.origins[0].settings.annotated_view.is_some());
+        }
+        let exported = f.bytes(&first.project_id, first.revision.value());
+        assert_eq!(package_format_version(&exported[..52]).unwrap(), format);
+        let second = f.import(&exported);
+        assert_ne!(first.project_id, second.project_id);
+        let f = if let Some(old) = old_reader {
+            if format == 13 {
+                release_owned_reader_probe(f, old)
+            } else {
+                refuse_old_reader(&f.engine.config, old, format);
+                f
+            }
+        } else {
+            f
+        };
+        let f = restart(f);
+        if let Some(image) = image {
+            check_image(&f, &second.project_id, second.revision, image);
+        }
+        if let Some(expected) = first_cuda_origin {
+            let id: String = f
+                .engine
+                .db
+                .lock()
+                .unwrap()
+                .query_row(
+                    "SELECT id FROM candidates WHERE project=?1",
+                    [second.project_id.as_str()],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            let candidate = CandidateId::new(id).unwrap();
+            let ResponseBody::ArchivedGeneration(report) = f
+                .scoped(
+                    Command::ArchivedGenerationStatus {
+                        candidate_id: candidate.clone(),
+                        master_revision: None,
+                    },
+                    &second.project_id,
+                    None,
+                )
+                .unwrap()
+            else {
+                panic!("second-clone archived CUDA generation")
+            };
+            assert_eq!(encode(&report.origins).unwrap(), encode(&expected).unwrap());
+            assert!(
+                report.archival
+                    && !report.active_job
+                    && !report.publication_authority
+                    && !report.release_qualified
+            );
+            let db = f.engine.db.lock().unwrap();
+            let mut links = stash_archived_lineage::Links::new(
+                &db,
+                &second.project_id,
+                &f.engine.pool,
+                &f.engine.import_store,
+                &report.origins,
+            )
+            .unwrap();
+            assert!(matches!(
+                links
+                    .candidate(&db, &second.project_id, candidate.as_str())
+                    .unwrap(),
+                Some(stash_archived_lineage::CandidateLink::Generation)
+            ));
+        }
+        let plan = project_packages::capture(
+            &f.engine,
+            &f.session,
+            &f.token,
+            &second.project_id,
+            second.revision,
+        )
+        .unwrap();
+        assert_eq!(plan.manifest.format_version, format);
+        assert_eq!(plan.manifest.imported_origins.len(), 2);
+        assert!(plan.manifest.generated_origins.is_empty());
+        assert_eq!(f.count("jobs"), 0);
+        if format == 12 {
+            assert_eq!(
+                f.count("wasm_edits"),
+                0,
+                "inert imports must never restore executable operations"
+            );
+            assert!(f.engine.workers.lock().unwrap().is_empty());
+        }
+        drop(plan);
+        let path = f
+            .engine
+            .config
+            .state_dir
+            .join("imported-project-evidence")
+            .join(&trace.sha256);
+        assert_eq!(fs::metadata(&path).unwrap().len(), trace.byte_len);
+        let original_permissions = fs::metadata(&path).unwrap().permissions();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
+        }
+        fs::write(&path, b"[]").unwrap();
+        fs::set_permissions(&path, original_permissions).unwrap();
+        if let Some(image) = image {
+            let id: String = f
+                .engine
+                .db
+                .lock()
+                .unwrap()
+                .query_row(
+                    "SELECT id FROM candidates WHERE project=?1",
+                    [second.project_id.as_str()],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert!(
+                f.scoped(
+                    Command::CandidateImageOriginStatus {
+                        candidate_id: CandidateId::new(id.clone()).unwrap()
+                    },
+                    &second.project_id,
+                    None
+                )
+                .is_err(),
+                "changed retained image evidence must refuse inspection"
+            );
+            assert!(
+                f.scoped(
+                    Command::CandidateImageOriginPixels {
+                        candidate_id: CandidateId::new(id).unwrap(),
+                        record_sha256: image.record.sha256.clone()
+                    },
+                    &second.project_id,
+                    None
+                )
+                .is_err(),
+                "changed retained evidence refuses pixel preview"
+            );
+        }
+        let config = f.engine.config.clone();
+        let engine_lifetime = Arc::downgrade(&f.engine);
+        drop(f.engine);
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while engine_lifetime.strong_count() != 0 {
+            assert!(
+                Instant::now() < deadline,
+                "import worker still holds engine"
+            );
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        let database = config.state_dir.join("projects.sqlite3");
+        let wal = config.state_dir.join("projects.sqlite3-wal");
+        // Retain an actual committed WAL across refusal; opening a WAL-mode
+        // database with no WAL may create an empty sidecar even read-only.
+        let keeper = Connection::open(&database).unwrap();
+        keeper.execute_batch("PRAGMA journal_mode=WAL; UPDATE projects SET name=name || ' committed WAL fixture';").unwrap();
+        assert!(fs::metadata(&wal).unwrap().len() > 32);
+        let identity = |path: &std::path::Path| {
+            fs::read(path)
+                .ok()
+                .map(|bytes| (bytes.len(), format!("{:x}", Sha256::digest(&bytes))))
+        };
+        let before = [identity(&database), identity(&wal)];
+        assert!(
+            Engine::open(config).is_err(),
+            "changed retained required evidence must refuse startup"
+        );
+        assert_eq!(
+            [identity(&database), identity(&wal)],
+            before,
+            "refused startup must preserve database and WAL bytes"
+        );
+        drop(keeper);
     }
     fn fixture() -> Fixture {
         fixture_with_budget(32 * 1024 * 1024 * 1024)
@@ -2001,7 +3018,10 @@ mod tests {
         let first = f.import(&f.bytes(&f.project, 1));
         let ResponseBody::Diagnostics(diagnostics) = f
             .scoped(
-                Command::Diagnostics { candidate_id: None },
+                Command::Diagnostics {
+                    candidate_id: None,
+                    maximum_speed_percent_per_second: None,
+                },
                 &first.project_id,
                 None,
             )

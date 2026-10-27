@@ -19,9 +19,12 @@ function check(name, condition, detail="") {
 for(const name of expected) check("workspace:"+name,packages.has(name));
 const allLibraries = metadata.packages.filter(p=>p.targets.some(t=>t.kind.includes("lib"))).map(p=>p.name).sort();
 check("exactly-four-product-libraries",JSON.stringify(allLibraries)===JSON.stringify([...expected].sort()),allLibraries.join(","));
+const workerPackage=packages.get("pulsar-worker");
+check("worker-binary-only",!!workerPackage && workerPackage.targets.some(t=>t.kind.includes("bin")) && !workerPackage.targets.some(t=>t.kind.includes("lib")));
 const banned = {
  "pulsar-core": ["pulsar-protocol","pulsar-engine","pulsar-clients","eframe","egui","ort","tokio","rusqlite","ureq","reqwest","serialport","wasmtime"],
  "pulsar-protocol": ["pulsar-engine","pulsar-clients","eframe","ort","rusqlite"],
+ "pulsar-worker": ["pulsar-clients","eframe","egui","pulsar"],
  "pulsar-engine": ["pulsar-clients","eframe","egui"],
  "pulsar-clients": ["pulsar-engine","ort","rusqlite","serialport","wasmtime"],
 };
@@ -45,12 +48,12 @@ for(const file of rustFiles(coreRoot)) {
 }
 const entry=fs.readFileSync(path.join(root,"src/main.rs"),"utf8");
 check("composition-no-legacy-modules",!/^\s*(?:pub\s+)?mod\s+(audio|batch|funscript|gui|kinematics|neural|plugin|signal|stash|sync|tracking|video)\s*;/m.test(entry));
-for(const pkg of expected) for(const file of rustFiles(path.join(root,"crates",pkg,"src"))) {
+for(const pkg of [...expected,"pulsar-worker"]) for(const file of rustFiles(path.join(root,"crates",pkg,"src"))) {
  const text=fs.readFileSync(file,"utf8");
  check("no-legacy-path-import:"+path.relative(root,file),!/#\[path\s*=\s*"[^"]*(?:legacy|\.\.\/\.\.\/\.\.\/src)/.test(text));
  if(pkg==="pulsar-clients") check("no-client-native-runtime:"+path.relative(root,file),!hasForbiddenClientRuntimeReference(text));
 }
-const productionFiles=[path.join(root,"Cargo.toml"),path.join(root,"Cargo.lock"),path.join(root,"src/main.rs"),...expected.flatMap(pkg=>[path.join(root,"crates",pkg,"Cargo.toml"),...rustFiles(path.join(root,"crates",pkg,"src"))])].filter(f=>fs.existsSync(f)).sort();
+const productionFiles=[path.join(root,"Cargo.toml"),path.join(root,"Cargo.lock"),path.join(root,"src/main.rs"),...[...expected,"pulsar-worker"].flatMap(pkg=>[path.join(root,"crates",pkg,"Cargo.toml"),...rustFiles(path.join(root,"crates",pkg,"src"))])].filter(f=>fs.existsSync(f)).sort();
 const identity=crypto.createHash("sha256");
 for(const file of productionFiles) identity.update(path.relative(root,file)).update("\0").update(fs.readFileSync(file)).update("\0");
 const report={gate:"phase-a-structure",generated_at:new Date().toISOString(),source_sha256:identity.digest("hex"),checks,passed:failures.length===0,limitations:["Static direct-dependency/source checks only; not proof of transitive runtime behavior.","No neural accuracy, OS/platform, sandbox or physical qualification claim."]};

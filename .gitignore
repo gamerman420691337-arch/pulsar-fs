@@ -1,1 +1,10 @@
 /target
+/.pulsar-reference-evidence/
+__pycache__/
+
+# Local qualification payloads and temporary harnesses stay on the evidence host.
+/docs/evidence/
+/.pulsar-motion-artifacts-harness/
+*.orig
+*.rej
+/{

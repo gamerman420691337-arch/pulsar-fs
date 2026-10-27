@@ -65,6 +65,8 @@ impl PackageBulkHandshake {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum BulkHandshakeEnvelope {
+    SourceMedia(crate::SourceMediaBulkHandshake),
+    LiveCapture(crate::LiveBulkHandshake),
     PackageUpload(crate::PackageUploadHandshake),
     Package(PackageBulkHandshake),
     Motion(BulkHandshake),
@@ -92,7 +94,7 @@ impl PackageBulkRequest {
 )]
 pub enum PackageBulkReply {
     Ready {
-        lease: PackageDownloadLease,
+        lease: Box<PackageDownloadLease>,
     },
     Download {
         offset: u64,
@@ -194,8 +196,8 @@ impl PackageBulkClient {
             })?;
         self.deadline = Some(self.deadline.map_or(expires, |old| old.min(expires)));
         self.stream = Some(stream);
-        self.lease = Some(lease.clone());
-        Ok(lease)
+        self.lease = Some(lease.as_ref().clone());
+        Ok(*lease)
     }
     pub fn download(&mut self, offset: u64, byte_len: u32) -> Result<Vec<u8>, BulkError> {
         let lease = self.lease.as_ref().ok_or_else(|| {
@@ -357,7 +359,13 @@ mod socket_tests {
             .unwrap();
         let request: PackageBulkHandshake = read_bulk_header(&mut stream).unwrap();
         request.validate().unwrap();
-        write_bulk_header(&mut stream, &PackageBulkReply::Ready { lease }).unwrap();
+        write_bulk_header(
+            &mut stream,
+            &PackageBulkReply::Ready {
+                lease: (lease).into(),
+            },
+        )
+        .unwrap();
         stream
     }
     #[test]

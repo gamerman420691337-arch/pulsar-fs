@@ -6,9 +6,9 @@
 //! The admission limits below are engineering defaults, not product guarantees.
 
 use crate::{
-    validate_reviews, validate_sha256, ArtifactIdentity, AttemptId, Axis, CandidateId, ErrorCode,
-    JobId, ProgramDescriptor, ProjectId, ProtectedRegion, ProtocolError, ReviewFlag, RevisionId,
-    SourceKind, SourceVersionId, TimeRange,
+    validate_review_decisions, validate_reviews, validate_sha256, ArtifactIdentity, AttemptId,
+    Axis, CandidateId, ErrorCode, JobId, ProgramDescriptor, ProjectId, ProtectedRegion,
+    ProtocolError, ReviewDecision, ReviewFlag, RevisionId, SourceKind, SourceVersionId, TimeRange,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -16,6 +16,19 @@ use std::io::{self, Write};
 
 pub const PROJECT_PACKAGE_FORMAT_VERSION: u16 = 1;
 pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_ORIGINS: u16 = 2;
+pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_PLACEMENTS: u16 = 3;
+pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_REVIEW_DECISIONS: u16 = 4;
+pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_RETIMING_RECEIPTS: u16 = 5;
+pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_REVIEW_INTERVALS: u16 = 6;
+pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_CANDIDATE_INTERVALS: u16 = 7;
+pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_STASH_ASSOCIATIONS: u16 = 8;
+pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_REBASE_LINKS: u16 = 9;
+pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_CUDA_EVIDENCE: u16 = 10;
+pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_ANNOTATED_MODELS: u16 = 11;
+pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_WASM_INVOCATIONS: u16 = 12;
+pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_IMAGE_ORIGINS: u16 = 13;
+pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_DEVICE_EXPORTS: u16 = 14;
+pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY: u16 = 15;
 pub const MAX_PROJECT_PACKAGE_MANIFEST_BYTES: usize = 16 * 1024 * 1024;
 pub const MAX_PROJECT_PACKAGE_ENTRIES: usize = 100_000;
 pub const DEFAULT_MAX_PROJECT_PACKAGE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
@@ -33,6 +46,11 @@ pub enum PackageObjectRole {
     DependencyEvidence,
     ExportReceipt,
     ImportedManifest,
+    CudaExecutionReceipt,
+    CudaNodeTrace,
+    AnnotatedModel,
+    WasmModule,
+    WasmInput,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -113,6 +131,10 @@ pub struct PackageRecordCounts {
     pub objects: u32,
     #[serde(default, skip_serializing_if = "package_origin_count_is_zero")]
     pub imported_origins: u32,
+    #[serde(default, skip_serializing_if = "package_origin_count_is_zero")]
+    pub placement_entries: u32,
+    #[serde(default, skip_serializing_if = "package_origin_count_is_zero")]
+    pub retiming_receipts: u32,
 }
 
 fn package_origin_count_is_zero(value: &u32) -> bool {
@@ -154,6 +176,8 @@ pub struct PackageEditState {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PackageReviewState {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub decisions: Vec<ReviewDecision>,
     pub flags: Vec<ReviewFlag>,
     pub unknown: bool,
     pub conservative: bool,
@@ -176,6 +200,12 @@ pub struct PackageRevisionLineage {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PackageCandidate {
+    /// Historical unchanged-motion rebase parent in this manifest's namespace.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rebased_from: Option<CandidateId>,
+    /// Application restriction; archived jobs remain inert.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_interval: Option<TimeRange>,
     pub candidate_id: CandidateId,
     pub base_revision: RevisionId,
     pub motion: ProgramDescriptor,
@@ -190,6 +220,8 @@ pub struct PackageCandidate {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PackageAuthoredLineage {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wasm_invocation: Option<crate::PackageWasmInvocation>,
     pub candidate_id: CandidateId,
     /// Original receipt identity, including its original (possibly older) base.
     pub receipt: ArtifactIdentity,
@@ -209,6 +241,75 @@ pub struct PackageSource {
     pub pinned: bool,
     /// Captured catalog state, not permission to follow the mutable original.
     pub evicted: bool,
+    /// Archival claims only. Never creates a destination-engine Stash association.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stash_associations: Vec<PackageStashAssociation>,
+}
+/// Historical remote identity plus exact inert capture receipt bytes. Host paths
+/// in the receipt are never filesystem locators in the importing engine.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct PackageStashAssociation {
+    pub endpoint: Option<String>,
+    pub scene_id: String,
+    pub file_id: String,
+    pub server_path: String,
+    pub capture_receipt: PackageObjectRef,
+}
+impl PackageStashAssociation {
+    pub fn validate(&self) -> Result<(), ProtocolError> {
+        if let Some(endpoint) = &self.endpoint {
+            text(endpoint, 4096, true)?;
+            if !endpoint.starts_with("http://") && !endpoint.starts_with("https://") {
+                return invalid("archival Stash endpoint scheme");
+            }
+            if endpoint.contains(['@', '?', '#']) {
+                return invalid(
+                    "archival Stash endpoint cannot contain credentials, query or fragment",
+                );
+            }
+        }
+        text(&self.scene_id, 128, true)?;
+        text(&self.file_id, 128, true)?;
+        text(&self.server_path, 8192, true)?;
+        self.capture_receipt.validate()?;
+        if self.capture_receipt.byte_len == 0 || self.capture_receipt.byte_len > 64 * 1024 {
+            return invalid("archival Stash capture receipt exceeds 64 KiB");
+        }
+        Ok(())
+    }
+    /// Called only on bounded, hash-verified inert bytes. Checks correspondence,
+    /// not truth of the remote declaration or destination publication authority.
+    pub fn check_capture(
+        &self,
+        source: &PackageSource,
+        capture: &crate::StashSourceCapture,
+    ) -> Result<(), ProtocolError> {
+        self.validate()?;
+        capture.identity.validate()?;
+        if capture.source_version != source.source_version
+            || capture.identity != source.identity
+            || capture.endpoint != self.endpoint
+            || capture.scene_id != self.scene_id
+            || capture.file_id != self.file_id
+            || capture.server_path != self.server_path
+        {
+            return invalid("archival Stash capture differs from its source/declaration");
+        }
+        for path in [&capture.local_source, &capture.script_destination] {
+            let value = path
+                .to_str()
+                .ok_or_else(|| ProtocolError::invalid("archival Stash path is not UTF-8"))?;
+            text(value, 4096, true)?;
+            if !path.is_absolute() {
+                return invalid("archival Stash capture path must be absolute inert metadata");
+            }
+        }
+        if capture.local_source.with_extension("funscript") != capture.script_destination {
+            return invalid("archival Stash destination is not the captured sibling");
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -231,7 +332,64 @@ pub struct PackageLegacyCell {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct PackageCudaEvidence {
+    /// Original accepted membership, never a destination job or device grant.
+    pub accepted_candidate: CandidateId,
+    pub request_sha256: String,
+    pub receipt: ArtifactIdentity,
+    pub trace: ArtifactIdentity,
+}
+impl PackageCudaEvidence {
+    pub fn validate(&self) -> Result<(), ProtocolError> {
+        validate_sha256(&self.request_sha256)?;
+        self.receipt.validate()?;
+        self.trace.validate()?;
+        if self.receipt.byte_len == 0
+            || self.receipt.byte_len > 65536
+            || self.trace.byte_len == 0
+            || self.trace.byte_len > 8 * 1024 * 1024
+        {
+            return invalid("archived CUDA evidence exceeds role byte bounds");
+        }
+        Ok(())
+    }
+    /// CUDA completion appends these two identities after the general receipt.
+    pub fn general_receipt<'a>(
+        &self,
+        lineage: &'a [ArtifactIdentity],
+    ) -> Result<&'a ArtifactIdentity, ProtocolError> {
+        self.validate()?;
+        let index = lineage
+            .len()
+            .checked_sub(3)
+            .ok_or_else(|| ProtocolError::invalid("archived CUDA lineage is incomplete"))?;
+        if lineage[index + 1] != self.receipt || lineage[index + 2] != self.trace {
+            return invalid("archived CUDA lineage role order differs");
+        }
+        Ok(&lineage[index])
+    }
+}
+
+/// Inert approval record and exact normalized pixels. Neither grants execution.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PackageImageOrigin {
+    pub record: ArtifactIdentity,
+    pub rgb: ArtifactIdentity,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PackageGeneratedOrigin {
+    /// Original expected image only; never executable installation authority.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cpu_runtime: Option<Box<crate::CpuRuntimeImage>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_origin: Option<PackageImageOrigin>,
+    /// Retained original model bytes; never executable installation authority.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub annotated_model: Option<ArtifactIdentity>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cuda_evidence: Option<PackageCudaEvidence>,
     pub job_id: JobId,
     pub attempt_id: AttemptId,
     pub base_revision: RevisionId,
@@ -253,11 +411,38 @@ pub enum PackageExportState {
     FailedOrUnknown,
 }
 
+/// Inert historical export scope. DeviceMotion describes the whole proposal,
+/// not an invented single axis or a physical qualification assertion.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PackageExportScope {
+    Axis(Axis),
+    DeviceMotion,
+}
+impl Serialize for PackageExportScope {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(match self {
+            Self::Axis(axis) => axis.as_str(),
+            Self::DeviceMotion => "device-motion",
+        })
+    }
+}
+impl<'de> Deserialize<'de> for PackageExportScope {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = String::deserialize(deserializer)?;
+        if value == "device-motion" {
+            return Ok(Self::DeviceMotion);
+        }
+        Axis::deserialize(serde::de::value::StrDeserializer::<D::Error>::new(&value))
+            .map(Self::Axis)
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PackageExportReceipt {
     pub revision: RevisionId,
-    pub axis: Axis,
+    /// Historical wire name retained for byte-compatible single-axis receipts.
+    pub axis: PackageExportScope,
     pub sha256: String,
     pub state: PackageExportState,
     /// Optional private archival text; never an output or extraction path.
@@ -291,6 +476,12 @@ pub struct PortableProjectManifest {
     pub objects: Vec<PackageObjectDescriptor>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub imported_origins: Vec<crate::PackageArchiveOrigin>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placements: Option<crate::PackagePlacementClosure>,
+    /// Original namespace facts only. Clone imports retain them in hashed origin
+    /// manifests instead of rewriting them into destination-authored receipts.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub retiming_receipts: Vec<crate::MotionRetimeReceipt>,
 }
 
 impl PortableProjectManifest {
@@ -308,6 +499,12 @@ impl PortableProjectManifest {
             self.export_receipts.len(),
             self.objects.len(),
             self.imported_origins.len(),
+            self.placements
+                .as_ref()
+                .map(|p| p.entry_count())
+                .transpose()?
+                .unwrap_or(0),
+            self.retiming_receipts.len(),
         ];
         let total = lengths
             .iter()
@@ -330,6 +527,8 @@ impl PortableProjectManifest {
             export_receipts: lengths[8] as u32,
             objects: lengths[9] as u32,
             imported_origins: lengths[10] as u32,
+            placement_entries: lengths[11] as u32,
+            retiming_receipts: lengths[12] as u32,
         })
     }
 
@@ -345,17 +544,137 @@ impl PortableProjectManifest {
         Ok(bytes)
     }
 
-    fn validate_structure(&self) -> Result<(), ProtocolError> {
-        let required_version = if self.imported_origins.is_empty() {
+    pub fn required_format_version(&self) -> u16 {
+        if self
+            .generated_origins
+            .iter()
+            .any(|origin| origin.cpu_runtime.is_some())
+            || self.imported_origins.iter().any(|origin| {
+                origin.container.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY
+            })
+        {
+            return PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY;
+        }
+        if self
+            .export_receipts
+            .iter()
+            .any(|r| matches!(r.axis, PackageExportScope::DeviceMotion))
+            || self.imported_origins.iter().any(|o| {
+                o.container.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_DEVICE_EXPORTS
+            })
+        {
+            return PROJECT_PACKAGE_FORMAT_VERSION_WITH_DEVICE_EXPORTS;
+        }
+        if self
+            .generated_origins
+            .iter()
+            .any(|o| o.image_origin.is_some())
+            || self.imported_origins.iter().any(|o| {
+                o.container.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_IMAGE_ORIGINS
+            })
+        {
+            return PROJECT_PACKAGE_FORMAT_VERSION_WITH_IMAGE_ORIGINS;
+        }
+        if self
+            .authored_lineage
+            .iter()
+            .any(|l| l.wasm_invocation.is_some())
+            || self.imported_origins.iter().any(|o| {
+                o.container.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_WASM_INVOCATIONS
+            })
+        {
+            return PROJECT_PACKAGE_FORMAT_VERSION_WITH_WASM_INVOCATIONS;
+        }
+        if self
+            .generated_origins
+            .iter()
+            .any(|o| o.annotated_model.is_some())
+            || self.imported_origins.iter().any(|o| {
+                o.container.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_ANNOTATED_MODELS
+            })
+        {
+            return PROJECT_PACKAGE_FORMAT_VERSION_WITH_ANNOTATED_MODELS;
+        }
+        if self
+            .generated_origins
+            .iter()
+            .any(|o| o.cuda_evidence.is_some())
+            || self.imported_origins.iter().any(|o| {
+                o.container.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_CUDA_EVIDENCE
+            })
+        {
+            return PROJECT_PACKAGE_FORMAT_VERSION_WITH_CUDA_EVIDENCE;
+        }
+        if self.candidates.iter().any(|c| c.rebased_from.is_some())
+            || self.imported_origins.iter().any(|o| {
+                o.container.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_REBASE_LINKS
+            })
+        {
+            return PROJECT_PACKAGE_FORMAT_VERSION_WITH_REBASE_LINKS;
+        }
+        if self
+            .sources
+            .iter()
+            .any(|s| !s.stash_associations.is_empty())
+            || self.imported_origins.iter().any(|o| {
+                o.container.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_STASH_ASSOCIATIONS
+            })
+        {
+            return PROJECT_PACKAGE_FORMAT_VERSION_WITH_STASH_ASSOCIATIONS;
+        }
+        if self.candidates.iter().any(|c| c.project_interval.is_some())
+            || self.imported_origins.iter().any(|o| {
+                o.container.format_version
+                    >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_CANDIDATE_INTERVALS
+            })
+        {
+            return PROJECT_PACKAGE_FORMAT_VERSION_WITH_CANDIDATE_INTERVALS;
+        }
+        if self
+            .revision_lineage
+            .iter()
+            .any(|l| l.review.decisions.iter().any(|d| d.range.is_some()))
+            || self.imported_origins.iter().any(|o| {
+                o.container.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_REVIEW_INTERVALS
+            })
+        {
+            return PROJECT_PACKAGE_FORMAT_VERSION_WITH_REVIEW_INTERVALS;
+        }
+        if !self.retiming_receipts.is_empty()
+            || self.imported_origins.iter().any(|o| {
+                o.container.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_RETIMING_RECEIPTS
+            })
+        {
+            return PROJECT_PACKAGE_FORMAT_VERSION_WITH_RETIMING_RECEIPTS;
+        }
+        if self
+            .revision_lineage
+            .iter()
+            .any(|l| !l.review.decisions.is_empty())
+            || self
+                .authored_lineage
+                .iter()
+                .any(|l| !l.review.decisions.is_empty())
+        {
+            PROJECT_PACKAGE_FORMAT_VERSION_WITH_REVIEW_DECISIONS
+        } else if self.placements.is_some() {
+            PROJECT_PACKAGE_FORMAT_VERSION_WITH_PLACEMENTS
+        } else if self.imported_origins.is_empty() {
             PROJECT_PACKAGE_FORMAT_VERSION
         } else {
             PROJECT_PACKAGE_FORMAT_VERSION_WITH_ORIGINS
-        };
-        if self.format_version != required_version {
+        }
+    }
+    fn validate_structure(&self) -> Result<(), ProtocolError> {
+        if self.format_version != self.required_format_version() {
             return Err(ProtocolError::unsupported(
                 "unsupported portable project format",
             ));
         }
+        if let Some(placements) = &self.placements {
+            placements.validate(self)?;
+        }
+        self.validate_retiming_receipts()?;
         if self.record_counts()? != self.counts {
             return invalid("package declared record counts do not match its closure");
         }
@@ -416,6 +735,30 @@ impl PortableProjectManifest {
             .collect();
         let mut job_receipts: BTreeMap<&str, BTreeSet<(&str, &str, u64)>> = BTreeMap::new();
         for origin in &self.generated_origins {
+            if let Some(image) = &origin.cpu_runtime {
+                image.validate()?;
+                if origin.cuda_evidence.is_some() {
+                    return invalid("CPU image and CUDA completion cannot share one origin");
+                }
+            }
+            if let Some(model) = &origin.annotated_model {
+                model.validate()?;
+                if model.byte_len == 0 || model.byte_len > 256 * 1024 * 1024 {
+                    return invalid("annotated model bytes exceed portable admission");
+                }
+                if origin.receipt.is_some() && origin.state != "completed" {
+                    return invalid("annotated receipt belongs to a noncompleted origin");
+                }
+                if origin.state == "completed"
+                    && (origin.receipt.is_none()
+                        || !self
+                            .candidates
+                            .iter()
+                            .any(|c| c.job_origin.as_ref() == Some(&origin.job_id)))
+                {
+                    return invalid("completed annotated origin lacks candidate and receipt");
+                }
+            }
             if let Some(receipt) = &origin.receipt {
                 job_receipts
                     .entry(origin.job_id.as_str())
@@ -503,8 +846,59 @@ impl PortableProjectManifest {
             bounded_entries(lineage.contributions.len())?;
             // TimeRange already enforces checked, nonempty interval construction.
             review(&lineage.review)?;
+            for d in &lineage.review.decisions {
+                let r = revisions
+                    .get(&d.recorded_revision)
+                    .ok_or_else(|| ProtocolError::invalid("review decision revision is absent"))?;
+                if d.recorded_revision > lineage.revision
+                    || r.actor != d.actor.as_str()
+                    || r.kind
+                        != if d.range.is_some() {
+                            "review_interval_disposition"
+                        } else {
+                            "review_disposition"
+                        }
+                    || !revisions.contains_key(&d.base_revision)
+                {
+                    return invalid("review decision actor/revision binding is inconsistent");
+                }
+            }
         }
         for candidate in &self.candidates {
+            if let Some(parent) = &candidate.rebased_from {
+                let parent = candidates
+                    .get(parent.as_str())
+                    .ok_or_else(|| ProtocolError::invalid("portable rebase parent is absent"))?;
+                if parent.candidate_id == candidate.candidate_id
+                    || parent.base_revision > candidate.base_revision
+                    || !same(&parent.motion, &candidate.motion)?
+                    || parent.lineage != candidate.lineage
+                    || parent.job_origin != candidate.job_origin
+                    || !same(&parent.review, &candidate.review)?
+                    || parent.project_interval != candidate.project_interval
+                {
+                    return invalid("portable rebase changed motion or evidence");
+                }
+                let mut current = candidate;
+                let mut seen = std::collections::BTreeSet::new();
+                while let Some(parent) = &current.rebased_from {
+                    if !seen.insert(current.candidate_id.as_str()) {
+                        return invalid("portable rebase ancestry is cyclic");
+                    }
+                    if seen.len() >= 128 {
+                        return Err(resource("portable rebase ancestry exceeds its bound"));
+                    }
+                    current = candidates.get(parent.as_str()).ok_or_else(|| {
+                        ProtocolError::invalid("portable rebase parent is absent")
+                    })?;
+                }
+            }
+            if candidate
+                .project_interval
+                .is_some_and(|r| r.start() < crate::ProjectTime::ZERO || r.start() >= r.end())
+            {
+                return invalid("invalid candidate project interval");
+            }
             if !revisions.contains_key(&candidate.base_revision)
                 || candidate
                     .committed_revision
@@ -547,12 +941,62 @@ impl PortableProjectManifest {
                 return invalid("authored lineage counts overflow");
             }
             review(&authored.review)?;
+            if !authored.review.decisions.is_empty() {
+                return invalid(
+                    "uncommitted authored candidates cannot carry accepted review decisions",
+                );
+            }
+            if let Some(invocation) = &authored.wasm_invocation {
+                invocation.validate()?;
+                let origin = candidates
+                    .get(invocation.origin_candidate_id.as_str())
+                    .ok_or_else(|| ProtocolError::invalid("WASM original candidate is absent"))?;
+                let base = self
+                    .revisions
+                    .iter()
+                    .find(|r| r.revision == invocation.base_revision)
+                    .ok_or_else(|| ProtocolError::invalid("WASM original base is absent"))?;
+                let candidate = candidates.get(authored.candidate_id.as_str()).unwrap();
+                if invocation.receipt.edit_receipt != authored.receipt
+                    || invocation.receipt.output_sha256 != authored.input.sha256
+                    || invocation.receipt.output_byte_len != authored.input.byte_len
+                    || invocation.receipt.base_program != base.motion
+                    || invocation.receipt.result_program != candidate.motion
+                    || invocation.receipt.result_program != origin.motion
+                {
+                    return invalid("WASM archived association differs from authored lineage");
+                }
+                required.identity(&invocation.manifest.artifact, PackageObjectRole::WasmModule)?;
+                required.reference(&invocation.input, PackageObjectRole::WasmInput)?;
+            }
             required.identity(&authored.receipt, PackageObjectRole::EditReceipt)?;
             required.reference(&authored.input, PackageObjectRole::EditInput)?;
         }
         for source in &self.sources {
             text(&source.label, 4096, false)?;
             required.identity(&source.identity, PackageObjectRole::SourceSnapshot)?;
+            if source.kind != SourceKind::Media && !source.stash_associations.is_empty() {
+                return invalid("Stash association requires a media source");
+            }
+            if source.stash_associations.len() > 16
+                || !strictly_sorted(
+                    source
+                        .stash_associations
+                        .iter()
+                        .map(|a| a.capture_receipt.sha256.as_str()),
+                )
+            {
+                return invalid(
+                    "source Stash associations must be bounded and sorted by unique receipt digest",
+                );
+            }
+            for association in &source.stash_associations {
+                association.validate()?;
+                required.reference(
+                    &association.capture_receipt,
+                    PackageObjectRole::DependencyEvidence,
+                )?;
+            }
         }
         for cell in &self.legacy_cells {
             text(&cell.row_key, 512, true)?;
@@ -586,6 +1030,20 @@ impl PortableProjectManifest {
                 return invalid("unsupported archival generation state");
             }
             required.reference(&origin.manifest, PackageObjectRole::WorkerManifest)?;
+            if let Some(image) = &origin.image_origin {
+                if image.record.byte_len == 0
+                    || image.record.byte_len > 128 * 1024
+                    || image.rgb.byte_len == 0
+                    || image.rgb.byte_len > 512 * 512 * 3
+                {
+                    return invalid("image origin exceeds portable admission");
+                }
+                required.identity(&image.record, PackageObjectRole::DependencyEvidence)?;
+                required.identity(&image.rgb, PackageObjectRole::DependencyEvidence)?;
+            }
+            if let Some(model) = &origin.annotated_model {
+                required.identity(model, PackageObjectRole::AnnotatedModel)?;
+            }
             if origin.receipt.is_some() != origin.program.is_some() {
                 return invalid("archived worker receipt and exact raw program must be paired");
             }
@@ -594,6 +1052,24 @@ impl PortableProjectManifest {
             }
             if let Some(receipt) = &origin.receipt {
                 required.identity(receipt, PackageObjectRole::WorkerReceipt)?;
+            }
+            if let Some(cuda) = &origin.cuda_evidence {
+                cuda.validate()?;
+                let candidate = candidates
+                    .get(cuda.accepted_candidate.as_str())
+                    .ok_or_else(|| {
+                        ProtocolError::invalid("archived CUDA accepted candidate absent")
+                    })?;
+                if origin.state != "completed"
+                    || candidate.job_origin.as_ref() != Some(&origin.job_id)
+                    || candidate.base_revision != origin.base_revision
+                    || origin.manifest.sha256 != cuda.request_sha256
+                    || origin.receipt.as_ref() != Some(cuda.general_receipt(&candidate.lineage)?)
+                {
+                    return invalid("archived CUDA membership differs from generation origin");
+                }
+                required.identity(&cuda.receipt, PackageObjectRole::CudaExecutionReceipt)?;
+                required.identity(&cuda.trace, PackageObjectRole::CudaNodeTrace)?;
             }
         }
         let mut previous: Option<Vec<u8>> = None;
@@ -629,6 +1105,65 @@ impl PortableProjectManifest {
         }
         if !required.0.is_empty() {
             return invalid("package is missing a required object descriptor");
+        }
+        Ok(())
+    }
+
+    fn validate_retiming_receipts(&self) -> Result<(), ProtocolError> {
+        if !strictly_sorted(self.retiming_receipts.iter().map(|r| r.revision)) {
+            return invalid("retiming receipts must have unique ascending revisions");
+        }
+        let revisions: BTreeMap<_, _> = self.revisions.iter().map(|r| (r.revision, r)).collect();
+        let lineage: BTreeMap<_, _> = self
+            .revision_lineage
+            .iter()
+            .map(|r| (r.revision, r))
+            .collect();
+        let placements: BTreeMap<_, _> = self
+            .placements
+            .iter()
+            .flat_map(|p| p.definitions.iter().map(|d| (&d.placement_id, d)))
+            .collect();
+        for receipt in &self.retiming_receipts {
+            receipt.validate()?;
+            let before = revisions
+                .get(&receipt.base_revision)
+                .ok_or_else(|| ProtocolError::invalid("retiming base revision missing"))?;
+            let after = revisions
+                .get(&receipt.revision)
+                .ok_or_else(|| ProtocolError::invalid("retiming result revision missing"))?;
+            let link = lineage
+                .get(&receipt.revision)
+                .ok_or_else(|| ProtocolError::invalid("retiming lineage missing"))?;
+            let matches = |motion: &ProgramDescriptor, identity: &ArtifactIdentity| {
+                motion.artifact_id == identity.artifact_id
+                    && motion.sha256 == identity.sha256
+                    && motion.byte_len == identity.byte_len
+            };
+            if self
+                .imported_origins
+                .iter()
+                .any(|o| receipt.revision <= o.container.captured_revision)
+                || receipt.project_id != self.origin_project_id
+                || after.actor != receipt.actor
+                || after.kind != "source_retime"
+                || link.operation != "source_retime"
+                || link.parent_revision != Some(receipt.base_revision)
+                || !matches(&before.motion, &receipt.before)
+                || !matches(&after.motion, &receipt.after)
+                || placements.get(&receipt.from.placement_id).copied() != Some(&receipt.from)
+                || placements.get(&receipt.to.placement_id).copied() != Some(&receipt.to)
+                || !self
+                    .placements
+                    .iter()
+                    .flat_map(|p| p.revisions.iter())
+                    .any(|r| {
+                        r.revision == receipt.revision
+                            && r.placements.contains(&receipt.to.placement_id)
+                    })
+            {
+                return invalid("retiming receipt differs from its original namespace bindings");
+            }
         }
         Ok(())
     }
@@ -705,7 +1240,7 @@ fn protection(regions: &[ProtectedRegion]) -> Result<(), ProtocolError> {
     Ok(())
 }
 fn review(state: &PackageReviewState) -> Result<(), ProtocolError> {
-    validate_reviews(&state.flags)
+    validate_review_decisions(&state.flags, &state.decisions)
 }
 fn text(value: &str, limit: usize, nonempty: bool) -> Result<(), ProtocolError> {
     if value.len() > limit || value.contains('\0') || (nonempty && value.is_empty()) {
@@ -777,6 +1312,8 @@ mod tests {
             axes: vec![],
         };
         let mut m = PortableProjectManifest {
+            placements: None,
+            retiming_receipts: vec![],
             imported_origins: vec![],
             format_version: 1,
             origin_project_id: ProjectId::new("p").unwrap(),
@@ -917,6 +1454,7 @@ mod tests {
             operation: "undo".into(),
             contributions: vec![],
             review: PackageReviewState {
+                decisions: vec![],
                 flags: vec![],
                 unknown: true,
                 conservative: true,
@@ -932,6 +1470,8 @@ mod tests {
         let mut m = fixture();
         let id = CandidateId::new("c").unwrap();
         m.candidates.push(PackageCandidate {
+            rebased_from: None,
+            project_interval: None,
             candidate_id: id.clone(),
             base_revision: RevisionId::new(0),
             motion: m.head.motion.clone(),
@@ -941,6 +1481,7 @@ mod tests {
             review: vec![],
         });
         m.authored_lineage.push(PackageAuthoredLineage {
+            wasm_invocation: None,
             candidate_id: id,
             receipt: ArtifactIdentity {
                 artifact_id: ArtifactId::new("receipt").unwrap(),
@@ -952,6 +1493,7 @@ mod tests {
                 byte_len: 13,
             },
             review: PackageReviewState {
+                decisions: vec![],
                 flags: vec![],
                 unknown: true,
                 conservative: false,
@@ -1031,7 +1573,151 @@ mod tests {
         }
     }
     #[test]
-    fn generated_candidate_cannot_drop_its_exact_worker_receipt() {
+    fn image_origin_requires_format_thirteen_and_both_exact_evidence_roles() {
+        let mut m = generated_fixture();
+        let record = ArtifactIdentity {
+            artifact_id: ArtifactId::new("image-origin").unwrap(),
+            sha256: "6".repeat(64),
+            byte_len: 2048,
+        };
+        let rgb = ArtifactIdentity {
+            artifact_id: ArtifactId::new("image-pixels").unwrap(),
+            sha256: "7".repeat(64),
+            byte_len: 3,
+        };
+        m.generated_origins[0].image_origin = Some(PackageImageOrigin {
+            record: record.clone(),
+            rgb: rgb.clone(),
+        });
+        for identity in [&record, &rgb] {
+            m.objects.push(PackageObjectDescriptor {
+                sha256: identity.sha256.clone(),
+                byte_len: identity.byte_len,
+                roles: vec![PackageObjectRole::DependencyEvidence],
+            });
+        }
+        m.objects.sort_by(|a, b| a.sha256.cmp(&b.sha256));
+        m.format_version = m.required_format_version();
+        m.counts = m.record_counts().unwrap();
+        assert_eq!(m.format_version, 13);
+        m.validate().unwrap();
+        let mut old = m.clone();
+        old.format_version = 12;
+        assert!(old.validate().is_err());
+        for identity in [&record, &rgb] {
+            let mut bad = m.clone();
+            bad.objects
+                .iter_mut()
+                .find(|o| o.sha256 == identity.sha256)
+                .unwrap()
+                .roles = vec![PackageObjectRole::SourceSnapshot];
+            assert!(bad.validate().is_err());
+        }
+        let mut missing = m.clone();
+        missing.generated_origins[0].image_origin = None;
+        missing.format_version = missing.required_format_version();
+        assert!(missing.validate().is_err());
+        let mut oversized = m;
+        oversized.generated_origins[0]
+            .image_origin
+            .as_mut()
+            .unwrap()
+            .rgb
+            .byte_len = 512 * 512 * 3 + 1;
+        assert!(oversized.validate().is_err());
+    }
+    #[test]
+    fn annotated_model_requires_exact_format_and_payload_role() {
+        let mut m = generated_fixture();
+        let model = ArtifactIdentity {
+            artifact_id: ArtifactId::new("6".repeat(64)).unwrap(),
+            sha256: "6".repeat(64),
+            byte_len: 9,
+        };
+        m.generated_origins[0].annotated_model = Some(model.clone());
+        m.objects.push(PackageObjectDescriptor {
+            sha256: model.sha256,
+            byte_len: model.byte_len,
+            roles: vec![PackageObjectRole::AnnotatedModel],
+        });
+        m.objects.sort_by(|a, b| a.sha256.cmp(&b.sha256));
+        m.format_version = m.required_format_version();
+        m.counts = m.record_counts().unwrap();
+        assert_eq!(m.format_version, 11);
+        m.validate().unwrap();
+        let mut bad = m.clone();
+        bad.format_version = 10;
+        assert!(bad.validate().is_err());
+        let mut bad = m.clone();
+        bad.generated_origins[0].annotated_model = None;
+        assert!(bad.validate().is_err());
+        let mut bad = m.clone();
+        bad.objects
+            .retain(|o| !o.roles.contains(&PackageObjectRole::AnnotatedModel));
+        bad.counts = bad.record_counts().unwrap();
+        assert!(bad.validate().is_err());
+        let mut bad = m.clone();
+        bad.generated_origins[0].state = "failed".into();
+        assert!(bad.validate().is_err());
+        let mut bad = m.clone();
+        bad.generated_origins[0]
+            .annotated_model
+            .as_mut()
+            .unwrap()
+            .byte_len = 256 * 1024 * 1024 + 1;
+        assert!(bad.validate().is_err());
+        let mut original = generated_fixture();
+        let json = serde_json::to_value(&original.generated_origins[0]).unwrap();
+        assert!(json.get("annotated_model").is_none());
+        original.format_version = original.required_format_version();
+        assert!(original.format_version < 11);
+    }
+    #[test]
+    fn cpu_image_history_requires_format15_and_preserves_legacy_bytes() {
+        let legacy = generated_fixture();
+        let value = serde_json::to_value(&legacy.generated_origins[0]).unwrap();
+        assert!(value.get("cpu_runtime").is_none());
+        let identity = |n: u8| ArtifactIdentity {
+            artifact_id: crate::ArtifactId::new(format!("{n:064x}")).unwrap(),
+            sha256: format!("{n:064x}"),
+            byte_len: 1,
+        };
+        let image = crate::CpuRuntimeImage {
+            schema_version: 1,
+            owner_policy: identity(9),
+            libraries: crate::CPU_RUNTIME_REQUIRED_ALIASES
+                .iter()
+                .enumerate()
+                .map(|(n, alias)| crate::CapturedNativeLibrary {
+                    identity: identity(n as u8 + 1),
+                    names: vec![(*alias).into()],
+                })
+                .collect(),
+        };
+        let mut current = legacy;
+        current.generated_origins[0].cpu_runtime = Some(Box::new(image));
+        assert_eq!(
+            current.required_format_version(),
+            PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY
+        );
+        current.format_version = PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY;
+        current.validate().unwrap();
+        let bytes = current.canonical_bytes().unwrap();
+        let restored: PortableProjectManifest = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(restored.canonical_bytes().unwrap(), bytes);
+        current.format_version = PROJECT_PACKAGE_FORMAT_VERSION_WITH_DEVICE_EXPORTS;
+        assert!(current.validate().is_err());
+        current.format_version = PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY;
+        current.generated_origins[0]
+            .cpu_runtime
+            .as_mut()
+            .unwrap()
+            .libraries[0]
+            .names
+            .push("libc.so.6".into());
+        assert!(current.validate().is_err());
+    }
+    fn generated_fixture() -> PortableProjectManifest {
         let mut m = fixture();
         let job = JobId::new("j").unwrap();
         let source = SourceVersionId::new("s").unwrap();
@@ -1041,6 +1727,8 @@ mod tests {
             byte_len: 9,
         };
         m.candidates.push(PackageCandidate {
+            rebased_from: None,
+            project_interval: None,
             candidate_id: CandidateId::new("c").unwrap(),
             base_revision: RevisionId::new(0),
             motion: m.head.motion.clone(),
@@ -1060,8 +1748,13 @@ mod tests {
             },
             pinned: false,
             evicted: false,
+            stash_associations: vec![],
         });
         m.generated_origins.push(PackageGeneratedOrigin {
+            cpu_runtime: None,
+            image_origin: None,
+            annotated_model: None,
+            cuda_evidence: None,
             job_id: job,
             attempt_id: AttemptId::new("attempt").unwrap(),
             base_revision: RevisionId::new(0),
@@ -1107,12 +1800,130 @@ mod tests {
         m.objects.sort_by(|a, b| a.sha256.cmp(&b.sha256));
         m.counts = m.record_counts().unwrap();
         m.validate().unwrap();
+        m
+    }
+    #[test]
+    fn generated_candidate_cannot_drop_its_exact_worker_receipt() {
+        let mut m = generated_fixture();
+        let receipt = m.generated_origins[0].receipt.take();
+        let raw_program = m.generated_origins[0].program.take();
+        assert!(m.validate().is_err());
+        m.generated_origins[0].receipt = receipt;
+        m.generated_origins[0].program = raw_program;
         let program = m.generated_origins[0].program.take();
         assert!(m.validate().is_err());
         m.generated_origins[0].program = program;
         m.generated_origins[0].receipt.as_mut().unwrap().artifact_id =
             ArtifactId::new("different-origin-receipt").unwrap();
         assert!(m.validate().is_err());
+    }
+    #[test]
+    fn archived_cuda_roles_bind_membership_and_preserve_general_receipt() {
+        let mut m = generated_fixture();
+        let identity = |name: &str, digit: &str| ArtifactIdentity {
+            artifact_id: ArtifactId::new(name).unwrap(),
+            sha256: digit.repeat(64),
+            byte_len: 9,
+        };
+        let receipt = identity("cuda-receipt", "5");
+        let trace = identity("cuda-trace", "6");
+        m.candidates[0]
+            .lineage
+            .extend([receipt.clone(), trace.clone()]);
+        m.generated_origins[0].cuda_evidence = Some(PackageCudaEvidence {
+            accepted_candidate: m.candidates[0].candidate_id.clone(),
+            request_sha256: m.generated_origins[0].manifest.sha256.clone(),
+            receipt: receipt.clone(),
+            trace: trace.clone(),
+        });
+        for (identity, role) in [
+            (receipt, PackageObjectRole::CudaExecutionReceipt),
+            (trace, PackageObjectRole::CudaNodeTrace),
+        ] {
+            m.objects.push(PackageObjectDescriptor {
+                sha256: identity.sha256,
+                byte_len: identity.byte_len,
+                roles: vec![role],
+            });
+        }
+        m.objects.sort_by(|a, b| a.sha256.cmp(&b.sha256));
+        m.format_version = m.required_format_version();
+        m.counts = m.record_counts().unwrap();
+        assert_eq!(m.format_version, 10);
+        m.validate().unwrap();
+        let mut invalid = m.clone();
+        invalid.format_version = 9;
+        assert!(invalid.validate().is_err());
+        let mut invalid = m.clone();
+        invalid.candidates[0].lineage.swap(1, 2);
+        assert!(invalid.validate().is_err());
+        let mut invalid = m.clone();
+        invalid.generated_origins[0]
+            .cuda_evidence
+            .as_mut()
+            .unwrap()
+            .accepted_candidate = CandidateId::new("absent").unwrap();
+        assert!(invalid.validate().is_err());
+        let mut invalid = m.clone();
+        invalid.generated_origins[0]
+            .cuda_evidence
+            .as_mut()
+            .unwrap()
+            .request_sha256 = "7".repeat(64);
+        assert!(invalid.validate().is_err());
+        let mut invalid = m.clone();
+        invalid.generated_origins[0].state = "running".into();
+        assert!(invalid.validate().is_err());
+        for digest in ["5", "6"] {
+            let mut invalid = m.clone();
+            invalid
+                .objects
+                .iter_mut()
+                .find(|o| o.sha256 == digest.repeat(64))
+                .unwrap()
+                .roles = vec![PackageObjectRole::DependencyEvidence];
+            assert!(invalid.validate().is_err());
+        }
+        let mut invalid = m.clone();
+        invalid.generated_origins[0]
+            .cuda_evidence
+            .as_mut()
+            .unwrap()
+            .trace
+            .byte_len = 8 * 1024 * 1024 + 1;
+        assert!(invalid.validate().is_err());
+        let model = identity("annotated-model", "8");
+        m.generated_origins[0].annotated_model = Some(model.clone());
+        m.objects.push(PackageObjectDescriptor {
+            sha256: model.sha256,
+            byte_len: model.byte_len,
+            roles: vec![PackageObjectRole::AnnotatedModel],
+        });
+        m.objects.sort_by(|a, b| a.sha256.cmp(&b.sha256));
+        m.format_version = m.required_format_version();
+        m.counts = m.record_counts().unwrap();
+        assert_eq!(m.format_version, 11);
+        m.validate().unwrap();
+        let mut invalid = m.clone();
+        invalid.format_version = 10;
+        assert!(invalid.validate().is_err());
+        for role in [
+            PackageObjectRole::AnnotatedModel,
+            PackageObjectRole::CudaExecutionReceipt,
+            PackageObjectRole::CudaNodeTrace,
+        ] {
+            let mut invalid = m.clone();
+            invalid
+                .objects
+                .iter_mut()
+                .find(|o| o.roles.contains(&role))
+                .unwrap()
+                .roles = vec![PackageObjectRole::DependencyEvidence];
+            assert!(invalid.validate().is_err(), "{role:?}");
+        }
+        let mut invalid = m;
+        invalid.candidates[0].lineage.swap(1, 2);
+        assert!(invalid.validate().is_err());
     }
     #[test]
     fn retained_history_positions_cannot_have_holes() {
@@ -1133,6 +1944,8 @@ mod tests {
         m.captured_revision = RevisionId::new(1);
         m.head.revision = RevisionId::new(1);
         m.candidates.push(PackageCandidate {
+            rebased_from: None,
+            project_interval: None,
             candidate_id: candidate.clone(),
             base_revision: RevisionId::new(0),
             motion: m.head.motion.clone(),
@@ -1150,6 +1963,7 @@ mod tests {
             operation: "candidate_commit".into(),
             contributions: vec![],
             review: PackageReviewState {
+                decisions: vec![],
                 flags: vec![],
                 unknown: false,
                 conservative: false,
@@ -1163,10 +1977,166 @@ mod tests {
         m.validate().unwrap();
     }
     #[test]
+    fn stash_association_requires_new_reader_exact_payload_and_explicit_bounds() {
+        let source = PackageSource {
+            source_version: SourceVersionId::new("source").unwrap(),
+            kind: SourceKind::Media,
+            label: "source".into(),
+            identity: ArtifactIdentity {
+                artifact_id: ArtifactId::new("source").unwrap(),
+                sha256: "a".repeat(64),
+                byte_len: 3,
+            },
+            pinned: true,
+            evicted: false,
+            stash_associations: vec![],
+        };
+        let mut association = PackageStashAssociation {
+            endpoint: Some("http://localhost:9999/graphql".into()),
+            scene_id: "scene".into(),
+            file_id: "file".into(),
+            server_path: "/stash/source.mp4".into(),
+            capture_receipt: PackageObjectRef {
+                sha256: "b".repeat(64),
+                byte_len: 123,
+            },
+        };
+        let mut capture = crate::StashSourceCapture {
+            endpoint: association.endpoint.clone(),
+            source_version: source.source_version.clone(),
+            identity: source.identity.clone(),
+            scene_id: association.scene_id.clone(),
+            file_id: association.file_id.clone(),
+            server_path: association.server_path.clone(),
+            local_source: crate::test_host_path("/inert/source.mp4").into(),
+            script_destination: crate::test_host_path("/inert/source.funscript").into(),
+        };
+        association.check_capture(&source, &capture).unwrap();
+        capture.file_id = "different".into();
+        assert!(association.check_capture(&source, &capture).is_err());
+        association.capture_receipt.byte_len = 65537;
+        assert!(association.validate().is_err());
+        association.capture_receipt.byte_len = 123;
+        association.endpoint = Some("http://user:password@localhost/graphql".into());
+        assert!(association.validate().is_err());
+        association.endpoint = None;
+        let mut m = fixture();
+        let mut declared = source;
+        declared.stash_associations.push(association);
+        m.sources.push(declared);
+        assert_eq!(m.required_format_version(), 8);
+        let legacy = serde_json::to_value(&m.sources[0]).unwrap();
+        let mut omitted = legacy;
+        omitted
+            .as_object_mut()
+            .unwrap()
+            .remove("stash_associations");
+        assert!(serde_json::from_value::<PackageSource>(omitted)
+            .unwrap()
+            .stash_associations
+            .is_empty());
+    }
+    #[test]
+    fn rebase_links_require_unchanged_evidence_acyclic_ancestry_and_new_format() {
+        let mut m = fixture();
+        let parent = PackageCandidate {
+            rebased_from: None,
+            project_interval: None,
+            candidate_id: CandidateId::new("parent").unwrap(),
+            base_revision: m.head.revision,
+            motion: m.head.motion.clone(),
+            job_origin: None,
+            lineage: vec![],
+            committed_revision: None,
+            review: vec![],
+        };
+        let mut child = parent.clone();
+        child.candidate_id = CandidateId::new("child").unwrap();
+        child.rebased_from = Some(parent.candidate_id.clone());
+        m.candidates = vec![child, parent];
+        m.format_version = m.required_format_version();
+        m.counts = m.record_counts().unwrap();
+        m.validate().unwrap();
+        assert_eq!(m.format_version, 9);
+        let mut old = m.clone();
+        old.format_version = 8;
+        assert!(old.validate().is_err());
+        let mut missing = m.clone();
+        missing.candidates[0].rebased_from = Some(CandidateId::new("missing").unwrap());
+        assert!(missing.validate().is_err());
+        let mut cycle = m.clone();
+        cycle.candidates[1].rebased_from = Some(cycle.candidates[0].candidate_id.clone());
+        assert!(cycle.validate().is_err());
+        let mut changed = m.clone();
+        changed.candidates[0].project_interval = Some(
+            TimeRange::new(crate::ProjectTime::ZERO, crate::ProjectTime::from_nanos(1)).unwrap(),
+        );
+        assert!(changed.validate().is_err());
+    }
+    #[test]
     fn manifest_json_is_bounded_before_growing_past_limit() {
         assert!(bounded_json(&"0123456789", 5).is_err());
         let mut m = fixture();
         m.head.name = "x".repeat(257);
         assert!(m.validate().is_err());
+    }
+    #[test]
+    fn device_export_scope_preserves_legacy_axis_json_and_refuses_unknown() {
+        for axis in Axis::ALL {
+            let old = serde_json::to_vec(&axis).unwrap();
+            assert_eq!(
+                serde_json::to_vec(&PackageExportScope::Axis(axis)).unwrap(),
+                old
+            );
+            assert_eq!(
+                serde_json::from_slice::<PackageExportScope>(&old).unwrap(),
+                PackageExportScope::Axis(axis)
+            );
+        }
+        assert_eq!(
+            serde_json::from_str::<PackageExportScope>("\"device-motion\"").unwrap(),
+            PackageExportScope::DeviceMotion
+        );
+        for invalid in ["\"all\"", "\"device_motion\"", "null", "{}", "0"] {
+            assert!(serde_json::from_str::<PackageExportScope>(invalid).is_err());
+        }
+    }
+    #[test]
+    fn device_export_scope_requires_v14_without_promoting_export_state() {
+        for state in [
+            PackageExportState::Pending,
+            PackageExportState::Complete,
+            PackageExportState::FailedOrUnknown,
+        ] {
+            let mut m = fixture();
+            m.export_receipts.push(PackageExportReceipt {
+                revision: RevisionId::new(0),
+                axis: PackageExportScope::DeviceMotion,
+                sha256: "a".repeat(64),
+                state,
+                archival_path: Some("/untrusted/never-resolve-proposal.json".into()),
+            });
+            m.counts = m.record_counts().unwrap();
+            assert_eq!(
+                m.required_format_version(),
+                PROJECT_PACKAGE_FORMAT_VERSION_WITH_DEVICE_EXPORTS
+            );
+            for version in 1..=13 {
+                m.format_version = version;
+                assert!(m.validate().is_err());
+            }
+            m.format_version = PROJECT_PACKAGE_FORMAT_VERSION_WITH_DEVICE_EXPORTS;
+            let bytes = m.canonical_bytes().unwrap();
+            let decoded: PortableProjectManifest = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(decoded.canonical_bytes().unwrap(), bytes);
+            assert_eq!(
+                serde_json::to_value(decoded.export_receipts[0].state).unwrap(),
+                serde_json::to_value(state).unwrap()
+            );
+            m.export_receipts[0].axis = PackageExportScope::Axis(Axis::Stroke);
+            m.format_version = 1;
+            m.validate().unwrap();
+            assert_eq!(m.required_format_version(), 1);
+        }
     }
 }

@@ -1,0 +1,13 @@
+# ADR B3-106: restore actual AppImage extraction cleanup under musl
+
+Status: source correction and regression implemented; actual artifact outcomes are recorded in the checkpoint. Scope: Linux x86-64 candidate's downstream static type2 runtime.
+
+Observed failure: pinned upstream type2-runtime8f39b89e2ac31e1640b3d3f7e9a5108e6ce805fa returns success from extract-and-run while retaining all extracted files. Its cleanup function calls nftw with nopenfd=0. A musl-linked minimal traversal visits zero entries and returns zero; compiling the actual upstream cleanup callback/function confirms reported success without removing the owned fixture. The positive descriptor-limit variant removes the fixture and preserves the external symlink target.
+
+Decision: carry scripts/appimage-runtime-cleanup.patch, changing only the nftw descriptor limit from0 to64. Preserve depth-first, mount-bounded and physical/no-follow traversal flags and existing error propagation. Build a downstream static runtime from the exact upstream commit, retain source archive/patch/build subjects and pin the resulting bytes in the AppImage builder. This is a modified downstream runtime, not the official signed asset.
+
+The source build uses Alpine image digest3c81aa9a3d770b316568f4499e30461a5cd3fbd7180bd89e28e34894c7845832 and the upstream libfuse3.15.0/squashfuse0.5.2 source/hash recipes. Rootless dependency preparation disables unused libfuse utilities/examples/tests; runtime compilation runs without network/capabilities, as the current user, with a read-only build image and source mount. The compile stamp records the upstream base commit; downstream patch identity is separate. Package versions and actual container identity are recorded, but future package-mirror reproducibility/signature verification is not established.
+
+The corrected runtime is944632 bytes with SHA-25691f13cb9d16594b5aebd7b8e7d9a6183961c5444e2054ff39e5fb332f31c3155; readelf shows no interpreter or needed shared libraries. Runtime and source/build inputs are retained beside the new AppImage. Existing AppImages/cache/installations remain unchanged. The native regression now requires automatic removal after parent exit; it never deletes a retained extracted payload to make the result pass. It separately verifies continuing persistent Engine/client/worker use.
+
+Scope limits: selected successful cleanup is not SIGKILL/power-loss/concurrent extraction/orphan recovery qualification. Normal FUSE and extract-and-run need source-bound current-host results; broad platform/FUSE/CPU/vendor/signing/transitive-license and useful model/Core/Complete/media/device/human release gates remain open.

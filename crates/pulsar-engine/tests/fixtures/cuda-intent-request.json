@@ -1,0 +1,1278 @@
+{
+  "cuda_execution": {
+    "schema_version": 1,
+    "owner_policy": {
+      "artifact_id": "2084f770614708c8f6264a897dd5b0a0c733da6323619d22d68e4c9a782165e2",
+      "sha256": "2084f770614708c8f6264a897dd5b0a0c733da6323619d22d68e4c9a782165e2",
+      "byte_len": 14523
+    },
+    "device_uuid": "GPU-1790118a-a6d7-4eaf-fcac-dcacac5f4351",
+    "pci_bus_address": "0000:01:00.0",
+    "device_minor": 0,
+    "device_ordinal": 0,
+    "library_directory": "/authored/captured-image",
+    "libraries": [
+      {
+        "identity": {
+          "artifact_id": "94f44e2e8fb2d4bca8c534b14f03ef84e095376dad72a257fd854377ef0b3427",
+          "sha256": "94f44e2e8fb2d4bca8c534b14f03ef84e095376dad72a257fd854377ef0b3427",
+          "byte_len": 129240
+        },
+        "names": [
+          "libcudnn.so.9"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "e292c689093f22325bffb7f84e68c58067c062a5cdd5534914ac1449f0a4e23f",
+          "sha256": "e292c689093f22325bffb7f84e68c58067c062a5cdd5534914ac1449f0a4e23f",
+          "byte_len": 4451728
+        },
+        "names": [
+          "libcudnn_graph.so.9"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "2a950d46575efa0210d22440988f5a6b4507ebddc6c86d9a42e6e7ef6f01463e",
+          "sha256": "2a950d46575efa0210d22440988f5a6b4507ebddc6c86d9a42e6e7ef6f01463e",
+          "byte_len": 283632
+        },
+        "names": [
+          "ld-linux-x86-64.so.2"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "c0c5a5f16b29c42f1b55b4d081f2ae685e602e3fcf37b7407049d7247036d023",
+          "sha256": "c0c5a5f16b29c42f1b55b4d081f2ae685e602e3fcf37b7407049d7247036d023",
+          "byte_len": 57594520
+        },
+        "names": [
+          "libcublas.so.13",
+          "libcublas.so.13.8.0.4"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "d3b51f2253ba58f0a7f299b883bc6b4f3a27f81701c9ab15accb3bd770a91669",
+          "sha256": "d3b51f2253ba58f0a7f299b883bc6b4f3a27f81701c9ab15accb3bd770a91669",
+          "byte_len": 545528240
+        },
+        "names": [
+          "libcublasLt.so.13",
+          "libcublasLt.so.13.8.0.4"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "7fb00519a24512bf677b59e87921e5c05aac8246ceb6a57435c0d9dfeef364f6",
+          "sha256": "7fb00519a24512bf677b59e87921e5c05aac8246ceb6a57435c0d9dfeef364f6",
+          "byte_len": 798496
+        },
+        "names": [
+          "libcudart.so.13",
+          "libcudart.so.13.4.92"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "30a24dfc66d9a9c97c814974dfd130fcab5133cb778d05d7ac5f181108dda2d8",
+          "sha256": "30a24dfc66d9a9c97c814974dfd130fcab5133cb778d05d7ac5f181108dda2d8",
+          "byte_len": 18496
+        },
+        "names": [
+          "libabsl_base.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "c40fe4e0a4166d893c0a34ea732eeadcec2024cf261e59baba8ab7242d08b3d8",
+          "sha256": "c40fe4e0a4166d893c0a34ea732eeadcec2024cf261e59baba8ab7242d08b3d8",
+          "byte_len": 14224
+        },
+        "names": [
+          "libabsl_base_cpu_detect.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "499b64549ad028366e4225b14abc87f05a9c57758fa16e9a591305a10fc72019",
+          "sha256": "499b64549ad028366e4225b14abc87f05a9c57758fa16e9a591305a10fc72019",
+          "byte_len": 13984
+        },
+        "names": [
+          "libabsl_city.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "2496eccf60adf782898b248f997e329c6a6dd6a983bcd1388f242a75e76aede4",
+          "sha256": "2496eccf60adf782898b248f997e329c6a6dd6a983bcd1388f242a75e76aede4",
+          "byte_len": 96224
+        },
+        "names": [
+          "libabsl_cord.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "fffdd313082e7111d553ee88f62186a0d6d2b4810515d951b5f78cb4d15a4304",
+          "sha256": "fffdd313082e7111d553ee88f62186a0d6d2b4810515d951b5f78cb4d15a4304",
+          "byte_len": 55264
+        },
+        "names": [
+          "libabsl_cord_internal.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "c769e37675c6c9ad50c26ffc4fbddbdddd233885ee94c32bdebb713917ca2d95",
+          "sha256": "c769e37675c6c9ad50c26ffc4fbddbdddd233885ee94c32bdebb713917ca2d95",
+          "byte_len": 14296
+        },
+        "names": [
+          "libabsl_cordz_functions.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "999a66259007a7fea490374d8142174e63d7050dd496058fe6f134cf77168965",
+          "sha256": "999a66259007a7fea490374d8142174e63d7050dd496058fe6f134cf77168965",
+          "byte_len": 14384
+        },
+        "names": [
+          "libabsl_cordz_handle.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "8962c6aa9d2ed41f304a01e2a6352040cf216d9bf17f1c5d124f09f31945a42e",
+          "sha256": "8962c6aa9d2ed41f304a01e2a6352040cf216d9bf17f1c5d124f09f31945a42e",
+          "byte_len": 22584
+        },
+        "names": [
+          "libabsl_cordz_info.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "a5c541e84be2cfe0d5ff632534958cb2120e62bfa39e2f7983a527287ede9b97",
+          "sha256": "a5c541e84be2cfe0d5ff632534958cb2120e62bfa39e2f7983a527287ede9b97",
+          "byte_len": 22576
+        },
+        "names": [
+          "libabsl_crc32c.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "08be34f7d2c29653aa338c1f9dff2ae65a9f11446b2089e1a9d608954a55cd39",
+          "sha256": "08be34f7d2c29653aa338c1f9dff2ae65a9f11446b2089e1a9d608954a55cd39",
+          "byte_len": 22512
+        },
+        "names": [
+          "libabsl_crc_cord_state.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "3fc1cc90c939be22cdebdaa21f4a32dcd4cb16e6559fd781ba0e35238752b49e",
+          "sha256": "3fc1cc90c939be22cdebdaa21f4a32dcd4cb16e6559fd781ba0e35238752b49e",
+          "byte_len": 34864
+        },
+        "names": [
+          "libabsl_crc_internal.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "c79e3bc1d613356615d3589e6cecee33816cbdacf061bf6b24a9ca4c26d87093",
+          "sha256": "c79e3bc1d613356615d3589e6cecee33816cbdacf061bf6b24a9ca4c26d87093",
+          "byte_len": 22520
+        },
+        "names": [
+          "libabsl_debugging_internal.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "7c6afd0eef264660484753106683856f6e190d1bdf9ab4041d3549ce461b3f5a",
+          "sha256": "7c6afd0eef264660484753106683856f6e190d1bdf9ab4041d3549ce461b3f5a",
+          "byte_len": 14152
+        },
+        "names": [
+          "libabsl_decode_rust_punycode.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "96321c6ba79227bebd7ee95d03145f43caf524cbc039a42bc4a1dd6160073e12",
+          "sha256": "96321c6ba79227bebd7ee95d03145f43caf524cbc039a42bc4a1dd6160073e12",
+          "byte_len": 51256
+        },
+        "names": [
+          "libabsl_demangle_internal.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "f6b477b320d9faccd60a1e0db34f35d1de4385c71dd4b1bd084d8c766b9dc2d3",
+          "sha256": "f6b477b320d9faccd60a1e0db34f35d1de4385c71dd4b1bd084d8c766b9dc2d3",
+          "byte_len": 26504
+        },
+        "names": [
+          "libabsl_demangle_rust.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "26dd3807341f08e9a79ba1cc704082d53531adf9e5262e3b06294ff4879ba4c1",
+          "sha256": "26dd3807341f08e9a79ba1cc704082d53531adf9e5262e3b06294ff4879ba4c1",
+          "byte_len": 14216
+        },
+        "names": [
+          "libabsl_examine_stack.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "306a6c58184cb10dbb3012a003c53979e5d8485f78b07a658a4b91a3c14d8eeb",
+          "sha256": "306a6c58184cb10dbb3012a003c53979e5d8485f78b07a658a4b91a3c14d8eeb",
+          "byte_len": 14224
+        },
+        "names": [
+          "libabsl_exponential_biased.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "ef51d31cc8adb89e1e9a3060839345c921d357e011aef710f1076b1326fcb978",
+          "sha256": "ef51d31cc8adb89e1e9a3060839345c921d357e011aef710f1076b1326fcb978",
+          "byte_len": 14128
+        },
+        "names": [
+          "libabsl_hash.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "8901b35ddd2a8b8de9024e3e2578c6bdd29c24e73b517cc61890aa9dcb0a190c",
+          "sha256": "8901b35ddd2a8b8de9024e3e2578c6bdd29c24e73b517cc61890aa9dcb0a190c",
+          "byte_len": 18416
+        },
+        "names": [
+          "libabsl_hashtablez_sampler.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "11ea46e33ac437e1ad96429fb490ea4ff7073c1274de87c71f8052ee91e400e0",
+          "sha256": "11ea46e33ac437e1ad96429fb490ea4ff7073c1274de87c71f8052ee91e400e0",
+          "byte_len": 22496
+        },
+        "names": [
+          "libabsl_int128.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "df9ed108cc57f7e98f4018ce594a6394159da7cdd69ca27a2dc1da4a2ba54b5a",
+          "sha256": "df9ed108cc57f7e98f4018ce594a6394159da7cdd69ca27a2dc1da4a2ba54b5a",
+          "byte_len": 14232
+        },
+        "names": [
+          "libabsl_kernel_timeout_internal.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "32c2cc14c3ab5290466ec2d605b670d050d714834dc201ca7f47a7eaff3ecddf",
+          "sha256": "32c2cc14c3ab5290466ec2d605b670d050d714834dc201ca7f47a7eaff3ecddf",
+          "byte_len": 13992
+        },
+        "names": [
+          "libabsl_leak_check.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "b7402f405f653d3981953d396d177c4306bcb85a04dcb6634d4ba0d4b41fa583",
+          "sha256": "b7402f405f653d3981953d396d177c4306bcb85a04dcb6634d4ba0d4b41fa583",
+          "byte_len": 18448
+        },
+        "names": [
+          "libabsl_log_globals.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "2c35dd8301e27715fb4ac1695185d578fc79295dbfa0864f7c04356fb4fb22c1",
+          "sha256": "2c35dd8301e27715fb4ac1695185d578fc79295dbfa0864f7c04356fb4fb22c1",
+          "byte_len": 34792
+        },
+        "names": [
+          "libabsl_log_internal_check_op.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "db768b38f4d6b7bc8840cda3510138029226cb86078955de6bbca7b4cdcb2246",
+          "sha256": "db768b38f4d6b7bc8840cda3510138029226cb86078955de6bbca7b4cdcb2246",
+          "byte_len": 14224
+        },
+        "names": [
+          "libabsl_log_internal_format.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "b153863a8c5c5faf8643448cf985b4f165e78d99a90adfcdb3661f30a94cdeb5",
+          "sha256": "b153863a8c5c5faf8643448cf985b4f165e78d99a90adfcdb3661f30a94cdeb5",
+          "byte_len": 14232
+        },
+        "names": [
+          "libabsl_log_internal_globals.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "656b4f8a5f4789135930d8b3fe9af1cde7753ceaadc9204a7b8efd760a393ac9",
+          "sha256": "656b4f8a5f4789135930d8b3fe9af1cde7753ceaadc9204a7b8efd760a393ac9",
+          "byte_len": 18568
+        },
+        "names": [
+          "libabsl_log_internal_log_sink_set.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "e15820d5fbea9a8eae1dc053be7cf71543b99c1d866d4dcc19ab4f62160d5bb0",
+          "sha256": "e15820d5fbea9a8eae1dc053be7cf71543b99c1d866d4dcc19ab4f62160d5bb0",
+          "byte_len": 59456
+        },
+        "names": [
+          "libabsl_log_internal_message.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "2f5475c716e087df205df894552acadec61f036fd273e8681b4d3a7447b98178",
+          "sha256": "2f5475c716e087df205df894552acadec61f036fd273e8681b4d3a7447b98178",
+          "byte_len": 13992
+        },
+        "names": [
+          "libabsl_log_internal_nullguard.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "ff764e9516a55d7006abddd98527a112bc89cb99c29db9112d5bb0e66529fe15",
+          "sha256": "ff764e9516a55d7006abddd98527a112bc89cb99c29db9112d5bb0e66529fe15",
+          "byte_len": 14152
+        },
+        "names": [
+          "libabsl_log_internal_proto.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "1f9ee5c14e4033d39204a2fb1f1087e9433f6ed1a4b0dcb1b9c2d6e5cf74836a",
+          "sha256": "1f9ee5c14e4033d39204a2fb1f1087e9433f6ed1a4b0dcb1b9c2d6e5cf74836a",
+          "byte_len": 14080
+        },
+        "names": [
+          "libabsl_log_internal_structured_proto.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "0111b255b22ea8f90ea388aa33b67f04a9fe86fdfcce0ceaedca7612b9c7d01b",
+          "sha256": "0111b255b22ea8f90ea388aa33b67f04a9fe86fdfcce0ceaedca7612b9c7d01b",
+          "byte_len": 14288
+        },
+        "names": [
+          "libabsl_log_sink.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "e27e1f15f01acb81e2a3bd22971d15f847263b1aa3be5a9359e8894ade81501d",
+          "sha256": "e27e1f15f01acb81e2a3bd22971d15f847263b1aa3be5a9359e8894ade81501d",
+          "byte_len": 22584
+        },
+        "names": [
+          "libabsl_malloc_internal.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "030da5d27a2dda917f041b1b0abc60c61690d714bdb4df273b54ef8d937a9ca8",
+          "sha256": "030da5d27a2dda917f041b1b0abc60c61690d714bdb4df273b54ef8d937a9ca8",
+          "byte_len": 42960
+        },
+        "names": [
+          "libabsl_raw_hash_set.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "5f48a7c473ea054ebe93d80fe44eaa12d135f1c5a30575e666ca69cf2f5aaba8",
+          "sha256": "5f48a7c473ea054ebe93d80fe44eaa12d135f1c5a30575e666ca69cf2f5aaba8",
+          "byte_len": 14280
+        },
+        "names": [
+          "libabsl_raw_logging_internal.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "a2b36865dbe17075d581ce732de0e21f153d5a71fb2923308496144783e9827c",
+          "sha256": "a2b36865dbe17075d581ce732de0e21f153d5a71fb2923308496144783e9827c",
+          "byte_len": 14144
+        },
+        "names": [
+          "libabsl_spinlock_wait.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "3791a408cb0784901f94cb1dd70042aff83afa50401b0cba8d9ebac2f48f03e3",
+          "sha256": "3791a408cb0784901f94cb1dd70042aff83afa50401b0cba8d9ebac2f48f03e3",
+          "byte_len": 14144
+        },
+        "names": [
+          "libabsl_stacktrace.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "9134b8e4c6128053595c9450e807dd2b5d151f5ba31092f0d47a4646b3eded42",
+          "sha256": "9134b8e4c6128053595c9450e807dd2b5d151f5ba31092f0d47a4646b3eded42",
+          "byte_len": 43008
+        },
+        "names": [
+          "libabsl_status.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "e4b83d2230296311b1262171db0745fcaa5fd32d1476377a91601bee2f4f8ce2",
+          "sha256": "e4b83d2230296311b1262171db0745fcaa5fd32d1476377a91601bee2f4f8ce2",
+          "byte_len": 120816
+        },
+        "names": [
+          "libabsl_str_format_internal.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "efd5ec2633dd7d310e1580f835232a2ca18a8fd6fafa40e823932abb57e0bbcd",
+          "sha256": "efd5ec2633dd7d310e1580f835232a2ca18a8fd6fafa40e823932abb57e0bbcd",
+          "byte_len": 14304
+        },
+        "names": [
+          "libabsl_strerror.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "6d944b98b2b64a1fec2f3316d63893dae958d5da9271d6635f679fd5af43f2c5",
+          "sha256": "6d944b98b2b64a1fec2f3316d63893dae958d5da9271d6635f679fd5af43f2c5",
+          "byte_len": 145384
+        },
+        "names": [
+          "libabsl_strings.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "3d9c20cf2640bd2b1c2ac55848a902b2c18fc5bdae514871460f4a2f0307653a",
+          "sha256": "3d9c20cf2640bd2b1c2ac55848a902b2c18fc5bdae514871460f4a2f0307653a",
+          "byte_len": 18488
+        },
+        "names": [
+          "libabsl_strings_internal.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "7f2c196952feb9681d340fc499723a8c44e66fd1ce1e0a3d827f34779966a0ca",
+          "sha256": "7f2c196952feb9681d340fc499723a8c44e66fd1ce1e0a3d827f34779966a0ca",
+          "byte_len": 30696
+        },
+        "names": [
+          "libabsl_symbolize.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "bae1cc60ebcc47bd82db822edb943ba33ea75f01c1c926d5c972c2386a412f87",
+          "sha256": "bae1cc60ebcc47bd82db822edb943ba33ea75f01c1c926d5c972c2386a412f87",
+          "byte_len": 59512
+        },
+        "names": [
+          "libabsl_synchronization.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "b6709b7e718c7b25528b3e2abfe2cbe741f8d7a19ab7a8d59804d3ac2ef9168d",
+          "sha256": "b6709b7e718c7b25528b3e2abfe2cbe741f8d7a19ab7a8d59804d3ac2ef9168d",
+          "byte_len": 18336
+        },
+        "names": [
+          "libabsl_throw_delegate.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "1c4aa4514ebd9b43c8248be6ba0fdfecb10aa903f949d33d3876d918229b4346",
+          "sha256": "1c4aa4514ebd9b43c8248be6ba0fdfecb10aa903f949d33d3876d918229b4346",
+          "byte_len": 75816
+        },
+        "names": [
+          "libabsl_time.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "29c5969b1899b041e6dd64e11bb09502985e63d98480bbd718f2fea6d2f50d42",
+          "sha256": "29c5969b1899b041e6dd64e11bb09502985e63d98480bbd718f2fea6d2f50d42",
+          "byte_len": 108608
+        },
+        "names": [
+          "libabsl_time_zone.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "24660548af82373eb1d0ebeafba3453ddd65d2a264c0b3f1907f1eb422b595d0",
+          "sha256": "24660548af82373eb1d0ebeafba3453ddd65d2a264c0b3f1907f1eb422b595d0",
+          "byte_len": 13992
+        },
+        "names": [
+          "libabsl_tracing_internal.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "091bc5ae2444b90e24d8e12053e6dde63533a78bb5fffbd1a8f68b7b361d1ef0",
+          "sha256": "091bc5ae2444b90e24d8e12053e6dde63533a78bb5fffbd1a8f68b7b361d1ef0",
+          "byte_len": 14072
+        },
+        "names": [
+          "libabsl_utf8_for_code_point.so.2608.0.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "071e34179e645b25f8a8c2e7108894dc665caa9f5f8c939cd579a75b6638bc3f",
+          "sha256": "071e34179e645b25f8a8c2e7108894dc665caa9f5f8c939cd579a75b6638bc3f",
+          "byte_len": 2440544
+        },
+        "names": [
+          "libc.so.6"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "ccc97f5cc7f8da82e7305353b86f49026d386780781a1d0af0567b5f5f07c2a2",
+          "sha256": "ccc97f5cc7f8da82e7305353b86f49026d386780781a1d0af0567b5f5f07c2a2",
+          "byte_len": 59328
+        },
+        "names": [
+          "libcpuinfo.so"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "85a8cc8cf00419ceb295ec62c481d05b4cdbdab10f25c5375d6d24bdbe00b4d9",
+          "sha256": "85a8cc8cf00419ceb295ec62c481d05b4cdbdab10f25c5375d6d24bdbe00b4d9",
+          "byte_len": 112475080
+        },
+        "names": [
+          "libcuda.so.1",
+          "libcuda.so.615.71.09"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "336a6874f359104ec9bef6d2f2948f11e0f079d347e986880a240f1156a42d4d",
+          "sha256": "336a6874f359104ec9bef6d2f2948f11e0f079d347e986880a240f1156a42d4d",
+          "byte_len": 14352
+        },
+        "names": [
+          "libdl.so.2"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "571745fb27883c763315fab54a536906064c1df6804d1a7884713dac259da68d",
+          "sha256": "571745fb27883c763315fab54a536906064c1df6804d1a7884713dac259da68d",
+          "byte_len": 219376
+        },
+        "names": [
+          "libgcc_s.so.1"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "58b6b82e39d59d7810d402ba4ec34359fde058204fdb7cd5a269fda256a35421",
+          "sha256": "58b6b82e39d59d7810d402ba4ec34359fde058204fdb7cd5a269fda256a35421",
+          "byte_len": 1075616
+        },
+        "names": [
+          "libm.so.6"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "90cdf2e6a1ede7cfc48aacb20c9e67a1646fb0b45eb64250a84ce535eb13cad1",
+          "sha256": "90cdf2e6a1ede7cfc48aacb20c9e67a1646fb0b45eb64250a84ce535eb13cad1",
+          "byte_len": 381001480
+        },
+        "names": [
+          "libnccl.so.2",
+          "libnccl.so.2.32.3"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "f796d6f3e11390c934aeadc90ea7f346350394faa40ce7f07f4ef651dfd5687e",
+          "sha256": "f796d6f3e11390c934aeadc90ea7f346350394faa40ce7f07f4ef651dfd5687e",
+          "byte_len": 121568440
+        },
+        "names": [
+          "libnvidia-gpucomp.so.615.71.09"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "64e62bd2f763c575418bb7d660e8715c57d49ef66640a2385896324238896acd",
+          "sha256": "64e62bd2f763c575418bb7d660e8715c57d49ef66640a2385896324238896acd",
+          "byte_len": 24829456
+        },
+        "names": [
+          "libnvidia-nvvm70.so.4"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "8e38b5cbac5075f965d04520a403c84f55ca4e07dfd970f169d71db193da0454",
+          "sha256": "8e38b5cbac5075f965d04520a403c84f55ca4e07dfd970f169d71db193da0454",
+          "byte_len": 36965944
+        },
+        "names": [
+          "libnvidia-ptxjitcompiler.so.1",
+          "libnvidia-ptxjitcompiler.so.615.71.09"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "8637e975262958df602232bf54e15a339b2805d3c822107250211e783b8bdc00",
+          "sha256": "8637e975262958df602232bf54e15a339b2805d3c822107250211e783b8bdc00",
+          "byte_len": 26047104
+        },
+        "names": [
+          "libonnxruntime.so.1",
+          "libonnxruntime.so.1.29.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "e750ecc112bd1d50b3344bd080c897d91ebb3759ff44811a4a0e4be0c7030fdc",
+          "sha256": "e750ecc112bd1d50b3344bd080c897d91ebb3759ff44811a4a0e4be0c7030fdc",
+          "byte_len": 621242784
+        },
+        "names": [
+          "libonnxruntime_providers_cuda.so"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "d6da7ac72b33595582d769b50fa9394f2f340c250e9b969b78f007765298f59d",
+          "sha256": "d6da7ac72b33595582d769b50fa9394f2f340c250e9b969b78f007765298f59d",
+          "byte_len": 14144
+        },
+        "names": [
+          "libonnxruntime_providers_shared.so"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "eff8214548135c5f4b05b1ccea028aac1b1736afe48bdb39298131e0e8c53c45",
+          "sha256": "eff8214548135c5f4b05b1ccea028aac1b1736afe48bdb39298131e0e8c53c45",
+          "byte_len": 1173872
+        },
+        "names": [
+          "libprotobuf-lite.so.36.1.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "bcdf5c8472353bd04780314cee7d27e07594153332ac526a390d6e5b38792ee4",
+          "sha256": "bcdf5c8472353bd04780314cee7d27e07594153332ac526a390d6e5b38792ee4",
+          "byte_len": 14360
+        },
+        "names": [
+          "libpthread.so.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "3a34174e94af447fab7b67e96ac7fe44ea12e6238683e3de8420ae397fdea458",
+          "sha256": "3a34174e94af447fab7b67e96ac7fe44ea12e6238683e3de8420ae397fdea458",
+          "byte_len": 14424
+        },
+        "names": [
+          "librt.so.1"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "412e0fc561a10581aaff2d101206939a31fa12c696590d8d4a5ec3655953ffe0",
+          "sha256": "412e0fc561a10581aaff2d101206939a31fa12c696590d8d4a5ec3655953ffe0",
+          "byte_len": 3312696
+        },
+        "names": [
+          "libstdc++.so.6",
+          "libstdc++.so.6.0.36"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "eecfe23a442c390ff4dc40b7117d00730cea4b052bd21c2cc563b70eca95f4a8",
+          "sha256": "eecfe23a442c390ff4dc40b7117d00730cea4b052bd21c2cc563b70eca95f4a8",
+          "byte_len": 14056
+        },
+        "names": [
+          "libutf8_validity.so.36.1.0"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "63e814634983bfa53890b48cb56760ca38840fbcf91f66a51222eef85eaa08b7",
+          "sha256": "63e814634983bfa53890b48cb56760ca38840fbcf91f66a51222eef85eaa08b7",
+          "byte_len": 223392
+        },
+        "names": [
+          "libz.so.1",
+          "libz.so.1.3.1.zlib-ng"
+        ]
+      }
+    ]
+  },
+  "version": 2,
+  "attempt_id": "authored-gpu-attempt",
+  "job_id": "authored-gpu-job",
+  "project_id": "authored-project",
+  "base_revision": 0,
+  "source": {
+    "source_version": "authored-source",
+    "path": "/authored/source",
+    "identity": {
+      "artifact_id": "9a10ed332a69f241c880c0ff8b08f8d234371e6702a59f868510fef7550078c8",
+      "sha256": "9a10ed332a69f241c880c0ff8b08f8d234371e6702a59f868510fef7550078c8",
+      "byte_len": 302
+    }
+  },
+  "output_dir": "/authored/attempt",
+  "operation": {
+    "operation": "generate",
+    "arguments": {
+      "preset": "fast",
+      "settings": {
+        "analysis_width": 64,
+        "analysis_height": 64,
+        "source_sample_stride": 1,
+        "axis": "stroke",
+        "vr_mode": false,
+        "model_input": {
+          "width": 64,
+          "height": 64,
+          "channels": 6,
+          "layout": "nchw",
+          "class_count": 1,
+          "decoder": "temporal_script_position"
+        },
+        "inference_profile": {
+          "schema_version": 2,
+          "model": {
+            "artifact_id": "9a10ed332a69f241c880c0ff8b08f8d234371e6702a59f868510fef7550078c8",
+            "sha256": "9a10ed332a69f241c880c0ff8b08f8d234371e6702a59f868510fef7550078c8",
+            "byte_len": 302
+          },
+          "runtime": {
+            "artifact_id": "8637e975262958df602232bf54e15a339b2805d3c822107250211e783b8bdc00",
+            "sha256": "8637e975262958df602232bf54e15a339b2805d3c822107250211e783b8bdc00",
+            "byte_len": 26047104
+          },
+          "preprocessing": {
+            "input": {
+              "width": 64,
+              "height": 64,
+              "channels": 6,
+              "layout": "nchw",
+              "class_count": 1,
+              "decoder": "temporal_script_position"
+            },
+            "resize": "nearest_stretch",
+            "color": "rgb_frame_pair",
+            "scale": [
+              0.003921569,
+              0.003921569,
+              0.003921569,
+              0.003921569,
+              0.003921569,
+              0.003921569
+            ],
+            "bias": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "padding_byte": 0
+          },
+          "provider": "cuda",
+          "minimum_memory_bytes": 536870912,
+          "minimum_output_bytes": 67108864,
+          "cpu_threads": 2,
+          "cuda_resources": {
+            "device_ordinal": 0,
+            "device_uuid": "GPU-1790118a-a6d7-4eaf-fcac-dcacac5f4351",
+            "address_space_bytes": 17179869184,
+            "device_reservation_bytes": 67108864,
+            "arena_limit_bytes": 67108864
+          }
+        }
+      },
+      "model": {
+        "source_version": "authored-model",
+        "path": "/authored/model",
+        "identity": {
+          "artifact_id": "9a10ed332a69f241c880c0ff8b08f8d234371e6702a59f868510fef7550078c8",
+          "sha256": "9a10ed332a69f241c880c0ff8b08f8d234371e6702a59f868510fef7550078c8",
+          "byte_len": 302
+        }
+      }
+    }
+  },
+  "budget": {
+    "memory_bytes": 536870912,
+    "output_bytes": 67108864,
+    "wall_time_ms": 30000,
+    "cpu_threads": 2
+  },
+  "dependencies": [
+    {
+      "artifact_id": "2084f770614708c8f6264a897dd5b0a0c733da6323619d22d68e4c9a782165e2",
+      "sha256": "2084f770614708c8f6264a897dd5b0a0c733da6323619d22d68e4c9a782165e2",
+      "byte_len": 14523
+    },
+    {
+      "artifact_id": "9a10ed332a69f241c880c0ff8b08f8d234371e6702a59f868510fef7550078c8",
+      "sha256": "9a10ed332a69f241c880c0ff8b08f8d234371e6702a59f868510fef7550078c8",
+      "byte_len": 302
+    },
+    {
+      "artifact_id": "94f44e2e8fb2d4bca8c534b14f03ef84e095376dad72a257fd854377ef0b3427",
+      "sha256": "94f44e2e8fb2d4bca8c534b14f03ef84e095376dad72a257fd854377ef0b3427",
+      "byte_len": 129240
+    },
+    {
+      "artifact_id": "e292c689093f22325bffb7f84e68c58067c062a5cdd5534914ac1449f0a4e23f",
+      "sha256": "e292c689093f22325bffb7f84e68c58067c062a5cdd5534914ac1449f0a4e23f",
+      "byte_len": 4451728
+    },
+    {
+      "artifact_id": "2a950d46575efa0210d22440988f5a6b4507ebddc6c86d9a42e6e7ef6f01463e",
+      "sha256": "2a950d46575efa0210d22440988f5a6b4507ebddc6c86d9a42e6e7ef6f01463e",
+      "byte_len": 283632
+    },
+    {
+      "artifact_id": "c0c5a5f16b29c42f1b55b4d081f2ae685e602e3fcf37b7407049d7247036d023",
+      "sha256": "c0c5a5f16b29c42f1b55b4d081f2ae685e602e3fcf37b7407049d7247036d023",
+      "byte_len": 57594520
+    },
+    {
+      "artifact_id": "d3b51f2253ba58f0a7f299b883bc6b4f3a27f81701c9ab15accb3bd770a91669",
+      "sha256": "d3b51f2253ba58f0a7f299b883bc6b4f3a27f81701c9ab15accb3bd770a91669",
+      "byte_len": 545528240
+    },
+    {
+      "artifact_id": "7fb00519a24512bf677b59e87921e5c05aac8246ceb6a57435c0d9dfeef364f6",
+      "sha256": "7fb00519a24512bf677b59e87921e5c05aac8246ceb6a57435c0d9dfeef364f6",
+      "byte_len": 798496
+    },
+    {
+      "artifact_id": "30a24dfc66d9a9c97c814974dfd130fcab5133cb778d05d7ac5f181108dda2d8",
+      "sha256": "30a24dfc66d9a9c97c814974dfd130fcab5133cb778d05d7ac5f181108dda2d8",
+      "byte_len": 18496
+    },
+    {
+      "artifact_id": "c40fe4e0a4166d893c0a34ea732eeadcec2024cf261e59baba8ab7242d08b3d8",
+      "sha256": "c40fe4e0a4166d893c0a34ea732eeadcec2024cf261e59baba8ab7242d08b3d8",
+      "byte_len": 14224
+    },
+    {
+      "artifact_id": "499b64549ad028366e4225b14abc87f05a9c57758fa16e9a591305a10fc72019",
+      "sha256": "499b64549ad028366e4225b14abc87f05a9c57758fa16e9a591305a10fc72019",
+      "byte_len": 13984
+    },
+    {
+      "artifact_id": "2496eccf60adf782898b248f997e329c6a6dd6a983bcd1388f242a75e76aede4",
+      "sha256": "2496eccf60adf782898b248f997e329c6a6dd6a983bcd1388f242a75e76aede4",
+      "byte_len": 96224
+    },
+    {
+      "artifact_id": "fffdd313082e7111d553ee88f62186a0d6d2b4810515d951b5f78cb4d15a4304",
+      "sha256": "fffdd313082e7111d553ee88f62186a0d6d2b4810515d951b5f78cb4d15a4304",
+      "byte_len": 55264
+    },
+    {
+      "artifact_id": "c769e37675c6c9ad50c26ffc4fbddbdddd233885ee94c32bdebb713917ca2d95",
+      "sha256": "c769e37675c6c9ad50c26ffc4fbddbdddd233885ee94c32bdebb713917ca2d95",
+      "byte_len": 14296
+    },
+    {
+      "artifact_id": "999a66259007a7fea490374d8142174e63d7050dd496058fe6f134cf77168965",
+      "sha256": "999a66259007a7fea490374d8142174e63d7050dd496058fe6f134cf77168965",
+      "byte_len": 14384
+    },
+    {
+      "artifact_id": "8962c6aa9d2ed41f304a01e2a6352040cf216d9bf17f1c5d124f09f31945a42e",
+      "sha256": "8962c6aa9d2ed41f304a01e2a6352040cf216d9bf17f1c5d124f09f31945a42e",
+      "byte_len": 22584
+    },
+    {
+      "artifact_id": "a5c541e84be2cfe0d5ff632534958cb2120e62bfa39e2f7983a527287ede9b97",
+      "sha256": "a5c541e84be2cfe0d5ff632534958cb2120e62bfa39e2f7983a527287ede9b97",
+      "byte_len": 22576
+    },
+    {
+      "artifact_id": "08be34f7d2c29653aa338c1f9dff2ae65a9f11446b2089e1a9d608954a55cd39",
+      "sha256": "08be34f7d2c29653aa338c1f9dff2ae65a9f11446b2089e1a9d608954a55cd39",
+      "byte_len": 22512
+    },
+    {
+      "artifact_id": "3fc1cc90c939be22cdebdaa21f4a32dcd4cb16e6559fd781ba0e35238752b49e",
+      "sha256": "3fc1cc90c939be22cdebdaa21f4a32dcd4cb16e6559fd781ba0e35238752b49e",
+      "byte_len": 34864
+    },
+    {
+      "artifact_id": "c79e3bc1d613356615d3589e6cecee33816cbdacf061bf6b24a9ca4c26d87093",
+      "sha256": "c79e3bc1d613356615d3589e6cecee33816cbdacf061bf6b24a9ca4c26d87093",
+      "byte_len": 22520
+    },
+    {
+      "artifact_id": "7c6afd0eef264660484753106683856f6e190d1bdf9ab4041d3549ce461b3f5a",
+      "sha256": "7c6afd0eef264660484753106683856f6e190d1bdf9ab4041d3549ce461b3f5a",
+      "byte_len": 14152
+    },
+    {
+      "artifact_id": "96321c6ba79227bebd7ee95d03145f43caf524cbc039a42bc4a1dd6160073e12",
+      "sha256": "96321c6ba79227bebd7ee95d03145f43caf524cbc039a42bc4a1dd6160073e12",
+      "byte_len": 51256
+    },
+    {
+      "artifact_id": "f6b477b320d9faccd60a1e0db34f35d1de4385c71dd4b1bd084d8c766b9dc2d3",
+      "sha256": "f6b477b320d9faccd60a1e0db34f35d1de4385c71dd4b1bd084d8c766b9dc2d3",
+      "byte_len": 26504
+    },
+    {
+      "artifact_id": "26dd3807341f08e9a79ba1cc704082d53531adf9e5262e3b06294ff4879ba4c1",
+      "sha256": "26dd3807341f08e9a79ba1cc704082d53531adf9e5262e3b06294ff4879ba4c1",
+      "byte_len": 14216
+    },
+    {
+      "artifact_id": "306a6c58184cb10dbb3012a003c53979e5d8485f78b07a658a4b91a3c14d8eeb",
+      "sha256": "306a6c58184cb10dbb3012a003c53979e5d8485f78b07a658a4b91a3c14d8eeb",
+      "byte_len": 14224
+    },
+    {
+      "artifact_id": "ef51d31cc8adb89e1e9a3060839345c921d357e011aef710f1076b1326fcb978",
+      "sha256": "ef51d31cc8adb89e1e9a3060839345c921d357e011aef710f1076b1326fcb978",
+      "byte_len": 14128
+    },
+    {
+      "artifact_id": "8901b35ddd2a8b8de9024e3e2578c6bdd29c24e73b517cc61890aa9dcb0a190c",
+      "sha256": "8901b35ddd2a8b8de9024e3e2578c6bdd29c24e73b517cc61890aa9dcb0a190c",
+      "byte_len": 18416
+    },
+    {
+      "artifact_id": "11ea46e33ac437e1ad96429fb490ea4ff7073c1274de87c71f8052ee91e400e0",
+      "sha256": "11ea46e33ac437e1ad96429fb490ea4ff7073c1274de87c71f8052ee91e400e0",
+      "byte_len": 22496
+    },
+    {
+      "artifact_id": "df9ed108cc57f7e98f4018ce594a6394159da7cdd69ca27a2dc1da4a2ba54b5a",
+      "sha256": "df9ed108cc57f7e98f4018ce594a6394159da7cdd69ca27a2dc1da4a2ba54b5a",
+      "byte_len": 14232
+    },
+    {
+      "artifact_id": "32c2cc14c3ab5290466ec2d605b670d050d714834dc201ca7f47a7eaff3ecddf",
+      "sha256": "32c2cc14c3ab5290466ec2d605b670d050d714834dc201ca7f47a7eaff3ecddf",
+      "byte_len": 13992
+    },
+    {
+      "artifact_id": "b7402f405f653d3981953d396d177c4306bcb85a04dcb6634d4ba0d4b41fa583",
+      "sha256": "b7402f405f653d3981953d396d177c4306bcb85a04dcb6634d4ba0d4b41fa583",
+      "byte_len": 18448
+    },
+    {
+      "artifact_id": "2c35dd8301e27715fb4ac1695185d578fc79295dbfa0864f7c04356fb4fb22c1",
+      "sha256": "2c35dd8301e27715fb4ac1695185d578fc79295dbfa0864f7c04356fb4fb22c1",
+      "byte_len": 34792
+    },
+    {
+      "artifact_id": "db768b38f4d6b7bc8840cda3510138029226cb86078955de6bbca7b4cdcb2246",
+      "sha256": "db768b38f4d6b7bc8840cda3510138029226cb86078955de6bbca7b4cdcb2246",
+      "byte_len": 14224
+    },
+    {
+      "artifact_id": "b153863a8c5c5faf8643448cf985b4f165e78d99a90adfcdb3661f30a94cdeb5",
+      "sha256": "b153863a8c5c5faf8643448cf985b4f165e78d99a90adfcdb3661f30a94cdeb5",
+      "byte_len": 14232
+    },
+    {
+      "artifact_id": "656b4f8a5f4789135930d8b3fe9af1cde7753ceaadc9204a7b8efd760a393ac9",
+      "sha256": "656b4f8a5f4789135930d8b3fe9af1cde7753ceaadc9204a7b8efd760a393ac9",
+      "byte_len": 18568
+    },
+    {
+      "artifact_id": "e15820d5fbea9a8eae1dc053be7cf71543b99c1d866d4dcc19ab4f62160d5bb0",
+      "sha256": "e15820d5fbea9a8eae1dc053be7cf71543b99c1d866d4dcc19ab4f62160d5bb0",
+      "byte_len": 59456
+    },
+    {
+      "artifact_id": "2f5475c716e087df205df894552acadec61f036fd273e8681b4d3a7447b98178",
+      "sha256": "2f5475c716e087df205df894552acadec61f036fd273e8681b4d3a7447b98178",
+      "byte_len": 13992
+    },
+    {
+      "artifact_id": "ff764e9516a55d7006abddd98527a112bc89cb99c29db9112d5bb0e66529fe15",
+      "sha256": "ff764e9516a55d7006abddd98527a112bc89cb99c29db9112d5bb0e66529fe15",
+      "byte_len": 14152
+    },
+    {
+      "artifact_id": "1f9ee5c14e4033d39204a2fb1f1087e9433f6ed1a4b0dcb1b9c2d6e5cf74836a",
+      "sha256": "1f9ee5c14e4033d39204a2fb1f1087e9433f6ed1a4b0dcb1b9c2d6e5cf74836a",
+      "byte_len": 14080
+    },
+    {
+      "artifact_id": "0111b255b22ea8f90ea388aa33b67f04a9fe86fdfcce0ceaedca7612b9c7d01b",
+      "sha256": "0111b255b22ea8f90ea388aa33b67f04a9fe86fdfcce0ceaedca7612b9c7d01b",
+      "byte_len": 14288
+    },
+    {
+      "artifact_id": "e27e1f15f01acb81e2a3bd22971d15f847263b1aa3be5a9359e8894ade81501d",
+      "sha256": "e27e1f15f01acb81e2a3bd22971d15f847263b1aa3be5a9359e8894ade81501d",
+      "byte_len": 22584
+    },
+    {
+      "artifact_id": "030da5d27a2dda917f041b1b0abc60c61690d714bdb4df273b54ef8d937a9ca8",
+      "sha256": "030da5d27a2dda917f041b1b0abc60c61690d714bdb4df273b54ef8d937a9ca8",
+      "byte_len": 42960
+    },
+    {
+      "artifact_id": "5f48a7c473ea054ebe93d80fe44eaa12d135f1c5a30575e666ca69cf2f5aaba8",
+      "sha256": "5f48a7c473ea054ebe93d80fe44eaa12d135f1c5a30575e666ca69cf2f5aaba8",
+      "byte_len": 14280
+    },
+    {
+      "artifact_id": "a2b36865dbe17075d581ce732de0e21f153d5a71fb2923308496144783e9827c",
+      "sha256": "a2b36865dbe17075d581ce732de0e21f153d5a71fb2923308496144783e9827c",
+      "byte_len": 14144
+    },
+    {
+      "artifact_id": "3791a408cb0784901f94cb1dd70042aff83afa50401b0cba8d9ebac2f48f03e3",
+      "sha256": "3791a408cb0784901f94cb1dd70042aff83afa50401b0cba8d9ebac2f48f03e3",
+      "byte_len": 14144
+    },
+    {
+      "artifact_id": "9134b8e4c6128053595c9450e807dd2b5d151f5ba31092f0d47a4646b3eded42",
+      "sha256": "9134b8e4c6128053595c9450e807dd2b5d151f5ba31092f0d47a4646b3eded42",
+      "byte_len": 43008
+    },
+    {
+      "artifact_id": "e4b83d2230296311b1262171db0745fcaa5fd32d1476377a91601bee2f4f8ce2",
+      "sha256": "e4b83d2230296311b1262171db0745fcaa5fd32d1476377a91601bee2f4f8ce2",
+      "byte_len": 120816
+    },
+    {
+      "artifact_id": "efd5ec2633dd7d310e1580f835232a2ca18a8fd6fafa40e823932abb57e0bbcd",
+      "sha256": "efd5ec2633dd7d310e1580f835232a2ca18a8fd6fafa40e823932abb57e0bbcd",
+      "byte_len": 14304
+    },
+    {
+      "artifact_id": "6d944b98b2b64a1fec2f3316d63893dae958d5da9271d6635f679fd5af43f2c5",
+      "sha256": "6d944b98b2b64a1fec2f3316d63893dae958d5da9271d6635f679fd5af43f2c5",
+      "byte_len": 145384
+    },
+    {
+      "artifact_id": "3d9c20cf2640bd2b1c2ac55848a902b2c18fc5bdae514871460f4a2f0307653a",
+      "sha256": "3d9c20cf2640bd2b1c2ac55848a902b2c18fc5bdae514871460f4a2f0307653a",
+      "byte_len": 18488
+    },
+    {
+      "artifact_id": "7f2c196952feb9681d340fc499723a8c44e66fd1ce1e0a3d827f34779966a0ca",
+      "sha256": "7f2c196952feb9681d340fc499723a8c44e66fd1ce1e0a3d827f34779966a0ca",
+      "byte_len": 30696
+    },
+    {
+      "artifact_id": "bae1cc60ebcc47bd82db822edb943ba33ea75f01c1c926d5c972c2386a412f87",
+      "sha256": "bae1cc60ebcc47bd82db822edb943ba33ea75f01c1c926d5c972c2386a412f87",
+      "byte_len": 59512
+    },
+    {
+      "artifact_id": "b6709b7e718c7b25528b3e2abfe2cbe741f8d7a19ab7a8d59804d3ac2ef9168d",
+      "sha256": "b6709b7e718c7b25528b3e2abfe2cbe741f8d7a19ab7a8d59804d3ac2ef9168d",
+      "byte_len": 18336
+    },
+    {
+      "artifact_id": "1c4aa4514ebd9b43c8248be6ba0fdfecb10aa903f949d33d3876d918229b4346",
+      "sha256": "1c4aa4514ebd9b43c8248be6ba0fdfecb10aa903f949d33d3876d918229b4346",
+      "byte_len": 75816
+    },
+    {
+      "artifact_id": "29c5969b1899b041e6dd64e11bb09502985e63d98480bbd718f2fea6d2f50d42",
+      "sha256": "29c5969b1899b041e6dd64e11bb09502985e63d98480bbd718f2fea6d2f50d42",
+      "byte_len": 108608
+    },
+    {
+      "artifact_id": "24660548af82373eb1d0ebeafba3453ddd65d2a264c0b3f1907f1eb422b595d0",
+      "sha256": "24660548af82373eb1d0ebeafba3453ddd65d2a264c0b3f1907f1eb422b595d0",
+      "byte_len": 13992
+    },
+    {
+      "artifact_id": "091bc5ae2444b90e24d8e12053e6dde63533a78bb5fffbd1a8f68b7b361d1ef0",
+      "sha256": "091bc5ae2444b90e24d8e12053e6dde63533a78bb5fffbd1a8f68b7b361d1ef0",
+      "byte_len": 14072
+    },
+    {
+      "artifact_id": "071e34179e645b25f8a8c2e7108894dc665caa9f5f8c939cd579a75b6638bc3f",
+      "sha256": "071e34179e645b25f8a8c2e7108894dc665caa9f5f8c939cd579a75b6638bc3f",
+      "byte_len": 2440544
+    },
+    {
+      "artifact_id": "ccc97f5cc7f8da82e7305353b86f49026d386780781a1d0af0567b5f5f07c2a2",
+      "sha256": "ccc97f5cc7f8da82e7305353b86f49026d386780781a1d0af0567b5f5f07c2a2",
+      "byte_len": 59328
+    },
+    {
+      "artifact_id": "85a8cc8cf00419ceb295ec62c481d05b4cdbdab10f25c5375d6d24bdbe00b4d9",
+      "sha256": "85a8cc8cf00419ceb295ec62c481d05b4cdbdab10f25c5375d6d24bdbe00b4d9",
+      "byte_len": 112475080
+    },
+    {
+      "artifact_id": "336a6874f359104ec9bef6d2f2948f11e0f079d347e986880a240f1156a42d4d",
+      "sha256": "336a6874f359104ec9bef6d2f2948f11e0f079d347e986880a240f1156a42d4d",
+      "byte_len": 14352
+    },
+    {
+      "artifact_id": "571745fb27883c763315fab54a536906064c1df6804d1a7884713dac259da68d",
+      "sha256": "571745fb27883c763315fab54a536906064c1df6804d1a7884713dac259da68d",
+      "byte_len": 219376
+    },
+    {
+      "artifact_id": "58b6b82e39d59d7810d402ba4ec34359fde058204fdb7cd5a269fda256a35421",
+      "sha256": "58b6b82e39d59d7810d402ba4ec34359fde058204fdb7cd5a269fda256a35421",
+      "byte_len": 1075616
+    },
+    {
+      "artifact_id": "90cdf2e6a1ede7cfc48aacb20c9e67a1646fb0b45eb64250a84ce535eb13cad1",
+      "sha256": "90cdf2e6a1ede7cfc48aacb20c9e67a1646fb0b45eb64250a84ce535eb13cad1",
+      "byte_len": 381001480
+    },
+    {
+      "artifact_id": "f796d6f3e11390c934aeadc90ea7f346350394faa40ce7f07f4ef651dfd5687e",
+      "sha256": "f796d6f3e11390c934aeadc90ea7f346350394faa40ce7f07f4ef651dfd5687e",
+      "byte_len": 121568440
+    },
+    {
+      "artifact_id": "64e62bd2f763c575418bb7d660e8715c57d49ef66640a2385896324238896acd",
+      "sha256": "64e62bd2f763c575418bb7d660e8715c57d49ef66640a2385896324238896acd",
+      "byte_len": 24829456
+    },
+    {
+      "artifact_id": "8e38b5cbac5075f965d04520a403c84f55ca4e07dfd970f169d71db193da0454",
+      "sha256": "8e38b5cbac5075f965d04520a403c84f55ca4e07dfd970f169d71db193da0454",
+      "byte_len": 36965944
+    },
+    {
+      "artifact_id": "8637e975262958df602232bf54e15a339b2805d3c822107250211e783b8bdc00",
+      "sha256": "8637e975262958df602232bf54e15a339b2805d3c822107250211e783b8bdc00",
+      "byte_len": 26047104
+    },
+    {
+      "artifact_id": "e750ecc112bd1d50b3344bd080c897d91ebb3759ff44811a4a0e4be0c7030fdc",
+      "sha256": "e750ecc112bd1d50b3344bd080c897d91ebb3759ff44811a4a0e4be0c7030fdc",
+      "byte_len": 621242784
+    },
+    {
+      "artifact_id": "d6da7ac72b33595582d769b50fa9394f2f340c250e9b969b78f007765298f59d",
+      "sha256": "d6da7ac72b33595582d769b50fa9394f2f340c250e9b969b78f007765298f59d",
+      "byte_len": 14144
+    },
+    {
+      "artifact_id": "eff8214548135c5f4b05b1ccea028aac1b1736afe48bdb39298131e0e8c53c45",
+      "sha256": "eff8214548135c5f4b05b1ccea028aac1b1736afe48bdb39298131e0e8c53c45",
+      "byte_len": 1173872
+    },
+    {
+      "artifact_id": "bcdf5c8472353bd04780314cee7d27e07594153332ac526a390d6e5b38792ee4",
+      "sha256": "bcdf5c8472353bd04780314cee7d27e07594153332ac526a390d6e5b38792ee4",
+      "byte_len": 14360
+    },
+    {
+      "artifact_id": "3a34174e94af447fab7b67e96ac7fe44ea12e6238683e3de8420ae397fdea458",
+      "sha256": "3a34174e94af447fab7b67e96ac7fe44ea12e6238683e3de8420ae397fdea458",
+      "byte_len": 14424
+    },
+    {
+      "artifact_id": "412e0fc561a10581aaff2d101206939a31fa12c696590d8d4a5ec3655953ffe0",
+      "sha256": "412e0fc561a10581aaff2d101206939a31fa12c696590d8d4a5ec3655953ffe0",
+      "byte_len": 3312696
+    },
+    {
+      "artifact_id": "eecfe23a442c390ff4dc40b7117d00730cea4b052bd21c2cc563b70eca95f4a8",
+      "sha256": "eecfe23a442c390ff4dc40b7117d00730cea4b052bd21c2cc563b70eca95f4a8",
+      "byte_len": 14056
+    },
+    {
+      "artifact_id": "63e814634983bfa53890b48cb56760ca38840fbcf91f66a51222eef85eaa08b7",
+      "sha256": "63e814634983bfa53890b48cb56760ca38840fbcf91f66a51222eef85eaa08b7",
+      "byte_len": 223392
+    }
+  ],
+  "tools": {
+    "ffmpeg": {
+      "identity": {
+        "artifact_id": "8637e975262958df602232bf54e15a339b2805d3c822107250211e783b8bdc00",
+        "sha256": "8637e975262958df602232bf54e15a339b2805d3c822107250211e783b8bdc00",
+        "byte_len": 26047104
+      },
+      "path": "/authored/ffmpeg"
+    },
+    "ffprobe": {
+      "identity": {
+        "artifact_id": "8637e975262958df602232bf54e15a339b2805d3c822107250211e783b8bdc00",
+        "sha256": "8637e975262958df602232bf54e15a339b2805d3c822107250211e783b8bdc00",
+        "byte_len": 26047104
+      },
+      "path": "/authored/ffprobe"
+    },
+    "onnx_runtime": {
+      "identity": {
+        "artifact_id": "8637e975262958df602232bf54e15a339b2805d3c822107250211e783b8bdc00",
+        "sha256": "8637e975262958df602232bf54e15a339b2805d3c822107250211e783b8bdc00",
+        "byte_len": 26047104
+      },
+      "path": "/authored/onnx_runtime"
+    }
+  }
+}

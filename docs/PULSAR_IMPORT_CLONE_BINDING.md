@@ -1,0 +1,11 @@
+# Portable clone publication binding
+
+Date: 2026-10-10. Status: implemented and focused verification PASS; full roadmap PARTIAL.
+
+Before taking the database mutex, clone publication now binds retained verified storage to the active upload operation and exact declaration. It checks the public container/manifest metadata against the private verified originals, hashes the already-retained canonical origin bytes, and checks the complete ordered namespace/publication inventory. Existing CAS hits remain valid regardless of creation flags.
+
+The clone's immediate archive origin must retain the original container and object catalog. The local project identity must match the assigned identity. Every planned motion descriptor must match canonical payload validation; the clone object catalog must retain exactly the original entries plus the canonical manifest with its ImportedManifest role. This is metadata correspondence before SQL publication, not a new source of imported authority. It performs no filesystem reads, full catalog copies or JSON serialization under the database mutex. Existing authentication, deadlines, admission, holds and imported review/trust barriers remain in place.
+
+The real storage mutation test rejects changed operation/declaration, container or canonical-manifest metadata/bytes, missing/extra/namespace-substituted publication entries, changed immediate-origin capture, altered motion identity and altered object length. Final-source import tests pass 49/49 with zero ignored; workspace all-feature/all-target compilation passes; architecture checks pass 350 and source guards pass 36. The first focused run passed 1/1 in 39.33 seconds; a live sample observed its worker waiting in jbd2_log_wait_commit. Final tests used owned SSD scratch and finished in 2.24 seconds. This observation does not establish or repair the earlier startup/transport failures.
+
+[Checkpoint](evidence/roadmap-2026-10-10/import-clone-binding/checkpoint.json) retains logs, before-this-turn patches and source hashes. No physical Handy, installed Stash, useful media/model, cross-platform, full-workspace test, global formatting or strict lint qualification is claimed. Firmware/credentials and source-matched annotations remain unavailable; software work remains authorized.

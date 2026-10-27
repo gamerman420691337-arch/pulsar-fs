@@ -134,7 +134,7 @@ pub fn write_bulk_header<W: Write, T: Serialize>(
 }
 
 pub enum RequestFrame {
-    Current(crate::Request),
+    Current(Box<crate::Request>),
     Rejected {
         request_id: crate::RequestId,
         error: crate::ProtocolError,
@@ -166,7 +166,7 @@ pub fn read_request<R: Read>(reader: &mut R) -> Result<RequestFrame, TransportEr
             error,
         });
     }
-    Ok(RequestFrame::Current(request))
+    Ok(RequestFrame::Current((request).into()))
 }
 
 #[cfg(test)]

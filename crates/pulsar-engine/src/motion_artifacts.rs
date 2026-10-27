@@ -122,17 +122,21 @@ fn validate_descriptor(value: &StoredProgram) -> Result<()> {
     Ok(())
 }
 
-
 impl ProgramStore {
     /// Pure pre-publication validation. Rejects changed canonical bytes rather
     /// than normalizing an imported digest into a different published object.
     pub(crate) fn validate_canonical(bytes: &[u8]) -> Result<StoredProgram> {
         let program = decode_bounded(bytes)?;
         let axes = summaries(&program)?;
-        struct MatchCanonical<'a> { bytes: &'a [u8], offset: usize }
+        struct MatchCanonical<'a> {
+            bytes: &'a [u8],
+            offset: usize,
+        }
         impl Write for MatchCanonical<'_> {
             fn write(&mut self, part: &[u8]) -> io::Result<usize> {
-                let end = self.offset.checked_add(part.len())
+                let end = self
+                    .offset
+                    .checked_add(part.len())
                     .ok_or_else(|| io::Error::other("canonical motion length overflow"))?;
                 if self.bytes.get(self.offset..end) != Some(part) {
                     return Err(io::Error::other("motion bytes are not canonical"));
@@ -140,15 +144,23 @@ impl ProgramStore {
                 self.offset = end;
                 Ok(part.len())
             }
-            fn flush(&mut self) -> io::Result<()> { Ok(()) }
+            fn flush(&mut self) -> io::Result<()> {
+                Ok(())
+            }
         }
         let mut matcher = MatchCanonical { bytes, offset: 0 };
         serde_json::to_writer(&mut matcher, &program)
             .map_err(|_| invalid("imported motion bytes are not canonical"))?;
         if matcher.offset != bytes.len() {
-            return Err(invalid("imported motion bytes have noncanonical trailing data"));
+            return Err(invalid(
+                "imported motion bytes have noncanonical trailing data",
+            ));
         }
-        descriptor(format!("{:x}", Sha256::digest(bytes)), bytes.len() as u64, axes)
+        descriptor(
+            format!("{:x}", Sha256::digest(bytes)),
+            bytes.len() as u64,
+            axes,
+        )
     }
 }
 
@@ -420,6 +432,7 @@ mod unix {
         /// Legacy worker/migration bytes may use different whitespace. Decode
         /// with bounded collections, re-encode, and return the canonical digest.
         /// The returned identity never claims to hash noncanonical input bytes.
+        #[cfg(test)]
         pub fn import_canonical(&self, bytes: &[u8]) -> Result<StoredProgram> {
             let program = decode_bounded(bytes)?;
             self.publish(&program)
@@ -522,6 +535,7 @@ impl ProgramStore {
             "secure immutable motion storage unavailable",
         ))
     }
+    #[cfg(test)]
     pub fn import_canonical(&self, _bytes: &[u8]) -> Result<StoredProgram> {
         Err(ProtocolError::new(
             ErrorCode::Unsupported,
@@ -579,7 +593,7 @@ struct DecodeBudget {
     gaps: usize,
     exceeded: bool,
 }
-fn decode_bounded(bytes: &[u8]) -> Result<MotionProgram> {
+pub(crate) fn decode_bounded(bytes: &[u8]) -> Result<MotionProgram> {
     if bytes.len() as u64 > MAX_PROGRAM_BYTES {
         return Err(exhausted("motion JSON exceeds byte budget"));
     }

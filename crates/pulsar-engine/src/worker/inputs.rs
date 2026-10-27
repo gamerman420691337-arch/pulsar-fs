@@ -45,7 +45,13 @@ pub(super) fn generate(
             let _pixels = media::extract(
                 &request.tools.ffmpeg.path,
                 &request.source.path,
-                0,
+                media::SnapshotFrame {
+                    index: 0,
+                    source_time: SourceTimestamp::new(
+                        i64::try_from(i128::from(index.pts[0]) * i128::from(index.time_base_num))?,
+                        index.time_base_den,
+                    )?,
+                },
                 width,
                 height,
                 request.budget.cpu_threads,
@@ -62,65 +68,41 @@ pub(super) fn generate(
                 }),
             )
         }
-        GenerationInput::Audio { mapping, mode, .. } => {
+        GenerationInput::Audio {
+            mapping,
+            mode,
+            analysis,
+            ..
+        } => {
             let decoded = super::audio::decode(request, deadline)?;
-            let features =
-                extract_audio_features(&decoded.samples, AUDIO_SAMPLE_RATE, AUDIO_WINDOW_SAMPLES)?;
-            notes.push("audio_mapping_uncalibrated");
-            match mode {
-                AudioMode::Envelope => (
-                    synthesize_audio_envelope(&features.envelope, mapping)?,
-                    "full-band-rms-envelope-v1",
-                    serde_json::json!({"sample_rate": AUDIO_SAMPLE_RATE, "window_samples": AUDIO_WINDOW_SAMPLES,
-                        "channels": 1, "band": "full", "normalization": "none", "resampled_sample_count": decoded.samples.len(), "source_timeline": decoded.timeline}),
-                ),
-                AudioMode::Beats => {
-                    // This mode generates pulses at RMS threshold onsets, not a
-                    // claim of musical beat tracking. Unsupported edge/overlap
-                    // pulses are omitted and reported, never retimed.
-                    let rise = 50_000_000u64;
-                    let fall = 100_000_000u64;
-                    let mut selected = Vec::new();
-                    let mut omitted = 0usize;
-                    for onset in &features.amplitude_onsets {
-                        let t = onset.as_nanos();
-                        let fits = t >= rise as i64
-                            && t.checked_add(fall as i64)
-                                .is_some_and(|end| end <= features.duration.as_nanos())
-                            && selected.last().is_none_or(|last: &ProjectTime| {
-                                t - last.as_nanos() >= (rise + fall) as i64
-                            });
-                        if fits {
-                            selected.push(*onset);
-                        } else {
-                            omitted += 1;
-                        }
-                    }
-                    notes.push("amplitude_onsets_not_musical_beat_tracking");
-                    if omitted > 0 {
-                        notes.push("unsupported_onset_pulses_omitted");
-                    }
-                    (
-                        synthesize_beats(
-                            &selected,
-                            features.duration,
-                            &BeatMapping::new(
-                                mapping.axis(),
-                                mapping.amplitude(),
-                                mapping.offset(),
-                                rise,
-                                fall,
-                            )?,
-                        )?,
-                        "full-band-rms-onset-pulses-v1",
-                        serde_json::json!({"sample_rate": AUDIO_SAMPLE_RATE, "window_samples": AUDIO_WINDOW_SAMPLES,
-                            "onset_threshold": AUDIO_ONSET_THRESHOLD, "rise_ns": rise, "fall_ns": fall,
-                            "raw_onsets": features.amplitude_onsets.len(), "retained_onsets": selected.len(),
-                            "omitted_edge_or_overlapping_onsets": omitted, "musical_beat_tracking": false,
-                            "band": "full", "normalization": "none", "resampled_sample_count": decoded.samples.len(), "source_timeline": decoded.timeline}),
-                    )
+            generate_audio_channel(&decoded, mapping, mode, analysis, &mut notes)?
+        }
+        GenerationInput::AudioBundle { recipe, .. } => {
+            let decoded = super::audio::decode(request, deadline)?;
+            let mut tracks = Vec::new();
+            let mut channel_details = Vec::new();
+            for channel in recipe.channels() {
+                if Instant::now() >= deadline {
+                    bail!("audio bundle deadline exceeded");
                 }
+                let (program, algorithm, details) = generate_audio_channel(
+                    &decoded,
+                    &channel.mapping,
+                    &channel.mode,
+                    &Some(channel.analysis),
+                    &mut notes,
+                )?;
+                tracks.extend(program.tracks().iter().cloned());
+                channel_details.push(serde_json::json!({"axis": channel.mapping.axis(), "recipe": algorithm, "details": details}));
             }
+            (
+                MotionProgram::new(tracks)?,
+                "explicit-six-axis-audio-v1",
+                serde_json::json!({
+                    "decode_count": 1, "channels": channel_details, "observed_motion": false,
+                    "physical_axis_calibration": false, "source_timeline": decoded.timeline,
+                }),
+            )
         }
     };
     if Instant::now() >= deadline {
@@ -205,4 +187,115 @@ fn check_declared_source(request: &WorkerRequest, input: &GenerationInput) -> Re
         .into());
     }
     Ok(())
+}
+
+fn generate_audio_channel(
+    decoded: &super::audio::DecodedAudio,
+    mapping: &AudioMapping,
+    mode: &AudioMode,
+    analysis: &Option<AudioAnalysisOptions>,
+    notes: &mut Vec<&'static str>,
+) -> Result<(MotionProgram, &'static str, serde_json::Value)> {
+    Ok({
+        let (features, saturated_windows) = if let Some(options) = analysis {
+            let result = analyze_audio(
+                &decoded.samples,
+                AUDIO_SAMPLE_RATE,
+                AUDIO_WINDOW_SAMPLES,
+                *options,
+            )?;
+            (result.features, result.saturated_windows)
+        } else {
+            (
+                extract_audio_features(&decoded.samples, AUDIO_SAMPLE_RATE, AUDIO_WINDOW_SAMPLES)?,
+                0,
+            )
+        };
+        let band = analysis.map_or(AudioBand::Full, |a| a.band());
+        let threshold = analysis.map_or(AUDIO_ONSET_THRESHOLD, |a| a.threshold());
+        let spectral = serde_json::json!({"options": analysis, "cutoffs_hz": band.cutoffs_hz(),
+                "filter": if band == AudioBand::Full {"none"} else {"causal-butterworth-hp-lp-q-sqrt-half-v1"},
+                "initial_state": "zero", "filter_delay": if band == AudioBand::Full {"none"} else {"frequency-dependent-uncompensated"},
+                "lowpass_bypassed_at_nyquist": band.cutoffs_hz().is_some_and(|(_, upper)| 2 * upper == AUDIO_SAMPLE_RATE),
+                "timestamp": "original-window-first-sample", "envelope_gated": analysis.is_some(),
+                "rms_clamp_max": 1, "saturated_windows": saturated_windows});
+        notes.push("audio_mapping_uncalibrated");
+        match mode {
+            AudioMode::Envelope => (
+                synthesize_audio_envelope(&features.envelope, mapping)?,
+                if analysis.is_some() {
+                    "spectral-rms-envelope-v1"
+                } else {
+                    "full-band-rms-envelope-v1"
+                },
+                serde_json::json!({"sample_rate": AUDIO_SAMPLE_RATE, "window_samples": AUDIO_WINDOW_SAMPLES,
+                        "channels": 1, "band": band, "analysis": spectral, "normalization": "none", "resampled_sample_count": decoded.samples.len(), "source_timeline": decoded.timeline}),
+            ),
+            AudioMode::Vibe => {
+                notes.push("audio_oscillation_not_device_qualified");
+                (
+                    synthesize_audio_oscillation(&features.envelope, mapping)?,
+                    "audio-rms-modulated-oscillation-8hz-v1",
+                    serde_json::json!({"sample_rate": AUDIO_SAMPLE_RATE, "window_samples": AUDIO_WINDOW_SAMPLES,
+                            "channels": 1, "band": band, "analysis": spectral, "normalization": "none",
+                            "carrier_hz": AUDIO_OSCILLATION_HZ, "carrier_period_ns": AUDIO_OSCILLATION_PERIOD_NS,
+                            "phase_origin": "decoded-source-relative-time-zero", "phase_arithmetic": "integer-nanosecond-modulo",
+                            "position_center": mapping.offset().value() + mapping.amplitude() / 2.0,
+                            "position_half_span": mapping.amplitude() / 2.0, "energy_coupling": "raw-gated-rms-times-half-span",
+                            "silence": "hold-center", "musical_beat_tracking": false,
+                            "resampled_sample_count": decoded.samples.len(), "source_timeline": decoded.timeline}),
+                )
+            }
+            AudioMode::Beats => {
+                // This mode generates pulses at RMS threshold onsets, not a
+                // claim of musical beat tracking. Unsupported edge/overlap
+                // pulses are omitted and reported, never retimed.
+                let rise = 50_000_000u64;
+                let fall = 100_000_000u64;
+                let mut selected = Vec::new();
+                let mut omitted = 0usize;
+                for onset in &features.amplitude_onsets {
+                    let t = onset.as_nanos();
+                    let fits = t >= rise as i64
+                        && t.checked_add(fall as i64)
+                            .is_some_and(|end| end <= features.duration.as_nanos())
+                        && selected.last().is_none_or(|last: &ProjectTime| {
+                            t - last.as_nanos() >= (rise + fall) as i64
+                        });
+                    if fits {
+                        selected.push(*onset);
+                    } else {
+                        omitted += 1;
+                    }
+                }
+                notes.push("amplitude_onsets_not_musical_beat_tracking");
+                if omitted > 0 {
+                    notes.push("unsupported_onset_pulses_omitted");
+                }
+                (
+                    synthesize_beats(
+                        &selected,
+                        features.duration,
+                        &BeatMapping::new(
+                            mapping.axis(),
+                            mapping.amplitude(),
+                            mapping.offset(),
+                            rise,
+                            fall,
+                        )?,
+                    )?,
+                    if analysis.is_some() {
+                        "spectral-rms-onset-pulses-v1"
+                    } else {
+                        "full-band-rms-onset-pulses-v1"
+                    },
+                    serde_json::json!({"sample_rate": AUDIO_SAMPLE_RATE, "window_samples": AUDIO_WINDOW_SAMPLES,
+                            "onset_threshold": threshold, "rise_ns": rise, "fall_ns": fall,
+                            "raw_onsets": features.amplitude_onsets.len(), "retained_onsets": selected.len(),
+                            "omitted_edge_or_overlapping_onsets": omitted, "musical_beat_tracking": false,
+                            "band": band, "analysis": spectral, "normalization": "none", "resampled_sample_count": decoded.samples.len(), "source_timeline": decoded.timeline}),
+                )
+            }
+        }
+    })
 }

@@ -29,18 +29,14 @@ fn before_lease_admission() {
         }
     });
 }
-fn spawn_worker(
-    task: impl FnOnce() + Send + 'static,
-) -> std::io::Result<std::thread::JoinHandle<()>> {
+fn spawn_worker(owner: &Engine, task: impl FnOnce() + Send + 'static) -> std::io::Result<()> {
     #[cfg(test)]
     if FAIL_PACKAGE_SPAWN.with(|flag| flag.replace(false)) {
         return Err(std::io::Error::other(
             "injected package thread creation failure",
         ));
     }
-    std::thread::Builder::new()
-        .name("pulsar-package".into())
-        .spawn(task)
+    owner.spawn_task("pulsar-package", None, task)
 }
 
 #[derive(Default)]
@@ -99,6 +95,16 @@ impl Drop for PackageConnection {
     }
 }
 impl PackageRuntime {
+    pub(super) fn cancel_all(&mut self) {
+        for operation in self.active.values() {
+            operation.cancel.store(true, Ordering::Release);
+        }
+        for download in self.downloads.values() {
+            if let Ok(mut cursor) = download.cursor.lock() {
+                cursor.abandoned = true;
+            }
+        }
+    }
     fn sweep(&mut self) {
         let now = Instant::now();
         for active in self.active.values() {
@@ -228,15 +234,18 @@ pub(super) fn initialize(db: &Connection) -> PResult<()> {
 
 /// Separate OS-owner authority, never the pairing token or a claim of human presence.
 pub(super) fn owner_token(root: &Path) -> Result<String> {
+    local_owner_token(root, "package-owner.token")
+}
+pub(super) fn local_owner_token(root: &Path, name: &str) -> Result<String> {
     #[cfg(not(unix))]
     {
-        let _ = root;
+        let _ = (root, name);
         anyhow::bail!("secured local owner approval is unavailable");
     }
     #[cfg(unix)]
     {
         use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
-        let path = root.join("package-owner.token");
+        let path = root.join(name);
         let read = || -> Result<String> {
             let file = OpenOptions::new()
                 .read(true)
@@ -304,6 +313,7 @@ fn same_secret(expected: &str, supplied: &str) -> bool {
 fn stored(artifact: &PackageArtifactDescriptor) -> PResult<StoredPackage> {
     artifact.validate()?;
     Ok(StoredPackage {
+        format_version: artifact.format_version,
         identity: ArtifactIdentity {
             artifact_id: ArtifactId::new(format!("package.{}", artifact.sha256))
                 .map_err(internal)?,
@@ -442,7 +452,7 @@ impl Download {
             offset: self.offset,
             byte_len: self.byte_len,
             next_offset: cursor.next,
-            replay: cursor.replay.clone(),
+            replay: cursor.replay,
             expires_after_ms: remaining,
             bulk_endpoint: endpoint,
         };
@@ -468,7 +478,7 @@ impl Engine {
                 if let ResponseBody::PackageDownload(old) = body {
                     return self
                         .package_download_view(&db, session, project, &old.lease_id)
-                        .map(ResponseBody::PackageDownload);
+                        .map(|value| ResponseBody::PackageDownload(value.into()));
                 }
                 return Ok(body);
             }
@@ -514,12 +524,9 @@ impl Engine {
             Command::ProjectPackageStatus { operation_id } => {
                 let db = self.db.lock().map_err(internal)?;
                 self.authorize(&db, request, session)?;
-                Ok(ResponseBody::PackageExport(owned_status(
-                    &db,
-                    operation_id,
-                    project,
-                    session,
-                )?))
+                Ok(ResponseBody::PackageExport(
+                    (owned_status(&db, operation_id, project, session)?).into(),
+                ))
             }
             Command::CancelProjectExport { operation_id }
             | Command::ReleaseProjectExport { operation_id } => {
@@ -556,7 +563,7 @@ impl Engine {
                     ));
                 }
                 save_status(&tx, &status)?;
-                let body = ResponseBody::PackageExport(status);
+                let body = ResponseBody::PackageExport((status).into());
                 remember(&tx, session.as_str(), request, fingerprint, &body)?;
                 tx.commit().map_err(internal)?;
                 drop(db);
@@ -582,7 +589,7 @@ impl Engine {
                 let db = self.db.lock().map_err(internal)?;
                 self.authorize(&db, request, session)?;
                 self.package_download_view(&db, session, project, lease_id)
-                    .map(ResponseBody::PackageDownload)
+                    .map(|value| ResponseBody::PackageDownload(value.into()))
             }
             Command::AbandonProjectPackageDownload { lease_id } => {
                 let mut db = self.db.lock().map_err(internal)?;
@@ -666,7 +673,7 @@ impl Engine {
         status.validate()?;
         tx.execute("INSERT INTO project_package_exports(id,project,session,request,status) VALUES(?1,?2,?3,?4,?5)",
             params![operation.as_str(),project.as_str(),session.as_str(),request.request_id.as_str(),encode(&status)?]).map_err(internal)?;
-        let body = ResponseBody::PackageExport(status);
+        let body = ResponseBody::PackageExport((status).into());
         remember(&tx, session.as_str(), request, fingerprint, &body)?;
         let generation = grant_generation(&tx, session, project)?;
         tx.commit().map_err(internal)?;
@@ -689,7 +696,7 @@ impl Engine {
         let request = request.clone();
         let failure_request = request.clone();
         let failure_operation = operation.clone();
-        let spawned = spawn_worker(move || {
+        let spawned = spawn_worker(self, move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 engine.run_package_export(&request, &operation, &cancel, deadline)
             }))
@@ -927,11 +934,27 @@ impl Engine {
                 verification: PackageReadyVerification::AllDeclaredObjectsVerified,
             };
             status.state = PackageExportOperationState::Ready;
+            if artifact.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_REBASE_LINKS
+                && crate::inference_equivalence_reader::version(&tx).map_err(internal)? < 11
+            {
+                crate::inference_equivalence_reader::publish(&tx, 11).map_err(internal)?;
+            }
             status.capture = Some(binding);
             status.progress.completed_objects = artifact.object_count as u64;
             status.progress.completed_bytes = artifact.byte_len;
             status.artifact = Some(artifact);
             status.error = None;
+            if plan.manifest.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_CUDA_EVIDENCE {
+                crate::portable_cuda_db::arm(&tx).map_err(internal)?;
+            }
+            if plan.manifest.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_ANNOTATED_MODELS
+            {
+                crate::portable_annotated_db::arm(&tx).map_err(internal)?;
+            }
+            if plan.manifest.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_WASM_INVOCATIONS
+            {
+                crate::portable_wasm_db::arm(&tx).map_err(internal)?;
+            }
             save_status(&tx, &status)?;
             let generation =
                 grant_generation(&tx, request.session.as_ref().unwrap(), project(request)?)?;
@@ -1062,7 +1085,7 @@ impl Engine {
             if let ResponseBody::PackageDownload(old) = body {
                 return self
                     .package_download_view(&tx, session, project, &old.lease_id)
-                    .map(ResponseBody::PackageDownload);
+                    .map(|value| ResponseBody::PackageDownload(value.into()));
             }
             return Err(ProtocolError::new(
                 ErrorCode::RequestConflict,
@@ -1153,7 +1176,7 @@ impl Engine {
             _memory: memory,
         });
         let view = download.view(self.config.bulk_endpoint())?;
-        let body = ResponseBody::PackageDownload(view);
+        let body = ResponseBody::PackageDownload((view).into());
         remember(&tx, session.as_str(), request, fingerprint, &body)?;
         tx.commit().map_err(internal)?;
         runtime.downloads.insert(id.to_string(), download);
@@ -1184,7 +1207,7 @@ impl Engine {
             if let ResponseBody::PackageDownload(old) = body {
                 return self
                     .package_download_view(&tx, session, project, &old.lease_id)
-                    .map(ResponseBody::PackageDownload)
+                    .map(|value| ResponseBody::PackageDownload(value.into()))
                     .map(Some);
             }
             return Err(ProtocolError::new(
@@ -1292,7 +1315,9 @@ impl Engine {
                     return Err(ProtocolError::new(ErrorCode::ResourceExhausted,"package verification waits for the previous worker to drain or a free worker slot"));
                 }
                 let stored = stored(artifact)?;
-                let holds = self.package_holds.acquire(&[stored.identity.clone()])?;
+                let holds = self
+                    .package_holds
+                    .acquire(std::slice::from_ref(&stored.identity))?;
                 let cancel = Arc::new(AtomicBool::new(false));
                 let deadline =
                     Instant::now() + self.config.worker_timeout.min(MAX_OPERATION_LIFETIME);
@@ -1327,7 +1352,7 @@ impl Engine {
                 let artifact = artifact.clone();
                 let body = pending(0, artifact.byte_len);
                 let failure_operation = operation.clone();
-                let spawned = spawn_worker(move || {
+                let spawned = spawn_worker(self, move || {
                     let _memory = memory;
                     let _holds = holds;
                     let check = || -> PResult<()> {
@@ -1371,10 +1396,9 @@ impl Engine {
                         Ok(())
                     };
                     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        engine.package_store.open_verified(
-                            &stored,
-                            || check(),
-                            |completed| {
+                        engine
+                            .package_store
+                            .open_verified(&stored, &check, |completed| {
                                 if let Some((
                                     _,
                                     Verification::Pending {
@@ -1391,8 +1415,7 @@ impl Engine {
                                     *progress = completed;
                                 }
                                 Ok(())
-                            },
-                        )?;
+                            })?;
                         check()?;
                         Ok::<(), ProtocolError>(())
                     }))
@@ -1726,18 +1749,24 @@ pub(super) fn revoke(db: &Connection, session: &SessionId, project: &ProjectId) 
     }
     Ok(())
 }
-pub(super) fn start_sweeper(engine: &Arc<Engine>) {
+pub(super) fn start_sweeper(engine: &Arc<Engine>) -> PResult<()> {
     let weak = Arc::downgrade(engine);
-    std::thread::spawn(move || loop {
-        std::thread::sleep(Duration::from_millis(250));
-        let Some(engine) = weak.upgrade() else {
-            break;
-        };
-        if let Ok(mut runtime) = engine.package_exports.lock() {
-            runtime.sweep();
-        }
-        let _ = engine.collect_released_packages();
-    });
+    engine
+        .spawn_task("pulsar-package-expiry", None, move || loop {
+            std::thread::sleep(Duration::from_millis(250));
+            let Some(engine) = weak.upgrade() else {
+                break;
+            };
+            if engine.is_shutting_down() {
+                break;
+            }
+            if let Ok(mut runtime) = engine.package_exports.lock() {
+                runtime.sweep();
+            }
+            let _ = engine.collect_released_packages();
+        })
+        .map_err(internal)?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1778,7 +1807,7 @@ mod tests {
                 )
                 .unwrap()
             {
-                ResponseBody::PackageExport(value) => value,
+                ResponseBody::PackageExport(value) => *value,
                 _ => panic!(),
             }
         }
@@ -1803,7 +1832,10 @@ mod tests {
                 }
                 assert!(
                     Instant::now() < deadline,
-                    "package operation did not finish"
+                    "package operation did not finish: state={:?}, completed_bytes={}, deadline_overrun={:?}",
+                    status.state,
+                    status.progress.completed_bytes,
+                    deadline.elapsed()
                 );
                 std::thread::sleep(Duration::from_millis(1));
             }
@@ -1821,7 +1853,7 @@ mod tests {
             let deadline = Instant::now() + Duration::from_secs(10);
             loop {
                 match self.engine.handle(request.clone()).result.unwrap() {
-                    ResponseBody::PackageDownload(lease) => return (request, lease),
+                    ResponseBody::PackageDownload(lease) => return (request, *lease),
                     ResponseBody::PackageDownloadPending(value) => {
                         value.validate().unwrap();
                         assert!(Instant::now() < deadline);
@@ -2396,6 +2428,30 @@ mod tests {
         }
         assert!(f.engine.handle(request).result.is_err());
     }
+    fn assert_no_download_reply(f: &Fixture, request: &Request) {
+        assert!(f
+            .engine
+            .package_exports
+            .lock()
+            .unwrap()
+            .downloads
+            .is_empty());
+        let replies: i64 = f
+            .engine
+            .db
+            .lock()
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM requests WHERE session=?1 AND request=?2",
+                params![f.session.as_str(), request.request_id.as_str()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            replies, 0,
+            "failed verification must not persist a successful download reply"
+        );
+    }
     #[test]
     #[cfg(unix)]
     fn corrupted_ready_bytes_fail_async_restart_verification_without_lease() {
@@ -2430,7 +2486,14 @@ mod tests {
         let deadline = Instant::now() + Duration::from_secs(10);
         loop {
             match f.engine.handle(request.clone()).result {
-                Err(_) => break,
+                Err(error) => {
+                    assert_eq!(
+                        error.code,
+                        ErrorCode::DependencyMismatch,
+                        "corruption qualification must observe the content verification refusal"
+                    );
+                    break;
+                }
                 Ok(ResponseBody::PackageDownloadPending(_)) => {
                     assert!(Instant::now() < deadline);
                     std::thread::sleep(Duration::from_millis(1));
@@ -2438,6 +2501,7 @@ mod tests {
                 Ok(_) => panic!("corrupt historical Ready bytes must never produce a lease"),
             }
         }
+        assert_no_download_reply(&f, &request);
     }
 
     fn durable_regrant(f: &Fixture) {
@@ -2638,7 +2702,11 @@ mod tests {
             ResponseBody::PackageDownloadPending(_)
         ));
         assert!(f.engine.package_exports.lock().unwrap().active.is_empty());
-        assert!(f.engine.handle(request).result.is_err());
+        assert_eq!(
+            f.engine.handle(request.clone()).result.unwrap_err().code,
+            ErrorCode::Unavailable
+        );
+        assert_no_download_reply(&f, &request);
         assert!(!f
             .engine
             .package_holds

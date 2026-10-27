@@ -1,0 +1,169 @@
+{
+  "request_id": "program-inspect",
+  "preparation_id": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "correlation": {
+    "inspection": {
+      "accepted_qualification": {
+        "dossier_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "revision": 2
+      },
+      "request_id": "program-inspect",
+      "engine_epoch": "fixture-boot",
+      "project_id": "fixture-project",
+      "revision": 1,
+      "device_session": "fixture-session",
+      "registration": {
+        "device_id": "fixture-device",
+        "revision": 1,
+        "settings": {
+          "label": "synthetic correlation fixture",
+          "api_key_env": "FIXTURE_API",
+          "connection_key_env": "FIXTURE_CONNECTION"
+        },
+        "disabled": false,
+        "binding_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "hosting_request_id": "fixture-hosting",
+      "master_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "script": {
+        "artifact_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "byte_len": 40
+      },
+      "hosted": {
+        "artifact_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "byte_len": 40
+      },
+      "device": {
+        "identity": {
+          "firmware": "4.0.16",
+          "model_number": 2,
+          "model_name": "H02",
+          "model_variant": 0,
+          "session_id": "synthetic-remote",
+          "firmware_status": 0
+        },
+        "mode": {
+          "mode": 1,
+          "mode_session_id": 10
+        },
+        "operative_settings": {
+          "slider": {
+            "x_limit_start": 0.0,
+            "x_limit_stop": 100.0,
+            "x_end_buffer": 5.0,
+            "x_end_zone_size": 10.0,
+            "x_end_zone_speed": 20.0,
+            "x_min_speed": 10.0,
+            "x_max_speed": 100.0,
+            "x_min_speed_theoretical": 5.0,
+            "x_max_speed_theoretical": 150.0,
+            "turn_time": 500.0,
+            "regulator_timeout": 2000.0,
+            "temp_high_trigger": 75.0,
+            "temp_offset": 0.0,
+            "x_stroke_min": 20.0,
+            "x_stroke_max": 100.0,
+            "temp_hysteresis": 5.0,
+            "overclock_enabled": false,
+            "x_inverse_motor": false,
+            "x_inverse_hall": false
+          },
+          "stroke": {
+            "min": 0.0,
+            "max": 1.0,
+            "min_absolute": 0.0,
+            "max_absolute": 100.0
+          }
+        },
+        "remote_hssp": {
+          "play_state": "stopped",
+          "stream_id": 8,
+          "current_time_ms": 0,
+          "playback_rate": 1.0,
+          "looping": false,
+          "pause_on_starving": false
+        },
+        "observed_at_unix_ms": 1
+      },
+      "observation_span_ns": 1000,
+      "setup_performed": false,
+      "qualified": false
+    },
+    "setup_request_id": "original-setup",
+    "record_id": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "setup_mode": {
+      "mode": 1,
+      "mode_session_id": 10
+    },
+    "acknowledgment": {
+      "play_state": 2,
+      "pause_on_starving": false,
+      "points": 2,
+      "max_points": 2.0,
+      "current_point": 0,
+      "current_time": 0,
+      "loop": false,
+      "playback_rate": 1.0,
+      "first_point_time": 0,
+      "last_point_time": 1000,
+      "stream_id": 8,
+      "tail_point_stream_index": 100,
+      "tail_point_stream_index_threshold": 100
+    },
+    "expected_samples": {
+      "points": 100,
+      "first_time_ms": 0,
+      "last_time_ms": 100000
+    },
+    "first_buffer": {
+      "play_state": 2,
+      "pause_on_starving": false,
+      "points": 0,
+      "max_points": 1.0,
+      "current_point": 0,
+      "current_time": 0,
+      "loop": false,
+      "playback_rate": 1.0,
+      "first_point_time": 0,
+      "last_point_time": 0,
+      "stream_id": 8,
+      "tail_point_stream_index": 100,
+      "tail_point_stream_index_threshold": 100
+    },
+    "second_buffer": {
+      "play_state": 2,
+      "pause_on_starving": false,
+      "points": 1,
+      "max_points": 1.0,
+      "current_point": 0,
+      "current_time": 0,
+      "loop": false,
+      "playback_rate": 1.0,
+      "first_point_time": 0,
+      "last_point_time": 0,
+      "stream_id": 8,
+      "tail_point_stream_index": 100,
+      "tail_point_stream_index_threshold": 100
+    },
+    "content_verified": false,
+    "playback_enabled": false
+  },
+  "admission": {
+    "project": "fixture-project",
+    "revision": 1,
+    "configuration": {
+      "device": "fixture-device",
+      "firmware": "1111111111111111111111111111111111111111111111111111111111111111",
+      "driver": "2222222222222222222222222222222222222222222222222222222222222222",
+      "transport": "fixture-transport",
+      "profile": "3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    "program_artifact": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "state": "prepared",
+  "physical_stop_pending": false,
+  "armed": false,
+  "playback_enabled": false
+}

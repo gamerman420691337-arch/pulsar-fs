@@ -121,7 +121,10 @@ pub struct PackageArtifactDescriptor {
 }
 impl PackageArtifactDescriptor {
     pub fn validate(&self) -> Result<(), ProtocolError> {
-        if !matches!(self.format_version, 1 | 2) {
+        if !matches!(
+            self.format_version,
+            1..=crate::PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY
+        ) {
             return Err(ProtocolError::unsupported("unsupported package format"));
         }
         validate_sha256(&self.sha256)?;
@@ -396,16 +399,14 @@ pub(crate) fn validate_request(request: &Request) -> Result<(), ProtocolError> {
         }
         Command::BeginProjectPackageDownload {
             offset, byte_len, ..
-        } => {
-            if *byte_len == 0
-                || offset
-                    .checked_add(*byte_len)
-                    .is_none_or(|n| n > DEFAULT_MAX_PROJECT_PACKAGE_BYTES)
-            {
-                return Err(ProtocolError::invalid(
-                    "package download range exceeds admission bounds",
-                ));
-            }
+        } if (*byte_len == 0
+            || offset
+                .checked_add(*byte_len)
+                .is_none_or(|n| n > DEFAULT_MAX_PROJECT_PACKAGE_BYTES)) =>
+        {
+            return Err(ProtocolError::invalid(
+                "package download range exceeds admission bounds",
+            ));
         }
         _ => {}
     }
