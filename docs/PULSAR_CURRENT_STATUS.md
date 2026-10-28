@@ -4,7 +4,7 @@
 
 The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue and milestone ledger.
 
-Reconciled **2026-10-27**. Roadmap **INCOMPLETE**; autonomous runner observation **paused**.
+Reconciled **2026-10-28**. Roadmap **INCOMPLETE**; autonomous runner observation **paused**.
 
 **Working tree: UNVERIFIED.** The latest retained format-15 compile failed with four Engine errors; development source has since changed and this snapshot awaits fresh build verification.
 

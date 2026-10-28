@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "reconciled_on": "2026-10-27",
+  "reconciled_on": "2026-10-28",
   "timezone": "America/New_York",
   "full_roadmap": "incomplete",
   "runner_state": "paused",
@@ -19,7 +19,7 @@
     },
     {
       "path": "docs/PULSAR_MAJOR_ROADMAP.md",
-      "role": "M1–M8 scope and acceptance obligations"
+      "role": "M1\u2013M8 scope and acceptance obligations"
     }
   ],
   "archive": {
@@ -873,6 +873,18 @@
       "evidence": [
         "EV-STARTUP"
       ]
+    },
+    {
+      "id": "SC-RENDERED-PATTERN",
+      "title": "Rendered desktop pattern review, export and restart",
+      "parents": [
+        "M2-DOMAIN",
+        "M2-EDITS"
+      ],
+      "scope": "Pinned pre-format15 Linux app: real UI create/generate/review/commit, exact 17-action export, overwrite refusal, Undo/Redo and joined Engine restart/reopen pass. No browser acquisition, model or device result.",
+      "evidence": [
+        "EV-RENDERED-PATTERN"
+      ]
     }
   ],
   "queue": [
@@ -949,7 +961,9 @@
         "CPU-BUILD"
       ],
       "exit": "Verify source/view/time correspondence and target loss/reacquisition through real consumers; exercise protected editing, review/commit/rebase/undo/restart and crash/storage faults in CLI/desktop. Retain real-media limitations under M1-DATA.",
-      "evidence": []
+      "evidence": [
+        "EV-RENDERED-PATTERN"
+      ]
     },
     {
       "id": "STARTUP-CAUSE",
@@ -1379,6 +1393,70 @@
           ]
         }
       ]
+    },
+    {
+      "id": "EV-RENDERED-PATTERN",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/rendered-pattern/verification.json",
+      "sha256": "809cbe5311fa175ec2e6d45c6040b5bea1917cbd3a2aa282eca258a6d9971031",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Actual rendered desktop synthetic-pattern workflow on pinned app005, with independent export oracle and joined restart. Current source build and broad client/browser acceptance remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "current_worktree_build_verified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "action_count"
+          ],
+          "equals": 17
+        },
+        {
+          "pointer": [
+            "checks",
+            "actions_match_independent_oracle"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "overwrite_refused_and_bytes_unchanged"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "restart_actions_match"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "cleanup",
+            "scratch_removed"
+          ],
+          "equals": true
+        }
+      ]
     }
   ],
   "external_inputs": [
@@ -1408,7 +1486,7 @@
     "After each meaningful task, update the existing JSON item, evidence and source observation; regenerate both views and run --check. Use --audit on the evidence host.",
     "Retain original failures and scope limitations when adding successful successor evidence. Mandatory model reviews remain suspended; independent required acceptance is unchanged."
   ],
-  "audit_boundary": "Read-only source/evidence reconciliation. Frozen receipts were inspected and hashed; no fresh benchmark, model training, device actuation or full roadmap qualification was performed.",
+  "audit_boundary": "Retained source/evidence reconciliation plus a fresh rendered desktop synthetic-pattern campaign on pinned pre-format15 app005. No fresh current-source build, browser acquisition, benchmark, model training, device actuation or full roadmap qualification was performed.",
   "product_surface": "Source already includes Desktop, CLI and a local browser client over one authenticated Engine; script/project editing, candidate review/commit/export, deterministic patterns, library/Stash controls, local assistant proposals and experimental browser capture. Handy inspection and guarded transport are implemented. Useful learned defaults, the rendered browser-to-device workflow and physical synchronization remain unqualified. See the [app guide](PULSAR_APP_QUICKSTART.md); the gate ledger below retains the remaining acceptance obligations.",
   "cross_milestone_obligations": "All explicit TEST scenarios, security/consent requirements, delivery/platform/vendor combinations, open-policy decisions and assurance obligations in the specification/execution plan remain required. A selected test subset cannot close the whole test matrix. Before closing a gate, retain exact subject identities, command/operation results, refusals and interruption outcomes, applicable rendered/native/media/device observations, unresolved failures and the required independent human/release authority. Missing evidence stays open."
 }

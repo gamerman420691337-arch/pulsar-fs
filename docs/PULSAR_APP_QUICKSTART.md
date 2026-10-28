@@ -42,7 +42,7 @@ The companion `pulsar-worker` is beside this executable. No arguments also opens
 7. Select Stroke on the timeline. Enter a new absolute destination in **Export Stroke .funscript path** and click **Export committed revision**.
 8. Inspect the exported JSON: 17 actions at 125 ms intervals, from 0 through 2000 ms. Undo/Redo operate on retained project history; exported files are separate snapshots.
 
-This is a deterministic authored pattern. It neither analyzes a video nor drives a device. These button labels and the shared production pattern grammar are checked against current source; the native CLI equivalent below is executed. A rendered desktop walkthrough has not been qualified.
+This is a deterministic authored pattern. It neither analyzes a video nor drives a device. These button labels and the shared production pattern grammar are checked against current source; the native CLI equivalent below is executed. The pinned pre-format15 Linux app also passes an actual rendered walkthrough of create/generate/review/commit/export, overwrite refusal, Undo/Redo and joined Engine restart/reopen. The exported 17 actions match an independent oracle. See [the retained receipt](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/rendered-pattern/verification.json). This is scoped software evidence; the current format15 source build, browser capture and physical-device acceptance remain open.
 
 ## Equivalent checked CLI demo
 

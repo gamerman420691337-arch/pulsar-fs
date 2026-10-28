@@ -2,7 +2,7 @@
 
 > GENERATED from [PULSAR_EXECUTION.json](PULSAR_EXECUTION.json). Edit the JSON; run `python3 scripts/execution_dashboard.py --write` from the repository root.
 
-Reconciled **2026-10-27 (America/New_York)**. Full roadmap: **INCOMPLETE**. Autonomous runner observation: **paused**.
+Reconciled **2026-10-28 (America/New_York)**. Full roadmap: **INCOMPLETE**. Autonomous runner observation: **paused**.
 
 ## Now
 
@@ -34,6 +34,7 @@ Source already includes Desktop, CLI and a local browser client over one authent
 | Capture resource-retirement semantics | Two native cgroup/thread/staging tests pass; physical stopping remains separate. | M3-MEMORY, M5-LIVE | [EV-RETIREMENT](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/engine-private-ram-capture-assets-001/check.json) |
 | Finite fallback and selected-pack lifecycle simulation | Eleven native software scenarios pass; eligibility/provider absence/pack approval are simulated and establish no measured equivalence. | M3-MODELS | [EV-FALLBACK](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/fallback-active-consumers/verification.json) |
 | Bounded startup diagnostic implementation | 14 Engine-open phases and maximum Ready-call/gap observations are tested. Healthy timings do not identify the prior stall. | M5-LIVE, M6-MEMORY | [EV-STARTUP](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/verification.json) |
+| Rendered desktop pattern review, export and restart | Pinned pre-format15 Linux app: real UI create/generate/review/commit, exact 17-action export, overwrite refusal, Undo/Redo and joined Engine restart/reopen pass. No browser acquisition, model or device result. | M2-DOMAIN, M2-EDITS | [EV-RENDERED-PATTERN](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/rendered-pattern/verification.json) |
 
 ## Execution queue
 
@@ -149,6 +150,7 @@ Local retained artifacts may be unavailable on another machine. Outcome and scop
 | [EV-RETIREMENT](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/engine-private-ram-capture-assets-001/check.json) / pass | Two owned cgroup/thread/staging retirement tests; not physical stopping. | `fecdd03752c2943e…` |
 | [EV-FALLBACK](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/fallback-active-consumers/verification.json) / pass | Eleven finite fallback/pack scenarios; eligibility, provider absence and approval simulated. | `381ca8d9c9ec690d…` |
 | [EV-PORTABLE-BUILD](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/portable-cpu-history/build-001.jsonl) / fail | Current format-15 implementation failed its initial Protocol/Engine/client compile with four Engine errors. | `0c3c98b835f9d658…` |
+| [EV-RENDERED-PATTERN](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/rendered-pattern/verification.json) / pass | Actual rendered desktop synthetic-pattern workflow on pinned app005, with independent export oracle and joined restart. Current source build and broad client/browser acceptance remain open. | `809cbe5311fa175e…` |
 
 ## How this drives the remaining work
 
@@ -176,4 +178,4 @@ python3 scripts/execution_dashboard.py --audit
 - [PULSAR_MAJOR_ROADMAP.md](../docs/PULSAR_MAJOR_ROADMAP.md): M1–M8 scope and acceptance obligations.
 - [Previous gate ledger](PULSAR_MILESTONE_HISTORY_BEFORE_DASHBOARD.md) and [previous status chronology](PULSAR_STATUS_HISTORY_BEFORE_DASHBOARD.md): preserved historical records, superseded for current execution state.
 
-Read-only source/evidence reconciliation. Frozen receipts were inspected and hashed; no fresh benchmark, model training, device actuation or full roadmap qualification was performed.
+Retained source/evidence reconciliation plus a fresh rendered desktop synthetic-pattern campaign on pinned pre-format15 app005. No fresh current-source build, browser acquisition, benchmark, model training, device actuation or full roadmap qualification was performed.
