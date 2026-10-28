@@ -344,7 +344,7 @@ fn check_cpu_origin_objects(
             .ok_or_else(|| ProtocolError::invalid("portable CPU origin worker object absent"))?;
         let request: WorkerRequest = serde_json::from_slice(&cpu_mode_bytes(object, 1024 * 1024)?)
             .map_err(|_| ProtocolError::invalid("invalid portable worker mode declaration"))?;
-        crate::project_package_imports::checked_worker_scope(manifest, origin, &request)?;
+        project_package_imports::checked_worker_scope(manifest, origin, &request)?;
     }
     Ok(())
 }
@@ -482,6 +482,7 @@ fn capture_inner(
         imported_archives,
         imported_aliases,
         mut cuda_members,
+        mut cpu_runtimes,
         wasm_invocations,
     ) = {
         let mut db = engine.db.lock().map_err(internal)?;
@@ -621,6 +622,13 @@ fn capture_inner(
         let attempts=rows(&tx,
             "SELECT a.id,a.job,a.manifest,a.state FROM attempts a JOIN jobs j ON j.id=a.job WHERE j.project=?1 ORDER BY a.job,a.id",
             project,&mut budget,|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,String>(3)?)))?;
+        let has_cpu_table: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM main.sqlite_master WHERE name='cpu_runtime_attempts' COLLATE NOCASE)",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(internal)?;
         let mut fallback_tables = Vec::new();
         for table in [
             "inference_fallback_jobs",
@@ -638,8 +646,21 @@ fn capture_inner(
                 fallback_tables.push(table);
             }
         }
-        for (_, _, raw, _) in &attempts {
+        let mut cpu_runtimes = BTreeMap::new();
+        for (attempt, job, raw, _) in &attempts {
             let request: WorkerRequest = decode(raw)?;
+            request.validate()?;
+            let attempt_id = AttemptId::new(attempt).map_err(internal)?;
+            let job_id = JobId::new(job).map_err(internal)?;
+            if request.project_id != *project
+                || request.attempt_id != attempt_id
+                || request.job_id != job_id
+                || request.output_dir != root.join("attempts").join(attempt_id.as_str())
+            {
+                return Err(ProtocolError::invalid(
+                    "historical worker manifest identity mismatch",
+                ));
+            }
             crate::portable_cpu_archives::require_no_fallback(&request.dependencies)?;
             for table in &fallback_tables {
                 // Only fixed module-owned names select SQL. Membership is bound
@@ -665,6 +686,50 @@ fn capture_inner(
                         "portable inference fallback history is not implemented",
                     ));
                 }
+            }
+            // Preserve legacy capture semantics. Consult the durable mode owner
+            // only when this attempt actually has a retained declaration.
+            let has_cpu_row = has_cpu_table
+                && tx
+                    .query_row(
+                        "SELECT EXISTS(SELECT 1 FROM main.cpu_runtime_attempts WHERE attempt=?1)",
+                        [request.attempt_id.as_str()],
+                        |row| row.get::<_, bool>(0),
+                    )
+                    .map_err(internal)?;
+            let cpu_runtime = if has_cpu_row {
+                Some(Box::new(
+                    crate::cpu_runtime_db::retained(&tx, &request)
+                        .map_err(internal)?
+                        .ok_or_else(|| {
+                            ProtocolError::invalid("portable CPU attempt row returned no image")
+                        })?,
+                ))
+            } else {
+                crate::project_package_import_plan::require_portable_cpu_dependencies(
+                    &request.dependencies,
+                )?;
+                None
+            };
+            if let Some(image) = &cpu_runtime {
+                budget.bytes = budget
+                    .bytes
+                    .checked_add(image.identity()?.byte_len as usize)
+                    .filter(|bytes| *bytes <= MAX_CAPTURE_METADATA)
+                    .ok_or_else(|| {
+                        ProtocolError::new(
+                            ErrorCode::ResourceExhausted,
+                            "CPU archive metadata admission exceeded",
+                        )
+                    })?;
+            }
+            if cpu_runtimes
+                .insert((attempt_id, job_id, raw.clone()), cpu_runtime)
+                .is_some()
+            {
+                return Err(ProtocolError::invalid(
+                    "duplicate captured worker attempt declaration",
+                ));
             }
         }
         let mut export_receipts = Vec::new();
@@ -784,6 +849,7 @@ fn capture_inner(
             imported_archives,
             imported_aliases,
             cuda_members,
+            cpu_runtimes,
             wasm_invocations,
         )
     };
@@ -932,21 +998,6 @@ fn capture_inner(
     for (attempt, job, raw, state) in attempts {
         let request: WorkerRequest = decode(&raw)?;
         request.validate()?;
-        let cpu_runtime = crate::cpu_runtime_db::retained(&tx, &request)
-            .map_err(internal)?
-            .map(Box::new);
-        if let Some(image) = &cpu_runtime {
-            budget.bytes = budget
-                .bytes
-                .checked_add(image.identity()?.byte_len as usize)
-                .filter(|bytes| *bytes <= MAX_CAPTURE_METADATA)
-                .ok_or_else(|| {
-                    ProtocolError::new(
-                        ErrorCode::ResourceExhausted,
-                        "CPU archive metadata admission exceeded",
-                    )
-                })?;
-        }
         crate::portable_cpu_archives::require_no_fallback(&request.dependencies)?;
         let annotated_model = match &request.operation {
             WorkerOperation::Generate {
@@ -980,6 +1031,11 @@ fn capture_inner(
                 "historical worker manifest identity mismatch",
             ));
         }
+        let cpu_runtime = cpu_runtimes
+            .remove(&(attempt_id.clone(), job_id.clone(), raw.clone()))
+            .ok_or_else(|| {
+                ProtocolError::invalid("portable CPU declaration lacks exact captured attempt")
+            })?;
         let primary = indexes
             .sources
             .get(request.source.source_version.as_str())
@@ -1248,6 +1304,11 @@ fn capture_inner(
     if !cuda_members.is_empty() {
         return Err(ProtocolError::invalid(
             "portable CUDA membership has no captured attempt",
+        ));
+    }
+    if !cpu_runtimes.is_empty() {
+        return Err(ProtocolError::invalid(
+            "portable CPU declaration has no captured attempt",
         ));
     }
     crate::project_package_import_plan::require_portable_cpu_manifest(&manifest)?;
@@ -2245,5 +2306,381 @@ mod capture_review_tests {
             .objects
             .iter()
             .any(|object| object.sha256 == digest));
+    }
+
+    #[test]
+    fn format15_cpu_runtime_declarations_preserve_inert_history_and_refuse_mutations() {
+        let f = fixture();
+        let source = f.import(b"neutral authored CPU portability fixture; never executed");
+        let legacy = f.capture().unwrap();
+        assert_eq!(legacy.manifest.format_version, 1);
+        drop(legacy);
+
+        let identity = |index: u8| {
+            let sha256 = format!("{index:064x}");
+            ArtifactIdentity {
+                artifact_id: ArtifactId::new(sha256.clone()).unwrap(),
+                sha256,
+                byte_len: 1,
+            }
+        };
+        let image = CpuRuntimeImage {
+            schema_version: 1,
+            owner_policy: identity(9),
+            libraries: CPU_RUNTIME_REQUIRED_ALIASES
+                .iter()
+                .enumerate()
+                .map(|(index, name)| CapturedNativeLibrary {
+                    identity: identity(index as u8 + 1),
+                    names: vec![(*name).into()],
+                })
+                .collect(),
+        };
+        let image_id = image.identity().unwrap();
+        let model = SourceArtifact {
+            identity: identity(8),
+            source_version: SourceVersionId::new("cpu-model").unwrap(),
+            path: "/nonexistent/metadata-only/model.onnx".into(),
+        };
+        let input = ModelInputContract {
+            width: 64,
+            height: 64,
+            channels: 3,
+            layout: TensorLayout::Nchw,
+            class_count: 1,
+            decoder: DetectorDecoder::YoloChannelMajor,
+        };
+        let profile = DeclaredInferenceProfile {
+            schema_version: 1,
+            model: model.identity.clone(),
+            runtime: identity(3),
+            preprocessing: InferencePreprocessing {
+                input: input.clone(),
+                resize: InferenceResize::Stretch,
+                color: InferenceColor::Rgb,
+                scale: vec![1.0 / 255.0; 3],
+                bias: vec![0.0; 3],
+                padding_byte: 0,
+            },
+            provider: InferenceProvider::Cpu,
+            minimum_memory_bytes: 1024,
+            minimum_output_bytes: 1024,
+            cpu_threads: 1,
+            cuda_resources: None,
+        };
+        let mut request = f.failed_origin(source);
+        request.budget = ResourceBudget {
+            memory_bytes: 64 << 20,
+            output_bytes: 16 << 20,
+            wall_time_ms: 1000,
+            cpu_threads: 1,
+        };
+        request.operation = WorkerOperation::Generate {
+            preset: "fixture".into(),
+            settings: Box::new(GenerationSettings {
+                model_input: Some(input),
+                inference_profile: Some(profile),
+                ..Default::default()
+            }),
+            model: Some(model.clone()),
+        };
+        request.tools.onnx_runtime = Some(ArtifactReference {
+            identity: identity(3),
+            path: "/pulsar-cpu-libraries/libonnxruntime.so.1".into(),
+        });
+        request.dependencies.extend([
+            f.engine.binary_identity.clone(),
+            model.identity.clone(),
+            identity(3),
+            image.owner_policy.clone(),
+            identity(1),
+            identity(2),
+            image_id.clone(),
+        ]);
+        request.validate().unwrap();
+        let raw_request = serde_json::to_string(&request).unwrap();
+        {
+            let mut db = f.engine.db.lock().unwrap();
+            let tx = db.transaction().unwrap();
+            tx.execute(
+                "UPDATE attempts SET manifest=?1 WHERE id=?2",
+                params![raw_request, request.attempt_id.as_str()],
+            )
+            .unwrap();
+            tx.execute(
+                "UPDATE jobs SET manifest=?1 WHERE id=?2",
+                params![raw_request, request.job_id.as_str()],
+            )
+            .unwrap();
+            crate::cpu_runtime_db::declare(&tx, &request, &image).unwrap();
+            tx.commit().unwrap();
+        }
+
+        for state in ["queued", "running", "interrupted", "failed", "cancelled"] {
+            {
+                let db = f.engine.db.lock().unwrap();
+                db.execute(
+                    "UPDATE attempts SET state=?1 WHERE id=?2",
+                    params![state, request.attempt_id.as_str()],
+                )
+                .unwrap();
+                db.execute(
+                    "UPDATE jobs SET state=?1 WHERE id=?2",
+                    params![state, request.job_id.as_str()],
+                )
+                .unwrap();
+            }
+            let plan = f.capture().unwrap();
+            assert_eq!(
+                plan.manifest.format_version,
+                PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY
+            );
+            assert_eq!(plan.manifest.generated_origins.len(), 1);
+            assert_eq!(plan.manifest.generated_origins[0].state, state);
+            assert_eq!(
+                plan.manifest.generated_origins[0]
+                    .cpu_runtime
+                    .as_ref()
+                    .unwrap()
+                    .identity()
+                    .unwrap(),
+                image_id
+            );
+        }
+
+        let head_motion = f.capture().unwrap().manifest.head.motion.clone();
+        let program_bytes = serde_json::to_vec(&f.engine.motion_store.read(&head_motion).unwrap()).unwrap();
+        let program_sha = format!("{:x}", Sha256::digest(&program_bytes));
+        let program_id = ArtifactIdentity {
+            artifact_id: ArtifactId::new(program_sha.clone()).unwrap(),
+            sha256: program_sha,
+            byte_len: program_bytes.len() as u64,
+        };
+        fs::create_dir_all(&request.output_dir).unwrap();
+        fs::write(request.output_dir.join("program.json"), &program_bytes).unwrap();
+        let receipt_deps = request.dependencies.clone();
+        let receipt_json = serde_json::json!({
+            "schema_version": 2,
+            "recipe": "fixture-cpu",
+            "project_id": f.project,
+            "base_revision": 0,
+            "job_id": request.job_id,
+            "attempt_id": request.attempt_id,
+            "source_version": request.source.source_version,
+            "program": program_id,
+            "dependencies": receipt_deps,
+        });
+        let receipt_bytes = serde_json::to_vec(&receipt_json).unwrap();
+        let receipt_sha = format!("{:x}", Sha256::digest(&receipt_bytes));
+        let receipt_id = ArtifactIdentity {
+            artifact_id: ArtifactId::new(receipt_sha.clone()).unwrap(),
+            sha256: receipt_sha,
+            byte_len: receipt_bytes.len() as u64,
+        };
+        fs::write(request.output_dir.join("receipt.json"), &receipt_bytes).unwrap();
+        let mut candidate_lineage = receipt_deps;
+        candidate_lineage.push(receipt_id.clone());
+        let candidate_id = id!(CandidateId);
+        {
+            let db = f.engine.db.lock().unwrap();
+            db.execute(
+                "UPDATE attempts SET state='completed' WHERE id=?1",
+                [request.attempt_id.as_str()],
+            )
+            .unwrap();
+            db.execute(
+                "UPDATE jobs SET state='completed' WHERE id=?1",
+                [request.job_id.as_str()],
+            )
+            .unwrap();
+            db.execute(
+                "INSERT INTO candidates(id,project,base_revision,program,job,lineage,committed_revision,review) VALUES(?1,?2,0,(SELECT program FROM projects WHERE id=?2),?3,?4,NULL,'[]')",
+                params![
+                    candidate_id.as_str(),
+                    f.project.as_str(),
+                    request.job_id.as_str(),
+                    encode(&candidate_lineage).unwrap(),
+                ],
+            )
+            .unwrap();
+        }
+
+        let plan = f.capture().unwrap();
+        assert_eq!(
+            plan.manifest.format_version,
+            PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY
+        );
+        assert_eq!(
+            plan.manifest.generated_origins[0]
+                .cpu_runtime
+                .as_ref()
+                .unwrap()
+                .identity()
+                .unwrap(),
+            image_id
+        );
+        assert!(plan.manifest.candidates[0].lineage.contains(&image_id));
+        let mut byte_map = BTreeMap::new();
+        for descriptor in &plan.manifest.objects {
+            let mut buf = Vec::new();
+            plan.open_object(descriptor)
+                .unwrap()
+                .read_to_end(&mut buf)
+                .unwrap();
+            byte_map.insert(descriptor.sha256.clone(), buf);
+        }
+        let build_objects = |extra: Option<&[u8]>| {
+            let mut objects = BTreeMap::new();
+            for descriptor in &plan.manifest.objects {
+                for role in &descriptor.roles {
+                    inline_object(&mut objects, byte_map[&descriptor.sha256].clone(), *role)
+                        .unwrap();
+                }
+            }
+            if let Some(bytes) = extra {
+                inline_object(
+                    &mut objects,
+                    bytes.to_vec(),
+                    PackageObjectRole::ImportedManifest,
+                )
+                .unwrap();
+            }
+            objects
+        };
+        let captured_objects = build_objects(None);
+        require_portable_cpu_objects(&plan.manifest, &captured_objects).unwrap();
+        crate::project_package_import_plan::validate_retained_origin_graph(
+            &plan.manifest,
+            &BTreeMap::new(),
+        )
+        .unwrap();
+        super::project_package_imports::validate_evidence(
+            &plan.manifest,
+            &f.engine.pool,
+            |reference| Ok(byte_map[&reference.sha256].clone()),
+            &mut || Ok(()),
+        )
+        .unwrap();
+
+        let descriptor_for = |m: &PortableProjectManifest| PackageArtifactDescriptor {
+            format_version: m.format_version,
+            sha256: "b".repeat(64),
+            byte_len: 100_000,
+            manifest_sha256: format!("{:x}", Sha256::digest(m.canonical_bytes().unwrap())),
+            project_id: m.origin_project_id.clone(),
+            captured_revision: m.captured_revision,
+            captured_event_cursor: m.captured_event_cursor,
+            object_count: m.objects.len() as u32,
+            verification: PackageReadyVerification::AllDeclaredObjectsVerified,
+        };
+        let assign_ids = |m: &PortableProjectManifest, suffix: &str| {
+            crate::project_package_import_plan::CloneIdentityAssignment {
+                project_id: ProjectId::new(format!("project.{suffix}")).unwrap(),
+                placements: BTreeMap::new(),
+                candidates: m
+                    .candidates
+                    .iter()
+                    .enumerate()
+                    .map(|(i, c)| {
+                        (
+                            c.candidate_id.clone(),
+                            CandidateId::new(format!("candidate.{suffix}.{i}")).unwrap(),
+                        )
+                    })
+                    .collect(),
+            }
+        };
+        let first = crate::project_package_import_plan::plan_clone_import(
+            &plan.manifest,
+            &descriptor_for(&plan.manifest),
+            &BTreeMap::new(),
+            &assign_ids(&plan.manifest, "clone1"),
+        )
+        .unwrap();
+        assert_eq!(
+            first.manifest.format_version,
+            PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY
+        );
+        assert!(first.manifest.generated_origins.is_empty());
+        assert!(first.manifest.candidates[0].lineage.contains(&image_id));
+        let mut ancestors1 = BTreeMap::from([(
+            first.origin_manifest_ref.sha256.clone(),
+            plan.manifest.clone(),
+        )]);
+        crate::project_package_import_plan::validate_retained_origin_graph(
+            &first.manifest,
+            &ancestors1,
+        )
+        .unwrap();
+        let clone1_objects = build_objects(Some(&first.origin_manifest));
+        require_portable_cpu_objects(&first.manifest, &clone1_objects).unwrap();
+
+        let second = crate::project_package_import_plan::plan_clone_import(
+            &first.manifest,
+            &descriptor_for(&first.manifest),
+            &ancestors1,
+            &assign_ids(&first.manifest, "clone2"),
+        )
+        .unwrap();
+        assert_eq!(
+            second.manifest.format_version,
+            PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY
+        );
+        ancestors1.insert(
+            second.origin_manifest_ref.sha256.clone(),
+            first.manifest.clone(),
+        );
+        crate::project_package_import_plan::validate_retained_origin_graph(
+            &second.manifest,
+            &ancestors1,
+        )
+        .unwrap();
+
+        let mut stripped = plan.manifest.clone();
+        stripped.generated_origins[0].cpu_runtime = None;
+        assert!(crate::project_package_import_plan::validate_retained_origin_graph(
+            &stripped,
+            &BTreeMap::new()
+        )
+        .is_err());
+        assert!(require_portable_cpu_objects(&stripped, &captured_objects).is_err());
+        assert!(super::project_package_imports::validate_evidence(
+            &stripped,
+            &f.engine.pool,
+            |reference| Ok(byte_map[&reference.sha256].clone()),
+            &mut || Ok(()),
+        )
+        .is_err());
+
+        let mut substituted = plan.manifest.clone();
+        substituted.generated_origins[0]
+            .cpu_runtime
+            .as_mut()
+            .unwrap()
+            .owner_policy = identity(10);
+        assert!(crate::project_package_import_plan::validate_retained_origin_graph(
+            &substituted,
+            &BTreeMap::new()
+        )
+        .is_err());
+        assert!(super::project_package_imports::validate_evidence(
+            &substituted,
+            &f.engine.pool,
+            |reference| Ok(byte_map[&reference.sha256].clone()),
+            &mut || Ok(()),
+        )
+        .is_err());
+
+        let bad_ancestors = BTreeMap::from([(
+            first.origin_manifest_ref.sha256.clone(),
+            stripped.clone(),
+        )]);
+        assert!(crate::project_package_import_plan::validate_retained_origin_graph(
+            &first.manifest,
+            &bad_ancestors
+        )
+        .is_err());
+        let bad_clone_objects = build_objects(Some(&serde_json::to_vec(&stripped).unwrap()));
+        assert!(require_portable_cpu_objects(&first.manifest, &bad_clone_objects).is_err());
     }
 }
