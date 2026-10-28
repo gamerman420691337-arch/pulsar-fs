@@ -1224,6 +1224,11 @@ mod captured_cpu_browser_native_tests {
                 && active.transfer_request_id.as_ref() == Some(&transfer.request_id),
             "prepared successor did not promote under original request"
         );
+        // The preview adapter releases predecessor custody after native promotion.
+        release(client, media, player)?;
+        child_player.observe(client).context(
+            "successor timing must remain current after predecessor source/timing release",
+        )?;
         let later = upload(client, inputs, &child, &mut child_player, base + 3, 2, end)?;
         let successor_second = estimate(
             client,
@@ -1238,9 +1243,8 @@ mod captured_cpu_browser_native_tests {
         let sealed = close_input(client, &child, &mut child_player, &later, end)?;
         let stopped = stop(client, &child.identity.epoch)?;
         release(client, &child_media, &child_player)?;
-        release(client, media, player)?;
         Ok(
-            json!({"case":"prepared_successor_transfer","ready":ready,"prepared":child,"boundary":second,"mapped_seed":seed,"boundary_reserved":reserved,"transferred":transferred,"predecessor_retired":retired,"successor_sealed":sealed,"successor_stopped":stopped,"observed_actual_estimates":3,"estimates":[predecessor_estimate,successor_first,successor_second],"original_media":media,"successor_media":child_media,"original_timing_binding":player.binding,"successor_timing_binding":child_player.binding,"last_authored_timing_observation":child_player.last_observation,"captured_mode_preserved":true,"original_boundary_seeded_by_engine":true,"boundary_uploaded_to_successor":false,"predecessor_clean_join_observed":true,"promoted_successor_clean_eof_observed":true,"prepared_ingress_refused":true,"predecessor_ingress_refused_after_transfer":true,"original_lease_ms":LEASE_MS,"freshness_limit_ns":MAX_AGE_NS,"source_acceptance_called":false,"physical_device":false,"qualified":false}),
+            json!({"case":"prepared_successor_transfer","predecessor_source_and_timing_released_before_successor_refresh":true,"ready":ready,"prepared":child,"boundary":second,"mapped_seed":seed,"boundary_reserved":reserved,"transferred":transferred,"predecessor_retired":retired,"successor_sealed":sealed,"successor_stopped":stopped,"observed_actual_estimates":3,"estimates":[predecessor_estimate,successor_first,successor_second],"original_media":media,"successor_media":child_media,"original_timing_binding":player.binding,"successor_timing_binding":child_player.binding,"last_authored_timing_observation":child_player.last_observation,"captured_mode_preserved":true,"original_boundary_seeded_by_engine":true,"boundary_uploaded_to_successor":false,"predecessor_clean_join_observed":true,"promoted_successor_clean_eof_observed":true,"prepared_ingress_refused":true,"predecessor_ingress_refused_after_transfer":true,"original_lease_ms":LEASE_MS,"freshness_limit_ns":MAX_AGE_NS,"source_acceptance_called":false,"physical_device":false,"qualified":false}),
         )
     }
     fn custody_diagnostic_error(error: impl std::fmt::Display) -> String {

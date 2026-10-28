@@ -117,6 +117,40 @@ pub(super) struct NativeBrowserMediaSuccessor {
     lineage: Arc<MediaSuccessorLineage>,
 }
 impl NativeBrowserMediaSuccessor {
+    /// Derive the one-use lineage only from existing native source custody.
+    pub(super) fn from_pins(old: SourceMediaPin, next: SourceMediaPin) -> PResult<Self> {
+        let predecessor = old.binding();
+        let successor = next.binding();
+        if predecessor.engine_epoch != successor.engine_epoch
+            || predecessor.project_id != successor.project_id
+            || predecessor.revision != successor.revision
+            || predecessor.selection != successor.selection
+            || predecessor.clock != successor.clock
+            || predecessor.lease_id == successor.lease_id
+            || predecessor.preparation_request_id == successor.preparation_request_id
+        {
+            return Err(mismatch());
+        }
+        let lineage = next.0.successor.as_ref().ok_or_else(mismatch)?.clone();
+        if lineage.request_id != successor.preparation_request_id
+            || lineage.committed.load(Ordering::Acquire)
+            || !lineage
+                .predecessor
+                .upgrade()
+                .is_some_and(|parent| Arc::ptr_eq(&parent, &old.0))
+        {
+            return Err(mismatch());
+        }
+        let proof = NativeBrowserMediaSuccessor {
+            predecessor: old,
+            successor: next,
+            lineage,
+        };
+        if !proof.current() {
+            return Err(unavailable());
+        }
+        Ok(proof)
+    }
     #[cfg(test)]
     pub(super) fn predecessor(&self) -> &SourceMediaPin {
         &self.predecessor
@@ -501,36 +535,9 @@ impl Engine {
     ) -> PResult<NativeBrowserMediaSuccessor> {
         let old = self.pin_browser_media_locked(db, request, predecessor)?;
         let next = self.pin_browser_media_locked(db, request, successor)?;
-        if predecessor.engine_epoch != successor.engine_epoch
-            || predecessor.project_id != successor.project_id
-            || predecessor.revision != successor.revision
-            || predecessor.selection != successor.selection
-            || predecessor.clock != successor.clock
-            || predecessor.lease_id == successor.lease_id
-            || predecessor.preparation_request_id == successor.preparation_request_id
-        {
-            return Err(mismatch());
-        }
-        let lineage = next.0.successor.as_ref().ok_or_else(mismatch)?.clone();
-        if lineage.request_id != successor.preparation_request_id
-            || lineage.committed.load(Ordering::Acquire)
-            || !lineage
-                .predecessor
-                .upgrade()
-                .is_some_and(|parent| Arc::ptr_eq(&parent, &old.0))
-        {
-            return Err(mismatch());
-        }
-        let proof = NativeBrowserMediaSuccessor {
-            predecessor: old,
-            successor: next,
-            lineage,
-        };
-        if !proof.current() {
-            return Err(unavailable());
-        }
-        Ok(proof)
+        NativeBrowserMediaSuccessor::from_pins(old, next)
     }
+
     fn browser_media_view(
         &self,
         db: &Connection,
