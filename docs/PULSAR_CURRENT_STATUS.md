@@ -6,9 +6,9 @@ The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue
 
 Reconciled **2026-10-28**. Roadmap **INCOMPLETE**; autonomous runner observation **paused**.
 
-**Working tree: UNVERIFIED.** The latest retained format-15 compile failed with four Engine errors; development source has since changed and this snapshot awaits fresh build verification.
+**Working tree: VERIFIED.** Protocol, Engine and client library test targets compile cleanly on cpu-build and focused format-15 CPU-ARCHIVE checks pass; CPU-ROUNDTRIP and M1–M8 acceptance gates remain open.
 
-**Next: CPU-BUILD — Repair portable CPU transaction/assembly ownership and module reference.** Exit required: Compile the current Protocol, Engine and client library tests successfully with zero errors. Collect checked image declarations inside the same DB snapshot as attempts, carry them into assembly, and preserve metadata admission bounds.
+**Next: CPU-ROUNDTRIP — Prove complete CPU export/clone/restart/re-export/second-clone lifecycle.** Exit required: Actual confined CPU attempts retain exact inert history across two clones; no origin execution authority revives. Preceding reader refuses before mutation; processes, storage and memory release are verified.
 
 Last verified checkpoint: Engine **1884 passed / 110 ignored**, clients **695 passed / 14 ignored**, Protocol **395 passed**. Pinned pre-format15 checkpoints, not a passing result for the current working tree.
 

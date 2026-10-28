@@ -19,7 +19,7 @@
     },
     {
       "path": "docs/PULSAR_MAJOR_ROADMAP.md",
-      "role": "M1\u2013M8 scope and acceptance obligations"
+      "role": "M1–M8 scope and acceptance obligations"
     }
   ],
   "archive": {
@@ -28,11 +28,11 @@
     "original_gate_ledger_sha256": "4632e9da03de2fac2e86c6d6464e70f8de337ef849efaf4562edf84a8a4d5b90"
   },
   "working_tree": {
-    "build_state": "unverified",
-    "evidence": "EV-PORTABLE-BUILD",
-    "scope": "Published development snapshot with a Client cancellation correction. Fresh Client tests/lint pass; no full App/Engine build is established for this source.",
-    "active_work": "CPU-BUILD",
-    "failure_summary": "The latest retained format-15 compile failed with four Engine errors; development source has since changed and this snapshot awaits fresh build verification.",
+    "build_state": "verified",
+    "evidence": "EV-CPU-BUILD",
+    "scope": "Verified on the cpu-build worktree branch; Protocol, Engine and client library test targets compile with zero errors and focused format-15 CPU-ARCHIVE suites pass. Earlier failed build receipt EV-PORTABLE-BUILD remains retained.",
+    "active_work": "CPU-ROUNDTRIP",
+    "failure_summary": "Protocol, Engine and client library test targets compile cleanly on cpu-build and focused format-15 CPU-ARCHIVE checks pass; CPU-ROUNDTRIP and M1–M8 acceptance gates remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -228,7 +228,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/project_packages.rs",
-        "sha256": "49c3682a49356020ef73c034257dd56344f303d3608fe1e1bf03f3e0436d00e3"
+        "sha256": "c8cc9f3107e812170e9cde1fd45945221ae9866ec9351bc39b226705efb44f5f"
       },
       {
         "path": "crates/pulsar-engine/src/worker/annotated_portable_tests.rs",
@@ -300,7 +300,7 @@
       },
       {
         "path": "crates/pulsar-protocol/src/project_package_format.rs",
-        "sha256": "2350ee41908d5f2fc292cec01b57adda0dd0dfe79a6a3bb81cdc8c7fd4403662"
+        "sha256": "14eedb7448ac6c6d85f5f929f4ba316784fc18ee089b09644060fc39673ffbc8"
       },
       {
         "path": "crates/pulsar-protocol/src/project_package_import_operations.rs",
@@ -489,12 +489,14 @@
       "criterion": "Revision-bound native project migration, per-axis result/partial status, standard funscript export, archival exact receipt recovery and Stash publication without replacing existing work.",
       "previous_boundary": "Preserve old models/pipeline provenance and source-time semantics; damaged/unknown schemas must refuse explicit recovery.",
       "implementation": "in_progress",
-      "verification": "failed_current",
+      "verification": "checkpoint_partial",
       "acceptance": "open",
-      "next_proof": "Repair current format-15 build, then verify complete attempt history through export, clone, restart, re-export and second clone.",
+      "next_proof": "Run the complete CPU-ROUNDTRIP export, clone, restart, re-export, second-clone and preceding-reader campaign; retain earlier build failure EV-PORTABLE-BUILD.",
       "evidence": [
         "EV-PORTABLE-BUILD",
-        "EV-RESTART"
+        "EV-RESTART",
+        "EV-CPU-BUILD",
+        "EV-CPU-ARCHIVE"
       ],
       "source_refs": [
         "crates/pulsar-engine/src/authority.rs",
@@ -675,7 +677,9 @@
       "next_proof": "Qualify extraction/update/recovery/relocation and actual portable artifacts; finish captured/fallback archival history.",
       "evidence": [
         "EV-RESTART",
-        "EV-PORTABLE-BUILD"
+        "EV-PORTABLE-BUILD",
+        "EV-CPU-BUILD",
+        "EV-CPU-ARCHIVE"
       ],
       "source_refs": [
         "crates/pulsar-engine/src/project_package_storage.rs",
@@ -914,6 +918,19 @@
       "evidence": [
         "EV-TRANSFER-CANCEL"
       ]
+    },
+    {
+      "id": "SC-CPU-ARCHIVE",
+      "title": "Format-15 portable CPU declaration build and archival correspondence",
+      "parents": [
+        "M2-INTERCHANGE",
+        "M6-INSTALL"
+      ],
+      "scope": "Protocol, Engine and client library tests compile cleanly; 123 focused Engine tests plus 396 Protocol and 696 client tests verify conditional format-15 selection, snapshot-bound cpu_runtime_attempts capture across attempt states, current/ancestor clone correspondence and stripped/substituted/fallback refusals. CPU-ROUNDTRIP remains open.",
+      "evidence": [
+        "EV-CPU-BUILD",
+        "EV-CPU-ARCHIVE"
+      ]
     }
   ],
   "queue": [
@@ -924,12 +941,12 @@
         "M2-INTERCHANGE",
         "M6-INSTALL"
       ],
-      "state": "in_progress",
+      "state": "verified",
       "owner": "Parallel implementation agent",
       "depends_on": [],
       "exit": "Compile the current Protocol, Engine and client library tests successfully with zero errors. Collect checked image declarations inside the same DB snapshot as attempts, carry them into assembly, and preserve metadata admission bounds.",
       "evidence": [
-        "EV-PORTABLE-BUILD"
+        "EV-CPU-BUILD"
       ]
     },
     {
@@ -938,13 +955,15 @@
       "parents": [
         "M2-INTERCHANGE"
       ],
-      "state": "planned",
+      "state": "verified",
       "owner": "Codex",
       "depends_on": [
         "CPU-BUILD"
       ],
       "exit": "Exact image/profile/model/dependency binding for successful, failed, cancelled, interrupted and captured-running attempts; stripped/changed/contradictory/hidden current or ancestor declarations refuse.",
-      "evidence": []
+      "evidence": [
+        "EV-CPU-ARCHIVE"
+      ]
     },
     {
       "id": "CPU-ROUNDTRIP",
@@ -953,7 +972,7 @@
         "M2-INTERCHANGE",
         "M6-INSTALL"
       ],
-      "state": "planned",
+      "state": "ready",
       "owner": "Codex",
       "depends_on": [
         "CPU-ARCHIVE"
@@ -1667,6 +1686,98 @@
           "pointer": [
             "checks",
             "client_passed"
+          ],
+          "equals": 696
+        }
+      ]
+    },
+    {
+      "id": "EV-CPU-BUILD",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/portable-cpu-history/cpu-build-002/build-002.jsonl",
+      "sha256": "14e56ee3eaf465ce43deee5dee360f4e8309f70bc56c81bd88a7365a5b192743",
+      "kind": "cargo_jsonl",
+      "outcome": "pass",
+      "scope": "Protocol, Engine and client library test targets compile with zero errors after repairing check_cpu_origin_objects and snapshot-bound CPU runtime declaration collection.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "success"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "error_count"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "codes"
+          ],
+          "equals": []
+        }
+      ]
+    },
+    {
+      "id": "EV-CPU-ARCHIVE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/portable-cpu-history/cpu-build-002/cpu-archive-verification.json",
+      "sha256": "0a7e21e90fa895cb59e6c7f14d396ec88f5efc85a5e13833f9abf48eab73bdbc",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Focused format-15 CPU archival correspondence, multi-state attempt capture, current/ancestor clone graph validation, mutation/stripping/substitution refusals and unchanged fallback/live-history refusals pass (123 Engine, 396 Protocol, 696 client library tests); CPU-ROUNDTRIP and physical/model qualification remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "real_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "cpu_roundtrip_closed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "totals",
+            "focused_engine_passed"
+          ],
+          "equals": 123
+        },
+        {
+          "pointer": [
+            "totals",
+            "focused_engine_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "totals",
+            "protocol_passed"
+          ],
+          "equals": 396
+        },
+        {
+          "pointer": [
+            "totals",
+            "clients_passed"
           ],
           "equals": 696
         }
