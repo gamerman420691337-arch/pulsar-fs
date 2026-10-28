@@ -885,6 +885,19 @@
       "evidence": [
         "EV-RENDERED-PATTERN"
       ]
+    },
+    {
+      "id": "SC-RENDERED-RECORDING",
+      "title": "Rendered browser capture, recording, repair and script download",
+      "parents": [
+        "M2-DOMAIN",
+        "M2-EDITS",
+        "M5-LIVE"
+      ],
+      "scope": "Pinned app005 with actual Chrome/sterile local video: 103 inferred estimates, Stop, candidate review/commit, unresolved-export refusal and separately consented synthetic gap repair produce a verified 105-action download. Local-file input is unbound; source clocks, lookahead, reconnect/fault and device qualification remain open.",
+      "evidence": [
+        "EV-RENDERED-RECORDING"
+      ]
     }
   ],
   "queue": [
@@ -945,7 +958,9 @@
         "CPU-BUILD"
       ],
       "exit": "Actual rendered frame acquisition, source clocks, capture, review/export and stop/reconnect/fault lifecycle pass with sterile inputs; authored callbacks alone do not close this task.",
-      "evidence": []
+      "evidence": [
+        "EV-RENDERED-RECORDING"
+      ]
     },
     {
       "id": "CLIENT-CORRECTNESS",
@@ -962,7 +977,8 @@
       ],
       "exit": "Verify source/view/time correspondence and target loss/reacquisition through real consumers; exercise protected editing, review/commit/rebase/undo/restart and crash/storage faults in CLI/desktop. Retain real-media limitations under M1-DATA.",
       "evidence": [
-        "EV-RENDERED-PATTERN"
+        "EV-RENDERED-PATTERN",
+        "EV-RENDERED-RECORDING"
       ]
     },
     {
@@ -1457,6 +1473,77 @@
           "equals": true
         }
       ]
+    },
+    {
+      "id": "EV-RENDERED-RECORDING",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/browser-recording/verification.json",
+      "sha256": "bbd273ecd3c84ab67b011670c6b3e6f8426a419b7bd6f5f9745c312ec7d800cb",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Actual rendered local-file browser acquisition to reviewed/repaired script download on pre-format15 app005. Authored model, unbound clock and synthetic edge holds; no device qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "current_source_build_verified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "actual_rendered_frame_capture"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "stopped_capture_estimates"
+          ],
+          "equals": 103
+        },
+        {
+          "pointer": [
+            "checks",
+            "export_with_gaps_refused"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "downloaded_actions"
+          ],
+          "equals": 105
+        },
+        {
+          "pointer": [
+            "checks",
+            "download_matches_committed_master"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "cleanup",
+            "workspace_stopped"
+          ],
+          "equals": true
+        }
+      ]
     }
   ],
   "external_inputs": [
@@ -1486,7 +1573,7 @@
     "After each meaningful task, update the existing JSON item, evidence and source observation; regenerate both views and run --check. Use --audit on the evidence host.",
     "Retain original failures and scope limitations when adding successful successor evidence. Mandatory model reviews remain suspended; independent required acceptance is unchanged."
   ],
-  "audit_boundary": "Retained source/evidence reconciliation plus a fresh rendered desktop synthetic-pattern campaign on pinned pre-format15 app005. No fresh current-source build, browser acquisition, benchmark, model training, device actuation or full roadmap qualification was performed.",
+  "audit_boundary": "Retained source/evidence reconciliation plus fresh rendered desktop pattern and browser local-file recording/export campaigns on pinned pre-format15 app005. Actual browser RGB acquisition is scoped to unbound sterile local video. No fresh current-source build, source-bound clock/continuity campaign, benchmark, model training, device actuation or full roadmap qualification was performed.",
   "product_surface": "Source already includes Desktop, CLI and a local browser client over one authenticated Engine; script/project editing, candidate review/commit/export, deterministic patterns, library/Stash controls, local assistant proposals and experimental browser capture. Handy inspection and guarded transport are implemented. Useful learned defaults, the rendered browser-to-device workflow and physical synchronization remain unqualified. See the [app guide](PULSAR_APP_QUICKSTART.md); the gate ledger below retains the remaining acceptance obligations.",
   "cross_milestone_obligations": "All explicit TEST scenarios, security/consent requirements, delivery/platform/vendor combinations, open-policy decisions and assurance obligations in the specification/execution plan remain required. A selected test subset cannot close the whole test matrix. Before closing a gate, retain exact subject identities, command/operation results, refusals and interruption outcomes, applicable rendered/native/media/device observations, unresolved failures and the required independent human/release authority. Missing evidence stays open."
 }

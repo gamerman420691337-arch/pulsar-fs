@@ -35,6 +35,7 @@ Source already includes Desktop, CLI and a local browser client over one authent
 | Finite fallback and selected-pack lifecycle simulation | Eleven native software scenarios pass; eligibility/provider absence/pack approval are simulated and establish no measured equivalence. | M3-MODELS | [EV-FALLBACK](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/fallback-active-consumers/verification.json) |
 | Bounded startup diagnostic implementation | 14 Engine-open phases and maximum Ready-call/gap observations are tested. Healthy timings do not identify the prior stall. | M5-LIVE, M6-MEMORY | [EV-STARTUP](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/verification.json) |
 | Rendered desktop pattern review, export and restart | Pinned pre-format15 Linux app: real UI create/generate/review/commit, exact 17-action export, overwrite refusal, Undo/Redo and joined Engine restart/reopen pass. No browser acquisition, model or device result. | M2-DOMAIN, M2-EDITS | [EV-RENDERED-PATTERN](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/rendered-pattern/verification.json) |
+| Rendered browser capture, recording, repair and script download | Pinned app005 with actual Chrome/sterile local video: 103 inferred estimates, Stop, candidate review/commit, unresolved-export refusal and separately consented synthetic gap repair produce a verified 105-action download. Local-file input is unbound; source clocks, lookahead, reconnect/fault and device qualification remain open. | M2-DOMAIN, M2-EDITS, M5-LIVE | [EV-RENDERED-RECORDING](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/browser-recording/verification.json) |
 
 ## Execution queue
 
@@ -151,6 +152,7 @@ Local retained artifacts may be unavailable on another machine. Outcome and scop
 | [EV-FALLBACK](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/fallback-active-consumers/verification.json) / pass | Eleven finite fallback/pack scenarios; eligibility, provider absence and approval simulated. | `381ca8d9c9ec690d…` |
 | [EV-PORTABLE-BUILD](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/portable-cpu-history/build-001.jsonl) / fail | Current format-15 implementation failed its initial Protocol/Engine/client compile with four Engine errors. | `0c3c98b835f9d658…` |
 | [EV-RENDERED-PATTERN](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/rendered-pattern/verification.json) / pass | Actual rendered desktop synthetic-pattern workflow on pinned app005, with independent export oracle and joined restart. Current source build and broad client/browser acceptance remain open. | `809cbe5311fa175e…` |
+| [EV-RENDERED-RECORDING](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/browser-recording/verification.json) / pass | Actual rendered local-file browser acquisition to reviewed/repaired script download on pre-format15 app005. Authored model, unbound clock and synthetic edge holds; no device qualification. | `bbd273ecd3c84ab6…` |
 
 ## How this drives the remaining work
 
@@ -178,4 +180,4 @@ python3 scripts/execution_dashboard.py --audit
 - [PULSAR_MAJOR_ROADMAP.md](../docs/PULSAR_MAJOR_ROADMAP.md): M1–M8 scope and acceptance obligations.
 - [Previous gate ledger](PULSAR_MILESTONE_HISTORY_BEFORE_DASHBOARD.md) and [previous status chronology](PULSAR_STATUS_HISTORY_BEFORE_DASHBOARD.md): preserved historical records, superseded for current execution state.
 
-Retained source/evidence reconciliation plus a fresh rendered desktop synthetic-pattern campaign on pinned pre-format15 app005. No fresh current-source build, browser acquisition, benchmark, model training, device actuation or full roadmap qualification was performed.
+Retained source/evidence reconciliation plus fresh rendered desktop pattern and browser local-file recording/export campaigns on pinned pre-format15 app005. Actual browser RGB acquisition is scoped to unbound sterile local video. No fresh current-source build, source-bound clock/continuity campaign, benchmark, model training, device actuation or full roadmap qualification was performed.
