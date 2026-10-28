@@ -3623,7 +3623,7 @@ impl Preview {
                             transfer_request_id: id.clone(),
                         },
                         Some(self.project.clone()),
-                        Some(self.revision),
+                        None,
                     )
                     .and_then(|reply| match reply {
                         ResponseBody::BrowserAnalysisTransfer(report) => {

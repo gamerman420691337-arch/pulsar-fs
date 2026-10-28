@@ -30,7 +30,7 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-PORTABLE-BUILD",
-    "scope": "Published development snapshot; source differs from the retained failed build. Previous passing and failing receipts remain scoped to their original inputs.",
+    "scope": "Published development snapshot with a Client cancellation correction. Fresh Client tests/lint pass; no full App/Engine build is established for this source.",
     "active_work": "CPU-BUILD",
     "failure_summary": "The latest retained format-15 compile failed with four Engine errors; development source has since changed and this snapshot awaits fresh build verification.",
     "source_stamp": [
@@ -41,10 +41,6 @@
       {
         "path": "crates/pulsar-clients/src/browser_captured_cpu_tests.rs",
         "sha256": "d80d73cc9fee461ca783e8d4b608e04970b127a32c0011da58ee81586aa5b373"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_live.rs",
-        "sha256": "c6d4fc26c61aad351be732e1c5ef6ba1980867c66d3b783cdb350cb5a2d556f3"
       },
       {
         "path": "crates/pulsar-clients/src/project_package_import.rs",
@@ -313,6 +309,14 @@
       {
         "path": "crates/pulsar-protocol/src/project_package_operations.rs",
         "sha256": "eb141fb78cd383b3fb7a0396ee11543294d4cabc65178b319e6b45539f10d541"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_live.rs",
+        "sha256": "a6fba519826c2f08527aa17d025d6f7d382568808055a9d9c4f1b3db09ebddd6"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_analysis_feed_tests.rs",
+        "sha256": "4ba178ac7f42b507d7e201f3faad7932e9552e6872262e2127566c447fffc6ee"
       }
     ]
   },
@@ -898,6 +902,18 @@
       "evidence": [
         "EV-RENDERED-RECORDING"
       ]
+    },
+    {
+      "id": "SC-TRANSFER-CANCEL",
+      "title": "Protocol-valid cancellation of reserved browser transfer",
+      "parents": [
+        "M2-DOMAIN",
+        "M5-LIVE"
+      ],
+      "scope": "Actual adapter regression reproduces the cleanup error before correction, then verifies revision-free cancellation of the exact original transfer with a fresh request, confirmed Stop and inert replay. Clients 696 passed /14 ignored; strict lint passes. Native rerun and rollover/assembly defects remain open.",
+      "evidence": [
+        "EV-TRANSFER-CANCEL"
+      ]
     }
   ],
   "queue": [
@@ -952,14 +968,16 @@
         "M2-DOMAIN",
         "M5-LIVE"
       ],
-      "state": "planned",
+      "state": "in_progress",
       "owner": "Codex + operator",
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Actual rendered frame acquisition, source clocks, capture, review/export and stop/reconnect/fault lifecycle pass with sterile inputs; authored callbacks alone do not close this task.",
+      "exit": "Resolve the retained successor-observation expiry and whole-playback assembly refusal, then rerun source-bound rollover and corrected native cleanup. Actual rendered frame acquisition, source clocks, capture, review/export and stop/reconnect/fault lifecycle pass with sterile inputs; authored callbacks alone do not close this task.",
       "evidence": [
-        "EV-RENDERED-RECORDING"
+        "EV-RENDERED-RECORDING",
+        "EV-SOURCE-ROLLOVER",
+        "EV-TRANSFER-CANCEL"
       ]
     },
     {
@@ -978,7 +996,9 @@
       "exit": "Verify source/view/time correspondence and target loss/reacquisition through real consumers; exercise protected editing, review/commit/rebase/undo/restart and crash/storage faults in CLI/desktop. Retain real-media limitations under M1-DATA.",
       "evidence": [
         "EV-RENDERED-PATTERN",
-        "EV-RENDERED-RECORDING"
+        "EV-RENDERED-RECORDING",
+        "EV-SOURCE-ROLLOVER",
+        "EV-TRANSFER-CANCEL"
       ]
     },
     {
@@ -1544,6 +1564,113 @@
           "equals": true
         }
       ]
+    },
+    {
+      "id": "EV-SOURCE-ROLLOVER",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/source-browser/verification.json",
+      "sha256": "d512643d6e16eb5176873b7b1f5df6174d18c5f55033c060592ed27d22be5dbe",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Actual rendered source-bound lookahead fails near rollover; all 106 retained samples preserve the declared +5s project offset. Assembly and cooperative cleanup also fail.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "clock_mapping_checked_samples"
+          ],
+          "equals": 106
+        },
+        {
+          "pointer": [
+            "checks",
+            "forty_second_continuation"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "candidate_staged"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "cooperative_server_cleanup"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-TRANSFER-CANCEL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/source-browser/cleanup-fix-verification.json",
+      "sha256": "d5332107662ee4ec80ca8ef48534f059b40cc8eda3e97c203cc968bb2bcc7053",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Client adapter cancellation repair; exact red/green protocol reproduction plus full Client suite/lint. Full app and corrected rendered lifecycle remain unverified.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "full_product_build_verified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "rendered_fixed_subject_rerun"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "regression_failed_with_original_error"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "regression_passed_after_fix"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "client_passed"
+          ],
+          "equals": 696
+        }
+      ]
     }
   ],
   "external_inputs": [
@@ -1573,7 +1700,7 @@
     "After each meaningful task, update the existing JSON item, evidence and source observation; regenerate both views and run --check. Use --audit on the evidence host.",
     "Retain original failures and scope limitations when adding successful successor evidence. Mandatory model reviews remain suspended; independent required acceptance is unchanged."
   ],
-  "audit_boundary": "Retained source/evidence reconciliation plus fresh rendered desktop pattern and browser local-file recording/export campaigns on pinned pre-format15 app005. Actual browser RGB acquisition is scoped to unbound sterile local video. No fresh current-source build, source-bound clock/continuity campaign, benchmark, model training, device actuation or full roadmap qualification was performed.",
+  "audit_boundary": "Fresh pinned-app desktop/local-file passes coexist with a failing actual source-bound rendered continuation. Clock arithmetic passes for 106 samples; rollover, assembly and native cleanup remain counterevidence. The Client cancellation repair passes scoped tests/lint. No full current-source product build, useful-model, physical-device, platform, human or release qualification is established.",
   "product_surface": "Source already includes Desktop, CLI and a local browser client over one authenticated Engine; script/project editing, candidate review/commit/export, deterministic patterns, library/Stash controls, local assistant proposals and experimental browser capture. Handy inspection and guarded transport are implemented. Useful learned defaults, the rendered browser-to-device workflow and physical synchronization remain unqualified. See the [app guide](PULSAR_APP_QUICKSTART.md); the gate ledger below retains the remaining acceptance obligations.",
   "cross_milestone_obligations": "All explicit TEST scenarios, security/consent requirements, delivery/platform/vendor combinations, open-policy decisions and assurance obligations in the specification/execution plan remain required. A selected test subset cannot close the whole test matrix. Before closing a gate, retain exact subject identities, command/operation results, refusals and interruption outcomes, applicable rendered/native/media/device observations, unresolved failures and the required independent human/release authority. Missing evidence stays open."
 }
