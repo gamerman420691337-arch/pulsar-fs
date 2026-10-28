@@ -19,7 +19,7 @@
     },
     {
       "path": "docs/PULSAR_MAJOR_ROADMAP.md",
-      "role": "M1–M8 scope and acceptance obligations"
+      "role": "M1\u2013M8 scope and acceptance obligations"
     }
   ],
   "archive": {
@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-CPU-BUILD",
-    "scope": "Verified on the cpu-build worktree branch; Protocol, Engine and client library test targets compile with zero errors and focused format-15 CPU-ARCHIVE suites pass. Earlier failed build receipt EV-PORTABLE-BUILD remains retained.",
+    "evidence": "EV-INTEGRATED-BUILD",
+    "scope": "Clean default App and Worker executables build on CPU handback commit 54f9ab6 with zero compiler errors; library compile/focused archive evidence remains separately retained. No full Engine suite or native CPU roundtrip is claimed.",
     "active_work": "CPU-ROUNDTRIP",
-    "failure_summary": "Protocol, Engine and client library test targets compile cleanly on cpu-build and focused format-15 CPU-ARCHIVE checks pass; CPU-ROUNDTRIP and M1–M8 acceptance gates remain open.",
+    "failure_summary": "Recorded App/Worker and library test-target builds pass. Native CPU roundtrip and source-bound browser rollover, timing cleanup and recording assembly remain open; earlier compile failures remain retained.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -926,10 +926,11 @@
         "M2-INTERCHANGE",
         "M6-INSTALL"
       ],
-      "scope": "Protocol, Engine and client library tests compile cleanly; 123 focused Engine tests plus 396 Protocol and 696 client tests verify conditional format-15 selection, snapshot-bound cpu_runtime_attempts capture across attempt states, current/ancestor clone correspondence and stripped/substituted/fallback refusals. CPU-ROUNDTRIP remains open.",
+      "scope": "Protocol, Engine and client library tests compile cleanly; 123 focused Engine tests plus 396 Protocol and 696 client tests verify conditional format-15 selection, snapshot-bound cpu_runtime_attempts capture across attempt states, current/ancestor clone correspondence and stripped/substituted/fallback refusals. CPU-ROUNDTRIP remains open. Independent integration reruns the format15 archival regression and builds clean default App/Worker executables from the exact committed source.",
       "evidence": [
         "EV-CPU-BUILD",
-        "EV-CPU-ARCHIVE"
+        "EV-CPU-ARCHIVE",
+        "EV-INTEGRATED-BUILD"
       ]
     }
   ],
@@ -973,7 +974,7 @@
         "M6-INSTALL"
       ],
       "state": "ready",
-      "owner": "Codex",
+      "owner": "Parallel implementation agent + independent verification",
       "depends_on": [
         "CPU-ARCHIVE"
       ],
@@ -992,11 +993,12 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Resolve the retained successor-observation expiry and whole-playback assembly refusal, then rerun source-bound rollover and corrected native cleanup. Actual rendered frame acquisition, source clocks, capture, review/export and stop/reconnect/fault lifecycle pass with sterile inputs; authored callbacks alone do not close this task.",
+      "exit": "Resolve the repeated native timing scope/sequence rejection after handoff, unconfirmed timing cleanup, and the earlier retained expiry/assembly refusals. Then verify actual rendered frame acquisition, declared source-clock mapping, capture, review/export and stop/reconnect/fault lifecycle on the fresh full App/Worker subject; authored callbacks alone do not close this task.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
-        "EV-TRANSFER-CANCEL"
+        "EV-TRANSFER-CANCEL",
+        "EV-BROWSER-TRACE"
       ]
     },
     {
@@ -1782,6 +1784,110 @@
           "equals": 696
         }
       ]
+    },
+    {
+      "id": "EV-INTEGRATED-BUILD",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/source-browser/integration-verification.json",
+      "sha256": "4213ab03940d9673244501197ee05874b8d6c9e3e3a225c2ca7bde507c1a96d7",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Exact CPU handback commit independently checked; format15 archival regression rerun and clean default App/Worker build pass. Native CPU roundtrip and rendered qualification remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "source_commit"
+          ],
+          "equals": "54f9ab653677ce7eb63d5cdc8c50506152b23247"
+        },
+        {
+          "pointer": [
+            "checks",
+            "default_app_worker_build"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "compiler_errors"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "cpu_roundtrip_closed"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-TRACE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/source-browser/trace-verification.json",
+      "sha256": "7142a7468366b2837cdf6fc2743ef1f9246fd49e8242cffa368271dd357a0768",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Two Client-only diagnostic runs against pinned app005 Engine return promptly through handoff, then fail renewed visible-player timing with native scope/sequence rejection and unconfirmed timing cleanup. Original expiry cause remains unknown.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "deadlines_changed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "native_scope_sequence_rejection_reproduced"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "original_successor_expiry_cause"
+          ],
+          "equals": "UNKNOWN"
+        },
+        {
+          "pointer": [
+            "cleanup",
+            "native_timing_cleanup_acknowledged"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "probes",
+            "temporary_source_probes_restored"
+          ],
+          "equals": true
+        }
+      ]
     }
   ],
   "external_inputs": [
@@ -1811,7 +1917,7 @@
     "After each meaningful task, update the existing JSON item, evidence and source observation; regenerate both views and run --check. Use --audit on the evidence host.",
     "Retain original failures and scope limitations when adding successful successor evidence. Mandatory model reviews remain suspended; independent required acceptance is unchanged."
   ],
-  "audit_boundary": "Fresh pinned-app desktop/local-file passes coexist with a failing actual source-bound rendered continuation. Clock arithmetic passes for 106 samples; rollover, assembly and native cleanup remain counterevidence. The Client cancellation repair passes scoped tests/lint. No full current-source product build, useful-model, physical-device, platform, human or release qualification is established.",
+  "audit_boundary": "Independent CPU handback source/binary reconciliation, format15 regression and default App/Worker build pass. Original and diagnostic rendered source-bound failures remain retained; diagnostic Client-only runs are mixed subjects, not a full-product qualification. All native CPU roundtrip, model/media/platform/device/human/release acceptance obligations stay open.",
   "product_surface": "Source already includes Desktop, CLI and a local browser client over one authenticated Engine; script/project editing, candidate review/commit/export, deterministic patterns, library/Stash controls, local assistant proposals and experimental browser capture. Handy inspection and guarded transport are implemented. Useful learned defaults, the rendered browser-to-device workflow and physical synchronization remain unqualified. See the [app guide](PULSAR_APP_QUICKSTART.md); the gate ledger below retains the remaining acceptance obligations.",
   "cross_milestone_obligations": "All explicit TEST scenarios, security/consent requirements, delivery/platform/vendor combinations, open-policy decisions and assurance obligations in the specification/execution plan remain required. A selected test subset cannot close the whole test matrix. Before closing a gate, retain exact subject identities, command/operation results, refusals and interruption outcomes, applicable rendered/native/media/device observations, unresolved failures and the required independent human/release authority. Missing evidence stays open."
 }

@@ -1,4 +1,28 @@
-# Parallel implementation handoff: CPU-BUILD
+# Parallel implementation handoff: CPU-ROUNDTRIP
+
+The CPU-BUILD and scoped CPU-ARCHIVE work is integrated in `54f9ab6`. The exact
+committed source and test binaries agree with the retained receipts; the identity
+list in the conversational handback was stale. A clean default App/Worker build
+also passes. The execution dashboard retains the original failed compile and all
+acceptance gates.
+
+The next parallel assignment is **CPU-ROUNDTRIP**. Use a separate worktree based
+on current `origin/main`; root owns browser timing/rollover and integration.
+
+1. Execute actual confined CPU attempts with exact captured runtime declarations;
+   package declaration tests alone do not establish execution or roundtrip closure.
+2. Export, clone, join/restart, re-export and import a second clone. Check exact
+   original and ancestor attempt/image/profile/model/dependency correspondence,
+   inert history, and absence of revived execution, grants, leases or accepted evidence.
+3. Exercise the preceding reader against the exact new subject and retain
+   pre/post DB, WAL, SHM and fence identities proving refusal before mutation.
+4. Verify bounded workers, staging, storage and memory retirement, including
+   interruption/refusal outcomes. Keep live/fallback history refusals until those
+   separate namespaces are complete. Make no device calls or qualification claims.
+5. Return a focused commit and source-bound commands/receipts, update the existing
+   JSON task, and leave final integration/push coordination to root.
+
+The completed repair instructions below remain as technical context.
 
 Suggested owner: the parallel implementation agent. Coordinate with the snapshot
 publisher; use a separate worktree and branch based on the newly pushed main.
@@ -6,7 +30,7 @@ Other work may be in flight. Preserve edits by other agents and keep changes
 within this task; the publisher owns the initial snapshot push and integration.
 
 Start with [the execution dashboard](PULSAR_MILESTONES.md) and root `AGENTS.md`.
-The first task is `CPU-BUILD`, followed by focused `CPU-ARCHIVE` verification.
+Those repair and focused archival tasks are complete within their recorded scope.
 The full M1–M8 roadmap and independent acceptance gates remain open.
 
 ## Repair scope

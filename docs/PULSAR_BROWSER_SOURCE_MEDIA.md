@@ -7,7 +7,7 @@ capture, recordings and motion-candidate provenance. Software, actual native HTT
 rendered-browser fixture checks pass. This does not establish synchronized Handy playback
 or useful learned motion.
 
-The latest [rendered continuation receipt](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/source-browser/verification.json) fails near rollover with `Successor timing observation expired.` All 106 retained estimates preserve a declared five-second project offset, but whole-playback assembly and cooperative cleanup also refuse. The Client cancellation request has a scoped red/green repair; a full rebuilt rendered rerun is still required. See the execution dashboard for current scope.
+The latest [rendered continuation receipt](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/source-browser/verification.json) fails near rollover with `Successor timing observation expired.` All 106 retained estimates preserve a declared five-second project offset, but whole-playback assembly and cooperative cleanup also refuse. The Client cancellation request has a scoped red/green repair. Two [diagnostic Client-only runs](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/source-browser/trace-verification.json) return promptly through handoff, then fail renewed visible-player timing with `DependencyMismatch: browser timing scope or sequence differs`; native timing cleanup remains unconfirmed. Fresh full App/Worker executables now build, but their rendered rerun is still required. See the execution dashboard for current scope.
 
 ## Launch and use
 
