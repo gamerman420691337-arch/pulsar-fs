@@ -22,6 +22,12 @@ on current `origin/main`; root owns browser timing/rollover and integration.
 5. Return a focused commit and source-bound commands/receipts, update the existing
    JSON task, and leave final integration/push coordination to root.
 
+The previous host closure now refuses changed `libstdc++` and `libgcc_s` bytes.
+A separate explicit [current QA dependency declaration](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/native-timing/current-qa-closure.json)
+was used for the new confined browser regression. Pin the actual selected worker
+and dependencies for the roundtrip; do not reuse old identity claims or infer
+backend equivalence/qualification from this QA declaration.
+
 The completed repair instructions below remain as technical context.
 
 Suggested owner: the parallel implementation agent. Coordinate with the snapshot

@@ -57,6 +57,143 @@ mod successor_tests {
             .authored_successor_for_test(&x.f.engine, &x.capture.identity.epoch)
             .unwrap()
     }
+    fn preview_successor(x: &DeliveryFixture) -> NativeCaptureSuccessor {
+        let call = |revision, command| {
+            x.f.engine
+                .handle(request(&x.f.session, Some(&x.f.project), revision, command))
+                .result
+                .unwrap()
+        };
+        let prepared = request(
+            &x.f.session,
+            Some(&x.f.project),
+            Some(1),
+            Command::PrepareBrowserMediaSuccessor {
+                predecessor: x.media.clone(),
+                lease_ms: x.media.lease_ms,
+            },
+        );
+        x.f.engine.handle(prepared.clone()).result.unwrap();
+        let until = Instant::now() + Duration::from_secs(5);
+        let media = loop {
+            let ResponseBody::BrowserMediaPreparation(report) = call(
+                None,
+                Command::BrowserMediaPreparationStatus {
+                    original_request_id: prepared.request_id.clone(),
+                },
+            ) else {
+                panic!("media")
+            };
+            if report.state == BrowserMediaPreparationState::Ready {
+                break report.binding.clone().unwrap();
+            }
+            assert!(Instant::now() < until);
+            std::thread::sleep(Duration::from_millis(2));
+        };
+        let declared = x.capture.options.browser_analysis.as_ref().unwrap();
+        let ResponseBody::BrowserTiming(timing) = call(
+            Some(1),
+            Command::PrepareBrowserTimingSuccessor {
+                predecessor_binding_id: declared.timing_binding_id.clone(),
+                player: declared.player.clone(),
+                browser_media: media.clone(),
+                policy: BrowserTimingPolicy {
+                    probe_timeout_ms: 2000,
+                    observation_timeout_ms: 5000,
+                },
+            },
+        ) else {
+            panic!("timing")
+        };
+        refresh_preview_timing(x, &timing.binding.binding_id, 1);
+        let auth = request(
+            &x.f.session,
+            Some(&x.f.project),
+            None,
+            Command::LiveCaptureStatus {
+                epoch: x.capture.identity.epoch.clone(),
+            },
+        );
+        let media_pin =
+            x.f.engine
+                .pin_browser_media_locked(&x.f.engine.db.lock().unwrap(), &auth, &media)
+                .unwrap();
+        let timing_pin =
+            x.f.engine
+                .browser_timing_scope(&auth, &timing.binding.binding_id)
+                .unwrap();
+        x.f.engine
+            .live_captures
+            .lock()
+            .unwrap()
+            .authored_successor_sources_for_test(
+                &x.f.engine,
+                &x.capture.identity.epoch,
+                Some((media_pin, timing_pin)),
+            )
+            .unwrap()
+    }
+    fn refresh_preview_timing(x: &DeliveryFixture, binding: &ArtifactId, sequence: u64) {
+        let player = x
+            .capture
+            .options
+            .browser_analysis
+            .as_ref()
+            .unwrap()
+            .player
+            .clone();
+        let ResponseBody::BrowserTimingProbe(probe) =
+            x.f.engine
+                .handle(request(
+                    &x.f.session,
+                    Some(&x.f.project),
+                    None,
+                    Command::IssueBrowserTimingProbe {
+                        binding_id: binding.clone(),
+                        player: player.clone(),
+                        sequence,
+                    },
+                ))
+                .result
+                .unwrap()
+        else {
+            panic!("probe")
+        };
+        let ResponseBody::BrowserTiming(report) =
+            x.f.engine
+                .handle(request(
+                    &x.f.session,
+                    Some(&x.f.project),
+                    None,
+                    Command::ObserveBrowserTiming {
+                        binding_id: binding.clone(),
+                        player,
+                        sequence,
+                        probe_id: probe.probe_id.clone(),
+                        frame: BrowserTimingFrame {
+                            sample: HandyPlayerSample {
+                                browser_tick_us: 1_000_000 + sequence,
+                                media_time_us: sequence,
+                                presented_frames: 1 + sequence,
+                                playing: true,
+                                seeking: false,
+                                ended: false,
+                                visible: true,
+                                playback_rate_milli: 1000,
+                            },
+                            callback_tick_us: 1_000_000 + sequence,
+                            presentation_time_us: None,
+                            expected_display_time_us: None,
+                        },
+                    },
+                ))
+                .result
+                .unwrap()
+        else {
+            panic!("observation")
+        };
+        assert!(report.current);
+    }
     fn report(x: &DeliveryFixture, epoch: &AttemptId) -> LiveCaptureReport {
         capture_report(
             x.f.engine
@@ -192,7 +329,7 @@ mod successor_tests {
     #[test]
     fn preview_successor_requires_shared_pair_and_predecessor_join_before_promotion() {
         let x = delivery_fixture();
-        let cap = successor(&x);
+        let cap = preview_successor(&x);
         assert!(x.status().active);
         assert!(x
             .f
@@ -243,6 +380,41 @@ mod successor_tests {
         assert!(report(&x, &cap.successor().identity.epoch)
             .input_close
             .is_none());
+        let old = x.capture.options.browser_analysis.as_ref().unwrap();
+        x.f.engine
+            .handle(request(
+                &x.f.session,
+                Some(&x.f.project),
+                None,
+                Command::ReleaseBrowserTiming {
+                    binding_id: old.timing_binding_id.clone(),
+                    player: old.player.clone(),
+                },
+            ))
+            .result
+            .unwrap();
+        x.f.engine
+            .handle(request(
+                &x.f.session,
+                Some(&x.f.project),
+                None,
+                Command::ReleaseBrowserMedia {
+                    original_request_id: x.media_request.clone(),
+                },
+            ))
+            .result
+            .unwrap();
+        let child = report(&x, &cap.successor().identity.epoch);
+        refresh_preview_timing(
+            &x,
+            &child
+                .options
+                .browser_analysis
+                .as_ref()
+                .unwrap()
+                .timing_binding_id,
+            2,
+        );
         for _ in 0..3 {
             assert_eq!(
                 transfer_report(x.f.engine.handle(original.clone()).result.unwrap()).phase,

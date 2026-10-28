@@ -596,6 +596,17 @@ impl Registry {
         engine: &Engine,
         predecessor: &AttemptId,
     ) -> PResult<NativeCaptureSuccessor> {
+        self.authored_successor_sources_for_test(engine, predecessor, None)
+    }
+    pub(in crate::authority) fn authored_successor_sources_for_test(
+        &mut self,
+        engine: &Engine,
+        predecessor: &AttemptId,
+        sources: Option<(
+            super::super::browser_media::SourceMediaPin,
+            super::super::browser_timing::BrowserTimingPin,
+        )>,
+    ) -> PResult<NativeCaptureSuccessor> {
         let prior = self
             .entries
             .get(predecessor.as_str())
@@ -619,6 +630,14 @@ impl Registry {
             .as_mut()
             .expect("browser test")
             .feed_id = id!(ArtifactId);
+        if let Some((media, timing)) = &sources {
+            options.browser_media = Some(media.binding().clone());
+            options
+                .browser_analysis
+                .as_mut()
+                .expect("browser test")
+                .timing_binding_id = timing.binding().binding_id.clone();
+        }
         let clock = options.clock(identity.epoch.clone());
         let mut info = prior
             .report
@@ -664,7 +683,7 @@ impl Registry {
                 identity: identity.clone(),
                 attempt_id: info.attempt_id,
                 profile_sha256: info.profile_sha256,
-                browser_media: prior.report.options.browser_media.clone().unwrap(),
+                browser_media: report.options.browser_media.clone().unwrap(),
             },
             expires_at_ns: a_until
                 .min(native_clock.lease_deadline(u64::from(report.options.lease_ms) * 1_000_000)?),
@@ -691,8 +710,14 @@ impl Registry {
             cancel: b_cancel,
             origin: None,
             recording: None,
-            browser_media: prior.browser_media.clone(),
-            browser_analysis_pin: prior.browser_analysis_pin.clone(),
+            browser_media: sources
+                .as_ref()
+                .map(|(media, _)| media.clone())
+                .or_else(|| prior.browser_media.clone()),
+            browser_analysis_pin: sources
+                .as_ref()
+                .map(|(_, timing)| timing.clone())
+                .or_else(|| prior.browser_analysis_pin.clone()),
         };
         self.entries.insert(identity.epoch.to_string(), entry);
         self.successors.insert(
@@ -1022,6 +1047,32 @@ impl Engine {
         drop(db);
         self.advance_browser_analysis_transfers()
     }
+    fn commit_preview_transfer(
+        &self,
+        guard: NativeCaptureTransferGuard<'_>,
+    ) -> Result<(), NativeCaptureTransferFailure> {
+        let old_timing = guard.predecessor().browser_timing.clone();
+        let new_timing = guard.successor().browser_timing.clone();
+        let media = super::super::browser_media::NativeBrowserMediaSuccessor::from_pins(
+            guard.predecessor().source_media.clone(),
+            guard.successor().source_media.clone(),
+        )?;
+        let mut timing = old_timing
+            .try_claim_successor_native(&new_timing, &media, || self.browser_timing_now())?;
+        guard
+            .commit_with(|old, new| {
+                timing.observations_for(
+                    &old.browser_timing,
+                    &new.browser_timing,
+                    self.browser_timing_now()?,
+                )?;
+                // Browser-only preview owns the same native source/timing cutover
+                // as a device consumer, without granting any device authority.
+                media.commit()?;
+                timing.commit(self.browser_timing_now()?)
+            })
+            .map_err(Into::into)
+    }
     pub(super) fn advance_browser_analysis_transfers(&self) -> PResult<()> {
         let notifications = {
             let db = self.db.lock().map_err(internal)?;
@@ -1053,9 +1104,11 @@ impl Engine {
                 registry.sweep(&db)?;
                 // Only actual local contention preserves retry custody. Native
                 // refusal remains terminal; neither path repeats input or work.
-                let outcome = match registry.try_claim_native_transfer(&proof) {
-                    Ok(guard) => guard.commit_with(|_, _| Ok(())),
-                    Err(NativeCaptureTransferFailure::Contended) => Ok(()),
+                let outcome = match registry
+                    .try_claim_native_transfer(&proof)
+                    .and_then(|guard| self.commit_preview_transfer(guard))
+                {
+                    Ok(()) | Err(NativeCaptureTransferFailure::Contended) => Ok(()),
                     Err(NativeCaptureTransferFailure::Refused(error)) => Err(error),
                 };
                 outcome

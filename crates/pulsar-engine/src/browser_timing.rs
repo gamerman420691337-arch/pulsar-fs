@@ -736,7 +736,7 @@ impl Engine {
         pin.latest(now)?;
         Ok(pin)
     }
-    fn browser_timing_now(&self) -> PResult<u64> {
+    pub(super) fn browser_timing_now(&self) -> PResult<u64> {
         #[cfg(test)]
         {
             let tick = self.browser_timing_test_tick.load(Ordering::Acquire);
