@@ -85,3 +85,9 @@ Handy hardware and human/release qualification remain open.
 
 See [ADR B3-191](../research/phase-b/ADR-B3-191-browser-recording-candidates.md)
 and [checkpoint](evidence/roadmap-2026-10-13/browser-recording-candidates/checkpoint.json).
+
+## Rendered recording-to-download checkpoint
+
+The pinned pre-format15 app005 was exercised in a fresh, hidden Chrome workspace with the sterile test-pattern video and explicitly authored temporal model. Actual rendered playback produced 103 inferred estimates. Stop retired the capture; staging and review exposed two unavailable intervals. The first commit preserved those gaps and the script-download action refused. Explicit gap-authoring consent, a separate repair candidate, review and another commit produced revision 2 with 105 actions and zero gaps. The browser download matches the Engine master after normal millisecond/percentage rounding. Unqualified/inferred/missing-coverage and synthesized-edit diagnostics remained visible. See [the retained receipt](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/browser-recording/verification.json).
+
+This run used the displayed default 0–60 second project range; its tail beyond the recorded input was an explicitly authored edge hold. Choose and verify the intended range before staging. An attempted automated edit did not focus the range input and left that default unchanged; the retained page evidence records the actual range. The local video was unbound to an imported Engine source or placement. This result does not close source-clock correspondence, lookahead rollover, restart/reconnect/fault coverage, useful learned motion, physical Handy behavior or the full BROWSER-DEMO task. All owned processes exited, the private state was removed, and only nonsecret observations, master values and the downloaded script were retained.
