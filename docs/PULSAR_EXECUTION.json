@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-HANDOFF-PAIR",
-    "scope": "Current pair-gate admission repair passes 161 browser JS tests,700 client tests and default App/Worker compilation; selected 120s rendered capture-to-reviewed-export proof is retained.",
+    "evidence": "EV-LOOKAHEAD-MARGIN",
+    "scope": "Current initial-lead configuration passes 164 browser JS tests, 701 client tests, strict lint and App/Worker build; selected rendered 40s freshness observations retain the original age budget.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "Pair-gate starvation is reproduced and repaired; the matching 120s/10s-lease stream now reaches EOF and exact reviewed export. Earlier generic timing_exchange_unconfirmed cleanup cause remains unresolved. Freshness-margin warnings, the Engine harness deadline and full runtime/model/platform/physical/human acceptance remain open.",
+    "failure_summary": "Initial requested lead now accounts for the configured age budget; selected 40s run shows 8/8 current provisional snapshots without increasing expiry. Generic timing_exchange_unconfirmed cleanup cause, full fault/reliability coverage and real-model/platform/physical/human acceptance remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -356,21 +356,33 @@
       },
       {
         "path": "crates/pulsar-clients/src/browser_live.html",
-        "sha256": "638871d1757953f2b79d9160a85f6a30b4a6624cc2b2b3c33e8b4f2ab25f477a"
+        "sha256": "6619bf9f7eeeca81367cf9d3bdc10017593d2598a5a95328f5918d751bc4d1a4"
       },
       {
         "path": "scripts/browser-live-player.test.mjs",
-        "sha256": "d8d55422cebc4b257ac7823f4ca0747518580b75484c7fb50c7d42240eb5d904"
+        "sha256": "652e9b5050929167a3862b20c914a3804c2ee65a01c22fb1889836690ec5a219"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_http.rs",
+        "sha256": "a814213f8521914176de3021faece02bca45895e7108afa52cd1487f38a7b206"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_http_tests.rs",
+        "sha256": "c4473e8223963f770be4569b91aa7d2c5d222666ba5aa297bcb7fa2ca3d9dca5"
+      },
+      {
+        "path": "docs/PULSAR_APP_QUICKSTART.md",
+        "sha256": "270008fb720c184fffd38aef3696741d706ce44895b7e32d76d2c4e708813caa"
       }
     ]
   },
   "last_verified": {
     "evidence": [
       "EV-HSP-READINESS",
-      "EV-HANDOFF-PAIR",
+      "EV-LOOKAHEAD-MARGIN",
       "EV-RECORDING-CHECKS"
     ],
-    "scope": "Engine: pinned causal HSP repair, full default-thread suite. Clients: current pair-gate repair, full suite with one test thread plus 161 browser JS tests and selected 120s rendered workflow. Protocol: separate pinned checkpoint. Generic timing cleanup, freshness/usability, harness shutdown and physical qualification remain unresolved.",
+    "scope": "Engine: pinned full default-thread HSP-repair suite. Clients: current lookahead-default code, full suite with one test thread plus 164 browser JS tests, strict lint and selected rendered observations. Protocol: separate pinned checkpoint. Generic timing cleanup and broader runtime/real-model/physical qualification remain unresolved.",
     "metric_refs": {
       "engine_passed": {
         "evidence": "EV-HSP-READINESS",
@@ -389,14 +401,14 @@
         ]
       },
       "clients_passed": {
-        "evidence": "EV-HANDOFF-PAIR",
+        "evidence": "EV-LOOKAHEAD-MARGIN",
         "pointer": [
           "checks",
           "clients_passed"
         ]
       },
       "clients_ignored": {
-        "evidence": "EV-HANDOFF-PAIR",
+        "evidence": "EV-LOOKAHEAD-MARGIN",
         "pointer": [
           "checks",
           "clients_ignored"
@@ -1086,6 +1098,18 @@
       "evidence": [
         "EV-HANDOFF-PAIR"
       ]
+    },
+    {
+      "id": "SC-LOOKAHEAD-MARGIN",
+      "title": "Age-budget-aware initial requested lookahead",
+      "parents": [
+        "M2-DOMAIN",
+        "M5-LIVE"
+      ],
+      "scope": "Native page bootstrap initializes requested lead from half the configured analysis-age budget, subject to1ms minimum and 1000ms cap. It changes the initial request only; explicit user overrides, lead validation and each original estimate expiry remain enforced. Real HTTP page/bootstrap and malformed-input tests pass with 164 JS/701 client tests, strict lint and default build. On an authored-model sterile 40s run, 8/8 scheduled playback snapshots show current provisional output with 500ms lead and the original 1000ms budget; 388 estimates across 3 captures reach EOF and both server and Engine exit 0. Useful learned motion, all-frame/category coverage and physical synchronization remain unqualified.",
+      "evidence": [
+        "EV-LOOKAHEAD-MARGIN"
+      ]
     }
   ],
   "queue": [
@@ -1147,7 +1171,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure using available first_failure diagnostics, then establish repeatable reliability without extending original deadlines. Pair-gate starvation has a deterministic repair and a matching 120s/10s-lease rendered EOF-to-export checkpoint across 23 records, but does not explain that generic IPC failure. Finish applicable pending replacement, interruption and unknown-outcome coverage; verify useful fresh visible output at the admitted lead, retain harness-limit counterevidence and exact source/clock/CPU correspondence. Selected software checkpoints do not qualify real media, models or physical devices.",
+      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
@@ -1161,7 +1185,8 @@
         "EV-TIMING-CLEANUP",
         "EV-TIMING-DIAGNOSTICS",
         "EV-TIMING-EXPIRY",
-        "EV-HANDOFF-PAIR"
+        "EV-HANDOFF-PAIR",
+        "EV-LOOKAHEAD-MARGIN"
       ]
     },
     {
@@ -3361,6 +3386,208 @@
             "engine_harness_exit_code"
           ],
           "equals": 124
+        },
+        {
+          "pointer": [
+            "checks",
+            "all_owned_apps_joined"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-LOOKAHEAD-MARGIN",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/lookahead-margin/verification.json",
+      "sha256": "087acb97ab077f26d16b927b8ec9dc4020f933cdf3ead6d7663d9ad347cb4b43",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Native initial requested lead derives from half the unchanged configured age budget, with 1ms floor/1000ms cap; user overrides and original expiry still apply.164 JS/701 client tests, strict lint and default build pass. Actual 40s sterile run uses500ms request with 1000ms age budget: 8/8 scheduled playback snapshots show current provisional values,388 estimates across 3 captures, EOF and clean server/Engine exits. No learned/physical/general reliability qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "generic_timing_cleanup_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "full_runtime_reliability_cleared"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "default_selection_regression_red_then_green"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "initial_request_uses_half_age_with_1ms_floor_1000ms_cap"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_http_page_carries_initial_default"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "malformed_bootstrap_default_refused"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "user_override_preserved"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "original_1000ms_expiry_still_enforced"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "browser_js_passed"
+          ],
+          "equals": 164
+        },
+        {
+          "pointer": [
+            "checks",
+            "browser_js_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_passed"
+          ],
+          "equals": 701
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_ignored"
+          ],
+          "equals": 14
+        },
+        {
+          "pointer": [
+            "checks",
+            "strict_clients_lib_tests_clippy"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "default_app_worker_build"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "rendered_eof"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "scheduled_playback_samples"
+          ],
+          "equals": 8
+        },
+        {
+          "pointer": [
+            "checks",
+            "current_provisional_samples"
+          ],
+          "equals": 8
+        },
+        {
+          "pointer": [
+            "checks",
+            "captures"
+          ],
+          "equals": 3
+        },
+        {
+          "pointer": [
+            "checks",
+            "accepted_estimates"
+          ],
+          "equals": 388
+        },
+        {
+          "pointer": [
+            "checks",
+            "requested_lead_us"
+          ],
+          "equals": 500000
+        },
+        {
+          "pointer": [
+            "checks",
+            "maximum_analysis_age_ns"
+          ],
+          "equals": 1000000000
+        },
+        {
+          "pointer": [
+            "checks",
+            "server_exit_code"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_exit_code"
+          ],
+          "equals": 0
         },
         {
           "pointer": [

@@ -780,6 +780,25 @@ test('sustained lookahead retains earlier results until visible frames catch up 
  }
  const queued=p.futurePreview().entries;assert.equal(queued.length,10);assert.equal(queued[0].time,3.2);assert.equal(queued.at(-1).time,4.1);assert.equal(queued[0].deadline,4100);assert.equal(p.elements.video.paused,false);assert.equal(p.timerCount(),1);
 });
+test('native launch default leaves freshness margin without changing the original estimate deadline',async()=>{
+ const p=mediaPlayer({lookahead:true,timing:true,pageScope:{...defaultPageScope,default_lookahead_ms:500},frameReply:lookaheadEstimate(600000,.7,1000)});
+ await startLookahead(p);await p.analysisFrame(.6);await flush();
+ const start=jsonBody(p.sent.find(r=>r.route==='/start'));
+ assert.equal(start.analysis.policy.target_lead_us,500000);
+ assert.equal(p.futurePreview().entries[0].deadline,1000);
+ p.advance(500);await flush();await p.analysisFrame(1.1);await p.frame(.6);await flush();
+ assert.equal(p.elements.position.value,.7);
+ assert.match(p.elements.status.textContent,/Provisional Stroke at the visible source time/);
+});
+test('native launch default remains editable and cannot enlarge the original freshness budget',async()=>{
+ const p=retainedLookaheadPlayer({pageScope:{...defaultPageScope,default_lookahead_ms:500},frameReply:lookaheadEstimate(1100000,.7,1000)});
+ p.elements['lookahead-ms'].value='1000';await startLookahead(p);await p.analysisFrame(1.1);
+ assert.equal(jsonBody(p.sent.find(r=>r.route==='/start')).analysis.policy.target_lead_us,1000000);
+ assert.equal(p.elements.position.value,0);assert.match(p.elements.status.textContent,/insufficient freshness margin/);
+});
+test('malformed native lookahead defaults fail before any playback admission',()=>{
+ for(const value of [0,15001,1.5,'500',null])assert.throws(()=>mediaPlayer({pageScope:{...defaultPageScope,default_lookahead_ms:value}}),/Invalid native lookahead default/);
+});
 test('one-second lead with the original one-second budget remains unavailable at the deadline boundary',async()=>{
  const p=retainedLookaheadPlayer({frameReply:n=>lookaheadEstimate(1000000+n*100000,n/100,1000)});await startLookahead(p);
  for(let i=0;i<=20;i++){
