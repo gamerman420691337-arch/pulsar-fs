@@ -7,7 +7,7 @@ capture, recordings and motion-candidate provenance. Software, actual native HTT
 rendered-browser fixture checks pass. This does not establish synchronized Handy playback
 or useful learned motion.
 
-The [ordinary browser-only cutover repair](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/native-timing/verification.json) commits native source and timing lineage after actual worker join and shared-pair acceptance. The confined parent-release regression passes, and real rendered40s playback now spans three captures/383 estimates with clean server exit and unchanged limits. Whole-playback recording assembly still refuses source/profile/captured-mode correspondence. Earlier expiry and HSP019 failures retain their separate unresolved causes. See the execution dashboard for current scope.
+The [ordinary browser-only cutover repair](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/native-timing/verification.json) commits native source and timing lineage after actual worker join and shared-pair acceptance. The confined parent-release regression passes, and real rendered40s playback now spans three captures/383 estimates with clean server exit and unchanged limits. The historical assembly rule now permits distinct epoch leases only when source bytes, placement and declared clock remain identical, while retaining every original binding. Protocol/Engine staging tests pass, but new rendered trials fail timing before staging; complete multi-epoch review/export and runtime regression clearance remain unverified. Earlier expiry and HSP019 failures retain their separate unresolved causes. See the execution dashboard for current scope.
 
 ## Launch and use
 
@@ -118,7 +118,7 @@ visible with `current:false`, including after restart.
 
 Capture pins the current native binding, uses the imported source version in its
 identity, and retains that binding across continuation and recording pages.
-Assembly refuses mixed bindings or bound/unbound pages. Candidate provenance
+Assembly refuses mixed source/placement/declared-clock correspondence or bound/unbound pages. Different epoch lease identities are historical facts, not authority, and may differ for the same source correspondence. Full metadata within one epoch must remain unchanged across pages. Candidate provenance
 retains the binding and adds the review reason `browser_source_clock_declared`.
 The existing [record, review and commit workflow](PULSAR_BROWSER_RECORDING_CANDIDATES.md)
 remains explicit. The recording page displays browser presentation timestamps;

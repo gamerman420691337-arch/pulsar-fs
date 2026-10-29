@@ -327,6 +327,109 @@ mod successor_tests {
     }
 
     #[test]
+    fn bound_recording_candidate_keeps_both_epoch_leases_and_unavailable_seams() {
+        let x = delivery_fixture();
+        let cap = preview_successor(&x);
+        let record = |epoch| {
+            let r = request(
+                &x.f.session,
+                Some(&x.f.project),
+                Some(1),
+                Command::StartLiveRecording {
+                    epoch,
+                    maximum_samples: 8,
+                },
+            );
+            x.f.engine.handle(r.clone()).result.unwrap();
+            r.request_id
+        };
+        let first_recording = record(x.capture.identity.epoch.clone());
+        let next_recording = record(cap.successor().identity.epoch.clone());
+        let boundary = prepare_final(&x);
+        let transfer = transfer_request(&x, &cap, boundary);
+        x.f.engine.handle(transfer.clone()).result.unwrap();
+        let child = report(&x, &cap.successor().identity.epoch);
+        upload(&x, &child, 1, 300);
+        complete_successor(&x, &cap);
+        join(&x);
+        assert_eq!(
+            status(&x, &transfer.request_id).phase,
+            BrowserAnalysisTransferPhase::Transferred
+        );
+        x.f.engine
+            .handle(request(
+                &x.f.session,
+                Some(&x.f.project),
+                Some(1),
+                Command::StopLiveCapture {
+                    epoch: cap.successor().identity.epoch.clone(),
+                },
+            ))
+            .result
+            .unwrap();
+        let options = LiveRecordingStageOptions {
+            engine_epoch: x.capture.engine_epoch.clone(),
+            recordings: vec![
+                LiveRecordingSelection {
+                    epoch: x.capture.identity.epoch.clone(),
+                    recording_request_id: first_recording,
+                },
+                LiveRecordingSelection {
+                    epoch: cap.successor().identity.epoch.clone(),
+                    recording_request_id: next_recording,
+                },
+            ],
+            range: TimeRange::new(ProjectTime::ZERO, ProjectTime::from_nanos(1_000_000_000))
+                .unwrap(),
+            maximum_interpolation_ns: 100_000_000,
+        };
+        let ResponseBody::Candidate(candidate) =
+            x.f.engine
+                .handle(request(
+                    &x.f.session,
+                    Some(&x.f.project),
+                    Some(1),
+                    Command::StageLiveRecording { options },
+                ))
+                .result
+                .unwrap()
+        else {
+            panic!("recording candidate")
+        };
+        let db = x.f.engine.db.lock().unwrap();
+        let staged = candidate_state(&db, &candidate.candidate_id, &x.f.project).unwrap();
+        assert_eq!(staged.program.tracks()[0].actions().len(), 2);
+        assert_eq!(staged.program.tracks()[0].gaps().len(), 3);
+        let snapshot = project_snapshot(&db, &x.f.project).unwrap();
+        assert_eq!(snapshot.revision.value(), 1);
+        let source = snapshot
+            .sources
+            .iter()
+            .find(|s| s.kind == SourceKind::LiveRecording)
+            .unwrap();
+        let artifact =
+            x.f.engine
+                .source(&db, &x.f.project, &source.source_version)
+                .unwrap();
+        let proof: serde_json::Value =
+            serde_json::from_slice(&fs::read(artifact.path).unwrap()).unwrap();
+        assert_eq!(proof["qualified"], false);
+        assert_eq!(proof["pages"].as_array().unwrap().len(), 2);
+        assert_ne!(
+            proof["pages"][0]["browser_media"]["lease_id"],
+            proof["pages"][1]["browser_media"]["lease_id"]
+        );
+        assert_eq!(
+            proof["pages"][0]["browser_media"]["selection"],
+            proof["pages"][1]["browser_media"]["selection"]
+        );
+        assert_eq!(
+            proof["pages"][0]["browser_media"]["clock"],
+            proof["pages"][1]["browser_media"]["clock"]
+        );
+    }
+
+    #[test]
     fn preview_successor_requires_shared_pair_and_predecessor_join_before_promotion() {
         let x = delivery_fixture();
         let cap = preview_successor(&x);
