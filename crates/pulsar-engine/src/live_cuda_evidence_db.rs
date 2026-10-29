@@ -50,9 +50,18 @@ pub(crate) fn shape(db: &Connection) -> Result<(i64, i64)> {
 /// those layouts using 20 only after validating the actual new reader barrier.
 /// A table under a downgraded header, or a future schema, is always refused.
 pub(crate) fn base_version(db: &Connection, expected: i64) -> Result<i64> {
+    let expected = if expected == 40 {
+        ensure!(
+            db.query_row("PRAGMA main.user_version", [], |row| row.get::<_, i64>(0))? == 40,
+            "portable fallback delegation header differs"
+        );
+        crate::portable_fallback_reader::version(db)?
+    } else {
+        expected
+    };
     let expected = if expected == 39 {
         ensure!(
-            db.query_row("PRAGMA main.user_version", [], |row| row.get::<_, i64>(0))? == 39,
+            crate::portable_fallback_reader::version(db)? == 39,
             "portable CPU delegation header differs"
         );
         crate::portable_cpu_archives::version(db)?

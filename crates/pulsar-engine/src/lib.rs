@@ -69,6 +69,7 @@ mod live_cpu_mounts;
 #[path = "cuda_mount_bytes.rs"]
 mod native_mount_bytes;
 mod portable_cpu_archives;
+mod portable_fallback_reader;
 mod task_group;
 pub use handy_credentials::HandyRouteIdentity;
 mod handy_continuous_timing;

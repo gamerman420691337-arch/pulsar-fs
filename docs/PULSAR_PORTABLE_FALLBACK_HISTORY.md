@@ -6,6 +6,37 @@ refusals remain enabled. This document describes the implemented shared
 metadata contract and the remaining integration requirements; it is not a
 claim that fallback projects can already be exported or cloned.
 
+The next integration layer declares package format 16, the
+`inference_fallback_history` object role and an optional bounded history-object
+reference on each original generated attempt. Omitted references preserve the
+older canonical bytes. A history reference, its object role or a format-16
+ancestor requires format 16; the ordinary object catalog checks exact lengths
+and roles. A consumed `assistant_paused` state requires this explicit history
+declaration. These are structural declarations only: the Engine still refuses
+format-16 graphs until the complete history payload and original worker-object
+correspondence are implemented.
+
+Conditional storage reader 40 wraps the existing portable CPU reader 39.
+Underlying publication preserves both markers, and arming is transactional with
+the metadata requiring it. Startup checks the canonical marker, scalar bounds,
+associated objects and temporary shadows before recovery. Format-16 current or
+ancestor declarations, a history field or its object role require reader 40;
+removing the marker does not turn the metadata into ordinary history. Export
+and import publication have the conditional arming calls, behind the retained
+full-graph refusal. The barrier itself grants no authority or qualification.
+
+An initial native probe found that the pinned preceding executable rejects
+reader 40 without changing existing files, but creates an empty daemon lock
+and SQLite WAL/SHM files on a cold startup. That failure remains retained;
+it does not establish a filesystem-wide unchanged-state result for that
+executable. Current startup adds a read-only main-file-header negative check
+before daemon lock creation and SQLite opening. It refuses unsupported cold
+main-file versions without those side effects. This check never admits a
+schema: the normal SQLite and full reader validation still inspect committed
+WAL state. A newer version present only in a WAL remains refused; complete
+hot-WAL startup side-effect qualification is still open. The header layout is
+defined by [SQLite's database format](https://www.sqlite.org/fileformat.html#the_database_header).
+
 `InferenceFallbackHistory` retains one original job's selected policy and its
 complete predecessor-ordered attempt chain. Each attempt contains its original
 manifest and profile hashes, state, admission trace, observed environment and
@@ -42,8 +73,8 @@ running states do not grant imported work permission to execute.
 1. Capture the checked archive alongside original worker manifests within the
    same project snapshot. Account for aggregate metadata and retained object
    bytes before assembly; keep filesystem reads outside the authority lock.
-2. Add a conditional package format for the history and exact object roles.
-   Preserve the selected policy, original environments, outcomes, manifests,
+2. Connect the format-16 declaration and object role to the checked history
+   payload. Preserve the selected policy, original environments, outcomes, manifests,
    model/runtime declarations and referenced evidence through root and ancestor
    graphs. Reject omitted, substituted, duplicated, detached and contradictory
    current or ancestral declarations, including rehashed mutations.
@@ -51,8 +82,8 @@ running states do not grant imported work permission to execute.
    must preserve original historical identities without installing origin
    acceptance decisions, grants, owner policies or executable attempts. Keep
    active local acceptance and imported historical evidence distinct.
-4. Add the conditional persistent reader barrier and compose it with existing
-   CPU, live and fallback barriers. An earlier executable must refuse before
+4. Qualify the reader-40 barrier through actual format-16 publication, import
+   and recovery. An earlier executable must refuse before
    writable recovery or custody changes; record the exact database/WAL and
    filesystem observations rather than inferring them from an error message.
 5. Run confined export, clone, restart, re-export and second-clone campaigns
