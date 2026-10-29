@@ -299,20 +299,9 @@ pub(crate) mod tests {
     use super::*;
     pub(crate) fn evidence(pool: &ResourcePool) -> LiveCudaEvidence {
         let admission = EvidenceAdmission::reserve(pool).unwrap();
-        let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(
-            "../../docs/evidence/roadmap-2026-10-07/live-cuda-provisional-report/native-engine",
-        );
-        let manifest =
-            serde_json::from_slice(&std::fs::read(base.join("manifest.json")).unwrap()).unwrap();
-        let summary =
-            serde_json::from_slice(&std::fs::read(base.join("summary.json")).unwrap()).unwrap();
+        let (manifest, summary, receipt, trace) = crate::live_cuda_evidence::tests::original();
         admission
-            .finished(
-                &manifest,
-                &summary,
-                std::fs::read(base.join("receipt.json")).unwrap(),
-                std::fs::read(base.join("original-trace.json")).unwrap(),
-            )
+            .finished(&manifest, &summary, receipt, trace)
             .unwrap()
     }
     pub(crate) fn fixture(evidence: &LiveCudaEvidence) -> Connection {

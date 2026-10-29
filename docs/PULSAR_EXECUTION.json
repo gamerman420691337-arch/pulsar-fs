@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-RECORDING-CHECKS",
-    "scope": "Regular 847c2ba executable matches unchanged production source; compilation/component checkpoint and a separate positive rendered full-workflow receipt retained. Temporary diagnostic instrumentation removed.",
-    "active_work": "CPU-ROUNDTRIP",
-    "failure_summary": "Positive bound multi-epoch review/export is now verified on the regular executable. Earlier intermittent timing_exchange_unconfirmed failures remain causally unresolved; reliability and stop/reconnect/fault coverage remain open. External CUDA unit-fixture portability remains open.",
+    "evidence": "EV-CUDA-FIXTURE-CHECKS",
+    "scope": "Current Engine tests compile; strict Engine library/tests lint and targeted formatting pass. Full Engine suite passes with two test threads; the default-thread HSP failure remains unverified.",
+    "active_work": "CLIENT-CORRECTNESS",
+    "failure_summary": "External CUDA unit-fixture dependency is repaired. Default-thread HSP preparation restart can retire with metadata pending; the exact test passes alone and the full suite passes with two threads, without causal clearance. Browser timing reliability and rendered stop/reconnect/fault coverage remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -160,7 +160,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/live_cuda_evidence_db.rs",
-        "sha256": "0c150831e7973a1126798706369c3625bb4beebf82a29c92e8f920ea114a4cea"
+        "sha256": "c94a5ddee867fd3b1157967c1d613fa51db946bea95ef36c407f168cd7f928ec"
       },
       {
         "path": "crates/pulsar-engine/src/live_frames.rs",
@@ -321,53 +321,57 @@
       {
         "path": "crates/pulsar-engine/src/engine_live_capture_successor_tests.rs",
         "sha256": "6bd9e4446a485842c42fefd08847ceb4215c7be76853b943c7da48a893bce957"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cuda_evidence.rs",
+        "sha256": "f955281390a04efeb25519a2a97535f19aefe1e0af64a90be3ad502c71501783"
+      },
+      {
+        "path": "crates/pulsar-engine/tests/fixtures/authored-live-cuda-manifest.json",
+        "sha256": "920dee2fba07f6bdd8b693eae335ac01bf188306d7426f43d432524dfdb0ffee"
       }
     ]
   },
   "last_verified": {
     "evidence": [
-      "EV-STARTUP",
-      "EV-CPU-LIVE"
+      "EV-CUDA-FIXTURE-PORTABILITY",
+      "EV-RECORDING-CHECKS",
+      "EV-CPU-ARCHIVE"
     ],
-    "scope": "Pinned pre-format15 checkpoints, not a passing result for the current working tree.",
+    "scope": "Engine: current authored-fixture source, full suite with two test threads; default-thread HSP failure unresolved. Protocol and clients: separate pinned component checkpoints, not a combined runtime or release qualification.",
     "metric_refs": {
       "engine_passed": {
-        "evidence": "EV-STARTUP",
+        "evidence": "EV-CUDA-FIXTURE-PORTABILITY",
         "pointer": [
-          "checks",
-          "engine_suite",
+          "full_engine_two_thread_suite",
           "passed"
         ]
       },
       "engine_ignored": {
-        "evidence": "EV-STARTUP",
+        "evidence": "EV-CUDA-FIXTURE-PORTABILITY",
         "pointer": [
-          "checks",
-          "engine_suite",
+          "full_engine_two_thread_suite",
           "ignored"
         ]
       },
       "clients_passed": {
-        "evidence": "EV-CPU-LIVE",
+        "evidence": "EV-CPU-ARCHIVE",
         "pointer": [
-          "checks",
-          "protocol_client_suites",
+          "totals",
           "clients_passed"
         ]
       },
       "clients_ignored": {
-        "evidence": "EV-CPU-LIVE",
+        "evidence": "EV-CPU-ARCHIVE",
         "pointer": [
-          "checks",
-          "protocol_client_suites",
+          "totals",
           "clients_ignored"
         ]
       },
       "protocol_passed": {
-        "evidence": "EV-CPU-LIVE",
+        "evidence": "EV-RECORDING-CHECKS",
         "pointer": [
           "checks",
-          "protocol_client_suites",
           "protocol_passed"
         ]
       }
@@ -974,6 +978,19 @@
       "evidence": [
         "EV-BOUND-RENDERED-EXPORT"
       ]
+    },
+    {
+      "id": "SC-CUDA-FIXTURE-PORTABILITY",
+      "title": "Self-contained CUDA evidence parser/storage unit fixtures",
+      "parents": [
+        "M2-INTERCHANGE",
+        "M6-INSTALL"
+      ],
+      "scope": "Both unit fixture loaders use an explicitly authored compile-time manifest/receipt/trace instead of four private report files. Noncanonical native-format bytes still pass real parser/storage round trips and mutation/memory/rollback checks. Full Engine suite passes1887/0/110 ignored with2 test threads; strict lint passes. Default-thread HSP readiness failure is retained and unresolved. No production behavior or qualification change.",
+      "evidence": [
+        "EV-CUDA-FIXTURE-PORTABILITY",
+        "EV-CUDA-FIXTURE-CHECKS"
+      ]
     }
   ],
   "queue": [
@@ -1054,19 +1071,21 @@
         "M2-DOMAIN",
         "M2-EDITS"
       ],
-      "state": "planned",
+      "state": "in_progress",
       "owner": "Codex + rendered-workflow operator",
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Verify source/view/time correspondence and target loss/reacquisition through real consumers; exercise protected editing, review/commit/rebase/undo/restart and crash/storage faults in CLI/desktop. Retain real-media limitations under M1-DATA. Make the four external CUDA report JSON parser/storage fixtures portable without representing authored test inputs as measured qualification.",
+      "exit": "Verify source/view/time correspondence and target loss/reacquisition through real consumers; exercise protected editing, review/commit/rebase/undo/restart and crash/storage faults in CLI/desktop. Retain real-media limitations under M1-DATA. External CUDA test report dependence is repaired with authored inputs; resolve the retained default-thread HSP preparation restart readiness/metadata-pending failure without weakening deadlines or substituting isolated/thread-limited passes for causal clearance.",
       "evidence": [
         "EV-RENDERED-PATTERN",
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
         "EV-TRANSFER-CANCEL",
         "EV-PREVIEW-CUTOVER",
-        "EV-RECORDING-LEASES"
+        "EV-RECORDING-LEASES",
+        "EV-CUDA-FIXTURE-PORTABILITY",
+        "EV-CUDA-FIXTURE-CHECKS"
       ]
     },
     {
@@ -1829,6 +1848,13 @@
             "clients_passed"
           ],
           "equals": 696
+        },
+        {
+          "pointer": [
+            "totals",
+            "clients_ignored"
+          ],
+          "equals": 14
         }
       ]
     },
@@ -2207,6 +2233,128 @@
             "project_offset_seconds"
           ],
           "equals": 5
+        }
+      ]
+    },
+    {
+      "id": "EV-CUDA-FIXTURE-PORTABILITY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/cuda-fixture-portability/verification.json",
+      "sha256": "668966532703f0995c13283dfb37c829dec1f09316f033cf1b929da27a60e1ff",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Authored compile-time fixture removes four external report dependencies. Engine passes1887 tests with2 threads,110 ignored; default-thread run retains one HSP readiness failure that passes alone. No production-code changes, GPU execution or qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "production_code_unchanged"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "external_report_directory_present"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "fixture_dependency_repair_verified"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "full_engine_two_thread_suite",
+            "passed"
+          ],
+          "equals": 1887
+        },
+        {
+          "pointer": [
+            "full_engine_two_thread_suite",
+            "failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "full_engine_two_thread_suite",
+            "ignored"
+          ],
+          "equals": 110
+        },
+        {
+          "pointer": [
+            "default_thread_suite",
+            "failed"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "default_thread_reliability_cleared"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-CUDA-FIXTURE-CHECKS",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/cuda-fixture-portability/build-verification.json",
+      "sha256": "df0c62a947ae042d57b73f5733e25ff111004c157b3429a6e4d2d43a8b91a57e",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Current Engine tests compile; strict library/tests clippy and changed-file Rust formatting pass. Whole-workspace formatting and default-thread runtime clearance are not established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "full_runtime_verified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "engine_test_compilation"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "strict_clippy"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "targeted_rustfmt"
+          ],
+          "equals": true
         }
       ]
     }
