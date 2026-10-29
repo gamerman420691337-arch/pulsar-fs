@@ -3,6 +3,160 @@ use super::*;
 use std::os::unix::net::UnixListener;
 
 const NATIVE: u64 = (1_u64 << 53) + 17;
+
+#[test]
+fn retirement_after_worker_skip_before_open_dispatch_does_not_create_unknown_custody() {
+    let mut server = Server::new(|_| panic!("retired Open must never reach the Engine"));
+    let mut timing = Timing::new(&server.client()).unwrap();
+    let (entered, observed) = mpsc::sync_channel(1);
+    let (resume, released) = mpsc::sync_channel(1);
+    state(&timing.shared).before_execute = Some(Arc::new(TestBeforeExecute {
+        entered,
+        resume: Mutex::new(released),
+    }));
+    let player = player();
+    timing
+        .open(player.clone(), Arc::new(AtomicBool::new(false)), media())
+        .unwrap();
+    observed.recv_timeout(Duration::from_secs(2)).unwrap();
+    timing.retire(&player);
+    resume.send(()).unwrap();
+    ready(&timing);
+    timing.shutdown().unwrap();
+    assert!(server.finish().is_empty());
+}
+
+#[test]
+fn failure_diagnostics_allowlist_fields_without_formatting_private_errors() {
+    let private = "private-authentication-path".repeat(2048);
+    let cases = [
+        (
+            anyhow::Error::from(ProtocolError::invalid(private.clone()))
+                .context(FailureStage::Exchange),
+            "protocol_rejected",
+            Some(ErrorCode::InvalidRequest),
+        ),
+        (
+            anyhow::Error::from(ProtocolError::invalid(
+                "browser timing scope or sequence differs",
+            ))
+            .context(FailureStage::Exchange),
+            "scope_or_sequence",
+            Some(ErrorCode::InvalidRequest),
+        ),
+        (
+            anyhow::Error::from(ProtocolError::new(
+                ErrorCode::Unavailable,
+                "browser timing binding is not current",
+            ))
+            .context(FailureStage::Exchange),
+            "binding_not_current",
+            Some(ErrorCode::Unavailable),
+        ),
+        (
+            anyhow::Error::from(pulsar_protocol::TransportError::Io(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                private.clone(),
+            )))
+            .context(FailureStage::Exchange),
+            "transport_timeout",
+            None,
+        ),
+        (
+            anyhow::Error::from(std::io::Error::new(
+                std::io::ErrorKind::WouldBlock,
+                private.clone(),
+            ))
+            .context(FailureStage::Exchange),
+            "transport_timeout",
+            None,
+        ),
+        (
+            anyhow::Error::from(pulsar_protocol::TransportError::Io(std::io::Error::new(
+                std::io::ErrorKind::ConnectionReset,
+                private.clone(),
+            )))
+            .context(FailureStage::Exchange),
+            "transport_io",
+            None,
+        ),
+        (
+            anyhow::Error::from(pulsar_protocol::TransportError::ResponseMismatch)
+                .context(FailureStage::Exchange),
+            "transport_framing",
+            None,
+        ),
+        (
+            anyhow::Error::msg(private.clone()).context(FailureStage::Reply),
+            "reply_validation",
+            None,
+        ),
+        (
+            anyhow::Error::msg(private.clone()).context(FailureStage::Exchange),
+            "exchange_unclassified",
+            None,
+        ),
+        (anyhow::Error::msg(private), "local_state", None),
+    ];
+    for (error, category, protocol_code) in cases {
+        let value = FailureDiagnostic::from_error("observe", &error);
+        let encoded = serde_json::to_string(&value).unwrap();
+        assert!(encoded.len() < 192);
+        assert!(!encoded.contains("private"));
+        assert!(!encoded.contains("authentication"));
+        assert_eq!(value.category, category);
+        assert_eq!(value.protocol_code, protocol_code);
+    }
+}
+
+#[test]
+fn original_exchange_failure_survives_later_unknown_release_without_retry() {
+    let mut server = Server::new(|request| match &request.command {
+        Command::OpenBrowserTiming { .. } => body(opened(request)),
+        Command::IssueBrowserTimingProbe { .. } => Some(Err(ProtocolError::invalid(
+            "browser timing scope or sequence differs",
+        ))),
+        Command::ReleaseBrowserTiming { .. } => Some(Err(ProtocolError::new(
+            ErrorCode::Unavailable,
+            "private-authentication-path",
+        ))),
+        _ => panic!("unexpected timing command"),
+    });
+    let mut timing = Timing::new(&server.client()).unwrap();
+    let player = player();
+    timing
+        .open(player.clone(), Arc::new(AtomicBool::new(false)), media())
+        .unwrap();
+    ready(&timing);
+    timing
+        .handle("/player/timing-probe", &player, b"", 1)
+        .unwrap();
+    assert!(reply(&timing, &player, 1).is_err());
+    {
+        let records = state(&timing.shared);
+        let record = &records.entries[0];
+        assert!(record.retired && record.release == ReleaseState::Unknown);
+        let failure = diagnostic(record);
+        assert_eq!(failure["first_failure"]["operation"], "probe");
+        assert_eq!(failure["first_failure"]["stage"], "exchange");
+        assert_eq!(failure["first_failure"]["category"], "scope_or_sequence");
+        assert_eq!(failure["first_failure"]["protocol_code"], "invalid_request");
+        assert!(!failure.to_string().contains("private"));
+    }
+    let error = timing.shutdown().unwrap_err().to_string();
+    assert!(error.contains("cleanup unconfirmed"));
+    assert!(!error.contains("authentication"));
+    let calls = server.finish();
+    assert_eq!(calls.len(), 3, "unknown operations must not be replayed");
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|c| matches!(c, Command::ReleaseBrowserTiming { .. }))
+            .count(),
+        1
+    );
+}
+
 fn media() -> BrowserMediaBinding {
     BrowserMediaBinding {
         preparation_request_id: RequestId::new("synthetic-source-prepare").unwrap(),
@@ -855,6 +1009,28 @@ fn foreign_probe_or_changed_observation_refuses_and_releases_only_original_bindi
         let message = result.unwrap_err().to_string();
         assert!(!message.contains("authentication"));
         assert!(!message.contains("private path"));
+        {
+            let records = state(&timing.shared);
+            let value = diagnostic(&records.entries[0]);
+            let operation = if fault.starts_with("probe") {
+                "probe"
+            } else {
+                "observe"
+            };
+            assert_eq!(value["first_failure"]["operation"], operation, "{fault}");
+            assert_eq!(
+                value["first_failure"]["stage"],
+                if fault == "remote error" {
+                    "exchange"
+                } else {
+                    "reply"
+                },
+                "{fault}"
+            );
+            let diagnostic = value.to_string();
+            assert!(!diagnostic.contains("authentication"));
+            assert!(!diagnostic.contains("private path"));
+        }
         assert!(timing
             .handle("/player/timing-probe", &player, b"", 3)
             .is_err());
