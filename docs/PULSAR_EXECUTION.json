@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-PREVIEW-CUTOVER",
-    "scope": "App/Worker compilation, native cutover regression, four successor units, strict Engine lint and rendered40s continuation pass. Broad Engine run:1866 passed/20 missing-fixture failures/110 ignored; all20 pass after supplying existing host-only JSON prerequisites. No single full-suite green or clean-checkout fixture portability is claimed.",
+    "evidence": "EV-RECORDING-CHECKS",
+    "scope": "App/Worker compile,397 Protocol tests,4 recording-candidate and5 successor Engine tests plus strict Protocol/Engine lint pass. Two new rendered runs fail timing before staging; the prior cutover executable completes40s. This is no end-to-end runtime clearance.",
     "active_work": "CPU-ROUNDTRIP",
-    "failure_summary": "Whole-playback recording assembly still refuses source/profile/captured-mode correspondence. External CUDA JSON unit fixtures remain nonportable. Earlier timeout failures retain separate unresolved causes.",
+    "failure_summary": "Rendered timing reliability and complete multi-epoch review/export are unresolved.146 single-epoch estimates stage with missing tail retained; no synthetic tail fill or export. External CUDA unit-fixture portability remains open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -275,10 +275,6 @@
         "sha256": "23bc169fe03de5774e4ae56adf96b4f79ba13ca43db9e0d995d057e885c6eec9"
       },
       {
-        "path": "crates/pulsar-protocol/src/live_recording_assembly.rs",
-        "sha256": "917ab0ecb0229cb753f1d95ec0defa456edd7f041d87765b5f26ef438bb086a0"
-      },
-      {
         "path": "crates/pulsar-protocol/src/project_package.rs",
         "sha256": "74ffee22863aec8881e37db7e301bec583fdc20eeb6ad7a3cd5c637d071774af"
       },
@@ -315,12 +311,16 @@
         "sha256": "7ae73b372ad320000c817d406d7d549383e3765f8623f560181b16cc47f0b0a6"
       },
       {
-        "path": "crates/pulsar-engine/src/engine_live_capture_successor_tests.rs",
-        "sha256": "dbeffc10723d9a986737c5f1cdb59014fda7abcdb0bba99a50f5cadb0cd53a56"
-      },
-      {
         "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
         "sha256": "b54b1aece7946079629d969579a854533cff101797aea907f537702483e0d3bd"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/live_recording_assembly.rs",
+        "sha256": "0ae1be3e17b4e9a0d995862d2d112f920ef41ab30bf6c9cf037c9568de63c0f3"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_capture_successor_tests.rs",
+        "sha256": "6bd9e4446a485842c42fefd08847ceb4215c7be76853b943c7da48a893bce957"
       }
     ]
   },
@@ -948,6 +948,19 @@
       "evidence": [
         "EV-PREVIEW-CUTOVER"
       ]
+    },
+    {
+      "id": "SC-RECORDING-CORRESPONDENCE",
+      "title": "Historical source correspondence across epoch leases",
+      "parents": [
+        "M2-DOMAIN",
+        "M2-EDITS",
+        "M5-LIVE"
+      ],
+      "scope": "Protocol397 tests and Engine staging regression accept distinct leases for identical source/placement/declared clock, retain both full bindings and leave seams unavailable. Engine uses real native leases with authored CPU completions. Rendered multi-epoch workflow and runtime regression clearance remain unverified.",
+      "evidence": [
+        "EV-RECORDING-LEASES"
+      ]
     }
   ],
   "queue": [
@@ -1009,13 +1022,14 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Preserve exact recorded source/clock/CPU correspondence while fixing whole-playback assembly across committed source leases. Rerun review/export and stop/reconnect/fault scenarios on the fixed subject. Retain earlier expiry/HSP019 counterevidence and their separate causes; positive40s continuation alone does not close this task.",
+      "exit": "Resolve the repeated timing_exchange_unconfirmed failures in new-executable trials and establish runtime regression clearance against the completed cutover baseline. Then execute actual multi-epoch recording/review/export with retained source/clock/CPU correspondence and stop/reconnect/fault scenarios. The historical lease-comparison rule passes Protocol/Engine tests but is not a full rendered workflow result.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
         "EV-TRANSFER-CANCEL",
         "EV-BROWSER-TRACE",
-        "EV-PREVIEW-CUTOVER"
+        "EV-PREVIEW-CUTOVER",
+        "EV-RECORDING-LEASES"
       ]
     },
     {
@@ -1037,7 +1051,8 @@
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
         "EV-TRANSFER-CANCEL",
-        "EV-PREVIEW-CUTOVER"
+        "EV-PREVIEW-CUTOVER",
+        "EV-RECORDING-LEASES"
       ]
     },
     {
@@ -1982,6 +1997,121 @@
           "equals": false
         }
       ]
+    },
+    {
+      "id": "EV-RECORDING-LEASES",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/recording-lineage/verification.json",
+      "sha256": "415b73c97e7ca6da76f96f96c990043c76a7264f6c2e16593dec6508ca7c1c72",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Historical source correspondence rule and Engine two-lease staging/provenance regression pass. New rendered full-workflow trials fail timing before staging; baseline clip ends. No runtime regression clearance.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "protocol_passed"
+          ],
+          "equals": 397
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_recording_passed"
+          ],
+          "equals": 4
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_successor_passed"
+          ],
+          "equals": 5
+        },
+        {
+          "pointer": [
+            "checks",
+            "two_native_leases_preserved_in_engine_candidate_provenance"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "epoch_seam_remains_unavailable"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "rendered_trials",
+            "new_full_rendered_multi_epoch_workflow_verified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "rendered_trials",
+            "runtime_regression_clearance"
+          ],
+          "equals": "NOT ESTABLISHED"
+        }
+      ]
+    },
+    {
+      "id": "EV-RECORDING-CHECKS",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/recording-lineage/build-verification.json",
+      "sha256": "72049f4d499df34e1ba38c2dbe19be5500743f305ef2971507c77c8ee37acadf",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Compilation and Protocol/Engine component checks only; runtime clearance not established",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "full_runtime_verified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "default_app_worker_build"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "protocol_passed"
+          ],
+          "equals": 397
+        }
+      ]
     }
   ],
   "external_inputs": [
@@ -2011,7 +2141,7 @@
     "After each meaningful task, update the existing JSON item, evidence and source observation; regenerate both views and run --check. Use --audit on the evidence host.",
     "Retain original failures and scope limitations when adding successful successor evidence. Mandatory model reviews remain suspended; independent required acceptance is unchanged."
   ],
-  "audit_boundary": "Current source builds and the ordinary browser-only cutover component passes native red/green and actual rendered40s continuation with unchanged limits. Primary broad Engine run failed20 absent external-fixture tests; all20 rerun successfully with host inputs, so clean-checkout portability remains open. Whole-playback assembly, broad faults and model/media/platform/device/human/release acceptance remain incomplete.",
+  "audit_boundary": "Historical recording correspondence repair passes Protocol and Engine integration tests while preserving all original bindings and gaps. New rendered trials fail before staging; baseline playback ends, so runtime regression clearance is not established. App/Worker compilation and scoped checks do not close browser, clean-checkout fixture, model/media/platform/device/human/release gates.",
   "product_surface": "Source already includes Desktop, CLI and a local browser client over one authenticated Engine; script/project editing, candidate review/commit/export, deterministic patterns, library/Stash controls, local assistant proposals and experimental browser capture. Handy inspection and guarded transport are implemented. Useful learned defaults, the rendered browser-to-device workflow and physical synchronization remain unqualified. See the [app guide](PULSAR_APP_QUICKSTART.md); the gate ledger below retains the remaining acceptance obligations.",
   "cross_milestone_obligations": "All explicit TEST scenarios, security/consent requirements, delivery/platform/vendor combinations, open-policy decisions and assurance obligations in the specification/execution plan remain required. A selected test subset cannot close the whole test matrix. Before closing a gate, retain exact subject identities, command/operation results, refusals and interruption outcomes, applicable rendered/native/media/device observations, unresolved failures and the required independent human/release authority. Missing evidence stays open."
 }

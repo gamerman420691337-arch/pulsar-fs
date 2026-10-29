@@ -72,7 +72,7 @@ pub fn assemble_live_recordings(
         }
         if !same_cpu_mode(page.cpu_manifest.as_deref(), root.cpu_manifest.as_deref())?
             || page.model_pack != root.model_pack
-            || page.browser_media != root.browser_media
+            || !same_recorded_media(page.browser_media.as_ref(), root.browser_media.as_ref())
             || page.source_time_basis != root.source_time_basis
             || page.engine_epoch != root.engine_epoch
             || page.identity.project != root.identity.project
@@ -178,6 +178,27 @@ pub fn assemble_live_recordings(
     })
 }
 
+fn same_recorded_media(
+    page: Option<&BrowserMediaBinding>,
+    root: Option<&BrowserMediaBinding>,
+) -> bool {
+    match (page, root) {
+        (None, None) => true,
+        (Some(page), Some(root)) => {
+            // Epochs may have independent, now-retired leases for the same
+            // imported bytes and declared mapping. This compares inert source
+            // correspondence only; each epoch's complete header stays immutable
+            // across its pages and every original binding remains in provenance.
+            page.engine_epoch == root.engine_epoch
+                && page.project_id == root.project_id
+                && page.revision == root.revision
+                && page.selection == root.selection
+                && page.clock == root.clock
+        }
+        _ => false,
+    }
+}
+
 fn same_cpu_mode(
     page: Option<&LiveCpuInferenceManifest>,
     root: Option<&LiveCpuInferenceManifest>,
@@ -222,6 +243,84 @@ mod tests {
         page.browser_media = Some(binding);
         page.validate().unwrap();
     }
+    #[test]
+    fn bound_epochs_assemble_across_distinct_leases_without_inventing_continuity() {
+        let mut first = page();
+        bind_page(&mut first);
+        let mut next = second(&first);
+        next.after = 0;
+        next.identity.epoch = AttemptId::new("continued-bound-epoch").unwrap();
+        next.recording_request_id = RequestId::new("continued-recording").unwrap();
+        next.clock.epoch = next.identity.epoch.clone();
+        next.clock.source_anchor = SourceTimestamp::new(1, 10).unwrap();
+        let binding = next.browser_media.as_ref().unwrap();
+        let exact = binding
+            .clock
+            .project_at(next.clock.source_anchor, &binding.selection.placement.spec)
+            .unwrap();
+        next.clock.project_anchor = exact.quantize_nanoseconds().unwrap().time;
+        next.clock.exact_project_anchor = Some(exact);
+        let LiveInferenceReply::Estimated {
+            identity, input, ..
+        } = &mut next.samples[0].result
+        else {
+            panic!("CPU fixture")
+        };
+        *identity = next.identity.clone();
+        input.pair.source_epoch = next.identity.epoch.clone();
+        input.pair.presentation_clock = Some(next.clock.clone());
+        let binding = next.browser_media.as_mut().unwrap();
+        binding.preparation_request_id = RequestId::new("continued-media-preparation").unwrap();
+        binding.lease_id = ArtifactId::new("continued-media-lease").unwrap();
+        binding.lease_ms = 777;
+        next.validate().unwrap();
+        let result =
+            assemble_live_recordings(&[first.clone(), next.clone()], range(), 100_000_000).unwrap();
+        assert_eq!(
+            result.recording_requests,
+            vec![
+                first.recording_request_id.clone(),
+                next.recording_request_id.clone()
+            ]
+        );
+        assert_eq!(result.program.tracks()[0].actions().len(), 2);
+        assert_eq!(result.program.tracks()[0].gaps().len(), 3);
+        for change in 0..3 {
+            let mut bad = next.clone();
+            let binding = bad.browser_media.as_mut().unwrap();
+            match change {
+                0 => {
+                    binding.selection.placement.placement_id =
+                        SourcePlacementId::new("other-placement").unwrap()
+                }
+                1 => {
+                    binding.selection.source.sha256 = "b".repeat(64);
+                    binding.selection.source.artifact_id = ArtifactId::new("b".repeat(64)).unwrap();
+                }
+                _ => {
+                    binding.clock.presentation_anchor = SourceTimestamp::new(1, 1_000_000).unwrap();
+                    bad.clock.source_anchor = SourceTimestamp::new(1, 1_000_000).unwrap();
+                    let exact = binding
+                        .clock
+                        .project_at(bad.clock.source_anchor, &binding.selection.placement.spec)
+                        .unwrap();
+                    bad.clock.project_anchor = exact.quantize_nanoseconds().unwrap().time;
+                    bad.clock.exact_project_anchor = Some(exact);
+                    let LiveInferenceReply::Estimated { input, .. } = &mut bad.samples[0].result
+                    else {
+                        panic!("CPU fixture")
+                    };
+                    input.pair.presentation_clock = Some(bad.clock.clone());
+                }
+            }
+            bad.validate().unwrap();
+            assert!(
+                assemble_live_recordings(&[first.clone(), bad], range(), 100_000_000).is_err(),
+                "changed source correspondence {change}"
+            );
+        }
+    }
+
     #[test]
     fn bound_recordings_preserve_exact_source_and_refuse_mixed_pages_and_continuations() {
         let mut first = page();

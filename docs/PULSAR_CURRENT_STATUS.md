@@ -6,7 +6,7 @@ The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue
 
 Reconciled **2026-10-28**. Roadmap **INCOMPLETE**; autonomous runner observation **paused**.
 
-**Working tree: VERIFIED.** Whole-playback recording assembly still refuses source/profile/captured-mode correspondence. External CUDA JSON unit fixtures remain nonportable. Earlier timeout failures retain separate unresolved causes.
+**Working tree: VERIFIED.** Rendered timing reliability and complete multi-epoch review/export are unresolved.146 single-epoch estimates stage with missing tail retained; no synthetic tail fill or export. External CUDA unit-fixture portability remains open.
 
 **Next: CPU-ROUNDTRIP — Prove complete CPU export/clone/restart/re-export/second-clone lifecycle.** Exit required: Actual confined CPU attempts retain exact inert history across two clones; no origin execution authority revives. Preceding reader refuses before mutation; processes, storage and memory release are verified.
 

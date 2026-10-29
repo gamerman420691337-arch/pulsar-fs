@@ -9,6 +9,8 @@ Launch the [local browser player](PULSAR_BROWSER_LIVE_PREVIEW.md) with an existi
 project and checked temporal model. Enable recording before playback, select a
 local video, play, then **Stop preview** and **Refresh recordings**.
 
+Source-bound continuation epochs may retain different preparation/lease IDs and durations. Historical conversion requires the same Engine boot, project/revision, source bytes, placement, declared clock, model/pack and captured CPU mode. It retains every original binding, checks full metadata within each epoch, and leaves epoch seams unavailable. This conversion grants no native lease or execution authority. The [current scoped receipt](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/recording-lineage/verification.json) passes Protocol/Engine integration tests; repeated new-executable timing failures leave the complete rendered workflow unverified.
+
 Select one stopped capture. **Stage selected playback** includes all retained
 continuation captures belonging to that playback. Enter the complete project
 range in seconds and an explicit maximum interpolation interval in milliseconds
