@@ -29,18 +29,58 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-CACHE-OWNERSHIP",
-    "scope": "Synchronous runtime-cache operations now explicitly unlock on checked completion and on owner-process error cleanup, so unrelated inherited descriptors cannot prolong a completed operation. A copied guard cleanup in a fork child does not unlock the active parent; a later owner remains excluded when the old child exits. Normal active-owner contention and all cache trust/integrity refusals remain. Native Linux fork/flock regression reproduces the old busy failure and passes with the fix;8 focused cache tests pass, including2 subprocess probes automatically invoked by default wrappers. Raw fork is isolated from the default test process. The foreign-native-registry fixture initializes both Engines before creating either original live timing input; lifetimes and identity assertions are unchanged. Final default Engine1894/0/114 ignored (2 helper registrations run by wrappers), strict lint and App/Worker build pass. Earlier timing failures/cutoffs remain retained, and their broader causes are not cleared. No model, platform, physical or human qualification.",
-    "active_work": "BROWSER-DEMO",
-    "failure_summary": "Runtime-cache ownership fix has native red-to-green proof; final default Engine1894/0/114 ignored,8 cache tests, strict lint and App/Worker build pass. Two helper registrations execute through default process-isolation wrappers. Earlier cache-busy/timing incidents, harness cutoffs and rendered transfer abort stay retained; all25 acceptance gates remain open.",
+    "evidence": "EV-FALLBACK-HISTORY-SNAPSHOT",
+    "scope": "Checked fallback/resume history is read once within the public JobAttempts transaction, bound to project/job and canonical attempt manifests, bounded to 128 attempts and 512KiB trace metadata, and returned as inert history. Fallback predecessors require failed state; resumed history accepts retained interruptions/pauses and legacy cancelled predecessors without allowing new resumes of cancelled attempts. Public grant revocation cancels only the current attempt and preserves consumed history. Six new tests and the final default Engine suite pass; strict Engine lint and default App/Worker build pass. Full live/browser and portable fallback namespaces remain incomplete and existing export refusals remain enabled. No model, physical or human qualification.",
+    "active_work": "LIVE-FALLBACK-HISTORY",
+    "failure_summary": "Current scoped software checks pass. Earlier cache/timing failures, rendered transfer abort, interrupted verification and linker failure remain retained. Full live/portable fallback support and all 25 acceptance gates remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
         "sha256": "27cde74f042f82caa954e77c3d9690d69b463984ed2d3dbdb2a221f9dd7811b2"
       },
       {
+        "path": "crates/pulsar-clients/src/browser_analysis_feed_tests.rs",
+        "sha256": "4ba178ac7f42b507d7e201f3faad7932e9552e6872262e2127566c447fffc6ee"
+      },
+      {
         "path": "crates/pulsar-clients/src/browser_captured_cpu_tests.rs",
         "sha256": "d80d73cc9fee461ca783e8d4b608e04970b127a32c0011da58ee81586aa5b373"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_live.html",
+        "sha256": "6619bf9f7eeeca81367cf9d3bdc10017593d2598a5a95328f5918d751bc4d1a4"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_live.rs",
+        "sha256": "a6fba519826c2f08527aa17d025d6f7d382568808055a9d9c4f1b3db09ebddd6"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_http.rs",
+        "sha256": "a814213f8521914176de3021faece02bca45895e7108afa52cd1487f38a7b206"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_http_tests.rs",
+        "sha256": "c4473e8223963f770be4569b91aa7d2c5d222666ba5aa297bcb7fa2ca3d9dca5"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_timing.rs",
+        "sha256": "89e8d6a7f4a6b1075d9c45bffd9482000bbf34d6a1f1cc09ee823fcceb53aba8"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_timing_native_tests.rs",
+        "sha256": "d8ddb59d0d1f9d3e5070f239565e805c72cfc150364d4570643eb379d76d65f1"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_timing_tests.rs",
+        "sha256": "0579b18bc7f8122581d55e1859c8e98e38c1fd5240f8f12ae60ceeca58df3c46"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_source_media.rs",
+        "sha256": "2a7417bb4f39598eafdf9ebdab87f5384255aeee3ac6edf26f5934f786ae6f7e"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_source_media_tests.rs",
+        "sha256": "cc1cf1bdadbaf4628c6792ddf4d44fe55bd38daa2639b672231d16f88f533fd9"
       },
       {
         "path": "crates/pulsar-clients/src/project_package_import.rs",
@@ -48,7 +88,15 @@
       },
       {
         "path": "crates/pulsar-engine/src/authority.rs",
-        "sha256": "255bb25879891a7e93bc7ac6d6d8329ff37277b4868da0157baa5fe6554b2c25"
+        "sha256": "54d28e8b6687aa08475ab53d256b096fa6ca741a1f09e52fb1274cc48629d32f"
+      },
+      {
+        "path": "crates/pulsar-engine/src/browser_media.rs",
+        "sha256": "4e1b2b36c87c0b26a4513bb1073861102ce340d644a5a7225761efa83b1de0f5"
+      },
+      {
+        "path": "crates/pulsar-engine/src/browser_timing.rs",
+        "sha256": "d2134a70ffa990860496792cf9d27db63f006bdd847eec15932ca4db3920d529"
       },
       {
         "path": "crates/pulsar-engine/src/confinement.rs",
@@ -71,8 +119,16 @@
         "sha256": "487c5ee00eb0f24ce63eeab750a502fd8f0c587fe0e77bd5638db58686766c9c"
       },
       {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_preparation_tests.rs",
+        "sha256": "0c6f03a72a00c8d0b6f5d4dc4fec1bc0b99b8d52635ffdfb5c184a302a700693"
+      },
+      {
         "path": "crates/pulsar-engine/src/engine_handy_hsp_source_qualification_tests.rs",
         "sha256": "eda25a12096b734a21d50b59a4249d3394f009518a87aba38339011111fa137a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_inference_fallback_tests.rs",
+        "sha256": "1235bbb157a1a38b3b21374f6a06db7cd7bc8bd86562b6b51b67caac26a9dbe8"
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_capture_basis_read_order_native_tests.rs",
@@ -81,6 +137,14 @@
       {
         "path": "crates/pulsar-engine/src/engine_live_capture_delivery_tests.rs",
         "sha256": "77784f8062df83ecc9e69a680de840d4b43f4ed5aa309a3684bccedde5f4dde0"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_capture_successor_tests.rs",
+        "sha256": "d21bcd7dc6e80a5652af1ed4c6a212306e61f7e4e44960b9c90e6c8809efe613"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
+        "sha256": "b54b1aece7946079629d969579a854533cff101797aea907f537702483e0d3bd"
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_cpu_native_tests.rs",
@@ -103,8 +167,16 @@
         "sha256": "02551b67eaaa1502e78a547b2bf1a8f5716f8a344825319525c9063e0cff9aaf"
       },
       {
+        "path": "crates/pulsar-engine/src/handy_hsp_preparation.rs",
+        "sha256": "5cb114d671ea9c325fb01c153612b891e0502c2a1e48ebe1b96ebec7b6987a6f"
+      },
+      {
         "path": "crates/pulsar-engine/src/handy_hsp_source_qualification.rs",
         "sha256": "3e457a747e16d3ecf6e0e59ca2585f006baf6de64013657c68935f6ddc7c62f9"
+      },
+      {
+        "path": "crates/pulsar-engine/src/inference_fallback_execution.rs",
+        "sha256": "07970bb9a218e8e1cf3ef67b750788a92f18277ea06d6691cb1928b68527d15e"
       },
       {
         "path": "crates/pulsar-engine/src/inference_fallback_reader.rs",
@@ -112,7 +184,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/inference_fallback_store.rs",
-        "sha256": "a29ccbdeb7e321c220e91af9efb38427ad8d9c281795a5a2b949c101e44fbae5"
+        "sha256": "23d9d07520af5c280ba04d5c8f5113a5067a27f8bb4025505b76592e8528c028"
       },
       {
         "path": "crates/pulsar-engine/src/lib.rs",
@@ -129,6 +201,10 @@
       {
         "path": "crates/pulsar-engine/src/live_capture_inference.rs",
         "sha256": "656ab41263ea0861239e9a1a256b05cf8d16e557e358f7ff2299fcfffa0e0975"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_successor.rs",
+        "sha256": "9c3d4b691dc50fe2178e96699e82b7bb2d366b594bbe328458184465663225b2"
       },
       {
         "path": "crates/pulsar-engine/src/live_captures.rs",
@@ -157,6 +233,10 @@
       {
         "path": "crates/pulsar-engine/src/live_cuda_capture_db.rs",
         "sha256": "c694066199bcae5a8a941895edfb033bf48301935b56681097a1bf08ba07581b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cuda_evidence.rs",
+        "sha256": "f955281390a04efeb25519a2a97535f19aefe1e0af64a90be3ad502c71501783"
       },
       {
         "path": "crates/pulsar-engine/src/live_cuda_evidence_db.rs",
@@ -199,6 +279,14 @@
         "sha256": "eb6ea6b11cb766adae00b47b83091bf2000dbb713dad899d1145dd3144872013"
       },
       {
+        "path": "crates/pulsar-engine/src/portable_wasm_db.rs",
+        "sha256": "7423d50b0862a47c6899a2cd03109103b89b34c4edb11cfaed731e03def13c22"
+      },
+      {
+        "path": "crates/pulsar-engine/src/project_package_exports.rs",
+        "sha256": "9a1aa7e674afcffa01fd4e1e34f7bdc32b28080ae83b6e3affe8da9b1bd8ee1b"
+      },
+      {
         "path": "crates/pulsar-engine/src/project_package_import_plan.rs",
         "sha256": "2e35e6aa8077f03698e1f6f55818495507b8742a4668f59c5645dd382823ed13"
       },
@@ -213,6 +301,14 @@
       {
         "path": "crates/pulsar-engine/src/project_packages.rs",
         "sha256": "dcb3a7e1da8fffaf2912706b4c65b799776e43cc79395ea09d922bb4e6e8e79b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/project_packages_native_cpu_support.rs",
+        "sha256": "543f3f0ab9f5d6283773628f3d121448bb707c11c0e407e1183071d24bcff881"
+      },
+      {
+        "path": "crates/pulsar-engine/src/runtime_first_use.rs",
+        "sha256": "230c647442575e1b4e1c661bb69cd5d2506f125fd138382b444cbd7cd000a9b8"
       },
       {
         "path": "crates/pulsar-engine/src/worker/annotated_portable_tests.rs",
@@ -237,6 +333,10 @@
       {
         "path": "crates/pulsar-engine/src/worker_retirement.rs",
         "sha256": "607128f0a6013bac1e14779116d8f4dd385013b5ea8e71c0d5d779d06fa4f27d"
+      },
+      {
+        "path": "crates/pulsar-engine/tests/fixtures/authored-live-cuda-manifest.json",
+        "sha256": "920dee2fba07f6bdd8b693eae335ac01bf188306d7426f43d432524dfdb0ffee"
       },
       {
         "path": "crates/pulsar-protocol/src/browser_analysis.rs",
@@ -275,6 +375,10 @@
         "sha256": "23bc169fe03de5774e4ae56adf96b4f79ba13ca43db9e0d995d057e885c6eec9"
       },
       {
+        "path": "crates/pulsar-protocol/src/live_recording_assembly.rs",
+        "sha256": "0ae1be3e17b4e9a0d995862d2d112f920ef41ab30bf6c9cf037c9568de63c0f3"
+      },
+      {
         "path": "crates/pulsar-protocol/src/project_package.rs",
         "sha256": "74ffee22863aec8881e37db7e301bec583fdc20eeb6ad7a3cd5c637d071774af"
       },
@@ -291,108 +395,12 @@
         "sha256": "eb141fb78cd383b3fb7a0396ee11543294d4cabc65178b319e6b45539f10d541"
       },
       {
-        "path": "crates/pulsar-clients/src/browser_live.rs",
-        "sha256": "a6fba519826c2f08527aa17d025d6f7d382568808055a9d9c4f1b3db09ebddd6"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_analysis_feed_tests.rs",
-        "sha256": "4ba178ac7f42b507d7e201f3faad7932e9552e6872262e2127566c447fffc6ee"
-      },
-      {
-        "path": "crates/pulsar-engine/src/browser_media.rs",
-        "sha256": "4e1b2b36c87c0b26a4513bb1073861102ce340d644a5a7225761efa83b1de0f5"
-      },
-      {
-        "path": "crates/pulsar-engine/src/browser_timing.rs",
-        "sha256": "d2134a70ffa990860496792cf9d27db63f006bdd847eec15932ca4db3920d529"
-      },
-      {
-        "path": "crates/pulsar-engine/src/live_capture_successor.rs",
-        "sha256": "9c3d4b691dc50fe2178e96699e82b7bb2d366b594bbe328458184465663225b2"
-      },
-      {
-        "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
-        "sha256": "b54b1aece7946079629d969579a854533cff101797aea907f537702483e0d3bd"
-      },
-      {
-        "path": "crates/pulsar-protocol/src/live_recording_assembly.rs",
-        "sha256": "0ae1be3e17b4e9a0d995862d2d112f920ef41ab30bf6c9cf037c9568de63c0f3"
-      },
-      {
-        "path": "crates/pulsar-engine/src/engine_live_capture_successor_tests.rs",
-        "sha256": "d21bcd7dc6e80a5652af1ed4c6a212306e61f7e4e44960b9c90e6c8809efe613"
-      },
-      {
-        "path": "crates/pulsar-engine/src/live_cuda_evidence.rs",
-        "sha256": "f955281390a04efeb25519a2a97535f19aefe1e0af64a90be3ad502c71501783"
-      },
-      {
-        "path": "crates/pulsar-engine/tests/fixtures/authored-live-cuda-manifest.json",
-        "sha256": "920dee2fba07f6bdd8b693eae335ac01bf188306d7426f43d432524dfdb0ffee"
-      },
-      {
-        "path": "crates/pulsar-engine/src/handy_hsp_preparation.rs",
-        "sha256": "5cb114d671ea9c325fb01c153612b891e0502c2a1e48ebe1b96ebec7b6987a6f"
-      },
-      {
-        "path": "crates/pulsar-engine/src/engine_handy_hsp_preparation_tests.rs",
-        "sha256": "0c6f03a72a00c8d0b6f5d4dc4fec1bc0b99b8d52635ffdfb5c184a302a700693"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_source_media.rs",
-        "sha256": "2a7417bb4f39598eafdf9ebdab87f5384255aeee3ac6edf26f5934f786ae6f7e"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_source_media_tests.rs",
-        "sha256": "cc1cf1bdadbaf4628c6792ddf4d44fe55bd38daa2639b672231d16f88f533fd9"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_player_timing.rs",
-        "sha256": "89e8d6a7f4a6b1075d9c45bffd9482000bbf34d6a1f1cc09ee823fcceb53aba8"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_player_timing_tests.rs",
-        "sha256": "0579b18bc7f8122581d55e1859c8e98e38c1fd5240f8f12ae60ceeca58df3c46"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_live.html",
-        "sha256": "6619bf9f7eeeca81367cf9d3bdc10017593d2598a5a95328f5918d751bc4d1a4"
-      },
-      {
-        "path": "scripts/browser-live-player.test.mjs",
-        "sha256": "652e9b5050929167a3862b20c914a3804c2ee65a01c22fb1889836690ec5a219"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_player_http.rs",
-        "sha256": "a814213f8521914176de3021faece02bca45895e7108afa52cd1487f38a7b206"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_player_http_tests.rs",
-        "sha256": "c4473e8223963f770be4569b91aa7d2c5d222666ba5aa297bcb7fa2ca3d9dca5"
-      },
-      {
         "path": "docs/PULSAR_APP_QUICKSTART.md",
         "sha256": "270008fb720c184fffd38aef3696741d706ce44895b7e32d76d2c4e708813caa"
       },
       {
-        "path": "crates/pulsar-engine/src/portable_wasm_db.rs",
-        "sha256": "7423d50b0862a47c6899a2cd03109103b89b34c4edb11cfaed731e03def13c22"
-      },
-      {
-        "path": "crates/pulsar-engine/src/project_package_exports.rs",
-        "sha256": "9a1aa7e674afcffa01fd4e1e34f7bdc32b28080ae83b6e3affe8da9b1bd8ee1b"
-      },
-      {
-        "path": "crates/pulsar-engine/src/project_packages_native_cpu_support.rs",
-        "sha256": "543f3f0ab9f5d6283773628f3d121448bb707c11c0e407e1183071d24bcff881"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_player_timing_native_tests.rs",
-        "sha256": "d8ddb59d0d1f9d3e5070f239565e805c72cfc150364d4570643eb379d76d65f1"
-      },
-      {
-        "path": "crates/pulsar-engine/src/runtime_first_use.rs",
-        "sha256": "230c647442575e1b4e1c661bb69cd5d2506f125fd138382b444cbd7cd000a9b8"
+        "path": "scripts/browser-live-player.test.mjs",
+        "sha256": "652e9b5050929167a3862b20c914a3804c2ee65a01c22fb1889836690ec5a219"
       }
     ]
   },
@@ -400,19 +408,20 @@
     "evidence": [
       "EV-RECORDING-CHECKS",
       "EV-TIMING-RETIREMENT",
-      "EV-CACHE-OWNERSHIP"
+      "EV-CACHE-OWNERSHIP",
+      "EV-FALLBACK-HISTORY-SNAPSHOT"
     ],
-    "scope": "Current cache ownership/default-thread Engine checkpoint:1894 passed/114 ignored;2 subprocess-only helpers are exercised by default wrappers. Lint/build pass. Earlier timing failures/cutoffs remain unresolved. Client702/15 ignored and Protocol397 retain their separate pinned checkpoints; no browser/model/device/human clearance.",
+    "scope": "Final default Engine1900/0/114 ignored;50 focused fallback tests/0 failed/2 ignored, strict Engine lint and App/Worker build pass. Client702/15 ignored and Protocol397 remain separately pinned. Full live/portable fallback support, prior browser reliability incidents and all25 acceptance gates remain open.",
     "metric_refs": {
       "engine_passed": {
-        "evidence": "EV-CACHE-OWNERSHIP",
+        "evidence": "EV-FALLBACK-HISTORY-SNAPSHOT",
         "pointer": [
           "checks",
           "engine_passed"
         ]
       },
       "engine_ignored": {
-        "evidence": "EV-CACHE-OWNERSHIP",
+        "evidence": "EV-FALLBACK-HISTORY-SNAPSHOT",
         "pointer": [
           "checks",
           "engine_ignored"
@@ -1175,6 +1184,19 @@
       "evidence": [
         "EV-CACHE-OWNERSHIP"
       ]
+    },
+    {
+      "id": "SC-FALLBACK-HISTORY-SNAPSHOT",
+      "title": "Transaction-bound inert fallback history and current-attempt revocation",
+      "parents": [
+        "M3-MODELS",
+        "M5-LIVE",
+        "M2-INTERCHANGE"
+      ],
+      "scope": "Checked fallback/resume history is read once within the public JobAttempts transaction, bound to project/job and canonical attempt manifests, bounded to 128 attempts and 512KiB trace metadata, and returned as inert history. Fallback predecessors require failed state; resumed history accepts retained interruptions/pauses and legacy cancelled predecessors without allowing new resumes of cancelled attempts. Public grant revocation cancels only the current attempt and preserves consumed history. Six new tests and the final default Engine suite pass; strict Engine lint and default App/Worker build pass. Full live/browser and portable fallback namespaces remain incomplete and existing export refusals remain enabled. No model, physical or human qualification.",
+      "evidence": [
+        "EV-FALLBACK-HISTORY-SNAPSHOT"
+      ]
     }
   ],
   "queue": [
@@ -1355,13 +1377,15 @@
         "M5-LIVE",
         "M2-INTERCHANGE"
       ],
-      "state": "planned",
+      "state": "in_progress",
       "owner": "Codex",
       "depends_on": [
         "CPU-ROUNDTRIP"
       ],
       "exit": "Implement the full retained fallback/live namespaces and authority/expiry/withdrawal behavior through actual consumers. Existing refusals remain until complete correspondence exists.",
-      "evidence": []
+      "evidence": [
+        "EV-FALLBACK-HISTORY-SNAPSHOT"
+      ]
     },
     {
       "id": "DELIVERY-MODALITIES",
@@ -4424,6 +4448,50 @@
             "failed"
           ],
           "equals": 2
+        }
+      ]
+    },
+    {
+      "id": "EV-FALLBACK-HISTORY-SNAPSHOT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/fallback-history/verification.json",
+      "sha256": "c4f1274e4a995ccf8fcf52fdb1a472b2cd0b99dd391c52fd1c0ccdffdf21b756",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Checked fallback/resume history is read once within the public JobAttempts transaction, bound to project/job and canonical attempt manifests, bounded to 128 attempts and 512KiB trace metadata, and returned as inert history. Fallback predecessors require failed state; resumed history accepts retained interruptions/pauses and legacy cancelled predecessors without allowing new resumes of cancelled attempts. Public grant revocation cancels only the current attempt and preserves consumed history. Six new tests and the final default Engine suite pass; strict Engine lint and default App/Worker build pass. Full live/browser and portable fallback namespaces remain incomplete and existing export refusals remain enabled. No model, physical or human qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_passed"
+          ],
+          "equals": 1900
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "portable_and_live_namespaces_complete"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_ignored"
+          ],
+          "equals": 114
         }
       ]
     }

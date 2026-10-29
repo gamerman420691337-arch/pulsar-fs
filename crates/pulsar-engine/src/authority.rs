@@ -2811,13 +2811,15 @@ impl Engine {
                 after_attempt,
                 limit,
             } => {
+                let history =
+                    inference_fallback_store::history_snapshot(&tx, project(request)?, job_id)?;
                 ResponseBody::JobAttempts(Box::new(crate::job_attempt_history::page_with_fallback(
                     &tx,
                     project(request)?,
                     job_id,
                     after_attempt.as_ref(),
                     *limit,
-                    |manifest| self.fallback_history_trace(&tx, manifest),
+                    |manifest| history.trace_for(manifest),
                 )?))
             }
             Command::CancelJob { job_id } => {
@@ -3005,7 +3007,7 @@ impl Engine {
                     .map_err(internal)?;
                 for job in ids {
                     tx.execute("UPDATE jobs SET state='cancelled',error='authorizing grant revoked' WHERE id=?1",[&job]).map_err(internal)?;
-                    tx.execute("UPDATE attempts SET state='cancelled' WHERE job=?1 AND state IN ('queued','running','assistant_paused')",[&job]).map_err(internal)?;
+                    tx.execute("UPDATE attempts SET state='cancelled' WHERE id=(SELECT attempt FROM jobs WHERE id=?1) AND state IN ('queued','running','interrupted','assistant_paused')",[&job]).map_err(internal)?;
                     inference_fallback_store::clear_pending(
                         &tx,
                         &JobId::new(job.clone()).map_err(internal)?,

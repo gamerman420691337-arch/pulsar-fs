@@ -432,6 +432,129 @@ mod inference_fallback_controller {
     }
 
     #[test]
+    fn public_revoke_cancels_only_the_current_attempt_and_preserves_resume_history() {
+        let f = fixture();
+        let previous = seed_fallback(&f);
+        let mut next = previous.clone();
+        next.attempt_id = id!(AttemptId);
+        next.output_dir = previous
+            .output_dir
+            .parent()
+            .unwrap()
+            .join(next.attempt_id.as_str());
+        next.validate().unwrap();
+        {
+            let mut db = f.engine.db.lock().unwrap();
+            let mut admission = store::retained(&db, &previous).unwrap().unwrap().admission;
+            admission.kind = FallbackAdmissionKind::Resume;
+            admission.predecessor = Some(previous.attempt_id.clone());
+            admission.admitted_at_unix_ms += 1;
+            let tx = db.transaction().unwrap();
+            tx.execute(
+                "UPDATE attempts SET state='assistant_paused' WHERE id=?1",
+                [previous.attempt_id.as_str()],
+            )
+            .unwrap();
+            let raw = encode(&next).unwrap();
+            tx.execute(
+                "INSERT INTO attempts(id,job,manifest,state) VALUES(?1,?2,?3,'queued')",
+                params![next.attempt_id.as_str(), next.job_id.as_str(), raw],
+            )
+            .unwrap();
+            tx.execute("UPDATE jobs SET attempt=?1,manifest=?2,state='queued',attempts=attempts+1 WHERE id=?3",
+                params![next.attempt_id.as_str(),raw,next.job_id.as_str()]).unwrap();
+            store::record_resume(&tx, &previous, &next, &admission).unwrap();
+            tx.commit().unwrap();
+        }
+        let admin = pair(&f.engine, "resume history grant administrator");
+        f.engine
+            .handle(request(
+                &f.session,
+                None,
+                None,
+                Command::Grant {
+                    session: admin.clone(),
+                    project_id: f.project.clone(),
+                    scopes: vec![Scope::Read, Scope::ManageGrants],
+                },
+            ))
+            .result
+            .unwrap();
+        f.engine
+            .handle(request(
+                &admin,
+                None,
+                None,
+                Command::Revoke {
+                    session: f.session.clone(),
+                    project_id: f.project.clone(),
+                },
+            ))
+            .result
+            .unwrap();
+        assert_eq!(status(&f.engine, &admin, &next).state, "cancelled");
+        let db = f.engine.db.lock().unwrap();
+        let state: String = db
+            .query_row(
+                "SELECT state FROM attempts WHERE id=?1",
+                [previous.attempt_id.as_str()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            state, "assistant_paused",
+            "revocation must not rewrite a consumed historical pause"
+        );
+        let current: String = db
+            .query_row(
+                "SELECT state FROM attempts WHERE id=?1",
+                [next.attempt_id.as_str()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(current, "cancelled");
+        store::validate(&db).unwrap();
+        assert!(store::retained(&db, &next).unwrap().is_some());
+        drop(db);
+        let ResponseBody::JobAttempts(page) = f
+            .engine
+            .handle(request(
+                &admin,
+                Some(&f.project),
+                None,
+                Command::JobAttempts {
+                    job_id: next.job_id.clone(),
+                    after_attempt: None,
+                    limit: 16,
+                },
+            ))
+            .result
+            .unwrap()
+        else {
+            panic!("attempt history")
+        };
+        page.validate().unwrap();
+        assert!(page.history_only);
+        assert_eq!(page.current_attempt, next.attempt_id);
+        assert_eq!(page.attempts.len(), 2);
+        let prior = page
+            .attempts
+            .iter()
+            .find(|a| a.attempt_id == previous.attempt_id)
+            .unwrap();
+        assert_eq!(prior.state, "assistant_paused");
+        let resumed = page
+            .attempts
+            .iter()
+            .find(|a| a.attempt_id == next.attempt_id)
+            .unwrap();
+        let trace = resumed.fallback.as_ref().unwrap();
+        assert!(trace.history_only);
+        assert_eq!(trace.predecessor, Some(previous.attempt_id));
+        assert!(matches!(trace.kind, JobAttemptFallbackKind::Resume));
+    }
+
+    #[test]
     fn public_revoke_then_regrant_cannot_restore_pending_fallback() {
         let f = fixture();
         let manifest = seed_pending(&f);
