@@ -8,6 +8,43 @@ pub struct PreparedRuntime {
     pub reused: bool,
 }
 
+/// Cache preparation is owned by this synchronous operation, not by unrelated
+/// children that happen to inherit its descriptor during fork-to-exec.
+struct CacheLock {
+    file: File,
+    owner_pid: libc::pid_t,
+    released: bool,
+}
+impl CacheLock {
+    fn release(mut self) -> Result<()> {
+        ensure!(
+            self.owner_pid == unsafe { libc::getpid() },
+            "runtime cache lock belongs to its original process"
+        );
+        fs2::FileExt::unlock(&self.file).context("runtime cache lock release is unconfirmed")?;
+        self.released = true;
+        Ok(())
+    }
+    fn unlock_on_drop(&self) {
+        if !self.released && self.owner_pid == unsafe { libc::getpid() } {
+            // A copied guard in a fork child never owns the parent's operation.
+            let _ = fs2::FileExt::unlock(&self.file);
+        }
+    }
+}
+impl Drop for CacheLock {
+    fn drop(&mut self) {
+        // Error paths cannot publish a prepared runtime. Unlock explicitly
+        // before closing; close alone may leave a forked alias holding it.
+        self.unlock_on_drop();
+    }
+}
+impl AsRawFd for CacheLock {
+    fn as_raw_fd(&self) -> std::os::fd::RawFd {
+        self.file.as_raw_fd()
+    }
+}
+
 /// Install once into a manifest-addressed private directory, then verify every
 /// cached byte before launch. Never replace or delete a cache entry.
 pub fn prepare_runtime_launch(source: &Path, cache_root: &Path) -> Result<PreparedRuntime> {
@@ -18,7 +55,7 @@ pub fn prepare_runtime_launch(source: &Path, cache_root: &Path) -> Result<Prepar
     let (_, bytes, manifest) = archive::Input::open(source)?;
     let hash = format!("{:x}", Sha256::digest(&bytes));
     let cache = open_cache(cache_root, true)?;
-    let _lock = lock_cache(&cache, true)?;
+    let lock = lock_cache(&cache, true)?;
     let destination = cache_root.join(&hash);
     let anchored = PathBuf::from(format!("/proc/self/fd/{}", cache.as_raw_fd())).join(&hash);
     let reused = match std::fs::symlink_metadata(&anchored) {
@@ -42,11 +79,13 @@ pub fn prepare_runtime_launch(source: &Path, cache_root: &Path) -> Result<Prepar
         path_meta.dev() == held_meta.dev() && path_meta.ino() == held_meta.ino(),
         "runtime cache entry changed during verification"
     );
-    Ok(PreparedRuntime {
+    let prepared = PreparedRuntime {
         directory: destination,
         manifest_sha256: hash,
         reused,
-    })
+    };
+    lock.release()?;
+    Ok(prepared)
 }
 
 /// Verify an explicitly selected retained runtime without its supplier bundle.
@@ -91,7 +130,7 @@ fn with_cached_runtime<T>(
         "cached runtime identity must be 64 lowercase hexadecimal characters"
     );
     let cache = open_cache(cache_root, false)?;
-    let _lock = lock_cache(&cache, false)?;
+    let lock = lock_cache(&cache, false)?;
     let installed = child(&cache, std::ffi::OsStr::new(manifest_sha256), true)?;
     let (bytes, manifest) = super::manifest(&installed)?;
     manifest.validate()?;
@@ -103,10 +142,12 @@ fn with_cached_runtime<T>(
     ensure_same_directory(cache_root, &cache)?;
     let destination = cache_root.join(manifest_sha256);
     ensure_same_directory(&destination, &installed)?;
-    finish(&destination, &manifest)
+    let result = finish(&destination, &manifest)?;
+    lock.release()?;
+    Ok(result)
 }
 
-fn lock_cache(cache: &File, create: bool) -> Result<File> {
+fn lock_cache(cache: &File, create: bool) -> Result<CacheLock> {
     let lock_name = std::ffi::OsStr::new(".pulsar-runtime-cache.lock");
     let lock_path = PathBuf::from(format!("/proc/self/fd/{}", cache.as_raw_fd())).join(lock_name);
     let (lock, created) = match std::fs::OpenOptions::new()
@@ -144,7 +185,11 @@ fn lock_cache(cache: &File, create: bool) -> Result<File> {
     );
     fs2::FileExt::try_lock_exclusive(&lock)
         .context("runtime cache preparation is busy; retry after the current preparation")?;
-    Ok(lock)
+    Ok(CacheLock {
+        file: lock,
+        owner_pid: unsafe { libc::getpid() },
+        released: false,
+    })
 }
 
 fn ensure_same_directory(path: &Path, held: &File) -> Result<()> {
@@ -358,6 +403,243 @@ fn check_file(root: &File, path: &str, limit: u64, mode: u32, device: u64) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct InheritedCacheChild {
+        pid: libc::pid_t,
+        socket: std::os::unix::net::UnixStream,
+    }
+    impl InheritedCacheChild {
+        fn hold(lease: &CacheLock) -> Self {
+            let fd = lease.as_raw_fd();
+            let (mut parent, child) = std::os::unix::net::UnixStream::pair().unwrap();
+            let mut keep = [fd, child.as_raw_fd()];
+            keep.sort_unstable();
+            assert!(keep[0] >= 3 && keep[0] != keep[1]);
+            let owner = unsafe { libc::getpid() };
+            let pid = unsafe { libc::fork() };
+            assert!(pid >= 0);
+            if pid == 0 {
+                // Only async-signal-safe syscalls after multithreaded fork.
+                // Do not retain any other test's locks, leases or sockets.
+                unsafe {
+                    if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL) != 0
+                        || libc::getppid() != owner
+                    {
+                        libc::_exit(120);
+                    }
+                    let mut start = 3u32;
+                    for kept in keep {
+                        if start < kept as u32
+                            && libc::syscall(libc::SYS_close_range, start, kept as u32 - 1, 0u32)
+                                != 0
+                        {
+                            libc::_exit(121);
+                        }
+                        start = kept as u32 + 1;
+                    }
+                    if libc::syscall(libc::SYS_close_range, start, u32::MAX, 0u32) != 0 {
+                        libc::_exit(122);
+                    }
+                    // The foreign-owner branch only reads PID/local state. If
+                    // it wrongly unlocks, the parent's active-owner assertion fails.
+                    lease.unlock_on_drop();
+                    if libc::write(child.as_raw_fd(), b"R".as_ptr().cast(), 1) != 1 {
+                        libc::_exit(123);
+                    }
+                    let mut byte = 0u8;
+                    let n = libc::read(child.as_raw_fd(), (&mut byte as *mut u8).cast(), 1);
+                    libc::_exit(if n == 1 && byte == b'X' { 0 } else { 124 });
+                }
+            }
+            let mut held = Self {
+                pid,
+                socket: parent.try_clone().unwrap(),
+            };
+            drop(child);
+            parent
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .unwrap();
+            let mut ready = [0];
+            parent.read_exact(&mut ready).unwrap();
+            assert_eq!(&ready, b"R");
+            held.socket = parent;
+            held
+        }
+        fn finish(mut self) {
+            self.socket.write_all(b"X").unwrap();
+            let end = Instant::now() + Duration::from_secs(3);
+            let mut status = 0;
+            loop {
+                let observed = unsafe { libc::waitpid(self.pid, &mut status, libc::WNOHANG) };
+                if observed == self.pid {
+                    break;
+                }
+                assert_eq!(observed, 0);
+                assert!(Instant::now() < end, "owned cache child did not exit");
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            self.pid = 0;
+            assert!(libc::WIFEXITED(status) && libc::WEXITSTATUS(status) == 0);
+        }
+    }
+    impl Drop for InheritedCacheChild {
+        fn drop(&mut self) {
+            if self.pid > 0 {
+                unsafe {
+                    libc::kill(self.pid, libc::SIGKILL);
+                    libc::waitpid(self.pid, std::ptr::null_mut(), 0);
+                }
+            }
+        }
+    }
+
+    struct CacheProbeProcess {
+        child: std::process::Child,
+        reaped: bool,
+    }
+    impl Drop for CacheProbeProcess {
+        fn drop(&mut self) {
+            if !self.reaped {
+                let _ = self.child.kill();
+                let _ = self.child.wait();
+            }
+        }
+    }
+    fn isolated_cache_probe(name: &str) {
+        let log = tempfile::NamedTempFile::new().unwrap();
+        let mut process = CacheProbeProcess {
+            child: std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    &format!("runtime_install::first_use::tests::{name}"),
+                    "--ignored",
+                    "--test-threads=1",
+                ])
+                .env(
+                    "PULSAR_CACHE_PROBE_PARENT_PID",
+                    std::process::id().to_string(),
+                )
+                .stdin(std::process::Stdio::null())
+                .stdout(log.as_file().try_clone().unwrap())
+                .stderr(log.as_file().try_clone().unwrap())
+                .spawn()
+                .unwrap(),
+            reaped: false,
+        };
+        let end = Instant::now() + Duration::from_secs(20);
+        let status = loop {
+            if let Some(status) = process.child.try_wait().unwrap() {
+                process.reaped = true;
+                break status;
+            }
+            assert!(
+                Instant::now() < end,
+                "isolated cache probe {name} exceeded its harness budget"
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        };
+        let mut output = String::new();
+        File::open(log.path())
+            .unwrap()
+            .take(64 * 1024)
+            .read_to_string(&mut output)
+            .unwrap();
+        assert!(
+            status.success() && output.contains(name) && output.contains("1 passed; 0 failed"),
+            "isolated cache probe {name} did not pass: {status}; {output}"
+        );
+    }
+    fn bind_cache_probe_parent() {
+        let parent: libc::pid_t = std::env::var("PULSAR_CACHE_PROBE_PARENT_PID")
+            .expect("run native cache probes through their isolation wrapper")
+            .parse()
+            .unwrap();
+        assert_eq!(
+            unsafe { libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL) },
+            0
+        );
+        assert_eq!(unsafe { libc::getppid() }, parent);
+    }
+
+    #[test]
+    fn completed_cache_lease_releases_while_fork_child_holds_its_descriptor() {
+        isolated_cache_probe("completed_cache_lease_native_process");
+    }
+    #[test]
+    #[ignore = "subprocess-only; the default wrapper runs this in an isolated process"]
+    fn completed_cache_lease_native_process() {
+        bind_cache_probe_parent();
+        let root = tempfile::tempdir().unwrap();
+        let source = super::super::tests::fixture(root.path());
+        let path = root.path().join("cache");
+        let installed = prepare_runtime_launch(&source, &path).unwrap();
+        let cache = open_cache(&path, false).unwrap();
+        let lease = lock_cache(&cache, false).unwrap();
+        let child = InheritedCacheChild::hold(&lease);
+        let busy = prepare_cached_runtime(&path, &installed.manifest_sha256)
+            .err()
+            .unwrap();
+        assert_eq!(
+            busy.downcast_ref::<std::io::Error>().unwrap().kind(),
+            std::io::ErrorKind::WouldBlock,
+            "an active owner must still exclude reuse"
+        );
+        drop(lease);
+        let result = prepare_cached_runtime(&path, &installed.manifest_sha256);
+        let mut status = 0;
+        assert_eq!(
+            unsafe { libc::waitpid(child.pid, &mut status, libc::WNOHANG) },
+            0,
+            "child must still hold the inherited descriptor during reuse"
+        );
+        child.finish();
+        assert!(
+            prepare_cached_runtime(&path, &installed.manifest_sha256)
+                .unwrap()
+                .reused,
+            "child exit must eliminate inherited-descriptor contention"
+        );
+        assert!(
+            result.is_ok(),
+            "completed owner must release custody despite an inherited descriptor: {:?}",
+            result.as_ref().err().map(|error| format!("{error:#}"))
+        );
+        assert!(result.unwrap().reused);
+    }
+    #[test]
+    fn explicit_cache_release_preserves_the_next_owner_when_old_child_exits() {
+        isolated_cache_probe("explicit_cache_release_native_process");
+    }
+    #[test]
+    #[ignore = "subprocess-only; the default wrapper runs this in an isolated process"]
+    fn explicit_cache_release_native_process() {
+        bind_cache_probe_parent();
+        let root = tempfile::tempdir().unwrap();
+        let source = super::super::tests::fixture(root.path());
+        let path = root.path().join("cache");
+        let installed = prepare_runtime_launch(&source, &path).unwrap();
+        let cache = open_cache(&path, false).unwrap();
+        let lease = lock_cache(&cache, false).unwrap();
+        let child = InheritedCacheChild::hold(&lease);
+        lease.release().unwrap();
+        let next = lock_cache(&cache, false).unwrap();
+        child.finish();
+        let busy = prepare_cached_runtime(&path, &installed.manifest_sha256)
+            .err()
+            .unwrap();
+        assert_eq!(
+            busy.downcast_ref::<std::io::Error>().unwrap().kind(),
+            std::io::ErrorKind::WouldBlock,
+            "closing an old inherited descriptor must not release a later owner"
+        );
+        next.release().unwrap();
+        assert!(
+            prepare_cached_runtime(&path, &installed.manifest_sha256)
+                .unwrap()
+                .reused
+        );
+    }
+
     #[test]
     fn explicit_return_survives_failed_update_and_missing_supplier() {
         let root = tempfile::tempdir().unwrap();

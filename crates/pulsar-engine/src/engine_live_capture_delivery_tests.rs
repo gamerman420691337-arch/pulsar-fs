@@ -20,7 +20,9 @@ mod live_capture_delivery_tests {
         delivery_fixture_declared(true)
     }
     fn delivery_fixture_declared(declared: bool) -> DeliveryFixture {
-        let f = fixture();
+        delivery_fixture_from(fixture(), declared)
+    }
+    fn delivery_fixture_from(f: Fixture, declared: bool) -> DeliveryFixture {
         let path = f.dir.path().join("native-delivery-source.bin");
         fs::write(&path, b"authored byte-bound delivery fixture").unwrap();
         let ResponseBody::Source { source_version } = f
@@ -1134,8 +1136,12 @@ mod live_capture_delivery_tests {
 
     #[test]
     fn live_native_claimed_snapshot_rejects_foreign_native_registry_claim() {
-        let x = delivery_fixture();
-        let other = delivery_fixture();
+        // Engine startup is metadata setup, not part of the live identity
+        // assertion. Open both before either original timing lease starts.
+        let first = fixture();
+        let second = fixture();
+        let x = delivery_fixture_from(first, true);
+        let other = delivery_fixture_from(second, true);
         let sink = TestSink::new(&x, false);
         let other_sink = TestSink::new(&other, false);
         let subscription = x.subscribe(sink.clone());
