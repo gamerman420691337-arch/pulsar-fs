@@ -952,6 +952,9 @@ mod inference_fallback_native_tests {
                 "active barrier did not bind real successor progress"
             );
             active_successor = Some(barrier.manifest().clone());
+            if mode == "archive_interruption" {
+                return native_fallback_interruption_rendezvous(engine, &input, &barrier);
+            }
             let trigger = match mode {
                 "active_cancel" => {
                     call(
@@ -1197,4 +1200,5 @@ mod inference_fallback_native_tests {
     }
 
     include!("engine_inference_fallback_archive_native_tests.rs");
+    include!("engine_inference_fallback_interruption_native_tests.rs");
 }

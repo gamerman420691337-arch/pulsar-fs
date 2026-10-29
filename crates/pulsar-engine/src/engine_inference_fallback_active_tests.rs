@@ -14,6 +14,7 @@ fn active_mode(mode: &str) -> bool {
             | "active_expiry"
             | "active_dossier_expiry"
             | "pack_withdraw_active"
+            | "archive_interruption"
     )
 }
 fn active_wall_ms() -> Result<u64> {

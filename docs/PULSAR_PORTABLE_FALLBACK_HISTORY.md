@@ -87,10 +87,31 @@ Eligibility and primary provider absence in this campaign remain explicitly
 simulated. The exported evaluation/decision records are authored software-test
 shapes, not genuine measurements or human approvals. The actual neutral-model
 CPU execution proves software custody and archival behavior only. This native
-campaign does not repeat the preceding-App probe; the cold reader-41 result
-above retains its original authored-metadata scope. Captured-running and
-process-interrupted fallback histories, remaining corruption/resource/fault
-cases and browser/live fallback still require evidence.
+campaign now also captures a real successor while its confined CPU group is
+held after at least 16 analysed samples. The original 60-second attempt budget
+and accepted-record lifetime remain unchanged. The running archive completes
+its clone checks before that admission expires. A parent pins the original
+Engine and worker process identities, kills the separate Engine process with
+`SIGKILL`, thaws only the held group and reopens the same database through normal
+recovery. The original target becomes interrupted; no successor, candidate or
+pending intent is created. The interrupted archive then passes the same two
+clone/restart/re-export consumer. No database state is rewritten by the test to
+manufacture running or interrupted history.
+
+The child passes its session credential through an anonymous socket in memory;
+neither the rendezvous nor the credential is written to the campaign receipt.
+The socket is close-on-exec before generation starts, and does not pass to
+workers or preceding readers. Failed runs leave child storage for the host
+supervisor to remove only after joining descendants.
+
+All five native archive lifecycles (completed, cancelled, withdrawn, running
+and interrupted) now repeat the cold reader-41 check on both clones: ten
+preceding-App refusals preserve observed file inventory, modes and contents.
+The campaign confirms original process exit through held pidfds, retirement
+of execution custody and removal of its private databases and scratch.
+Remaining corruption/resource/fault cases, broad hot-WAL behavior and
+browser/live fallback still require evidence. Scientific, real-media,
+platform, physical and human acceptance remain separate open gates.
 
 An initial native probe found that the pinned preceding executable rejects
 reader 40 without changing existing files, but creates an empty daemon lock

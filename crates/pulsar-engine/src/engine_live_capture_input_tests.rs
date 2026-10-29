@@ -21,8 +21,7 @@ mod input_close_tests {
         }
         fn unlocked(&self) {
             let engine = self.engine.upgrade().unwrap();
-            assert!(engine.db.try_lock().is_ok());
-            assert!(engine.live_captures.try_lock().is_ok());
+            assert_capture_authority_unlocked(&engine);
         }
     }
     impl NativeCaptureSink for EndSink {
