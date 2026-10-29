@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-FALLBACK-GRAPH-INTERCHANGE",
-    "scope": "Format16 original fallback payloads now reach owner-approved public export and checked clone import. A bounded full root/ancestor graph index verifies exact candidate policy and opaque worker/payload membership before publication; CPU declaration checks remain independent. Session/project-specific host-owner packaging approval plus its canonical Ack is required for referenced registry-evidence disclosure; a delegated package grant alone refuses, and the shared privacy notice names these records. Reader41 separates admitted graphs from draft40, composes all120 arming orders and is published transactionally with archive metadata. The authored Engine campaign passes Ready export, bulk upload/import, restart, re-export, second clone, repeated payload equality and no executable jobs/attempts or acceptance-registry installation. Rehashed root/ancestor state mutations refuse with no project publication. Two pinned preceding-App cold checkpointed41 refusals preserve observed inventory/modes/contents. This is authored metadata and compatibility evidence, not native confined inference or genuine qualification. Final default Engine1922/0/115 ignored,Protocol398/0,Clients702/0/15 ignored,strict three-library lint,App/Worker build,830 architecture checks and36 source guards pass. Prior timeouts,typed refusal failures,HSP stop failure and transient kernel journal wait remain retained; no production deadline was extended.",
+    "evidence": "EV-FALLBACK-NATIVE-ARCHIVE",
+    "scope": "Three native neutral-model CPU fallback cases (completed, cancelled after progress, withdrawn after progress) pass owner-approved format16 export, two clones with restart/re-export, exact original CPU declarations, retained payloads and rehashed root/ancestor mutation refusals. Imported clones restore no executable jobs, attempts, CPU runtime rows or equivalence acceptance. Eligibility and primary provider absence remain simulated; no scientific, media, platform, physical or human qualification. Current Engine1922/0/116 ignored and strict Engine lint pass; 831 architecture checks and36 source guards pass. Unchanged App/Worker binaries are pinned from the prior checkpoint. First namespace harness refused host procfs ownership; adapted existing host supervisor passes with unchanged production confinement, joined descendants, removed scratch and unchanged subjects. Earlier default Engine1919/3/116 HSP failures remain counterevidence despite focused and default-repeat passes.",
     "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Current default component checks pass after restoring declaration-refusal ordering. Incomplete full runs, HSP stop failure, cache disappearance and a transient kernel journal wait remain retained and unqualified. Native confined/all-state fallback interchange, live/browser fallback and all25 acceptance gates remain open.",
+    "failure_summary": "Native completed/cancelled/withdrawn CPU fallback archives pass scoped software checks. Captured-running/interrupted fallback archives, browser/live admission and all25 acceptance gates remain open. The retained HSP timing failures are not causally resolved.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -133,6 +133,10 @@
       {
         "path": "crates/pulsar-engine/src/engine_handy_hsp_source_qualification_tests.rs",
         "sha256": "eda25a12096b734a21d50b59a4249d3394f009518a87aba38339011111fa137a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_inference_fallback_archive_native_tests.rs",
+        "sha256": "253169cdc094e7e30f210b742c487b726a06bed5c09b13a6d9ef27521cdbf470"
       },
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_tests.rs",
@@ -324,7 +328,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/project_package_imports.rs",
-        "sha256": "64d8733e421f24c5d47e0e9e51fe69ec2cc10499b01cfa4cd148d08e65bfa71d"
+        "sha256": "70eea676fa6c057674e25c7521492ed4fd0b56d7ae69e189a3c6542c14f4c776"
       },
       {
         "path": "crates/pulsar-engine/src/project_package_storage.rs",
@@ -436,7 +440,7 @@
       },
       {
         "path": "docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md",
-        "sha256": "182f02585e265af8fa96fa6d478675641400c56b7a6d2ae606901d24d08c250d"
+        "sha256": "2c7318437f23c242681d7fef84cff203ddb2477ea70c7b14a5a587d7744444cc"
       },
       {
         "path": "scripts/browser-live-player.test.mjs",
@@ -455,19 +459,21 @@
       "EV-FALLBACK-READER-NATIVE",
       "EV-FALLBACK-PAYLOAD-CAPTURE",
       "EV-FALLBACK-GRAPH-INTERCHANGE",
-      "EV-FALLBACK-GRAPH-COUNTER"
+      "EV-FALLBACK-GRAPH-COUNTER",
+      "EV-FALLBACK-NATIVE-ARCHIVE",
+      "EV-FALLBACK-NATIVE-COUNTER"
     ],
-    "scope": "Current default Engine1922/0/115 ignored,Protocol398/0,Clients702/0/15 ignored; strict three-library lint,App/Worker build,830 architecture checks and36 source guards pass. New public export/two-clone/reader41 campaign is authored metadata and compatibility evidence only. Earlier timing/I/O/HSP failures remain; no independent model/platform/media/device/human qualification.",
+    "scope": "Engine1922/0/116 ignored, strict Engine lint,831 architecture checks and36 source guards pass. Native completed/cancelled/withdrawn CPU fallback archives pass with simulated eligibility; captured-running/interrupted histories remain open. Protocol398/0 and Clients702/0/15 ignored retain their prior pinned checkpoint; unchanged production App/Worker subjects are reused. Earlier HSP failures remain unresolved.",
     "metric_refs": {
       "engine_passed": {
-        "evidence": "EV-FALLBACK-GRAPH-INTERCHANGE",
+        "evidence": "EV-FALLBACK-NATIVE-ARCHIVE",
         "pointer": [
           "checks",
           "engine_passed"
         ]
       },
       "engine_ignored": {
-        "evidence": "EV-FALLBACK-GRAPH-INTERCHANGE",
+        "evidence": "EV-FALLBACK-NATIVE-ARCHIVE",
         "pointer": [
           "checks",
           "engine_ignored"
@@ -1294,6 +1300,18 @@
         "EV-FALLBACK-GRAPH-INTERCHANGE",
         "EV-FALLBACK-GRAPH-COUNTER"
       ]
+    },
+    {
+      "id": "SC-FALLBACK-NATIVE-ARCHIVE",
+      "title": "Native completed, cancelled and withdrawn CPU fallback archive lifecycles",
+      "parents": [
+        "M2-INTERCHANGE",
+        "M6-INSTALL"
+      ],
+      "scope": "Three native neutral-model CPU fallback cases (completed, cancelled after progress, withdrawn after progress) pass owner-approved format16 export, two clones with restart/re-export, exact original CPU declarations, retained payloads and rehashed root/ancestor mutation refusals. Imported clones restore no executable jobs, attempts, CPU runtime rows or equivalence acceptance. Eligibility and primary provider absence remain simulated; no scientific, media, platform, physical or human qualification. Current Engine1922/0/116 ignored and strict Engine lint pass; 831 architecture checks and36 source guards pass. Unchanged App/Worker binaries are pinned from the prior checkpoint. First namespace harness refused host procfs ownership; adapted existing host supervisor passes with unchanged production confinement, joined descendants, removed scratch and unchanged subjects. Earlier default Engine1919/3/116 HSP failures remain counterevidence despite focused and default-repeat passes.",
+      "evidence": [
+        "EV-FALLBACK-NATIVE-ARCHIVE"
+      ]
     }
   ],
   "queue": [
@@ -1485,7 +1503,7 @@
       "depends_on": [
         "CPU-ROUNDTRIP"
       ],
-      "exit": "Complete fallback/live namespaces and authority/expiry/withdrawal through actual consumers. Owner-approved format16 public export/import and full root/ancestor graph checks now pass an authored interrupted-history two-clone campaign with cold reader41 refusal and no restored execution/acceptance. Next qualify actual confined CPU-image histories across completed, failed, cancelled, interrupted and captured-running states plus remaining corruption/fault/resource/revocation cases; then implement native browser/live fallback source and lifetime admission. All parent gates stay open. See docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md.",
+      "exit": "Complete fallback/live namespaces and authority/expiry/withdrawal through actual consumers. Native completed, cancelled-after-progress and withdrawn-after-progress CPU histories now pass two clones/restarts/re-exports with exact inert declarations. Next capture actual running and process-interrupted fallback attempts, repeat preceding-reader refusal on native clones and complete fault/resource/corruption cases; then implement native browser/live fallback source and lifetime admission. Simulated eligibility is not genuine qualification. All parent gates stay open.",
       "evidence": [
         "EV-FALLBACK-HISTORY-SNAPSHOT",
         "EV-FALLBACK-ARCHIVE-CONTRACT",
@@ -1494,7 +1512,9 @@
         "EV-FALLBACK-PAYLOAD-CAPTURE",
         "EV-FALLBACK-PAYLOAD-COUNTER",
         "EV-FALLBACK-GRAPH-INTERCHANGE",
-        "EV-FALLBACK-GRAPH-COUNTER"
+        "EV-FALLBACK-GRAPH-COUNTER",
+        "EV-FALLBACK-NATIVE-ARCHIVE",
+        "EV-FALLBACK-NATIVE-COUNTER"
       ]
     },
     {
@@ -4974,6 +4994,74 @@
             "live_browser_fallback_complete"
           ],
           "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-FALLBACK-NATIVE-ARCHIVE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/fallback-native/verification.json",
+      "sha256": "6d09fa755ea18b6f864e076df60968fef01c2ee9f5b7d7ef1e061bd7ab9dc06e",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Three native neutral-model CPU fallback cases (completed, cancelled after progress, withdrawn after progress) pass owner-approved format16 export, two clones with restart/re-export, exact original CPU declarations, retained payloads and rehashed root/ancestor mutation refusals. Imported clones restore no executable jobs, attempts, CPU runtime rows or equivalence acceptance. Eligibility and primary provider absence remain simulated; no scientific, media, platform, physical or human qualification. Current Engine1922/0/116 ignored and strict Engine lint pass; 831 architecture checks and36 source guards pass. Unchanged App/Worker binaries are pinned from the prior checkpoint. First namespace harness refused host procfs ownership; adapted existing host supervisor passes with unchanged production confinement, joined descendants, removed scratch and unchanged subjects. Earlier default Engine1919/3/116 HSP failures remain counterevidence despite focused and default-repeat passes.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_passed"
+          ],
+          "equals": 1922
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_ignored"
+          ],
+          "equals": 116
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_cases"
+          ],
+          "equals": 3
+        }
+      ]
+    },
+    {
+      "id": "EV-FALLBACK-NATIVE-COUNTER",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/fallback-native/counterevidence.json",
+      "sha256": "ee629cf9fdb1aa79325a8276c91cd77527d0c6295e595212112088165d5b45a8",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Retain namespace host-ownership refusal and first default Engine HSP failures. Later passing runs do not establish the intermittent HSP cause. No deadline extension or production confinement change.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "engine_failed"
+          ],
+          "equals": 3
         }
       ]
     }

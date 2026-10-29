@@ -2627,7 +2627,12 @@ mod tests {
             }
         }
         let (mut bad, objects) = unpack(bytes);
-        bad.generated_origins[0].state = "failed".into();
+        let changed_state = if bad.generated_origins[0].state == "failed" {
+            "completed"
+        } else {
+            "failed"
+        };
+        bad.generated_origins[0].state = changed_state.into();
         rejected(&pack(&bad, &objects));
         let first = fixture();
         let imported = first.import(bytes);
@@ -2653,9 +2658,15 @@ mod tests {
         let reexport = first.bytes(&imported.project_id, imported.revision.value());
         let (outer, mut bodies) = unpack(&reexport);
         let original_ref = outer.imported_origins[0].manifest.clone();
+        let original_length = u64::from_le_bytes(bytes[12..20].try_into().unwrap()) as usize;
+        assert_eq!(
+            bodies[&original_ref.sha256],
+            bytes[52..52 + original_length],
+            "first clone changed original declarations, including CPU images"
+        );
         let mut ancestor: PortableProjectManifest =
             serde_json::from_slice(&bodies[&original_ref.sha256]).unwrap();
-        ancestor.generated_origins[0].state = "failed".into();
+        ancestor.generated_origins[0].state = changed_state.into();
         let ancestor_bytes = ancestor.canonical_bytes().unwrap();
         let new_sha = format!("{:x}", Sha256::digest(&ancestor_bytes));
         let ancestor_container = pack(&ancestor, &bodies);
@@ -2704,6 +2715,12 @@ mod tests {
         approve(&second, &imported2.project_id);
         let again = second.bytes(&imported2.project_id, imported2.revision.value());
         assert_eq!(package_format_version(&again[..52]).unwrap(), 16);
+        let (_, final_bodies) = unpack(&again);
+        assert_eq!(
+            final_bodies[&original_ref.sha256],
+            bytes[52..52 + original_length],
+            "second clone changed original CPU/fallback declarations"
+        );
         let Fixture { engine, dir, .. } = first;
         Engine::retire_for_test(engine);
         drop(dir);

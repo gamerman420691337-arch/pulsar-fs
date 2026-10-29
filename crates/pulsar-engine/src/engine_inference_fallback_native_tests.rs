@@ -669,7 +669,7 @@ mod inference_fallback_native_tests {
             "pack_success" | "pack_withdraw_pending" | "pack_withdraw_active"
         )
     }
-    fn run_case(engine: &Arc<Engine>, mode: &str) -> Result<Value> {
+    fn run_case(engine: &Arc<Engine>, mode: &str, archive: bool) -> Result<Value> {
         // Short record validity is authored before any admission. Neither the
         // accepted-shaped record nor a live lease is rewritten after dispatch.
         let input = if mode == "active_dossier_expiry" {
@@ -1104,17 +1104,22 @@ mod inference_fallback_native_tests {
                 && encode(&after.motion)? == encode(&input.original.motion)?,
             "simulation altered master"
         );
+        let archival = if archive {
+            Some(archive_native_fallback(engine, &input.actor, &input.project)?)
+        } else {
+            None
+        };
         Ok(
             json!({"case":mode,"passed":true,"simulated_eligibility":true,"primary_provider_absence_simulated":true,"real_measured_equivalence":false,"qualified":false,
         "primary_simulator":file_identity(&simulator)?,"primary_attempt":manifest.attempt_id,"primary_profile":input.from,
         "original_custody_dropped_before_successor":no_predecessor_custody,"opaque_failure_from_real_supervisor":true,"pending_marked":pending,
         "continuation_error":continuation_error,"terminal":terminal,"history":history,"target":target,"active_consumer":active_consumer,"selected_pack":selected_pack,
         "attempt_count":attempts,"candidate_count":candidates,"pending_rows":pending_rows,"master_preserved":true,"custody_clear":true,
-        "public_synthetic_refusal":synthetic_refusal,"public_acceptance_called":false,"accepted_fixture_records_exported":false}),
+        "public_synthetic_refusal":synthetic_refusal,"public_acceptance_called":false,"accepted_fixture_records_exported":archive,"archival":archival}),
         )
     }
 
-    fn campaign_case(mode: &str) -> Result<Value> {
+    fn campaign_case(mode: &str, archive: bool) -> Result<Value> {
         let directory = tempfile::tempdir()?;
         let mut config = EngineConfig::new(
             directory.path().join("state"),
@@ -1124,7 +1129,7 @@ mod inference_fallback_native_tests {
         config.worker_timeout = Duration::from_secs(60);
         let engine = Engine::open(config)?;
         let result =
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run_case(&engine, mode)));
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run_case(&engine, mode, archive)));
         let shutdown = engine.finish_shutdown();
         let custody = await_custody_clear(&engine, true);
         drop(engine);
@@ -1178,7 +1183,7 @@ mod inference_fallback_native_tests {
                 receipt["cases"]
                     .as_array_mut()
                     .unwrap()
-                    .push(campaign_case(mode)?);
+                    .push(campaign_case(mode, false)?);
             }
             Ok(())
         })();
@@ -1190,4 +1195,6 @@ mod inference_fallback_native_tests {
         save(&output.join("receipt.json"), &receipt).expect("save bounded simulation receipt");
         result.expect("native SOFTWARE SIMULATION campaign failed");
     }
+
+    include!("engine_inference_fallback_archive_native_tests.rs");
 }
