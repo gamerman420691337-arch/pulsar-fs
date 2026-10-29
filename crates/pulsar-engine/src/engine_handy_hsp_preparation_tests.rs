@@ -84,6 +84,7 @@ mod hsp_preparation_tests {
         lose_sync: AtomicBool,
         before_claim: Arc<Hold>,
         after_claim: Arc<Hold>,
+        metadata_contention: Arc<Hold>,
     }
     impl AuthoredIo {
         fn new() -> Self {
@@ -95,6 +96,7 @@ mod hsp_preparation_tests {
                 lose_sync: AtomicBool::new(false),
                 before_claim: Arc::new(Hold::default()),
                 after_claim: Arc::new(Hold::default()),
+                metadata_contention: Arc::new(Hold::default()),
             }
         }
         fn count(&self) -> (u64, u64, u64) {
@@ -181,6 +183,9 @@ mod hsp_preparation_tests {
         }
         fn after_claim(&self) -> PResult<()> {
             self.after_claim.enter()
+        }
+        fn metadata_contended(&self) -> PResult<()> {
+            self.metadata_contention.enter()
         }
     }
 
@@ -974,6 +979,135 @@ mod hsp_preparation_tests {
             assert_eq!(io.count(), counts);
             x.f.engine.finish_shutdown().unwrap();
         }
+    }
+
+    #[test]
+    fn acknowledged_preparation_survives_transient_journal_contention_without_resync() {
+        let x = PreparationFixture::new();
+        let io = Arc::new(AuthoredIo::new());
+        io.after_claim.arm();
+        io.metadata_contention.arm();
+        let release_claim = ReleaseHold(io.after_claim.clone());
+        let release_metadata = ReleaseHold(io.metadata_contention.clone());
+        let original = x.prepare("prepare-transient-journal");
+        x.call(&original, io.clone()).unwrap();
+        io.after_claim.wait_entered();
+        let journal = x.f.engine._device_effect_journal.lock().unwrap();
+        let before = journal
+            .hsp_preparation_history(&x.f.session, &original.request_id)
+            .unwrap()
+            .unwrap()
+            .history()
+            .unwrap();
+        io.after_claim.release();
+        // Signal comes from the real failed journal try_lock, not elapsed time.
+        io.metadata_contention.wait_entered();
+        assert_eq!(io.count(), (1, 1, 0));
+        drop(journal);
+        io.metadata_contention.release();
+        let ready = x.ready(&original.request_id);
+        let history = ready.history.unwrap();
+        assert_eq!(history.record_id, before.record_id);
+        assert_eq!(history.deadline_boottime_ns, before.deadline_boottime_ns);
+        assert_eq!(history.state, HandyClockSyncState::Acknowledged);
+        assert_eq!(io.count(), (2, 1, 1));
+        assert!(ready.native.unwrap().error.is_none());
+        io.after_claim.assert_not_timed_out();
+        io.metadata_contention.assert_not_timed_out();
+        drop((release_claim, release_metadata));
+        x.f.engine.finish_shutdown().unwrap();
+    }
+
+    #[test]
+    fn acknowledged_preparation_journal_wait_does_not_renew_expired_deadline() {
+        let x = PreparationFixture::new();
+        let io = Arc::new(AuthoredIo::new());
+        io.after_claim.arm();
+        io.metadata_contention.arm();
+        let release_claim = ReleaseHold(io.after_claim.clone());
+        let release_metadata = ReleaseHold(io.metadata_contention.clone());
+        let original = x.prepare("prepare-expired-journal");
+        x.call(&original, io.clone()).unwrap();
+        io.after_claim.wait_entered();
+        let journal = x.f.engine._device_effect_journal.lock().unwrap();
+        let before = journal
+            .hsp_preparation_history(&x.f.session, &original.request_id)
+            .unwrap()
+            .unwrap()
+            .history()
+            .unwrap();
+        io.after_claim.release();
+        io.metadata_contention.wait_entered();
+        io.tick
+            .store(before.deadline_boottime_ns, Ordering::Release);
+        drop(journal);
+        io.metadata_contention.release();
+        let retired = x.retired(&original.request_id);
+        let history = retired.history.unwrap();
+        assert_eq!(history.record_id, before.record_id);
+        assert_eq!(history.deadline_boottime_ns, before.deadline_boottime_ns);
+        assert_eq!(history.state, HandyClockSyncState::Acknowledged);
+        assert_eq!(io.count(), (1, 1, 0));
+        let native = retired.native.unwrap();
+        assert!(native.clock_valid_until_boottime_ns.is_none());
+        assert!(native.error.unwrap().message.contains("deadline expired"));
+        io.after_claim.assert_not_timed_out();
+        io.metadata_contention.assert_not_timed_out();
+        drop((release_claim, release_metadata));
+        x.f.engine.finish_shutdown().unwrap();
+    }
+
+    #[test]
+    fn acknowledged_preparation_journal_wait_cancels_and_joins_before_lock_release() {
+        let x = PreparationFixture::new();
+        let io = Arc::new(AuthoredIo::new());
+        io.after_claim.arm();
+        io.metadata_contention.arm();
+        let release_claim = ReleaseHold(io.after_claim.clone());
+        let release_metadata = ReleaseHold(io.metadata_contention.clone());
+        let original = x.prepare("prepare-cancel-journal-wait");
+        x.call(&original, io.clone()).unwrap();
+        io.after_claim.wait_entered();
+        let journal = x.f.engine._device_effect_journal.lock().unwrap();
+        let before = journal
+            .hsp_preparation_history(&x.f.session, &original.request_id)
+            .unwrap()
+            .unwrap()
+            .history()
+            .unwrap();
+        io.after_claim.release();
+        io.metadata_contention.wait_entered();
+        io.metadata_contention.release();
+        // The original worker must join while the journal remains unavailable;
+        // its acknowledged outcome remains pending, with no native readiness.
+        assert!(x
+            .f
+            .engine
+            .shutdown_handy_hsp_preparations()
+            .unwrap_err()
+            .message
+            .contains("metadata remains unresolved"));
+        assert_eq!(io.count(), (1, 1, 0));
+        drop(journal);
+        for _ in 0..3 {
+            let status = x.status(&original.request_id);
+            let native = status.native.unwrap();
+            assert_eq!(native.phase, HandyHspPreparationPhase::Retired);
+            assert!(native.cancel_requested && !native.worker_active && native.metadata_pending);
+            assert_eq!(io.count(), (1, 1, 0));
+        }
+        let cancellation = x.cancel_request(&original.request_id, "cancel-original-journal-wait");
+        report(x.f.engine.handle(cancellation.clone()).result.unwrap());
+        let retired = x.retired_with_cancel_retry(&original.request_id, &cancellation);
+        let history = retired.history.unwrap();
+        assert_eq!(history.record_id, before.record_id);
+        assert_eq!(history.deadline_boottime_ns, before.deadline_boottime_ns);
+        assert_eq!(history.state, HandyClockSyncState::Acknowledged);
+        assert_eq!(io.count(), (1, 1, 0));
+        io.after_claim.assert_not_timed_out();
+        io.metadata_contention.assert_not_timed_out();
+        drop((release_claim, release_metadata));
+        x.f.engine.finish_shutdown().unwrap();
     }
 
     #[test]

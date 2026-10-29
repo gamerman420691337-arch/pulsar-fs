@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-CUDA-FIXTURE-CHECKS",
-    "scope": "Current Engine tests compile; strict Engine library/tests lint and targeted formatting pass. Full Engine suite passes with two test threads; the default-thread HSP failure remains unverified.",
+    "evidence": "EV-HSP-READINESS",
+    "scope": "Causal HSP journal-contention repair with deterministic regression, full default-thread Engine suite, strict lint and default App/Worker compilation. Native/physical qualification remains separate.",
     "active_work": "CLIENT-CORRECTNESS",
-    "failure_summary": "External CUDA unit-fixture dependency is repaired. Default-thread HSP preparation restart can retire with metadata pending; the exact test passes alone and the full suite passes with two threads, without causal clearance. Browser timing reliability and rendered stop/reconnect/fault coverage remain open.",
+    "failure_summary": "The reproduced HSP acknowledgment/readiness journal race is repaired with unchanged deadlines and one synchronization. Browser timing_exchange_unconfirmed, rendered stop/reconnect/fault coverage, startup cause and physical/model/platform acceptance remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -329,28 +329,38 @@
       {
         "path": "crates/pulsar-engine/tests/fixtures/authored-live-cuda-manifest.json",
         "sha256": "920dee2fba07f6bdd8b693eae335ac01bf188306d7426f43d432524dfdb0ffee"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_preparation.rs",
+        "sha256": "5cb114d671ea9c325fb01c153612b891e0502c2a1e48ebe1b96ebec7b6987a6f"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_preparation_tests.rs",
+        "sha256": "0c6f03a72a00c8d0b6f5d4dc4fec1bc0b99b8d52635ffdfb5c184a302a700693"
       }
     ]
   },
   "last_verified": {
     "evidence": [
-      "EV-CUDA-FIXTURE-PORTABILITY",
+      "EV-HSP-READINESS",
       "EV-RECORDING-CHECKS",
       "EV-CPU-ARCHIVE"
     ],
-    "scope": "Engine: current authored-fixture source, full suite with two test threads; default-thread HSP failure unresolved. Protocol and clients: separate pinned component checkpoints, not a combined runtime or release qualification.",
+    "scope": "Engine: current causal journal-contention repair, full default-thread suite. Protocol and clients: separate pinned component checkpoints, not combined native/physical/runtime qualification.",
     "metric_refs": {
       "engine_passed": {
-        "evidence": "EV-CUDA-FIXTURE-PORTABILITY",
+        "evidence": "EV-HSP-READINESS",
         "pointer": [
-          "full_engine_two_thread_suite",
+          "checks",
+          "full_engine_default_threads",
           "passed"
         ]
       },
       "engine_ignored": {
-        "evidence": "EV-CUDA-FIXTURE-PORTABILITY",
+        "evidence": "EV-HSP-READINESS",
         "pointer": [
-          "full_engine_two_thread_suite",
+          "checks",
+          "full_engine_default_threads",
           "ignored"
         ]
       },
@@ -986,10 +996,22 @@
         "M2-INTERCHANGE",
         "M6-INSTALL"
       ],
-      "scope": "Both unit fixture loaders use an explicitly authored compile-time manifest/receipt/trace instead of four private report files. Noncanonical native-format bytes still pass real parser/storage round trips and mutation/memory/rollback checks. Full Engine suite passes1887/0/110 ignored with2 test threads; strict lint passes. Default-thread HSP readiness failure is retained and unresolved. No production behavior or qualification change.",
+      "scope": "Both unit fixture loaders use an explicitly authored compile-time manifest/receipt/trace instead of four private report files. Noncanonical native-format bytes still pass real parser/storage round trips and mutation/memory/rollback checks. Full Engine suite passes1887/0/110 ignored with2 test threads; strict lint passes. At that checkpoint, the default-thread HSP readiness failure remained unresolved; its later causal repair is recorded separately. No production behavior or qualification change.",
       "evidence": [
         "EV-CUDA-FIXTURE-PORTABILITY",
         "EV-CUDA-FIXTURE-CHECKS"
+      ]
+    },
+    {
+      "id": "SC-HSP-READINESS",
+      "title": "Bounded HSP readiness persistence under journal contention",
+      "parents": [
+        "M2-DOMAIN",
+        "M5-LIVE"
+      ],
+      "scope": "A single failed journal try_lock retired acknowledged native readiness even when the cleanup write later succeeded. The active preparation worker now waits for the journal under its original clocks, cancellation and wall deadline. Deterministic red-to-green regression, expiry refusal and cancellation/join before lock release pass; status and metadata-only retries stay read-only/nonblocking respectively. Full default-thread Engine1890/0/110 ignored and40 repeated scoped cases pass. All observations are authored; physical synchronization and other timing/startup failures remain open.",
+      "evidence": [
+        "EV-HSP-READINESS"
       ]
     }
   ],
@@ -1076,7 +1098,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Verify source/view/time correspondence and target loss/reacquisition through real consumers; exercise protected editing, review/commit/rebase/undo/restart and crash/storage faults in CLI/desktop. Retain real-media limitations under M1-DATA. External CUDA test report dependence is repaired with authored inputs; resolve the retained default-thread HSP preparation restart readiness/metadata-pending failure without weakening deadlines or substituting isolated/thread-limited passes for causal clearance.",
+      "exit": "Verify source/view/time correspondence and target loss/reacquisition through real consumers; exercise protected editing, review/commit/rebase/undo/restart and crash/storage faults in CLI/desktop. Retain real-media limitations under M1-DATA. CUDA unit-report dependencies and the reproduced HSP journal-contention readiness race have scoped repairs; complete remaining shared-client and editing fault scenarios without treating unit fixtures as qualification.",
       "evidence": [
         "EV-RENDERED-PATTERN",
         "EV-RENDERED-RECORDING",
@@ -1085,7 +1107,8 @@
         "EV-PREVIEW-CUTOVER",
         "EV-RECORDING-LEASES",
         "EV-CUDA-FIXTURE-PORTABILITY",
-        "EV-CUDA-FIXTURE-CHECKS"
+        "EV-CUDA-FIXTURE-CHECKS",
+        "EV-HSP-READINESS"
       ]
     },
     {
@@ -2353,6 +2376,128 @@
         {
           "pointer": [
             "targeted_rustfmt"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-HSP-READINESS",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/hsp-readiness/verification.json",
+      "sha256": "b938e8d698f5110f057209feb6fa6c9a3a3f8ebb8355f0d3e668fac14bdd596b",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Deterministic journal-contention regression reproduces original Ack/Retired failure before repair. Active preparation now waits within original budget; expiry/cancellation and nonblocking cleanup stay conservative. Default-thread Engine1890/0/110 ignored,40 repeated scoped cases, strict lint and App/Worker build pass. Authored unit observations only.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "causal_repair_established"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "deterministic_red_reproduced_acknowledged_retired_state"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "transient_contention_recovers_without_resync"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "original_deadline_preserved"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "expiry_does_not_recreate_readiness"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "cancellation_joins_before_journal_unlock"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "status_remains_read_only"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "full_engine_default_threads",
+            "passed"
+          ],
+          "equals": 1890
+        },
+        {
+          "pointer": [
+            "checks",
+            "full_engine_default_threads",
+            "failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "full_engine_default_threads",
+            "ignored"
+          ],
+          "equals": 110
+        },
+        {
+          "pointer": [
+            "checks",
+            "repeat_test_passes"
+          ],
+          "equals": 40
+        },
+        {
+          "pointer": [
+            "checks",
+            "strict_engine_lib_tests_clippy"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "default_app_worker_build"
           ],
           "equals": true
         }
