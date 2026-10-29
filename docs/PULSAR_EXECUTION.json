@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-TRANSFER-REFUSAL",
-    "scope": "Preserve the original checked native refusal when successor sweeping aborts a reservation; static messages distinguish predecessor/successor capture, delivery, selection, clock, lease, media and timing guards. Preserve all admission predicates, checks, error codes and original deadlines. Cancellation refusal regression turns red to green; unavailable-clock/suspend/lease cases on both sides pass without renewing the reservation. Default-thread Engine repeat1892/0/112 ignored, strict Engine lint and default App/Worker build pass. One new rendered sterile40s/authored-model run reaches EOF with381 historically fresh accepted estimates over9 recording epochs, exact declared+5s mapping and pinned CPU worker/policy identities; servers/Engine exit0 and fence empties. No original-race repair, model/device or general reliability clearance. The first full suite hit a retained runtime cache-busy failure, not reproduced by the repeat.",
+    "evidence": "EV-CACHE-OWNERSHIP",
+    "scope": "Synchronous runtime-cache operations now explicitly unlock on checked completion and on owner-process error cleanup, so unrelated inherited descriptors cannot prolong a completed operation. A copied guard cleanup in a fork child does not unlock the active parent; a later owner remains excluded when the old child exits. Normal active-owner contention and all cache trust/integrity refusals remain. Native Linux fork/flock regression reproduces the old busy failure and passes with the fix;8 focused cache tests pass, including2 subprocess probes automatically invoked by default wrappers. Raw fork is isolated from the default test process. The foreign-native-registry fixture initializes both Engines before creating either original live timing input; lifetimes and identity assertions are unchanged. Final default Engine1894/0/114 ignored (2 helper registrations run by wrappers), strict lint and App/Worker build pass. Earlier timing failures/cutoffs remain retained, and their broader causes are not cleared. No model, platform, physical or human qualification.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "Transfer sweep now preserves the original checked refusal; native clock/lease predicates and deadlines remain unchanged. Default Engine repeat1892/0/112 ignored, strict lint/build and one rendered40s EOF/381-estimate run pass. Earlier rendered abort,420s cause and first-run runtime-cache contention remain unresolved; all25 acceptance gates remain open.",
+    "failure_summary": "Runtime-cache ownership fix has native red-to-green proof; final default Engine1894/0/114 ignored,8 cache tests, strict lint and App/Worker build pass. Two helper registrations execute through default process-isolation wrappers. Earlier cache-busy/timing incidents, harness cutoffs and rendered transfer abort stay retained; all25 acceptance gates remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -80,7 +80,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_capture_delivery_tests.rs",
-        "sha256": "8dcdc14b9623ac7bb27400d3145cc47cb320de1349053de89251eee826836bd9"
+        "sha256": "77784f8062df83ecc9e69a680de840d4b43f4ed5aa309a3684bccedde5f4dde0"
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_cpu_native_tests.rs",
@@ -389,6 +389,10 @@
       {
         "path": "crates/pulsar-clients/src/browser_player_timing_native_tests.rs",
         "sha256": "d8ddb59d0d1f9d3e5070f239565e805c72cfc150364d4570643eb379d76d65f1"
+      },
+      {
+        "path": "crates/pulsar-engine/src/runtime_first_use.rs",
+        "sha256": "230c647442575e1b4e1c661bb69cd5d2506f125fd138382b444cbd7cd000a9b8"
       }
     ]
   },
@@ -396,19 +400,19 @@
     "evidence": [
       "EV-RECORDING-CHECKS",
       "EV-TIMING-RETIREMENT",
-      "EV-TRANSFER-REFUSAL"
+      "EV-CACHE-OWNERSHIP"
     ],
-    "scope": "Current Engine repeat:1892 passed/112 ignored, strict lint/default build and rendered40s EOF; prior default-thread runtime-cache busy failure remains unresolved. Client702/15 ignored and Protocol397 are separately pinned. No general browser/model/device clearance.",
+    "scope": "Current cache ownership/default-thread Engine checkpoint:1894 passed/114 ignored;2 subprocess-only helpers are exercised by default wrappers. Lint/build pass. Earlier timing failures/cutoffs remain unresolved. Client702/15 ignored and Protocol397 retain their separate pinned checkpoints; no browser/model/device/human clearance.",
     "metric_refs": {
       "engine_passed": {
-        "evidence": "EV-TRANSFER-REFUSAL",
+        "evidence": "EV-CACHE-OWNERSHIP",
         "pointer": [
           "checks",
           "engine_passed"
         ]
       },
       "engine_ignored": {
-        "evidence": "EV-TRANSFER-REFUSAL",
+        "evidence": "EV-CACHE-OWNERSHIP",
         "pointer": [
           "checks",
           "engine_ignored"
@@ -1160,6 +1164,17 @@
       "evidence": [
         "EV-TRANSFER-REFUSAL"
       ]
+    },
+    {
+      "id": "SC-CACHE-OWNERSHIP",
+      "title": "Explicit process-owned runtime-cache lock completion",
+      "parents": [
+        "M6-INSTALL"
+      ],
+      "scope": "Synchronous runtime-cache operations now explicitly unlock on checked completion and on owner-process error cleanup, so unrelated inherited descriptors cannot prolong a completed operation. A copied guard cleanup in a fork child does not unlock the active parent; a later owner remains excluded when the old child exits. Normal active-owner contention and all cache trust/integrity refusals remain. Native Linux fork/flock regression reproduces the old busy failure and passes with the fix;8 focused cache tests pass, including2 subprocess probes automatically invoked by default wrappers. Raw fork is isolated from the default test process. The foreign-native-registry fixture initializes both Engines before creating either original live timing input; lifetimes and identity assertions are unchanged. Final default Engine1894/0/114 ignored (2 helper registrations run by wrappers), strict lint and App/Worker build pass. Earlier timing failures/cutoffs remain retained, and their broader causes are not cleared. No model, platform, physical or human qualification.",
+      "evidence": [
+        "EV-CACHE-OWNERSHIP"
+      ]
     }
   ],
   "queue": [
@@ -1283,7 +1298,9 @@
       "exit": "Use existing bounded phase probes on the failing path; establish a causal repair and regression, or a specifically evidenced observation-contract correction. Healthy later runs do not erase the failure. Also localize the retained default-thread runtime archive-cache busy failure; a passing repeat does not establish its cause.",
       "evidence": [
         "EV-STARTUP",
-        "EV-RUNTIME-CACHE-BUSY"
+        "EV-RUNTIME-CACHE-BUSY",
+        "EV-CACHE-OWNERSHIP",
+        "EV-CACHE-VERIFY-COUNTER"
       ]
     },
     {
@@ -4250,6 +4267,163 @@
             "failed"
           ],
           "equals": 1
+        }
+      ]
+    },
+    {
+      "id": "EV-CACHE-OWNERSHIP",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/runtime-cache-custody/verification.json",
+      "sha256": "a28bfb998e4c04907cd3fcf580d5a7788b1bdd0ad2eb213a710f556f0316aa6c",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Synchronous runtime-cache operations now explicitly unlock on checked completion and on owner-process error cleanup, so unrelated inherited descriptors cannot prolong a completed operation. A copied guard cleanup in a fork child does not unlock the active parent; a later owner remains excluded when the old child exits. Normal active-owner contention and all cache trust/integrity refusals remain. Native Linux fork/flock regression reproduces the old busy failure and passes with the fix;8 focused cache tests pass, including2 subprocess probes automatically invoked by default wrappers. Raw fork is isolated from the default test process. The foreign-native-registry fixture initializes both Engines before creating either original live timing input; lifetimes and identity assertions are unchanged. Final default Engine1894/0/114 ignored (2 helper registrations run by wrappers), strict lint and App/Worker build pass. Earlier timing failures/cutoffs remain retained, and their broader causes are not cleared. No model, platform, physical or human qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "demonstrated_inherited_cache_lock_mechanism_fixed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "broader_startup_and_timing_causes_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_passed"
+          ],
+          "equals": 1894
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_ignored"
+          ],
+          "equals": 114
+        },
+        {
+          "pointer": [
+            "checks",
+            "cache_tests_passed"
+          ],
+          "equals": 8
+        },
+        {
+          "pointer": [
+            "checks",
+            "cache_tests_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "subprocess_helpers_run_by_wrappers"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_inherited_descriptor_red_then_green"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "active_owner_exclusion_preserved"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "fork_guard_cleanup_preserves_parent"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "next_owner_exclusion_preserved"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "checked_release_before_prepared_result"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "startup_and_live_deadlines_unchanged"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "strict_engine_clippy"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "default_app_worker_build"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-CACHE-VERIFY-COUNTER",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/runtime-cache-custody/verification-counterevidence.json",
+      "sha256": "f1c4dadbc4cb2f187677a97b76fd04653e2e78bc17f5f6a8e130d3d4098e9fe2",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Earlier repetitions of the cache-fixed source before process isolation/setup ordering changes: one65s harness cutoff, one completed default run with2 timing-fixture failures, and one incomplete two-thread300s run. Do not count these as passes or causally repair them from later health.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "completed_failed_run",
+            "failed"
+          ],
+          "equals": 2
         }
       ]
     }
