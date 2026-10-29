@@ -2449,7 +2449,8 @@ mod capture_review_tests {
         }
 
         let head_motion = f.capture().unwrap().manifest.head.motion.clone();
-        let program_bytes = serde_json::to_vec(&f.engine.motion_store.read(&head_motion).unwrap()).unwrap();
+        let program_bytes =
+            serde_json::to_vec(&f.engine.motion_store.read(&head_motion).unwrap()).unwrap();
         let program_sha = format!("{:x}", Sha256::digest(&program_bytes));
         let program_id = ArtifactIdentity {
             artifact_id: ArtifactId::new(program_sha.clone()).unwrap(),
@@ -2638,11 +2639,13 @@ mod capture_review_tests {
 
         let mut stripped = plan.manifest.clone();
         stripped.generated_origins[0].cpu_runtime = None;
-        assert!(crate::project_package_import_plan::validate_retained_origin_graph(
-            &stripped,
-            &BTreeMap::new()
-        )
-        .is_err());
+        assert!(
+            crate::project_package_import_plan::validate_retained_origin_graph(
+                &stripped,
+                &BTreeMap::new()
+            )
+            .is_err()
+        );
         assert!(require_portable_cpu_objects(&stripped, &captured_objects).is_err());
         assert!(super::project_package_imports::validate_evidence(
             &stripped,
@@ -2658,11 +2661,13 @@ mod capture_review_tests {
             .as_mut()
             .unwrap()
             .owner_policy = identity(10);
-        assert!(crate::project_package_import_plan::validate_retained_origin_graph(
-            &substituted,
-            &BTreeMap::new()
-        )
-        .is_err());
+        assert!(
+            crate::project_package_import_plan::validate_retained_origin_graph(
+                &substituted,
+                &BTreeMap::new()
+            )
+            .is_err()
+        );
         assert!(super::project_package_imports::validate_evidence(
             &substituted,
             &f.engine.pool,
@@ -2671,16 +2676,1561 @@ mod capture_review_tests {
         )
         .is_err());
 
-        let bad_ancestors = BTreeMap::from([(
-            first.origin_manifest_ref.sha256.clone(),
-            stripped.clone(),
-        )]);
-        assert!(crate::project_package_import_plan::validate_retained_origin_graph(
-            &first.manifest,
-            &bad_ancestors
-        )
-        .is_err());
+        let bad_ancestors =
+            BTreeMap::from([(first.origin_manifest_ref.sha256.clone(), stripped.clone())]);
+        assert!(
+            crate::project_package_import_plan::validate_retained_origin_graph(
+                &first.manifest,
+                &bad_ancestors
+            )
+            .is_err()
+        );
         let bad_clone_objects = build_objects(Some(&serde_json::to_vec(&stripped).unwrap()));
         assert!(require_portable_cpu_objects(&first.manifest, &bad_clone_objects).is_err());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[ignore = "explicit native CPU roundtrip and preceding-reader campaign; run serially"]
+    fn native_portable_cpu_roundtrip_and_preceding_reader_campaign() {
+        use crate::cpu_owner_policy::{CpuOwnerPolicy, LoadedCpuOwnerPolicy};
+        use crate::project_package_format::{write_package, PackageCodecLimits};
+        use serde_json::{json, Value};
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+        use std::path::{Path, PathBuf};
+        use std::process::{Command as ProcessCommand, Stdio};
+        use std::time::{Duration, Instant};
+
+        #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+        struct FilePin {
+            present: bool,
+            device: u64,
+            inode: u64,
+            mode: u32,
+            uid: u32,
+            gid: u32,
+            links: u64,
+            byte_len: u64,
+            sha256: Option<String>,
+        }
+        fn pin_file(path: &Path, retained_fds: &mut Vec<fs::File>) -> FilePin {
+            match fs::symlink_metadata(path) {
+                Ok(meta) => {
+                    assert!(
+                        meta.file_type().is_file(),
+                        "expected regular file: {path:?}"
+                    );
+                    let mut file = fs::File::open(path).unwrap();
+                    let mut bytes = Vec::new();
+                    file.read_to_end(&mut bytes).unwrap();
+                    // Retain open descriptor while SQLite read pins are held so closing a
+                    // raw descriptor does not drop this process's POSIX locks on SHM/DB.
+                    retained_fds.push(file);
+                    FilePin {
+                        present: true,
+                        device: meta.dev(),
+                        inode: meta.ino(),
+                        mode: meta.mode() & 0o7777,
+                        uid: meta.uid(),
+                        gid: meta.gid(),
+                        links: meta.nlink(),
+                        byte_len: bytes.len() as u64,
+                        sha256: Some(format!("{:x}", Sha256::digest(&bytes))),
+                    }
+                }
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => FilePin {
+                    present: false,
+                    device: 0,
+                    inode: 0,
+                    mode: 0,
+                    uid: 0,
+                    gid: 0,
+                    links: 0,
+                    byte_len: 0,
+                    sha256: None,
+                },
+                Err(err) => panic!("stat {path:?}: {err}"),
+            }
+        }
+        fn state_pins(state_dir: &Path, retained_fds: &mut Vec<fs::File>) -> Value {
+            json!({
+                "database": pin_file(&state_dir.join("projects.sqlite3"), retained_fds),
+                "wal": pin_file(&state_dir.join("projects.sqlite3-wal"), retained_fds),
+                "shm": pin_file(&state_dir.join("projects.sqlite3-shm"), retained_fds),
+                "fence": pin_file(&state_dir.join("worker-fence.json"), retained_fds),
+                "engine_sock_present": state_dir.join("engine.sock").exists(),
+                "bulk_sock_present": state_dir.join("bulk.sock").exists(),
+            })
+        }
+        fn shm_diff(before: &[u8], after: &[u8]) -> Value {
+            let mut changed = 0usize;
+            for idx in 0..before.len().max(after.len()) {
+                if before.get(idx) != after.get(idx) {
+                    changed += 1;
+                }
+            }
+            json!({
+                "before_len": before.len(),
+                "after_len": after.len(),
+                "changed_byte_count": changed,
+            })
+        }
+        fn file_identity(path: &Path) -> ArtifactIdentity {
+            let (sha256, byte_len) = artifacts::digest_file(path, 512 * 1024 * 1024).unwrap();
+            ArtifactIdentity {
+                artifact_id: ArtifactId::new(sha256.clone()).unwrap(),
+                sha256,
+                byte_len,
+            }
+        }
+        fn assert_engine_retired(engine: &Arc<Engine>) {
+            let deadline = Instant::now() + Duration::from_secs(30);
+            while !engine.workers.lock().unwrap().is_empty()
+                || engine.worker_fence.has_pending_worker_custody().unwrap()
+                || engine.pool.reserved_storage() != 0
+                || engine.pool.reserved_cpu_threads() != Ok(0)
+            {
+                assert!(Instant::now() < deadline, "Engine resources did not retire");
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            assert!(engine.workers.lock().unwrap().is_empty());
+            assert!(!engine.worker_fence.has_pending_worker_custody().unwrap());
+            assert_eq!(engine.pool.reserved_storage(), 0);
+            assert_eq!(engine.pool.reserved_cpu_threads(), Ok(0));
+        }
+        fn drop_and_join_engine(engine: Arc<Engine>) {
+            assert_engine_retired(&engine);
+            let weak = Arc::downgrade(&engine);
+            drop(engine);
+            let deadline = Instant::now() + Duration::from_secs(20);
+            while weak.strong_count() != 0 {
+                assert!(Instant::now() < deadline, "Engine Arc still held");
+                std::thread::sleep(Duration::from_millis(2));
+            }
+        }
+        fn pair_with_token(engine: &Arc<Engine>, label: &str) -> (SessionId, String) {
+            let ResponseBody::Paired {
+                session,
+                auth_token,
+            } = engine
+                .handle(Request::new(
+                    id!(RequestId),
+                    Command::Pair {
+                        client_name: label.into(),
+                        pairing_token: engine.token.clone(),
+                    },
+                ))
+                .result
+                .unwrap()
+            else {
+                panic!("pair failed")
+            };
+            (session, auth_token)
+        }
+        fn authed_req(
+            session: &SessionId,
+            token: &str,
+            project: Option<&ProjectId>,
+            revision: Option<u64>,
+            command: Command,
+        ) -> Request {
+            let mut req = Request::new(id!(RequestId), command)
+                .with_session(session.clone())
+                .with_auth_token(token.to_owned());
+            if let Some(p) = project {
+                req = req.in_project(p.clone(), revision.map(RevisionId::new));
+            }
+            req
+        }
+        fn export_package_bytes(
+            engine: &Arc<Engine>,
+            session: &SessionId,
+            token: &str,
+            project: &ProjectId,
+        ) -> (PackageExportStatus, Vec<u8>) {
+            let ResponseBody::PackageExport(started) = engine
+                .handle(authed_req(
+                    session,
+                    token,
+                    Some(project),
+                    Some(1),
+                    Command::StartProjectExport,
+                ))
+                .result
+                .unwrap()
+            else {
+                panic!("StartProjectExport")
+            };
+            let deadline = Instant::now() + Duration::from_secs(30);
+            let ready = loop {
+                let ResponseBody::PackageExport(status) = engine
+                    .handle(authed_req(
+                        session,
+                        token,
+                        Some(project),
+                        None,
+                        Command::ProjectPackageStatus {
+                            operation_id: started.operation_id.clone(),
+                        },
+                    ))
+                    .result
+                    .unwrap()
+                else {
+                    panic!("ProjectPackageStatus")
+                };
+                if status.state == PackageExportOperationState::Ready {
+                    break *status;
+                }
+                assert!(
+                    !matches!(
+                        status.state,
+                        PackageExportOperationState::Failed
+                            | PackageExportOperationState::Cancelled
+                    ) && Instant::now() < deadline,
+                    "export failed or timed out: {:?}",
+                    status
+                );
+                std::thread::sleep(Duration::from_millis(5));
+            };
+            let artifact = ready.artifact.as_ref().unwrap();
+            let pkg_path = engine
+                .config
+                .state_dir
+                .join("project-packages")
+                .join(&artifact.sha256);
+            let bytes = fs::read(&pkg_path).unwrap();
+            assert_eq!(bytes.len() as u64, artifact.byte_len);
+            assert_eq!(format!("{:x}", Sha256::digest(&bytes)), artifact.sha256);
+            (ready, bytes)
+        }
+        fn import_package_bytes(
+            engine: &Arc<Engine>,
+            session: &SessionId,
+            token: &str,
+            bytes: &[u8],
+        ) -> PackageImportStatus {
+            let package = PackageUploadDeclaration {
+                format_version: package_format_version(&bytes[..52]).unwrap(),
+                sha256: format!("{:x}", Sha256::digest(bytes)),
+                byte_len: bytes.len() as u64,
+            };
+            let ResponseBody::PackageImport(started) = engine
+                .handle(authed_req(
+                    session,
+                    token,
+                    None,
+                    None,
+                    Command::StartProjectImport { package },
+                ))
+                .result
+                .unwrap()
+            else {
+                panic!("StartProjectImport")
+            };
+            let ResponseBody::PackageUpload(lease) = engine
+                .handle(authed_req(
+                    session,
+                    token,
+                    None,
+                    None,
+                    Command::BeginProjectPackageUpload {
+                        operation_id: started.operation_id.clone(),
+                    },
+                ))
+                .result
+                .unwrap()
+            else {
+                panic!("BeginProjectPackageUpload")
+            };
+            let handshake = PackageUploadHandshake {
+                version: PROTOCOL_VERSION,
+                channel: PackageUploadChannel::ProjectPackageUpload,
+                session: session.clone(),
+                auth_token: token.to_owned(),
+                lease_id: lease.lease_id.clone(),
+                engine_epoch: lease.engine_epoch.clone(),
+                operation_id: lease.operation_id.clone(),
+                generation: lease.generation,
+                package_sha256: lease.package.sha256.clone(),
+            };
+            let (conn, _) = engine.import_bulk_open(&handshake).unwrap();
+            let mut offset = 0;
+            for chunk in bytes.chunks(MAX_ARTIFACT_CHUNK_BYTES) {
+                offset = engine
+                    .import_bulk_append(&conn, &handshake, offset, chunk)
+                    .unwrap();
+            }
+            assert_eq!(offset, bytes.len() as u64);
+            drop(conn);
+            engine
+                .handle(authed_req(
+                    session,
+                    token,
+                    None,
+                    None,
+                    Command::SealProjectImport {
+                        operation_id: started.operation_id.clone(),
+                        upload_generation: lease.generation,
+                    },
+                ))
+                .result
+                .unwrap();
+            let deadline = Instant::now() + Duration::from_secs(30);
+            let final_status = loop {
+                let ResponseBody::PackageImport(status) = engine
+                    .handle(authed_req(
+                        session,
+                        token,
+                        None,
+                        None,
+                        Command::ProjectImportStatus {
+                            operation_id: started.operation_id.clone(),
+                        },
+                    ))
+                    .result
+                    .unwrap()
+                else {
+                    panic!("ProjectImportStatus")
+                };
+                if status.state.is_terminal() {
+                    break *status;
+                }
+                assert!(Instant::now() < deadline, "import timed out");
+                std::thread::sleep(Duration::from_millis(5));
+            };
+            final_status
+        }
+        fn open_reader_pin(state_dir: &Path) -> Connection {
+            let db_path = state_dir.join("projects.sqlite3");
+            let pin =
+                Connection::open_with_flags(&db_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+                    .unwrap();
+            pin.busy_timeout(Duration::from_secs(2)).unwrap();
+            pin.execute_batch("PRAGMA query_only=ON; BEGIN;").unwrap();
+            let mode: String = pin
+                .query_row("PRAGMA journal_mode", [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(mode, "wal");
+            let _: i64 = pin
+                .query_row("SELECT COUNT(*) FROM sqlite_master", [], |r| r.get(0))
+                .unwrap();
+            pin
+        }
+        fn run_preceding_reader_engine(
+            preceding_pulsar: &Path,
+            preceding_worker: &Path,
+            state_dir: &Path,
+            pin: Connection,
+        ) -> Value {
+            let mut retained_fds: Vec<fs::File> = Vec::new();
+            let db_path = state_dir.join("projects.sqlite3");
+            let wal_path = state_dir.join("projects.sqlite3-wal");
+            let shm_path = state_dir.join("projects.sqlite3-shm");
+            let pinned_user_version: i64 = pin
+                .query_row("PRAGMA main.user_version", [], |r| r.get(0))
+                .unwrap();
+            let mut main_file = fs::File::open(&db_path).unwrap();
+            let mut main_bytes = Vec::new();
+            main_file.read_to_end(&mut main_bytes).unwrap();
+            retained_fds.push(main_file);
+            let main_file_user_version = i32::from_be_bytes(main_bytes[60..64].try_into().unwrap());
+            assert!(
+                fs::metadata(&wal_path).unwrap().len() > 32
+                    && fs::metadata(&shm_path).unwrap().len() >= 32768,
+                "WAL and SHM sidecars must be present and non-empty during reader pin"
+            );
+            let before = state_pins(state_dir, &mut retained_fds);
+            let mut shm_before_file = fs::File::open(&shm_path).unwrap();
+            let mut shm_before = Vec::new();
+            shm_before_file.read_to_end(&mut shm_before).unwrap();
+            retained_fds.push(shm_before_file);
+            let mut child = ProcessCommand::new(preceding_pulsar)
+                .arg("engine")
+                .current_dir(state_dir)
+                .env_clear()
+                .env("PATH", "/usr/bin:/bin")
+                .env("HOME", state_dir)
+                .env("PULSAR_STATE_DIR", state_dir)
+                .env("PULSAR_WORKER_EXECUTABLE", preceding_worker)
+                .stdin(Stdio::null())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap();
+            let deadline = Instant::now() + Duration::from_secs(15);
+            loop {
+                if child.try_wait().unwrap().is_some() {
+                    break;
+                }
+                assert!(Instant::now() < deadline, "preceding reader timed out");
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            let output = child.wait_with_output().unwrap();
+            let after = state_pins(state_dir, &mut retained_fds);
+            let mut shm_after_file = fs::File::open(&shm_path).unwrap();
+            let mut shm_after = Vec::new();
+            shm_after_file.read_to_end(&mut shm_after).unwrap();
+            retained_fds.push(shm_after_file);
+            let _ = pin.execute_batch("ROLLBACK;");
+            drop(pin);
+            drop(retained_fds);
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+            let stdout = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+            json!({
+                "exit_code": output.status.code(),
+                "stdout": stdout,
+                "stderr": stderr,
+                "pinned_user_version": pinned_user_version,
+                "main_file_user_version": main_file_user_version,
+                "reader39_in_committed_wal": main_file_user_version < 39 && pinned_user_version == 39,
+                "before": before,
+                "after": after,
+                "identical_state_files": before == after,
+                "shm_diff": shm_diff(&shm_before, &shm_after),
+                "inspection_descriptors_retained_until_pin_closed": true,
+            })
+        }
+
+        let closure_path = PathBuf::from(
+            std::env::var("PULSAR_PORTABLE_CPU_CLOSURE_JSON").unwrap_or_else(|_| {
+                "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/qualified-fallback/native-subject-007/closure.json"
+                    .into()
+            }),
+        );
+        let preceding_pulsar = PathBuf::from(
+            std::env::var("PULSAR_PORTABLE_CPU_PRECEDING_PULSAR").unwrap_or_else(|_| {
+                "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/native-subject-005/pulsar"
+                    .into()
+            }),
+        );
+        let preceding_worker = PathBuf::from(
+            std::env::var("PULSAR_PORTABLE_CPU_PRECEDING_WORKER").unwrap_or_else(|_| {
+                "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/native-subject-005/pulsar-worker"
+                    .into()
+            }),
+        );
+        let worker_bin = PathBuf::from(
+            std::env::var("PULSAR_PORTABLE_CPU_WORKER").unwrap_or_else(|_| {
+                "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/source-browser/integrated-subject-001/pulsar-worker"
+                    .into()
+            }),
+        );
+
+        let closure_raw = fs::read(&closure_path).unwrap();
+        let closure: Value = serde_json::from_slice(&closure_raw).unwrap();
+        let subjects = &closure["subjects"];
+        let ffmpeg_path = PathBuf::from(subjects["ffmpeg"]["path"].as_str().unwrap());
+        let ffprobe_path = PathBuf::from(subjects["ffprobe"]["path"].as_str().unwrap());
+        let media_path = PathBuf::from(subjects["media"]["path"].as_str().unwrap());
+        let model_path = PathBuf::from(subjects["model"]["path"].as_str().unwrap());
+        let runtime_path = PathBuf::from(subjects["runtime"]["path"].as_str().unwrap());
+
+        assert_eq!(
+            file_identity(&ffmpeg_path).sha256,
+            subjects["ffmpeg"]["sha256"].as_str().unwrap()
+        );
+        assert_eq!(
+            file_identity(&ffprobe_path).sha256,
+            subjects["ffprobe"]["sha256"].as_str().unwrap()
+        );
+        assert_eq!(
+            file_identity(&media_path).sha256,
+            subjects["media"]["sha256"].as_str().unwrap()
+        );
+        assert_eq!(
+            file_identity(&model_path).sha256,
+            subjects["model"]["sha256"].as_str().unwrap()
+        );
+        assert_eq!(
+            file_identity(&runtime_path).sha256,
+            subjects["runtime"]["sha256"].as_str().unwrap()
+        );
+        let preceding_pulsar_id = file_identity(&preceding_pulsar);
+        let preceding_worker_id = file_identity(&preceding_worker);
+        let worker_bin_id = file_identity(&worker_bin);
+        assert_eq!(
+            preceding_pulsar_id.sha256,
+            "f47f665f133daedf3765b28dd2ae6d9dab57e86c48ba5e9769d8e4cc646b6092"
+        );
+        assert_eq!(
+            preceding_worker_id.sha256,
+            "abfc4065da452b71447521b23e5fc40063457bf48708db53c4a020392c4cb317"
+        );
+
+        let root_dir = tempfile::tempdir().unwrap();
+        let invalid_ort = root_dir.path().join("invalid-generic-ort.bin");
+        fs::write(
+            &invalid_ort,
+            b"generic ORT path must remain unused when cpu_owner_policy is configured\n",
+        )
+        .unwrap();
+        let prev_ffmpeg = std::env::var_os("PULSAR_FFMPEG");
+        let prev_ffmpeg_bin = std::env::var_os("PULSAR_FFMPEG_BIN");
+        let prev_ffprobe = std::env::var_os("PULSAR_FFPROBE");
+        let prev_ffprobe_bin = std::env::var_os("PULSAR_FFPROBE_BIN");
+        let prev_ort = std::env::var_os("PULSAR_ORT_DYLIB");
+        std::env::set_var("PULSAR_FFMPEG", &ffmpeg_path);
+        std::env::set_var("PULSAR_FFMPEG_BIN", &ffmpeg_path);
+        std::env::set_var("PULSAR_FFPROBE", &ffprobe_path);
+        std::env::set_var("PULSAR_FFPROBE_BIN", &ffprobe_path);
+        std::env::set_var("PULSAR_ORT_DYLIB", &invalid_ort);
+
+        let mut policy_value: CpuOwnerPolicy =
+            serde_json::from_value(closure["policy"].clone()).unwrap();
+        for lib in &mut policy_value.native_dependencies.libraries {
+            let real_path = fs::canonicalize(&lib.path).unwrap_or_else(|_| lib.path.clone());
+            let id = file_identity(&real_path);
+            lib.path = real_path;
+            lib.sha256 = id.sha256;
+            lib.byte_len = id.byte_len;
+        }
+        policy_value.validate().unwrap();
+        let policy_path = root_dir.path().join("cpu-owner.json");
+        let policy_bytes = serde_json::to_vec(&policy_value).unwrap();
+        fs::write(&policy_path, &policy_bytes).unwrap();
+        fs::set_permissions(&policy_path, fs::Permissions::from_mode(0o600)).unwrap();
+        let owner = LoadedCpuOwnerPolicy::load(&policy_path).unwrap();
+        let expected_image = owner.image().unwrap();
+        let expected_image_id = expected_image.identity().unwrap();
+        assert_eq!(
+            owner.runtime_identity().unwrap().sha256,
+            subjects["runtime"]["sha256"].as_str().unwrap()
+        );
+        assert_eq!(&expected_image.owner_policy, owner.identity());
+
+        let local_media = root_dir.path().join("origin-media.mp4");
+        fs::copy(&media_path, &local_media).unwrap();
+        let local_model = root_dir.path().join("origin-temporal.onnx");
+        fs::copy(&model_path, &local_model).unwrap();
+        let model_id = file_identity(&local_model);
+        let explicit_profile = DeclaredInferenceProfile {
+            schema_version: 1,
+            model: model_id.clone(),
+            runtime: owner.runtime_identity().unwrap(),
+            preprocessing: InferencePreprocessing {
+                input: ModelInputContract {
+                    width: 64,
+                    height: 64,
+                    channels: 6,
+                    layout: TensorLayout::Nchw,
+                    class_count: 1,
+                    decoder: DetectorDecoder::TemporalScriptPosition,
+                },
+                resize: InferenceResize::NearestStretch,
+                color: InferenceColor::RgbFramePair,
+                scale: vec![1.0 / 255.0; 6],
+                bias: vec![0.0; 6],
+                padding_byte: 0,
+            },
+            provider: InferenceProvider::Cpu,
+            minimum_memory_bytes: 128 << 20,
+            minimum_output_bytes: 1 << 20,
+            cpu_threads: 2,
+            cuda_resources: None,
+        };
+        explicit_profile.validate().unwrap();
+        let profile_id = crate::inference_profiles::profile_identity(&explicit_profile).unwrap();
+
+        // 1a. Negative confined CPU execution (broken policy missing libstdc++.so.6 in confined namespace).
+        let neg_dir = root_dir.path().join("neg-missing-stdcpp");
+        fs::create_dir_all(&neg_dir).unwrap();
+        let mut broken_policy = policy_value.clone();
+        broken_policy
+            .native_dependencies
+            .libraries
+            .retain(|lib| !lib.names.iter().any(|n| n == "libstdc++.so.6"));
+        assert_eq!(
+            broken_policy.native_dependencies.libraries.len() + 1,
+            policy_value.native_dependencies.libraries.len()
+        );
+        let broken_policy_path = neg_dir.join("broken-cpu-owner.json");
+        fs::write(
+            &broken_policy_path,
+            serde_json::to_vec(&broken_policy).unwrap(),
+        )
+        .unwrap();
+        fs::set_permissions(&broken_policy_path, fs::Permissions::from_mode(0o600)).unwrap();
+        let mut neg_cfg = EngineConfig::new(neg_dir.join("state"), worker_bin.clone());
+        neg_cfg.cpu_owner_policy = Some(broken_policy_path);
+        let neg_engine = Engine::open(neg_cfg).unwrap();
+        let (neg_session, neg_token) = pair_with_token(&neg_engine, "neg-cpu");
+        let ResponseBody::Project(neg_proj) = neg_engine
+            .handle(authed_req(
+                &neg_session,
+                &neg_token,
+                None,
+                None,
+                Command::CreateProject {
+                    name: "Negative CPU".into(),
+                },
+            ))
+            .result
+            .unwrap()
+        else {
+            panic!()
+        };
+        let ResponseBody::Source {
+            source_version: neg_source,
+        } = neg_engine
+            .handle(authed_req(
+                &neg_session,
+                &neg_token,
+                Some(&neg_proj.project_id),
+                None,
+                Command::ImportSource {
+                    path: local_media.clone(),
+                },
+            ))
+            .result
+            .unwrap()
+        else {
+            panic!()
+        };
+        let neg_settings = GenerationSettings {
+            analysis_width: 64,
+            analysis_height: 64,
+            source_sample_stride: 2,
+            model_input: Some(explicit_profile.preprocessing.input.clone()),
+            inference_profile: Some(explicit_profile.clone()),
+            ..Default::default()
+        };
+        let ResponseBody::Job(neg_job) = neg_engine
+            .handle(authed_req(
+                &neg_session,
+                &neg_token,
+                Some(&neg_proj.project_id),
+                Some(0),
+                Command::Generate {
+                    source_version: neg_source,
+                    preset: "default".into(),
+                    settings: Some(neg_settings),
+                    model_path: Some(local_model.clone()),
+                },
+            ))
+            .result
+            .unwrap()
+        else {
+            panic!()
+        };
+        let neg_deadline = Instant::now() + Duration::from_secs(30);
+        let neg_final = loop {
+            let snap = {
+                let db = neg_engine.db.lock().unwrap();
+                job_snapshot(&db, &neg_job.job_id, &neg_proj.project_id).unwrap()
+            };
+            if snap.state != "queued" && snap.state != "running" {
+                break snap;
+            }
+            assert!(Instant::now() < neg_deadline, "negative CPU job timed out");
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        assert_eq!(neg_final.state, "failed");
+        let neg_err_msg = neg_final.error.as_ref().unwrap().clone();
+        assert!(
+            neg_err_msg.contains("failed to load pinned ONNX runtime")
+                && neg_err_msg.contains("/pulsar-cpu-libraries/libonnxruntime.so.1"),
+            "unexpected negative CPU error: {neg_err_msg}"
+        );
+        drop_and_join_engine(neg_engine);
+
+        // 1b. Main origin Engine: execute actual completed, cancelled, and failed confined CPU attempts,
+        // plus retained interrupted and captured-running attempts.
+        let origin_state_dir = root_dir.path().join("origin-state");
+        let mut origin_cfg = EngineConfig::new(origin_state_dir.clone(), worker_bin.clone());
+        origin_cfg.cpu_owner_policy = Some(policy_path.clone());
+        let origin_engine = Engine::open(origin_cfg.clone()).unwrap();
+        let (origin_session, origin_token) = pair_with_token(&origin_engine, "origin-owner");
+        let ResponseBody::Project(origin_proj) = origin_engine
+            .handle(authed_req(
+                &origin_session,
+                &origin_token,
+                None,
+                None,
+                Command::CreateProject {
+                    name: "Portable CPU Origin".into(),
+                },
+            ))
+            .result
+            .unwrap()
+        else {
+            panic!()
+        };
+        let origin_project_id = origin_proj.project_id;
+        let ResponseBody::Source {
+            source_version: origin_source,
+        } = origin_engine
+            .handle(authed_req(
+                &origin_session,
+                &origin_token,
+                Some(&origin_project_id),
+                None,
+                Command::ImportSource {
+                    path: local_media.clone(),
+                },
+            ))
+            .result
+            .unwrap()
+        else {
+            panic!()
+        };
+
+        // Attempt 1: Actual confined CPU generation -> Completed + CommitCandidate.
+        let gen_settings = GenerationSettings {
+            analysis_width: 64,
+            analysis_height: 64,
+            source_sample_stride: 2,
+            model_input: Some(explicit_profile.preprocessing.input.clone()),
+            inference_profile: Some(explicit_profile.clone()),
+            ..Default::default()
+        };
+        let ResponseBody::Job(completed_job_initial) = origin_engine
+            .handle(authed_req(
+                &origin_session,
+                &origin_token,
+                Some(&origin_project_id),
+                Some(0),
+                Command::Generate {
+                    source_version: origin_source.clone(),
+                    preset: "default".into(),
+                    settings: Some(gen_settings.clone()),
+                    model_path: Some(local_model.clone()),
+                },
+            ))
+            .result
+            .unwrap()
+        else {
+            panic!()
+        };
+        let gen_deadline = Instant::now() + Duration::from_secs(60);
+        let completed_job = loop {
+            let snap = {
+                let db = origin_engine.db.lock().unwrap();
+                job_snapshot(&db, &completed_job_initial.job_id, &origin_project_id).unwrap()
+            };
+            if snap.state != "queued" && snap.state != "running" {
+                break snap;
+            }
+            assert!(Instant::now() < gen_deadline, "completed CPU job timed out");
+            std::thread::sleep(Duration::from_millis(15));
+        };
+        assert_eq!(
+            completed_job.state, "completed",
+            "{:?}",
+            completed_job.error
+        );
+        let completed_candidate_id = completed_job.candidate_id.clone().unwrap();
+        let completed_receipt_path = origin_state_dir
+            .join("attempts")
+            .join(completed_job.attempt_id.as_str())
+            .join("receipt.json");
+        let completed_receipt_json: Value =
+            serde_json::from_slice(&fs::read(&completed_receipt_path).unwrap()).unwrap();
+        assert_eq!(completed_receipt_json["qualification"], "unqualified");
+        assert_eq!(
+            completed_receipt_json["inference_execution"]["provider"],
+            "cpu"
+        );
+        assert!(
+            completed_receipt_json["inference_execution"]["successful_runs"]
+                .as_u64()
+                .unwrap()
+                > 0
+        );
+        origin_engine
+            .handle(authed_req(
+                &origin_session,
+                &origin_token,
+                Some(&origin_project_id),
+                Some(0),
+                Command::CommitCandidate {
+                    candidate_id: completed_candidate_id.clone(),
+                },
+            ))
+            .result
+            .unwrap();
+
+        // Attempt 2: Actual confined CPU generation -> Cancelled mid-execution after progress checkpoint.
+        let mut cancel_settings = gen_settings.clone();
+        cancel_settings.source_sample_stride = 1;
+        let ResponseBody::Job(cancelled_job_initial) = origin_engine
+            .handle(authed_req(
+                &origin_session,
+                &origin_token,
+                Some(&origin_project_id),
+                Some(1),
+                Command::Generate {
+                    source_version: origin_source.clone(),
+                    preset: "default".into(),
+                    settings: Some(cancel_settings),
+                    model_path: Some(local_model.clone()),
+                },
+            ))
+            .result
+            .unwrap()
+        else {
+            panic!()
+        };
+        let cancel_attempt_dir = origin_state_dir
+            .join("attempts")
+            .join(cancelled_job_initial.attempt_id.as_str());
+        let progress_deadline = Instant::now() + Duration::from_secs(30);
+        while Instant::now() < progress_deadline {
+            let has_progress = fs::read_dir(&cancel_attempt_dir)
+                .ok()
+                .into_iter()
+                .flatten()
+                .filter_map(Result::ok)
+                .any(|e| {
+                    let name = e.file_name();
+                    let s = name.to_string_lossy();
+                    s.starts_with(".progress-") && s.ends_with(".meta.json")
+                });
+            if has_progress {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        origin_engine
+            .handle(authed_req(
+                &origin_session,
+                &origin_token,
+                Some(&origin_project_id),
+                None,
+                Command::CancelJob {
+                    job_id: cancelled_job_initial.job_id.clone(),
+                },
+            ))
+            .result
+            .unwrap();
+        let cancel_retire_deadline = Instant::now() + Duration::from_secs(30);
+        while !origin_engine.workers.lock().unwrap().is_empty()
+            || origin_engine
+                .worker_fence
+                .has_pending_worker_custody()
+                .unwrap()
+        {
+            assert!(
+                Instant::now() < cancel_retire_deadline,
+                "cancelled CPU worker did not retire"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let cancelled_job = {
+            let db = origin_engine.db.lock().unwrap();
+            job_snapshot(&db, &cancelled_job_initial.job_id, &origin_project_id).unwrap()
+        };
+        assert_eq!(cancelled_job.state, "cancelled");
+
+        // Attempt 3: Actual confined CPU generation -> Failed inside confined worker (invalid ONNX bytes).
+        let invalid_onnx_path = root_dir.path().join("invalid-model.onnx");
+        fs::write(&invalid_onnx_path, b"not-a-valid-onnx-protobuf-model\n").unwrap();
+        let invalid_onnx_id = file_identity(&invalid_onnx_path);
+        let mut failed_profile = explicit_profile.clone();
+        failed_profile.model = invalid_onnx_id;
+        let failed_settings = GenerationSettings {
+            analysis_width: 64,
+            analysis_height: 64,
+            source_sample_stride: 2,
+            model_input: Some(failed_profile.preprocessing.input.clone()),
+            inference_profile: Some(failed_profile),
+            ..Default::default()
+        };
+        let ResponseBody::Job(failed_job_initial) = origin_engine
+            .handle(authed_req(
+                &origin_session,
+                &origin_token,
+                Some(&origin_project_id),
+                Some(1),
+                Command::Generate {
+                    source_version: origin_source.clone(),
+                    preset: "default".into(),
+                    settings: Some(failed_settings),
+                    model_path: Some(invalid_onnx_path),
+                },
+            ))
+            .result
+            .unwrap()
+        else {
+            panic!()
+        };
+        let failed_deadline = Instant::now() + Duration::from_secs(30);
+        let failed_job = loop {
+            let snap = {
+                let db = origin_engine.db.lock().unwrap();
+                job_snapshot(&db, &failed_job_initial.job_id, &origin_project_id).unwrap()
+            };
+            if snap.state != "queued" && snap.state != "running" {
+                break snap;
+            }
+            assert!(Instant::now() < failed_deadline, "failed CPU job timed out");
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        assert_eq!(failed_job.state, "failed");
+        let retire_deadline = Instant::now() + Duration::from_secs(20);
+        while !origin_engine.workers.lock().unwrap().is_empty()
+            || origin_engine
+                .worker_fence
+                .has_pending_worker_custody()
+                .unwrap()
+        {
+            assert!(Instant::now() < retire_deadline);
+            std::thread::sleep(Duration::from_millis(5));
+        }
+
+        // Attempt 4 (interrupted) and Attempt 5 (captured-running):
+        // Clone the exact captured WorkerRequest from Attempt 1 and declare both states in cpu_runtime_attempts.
+        {
+            let mut db = origin_engine.db.lock().unwrap();
+            let completed_raw: String = db
+                .query_row(
+                    "SELECT manifest FROM attempts WHERE id=?1",
+                    [completed_job.attempt_id.as_str()],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            let template_req: WorkerRequest = decode(&completed_raw).unwrap();
+            let tx = db.transaction().unwrap();
+            for state in ["interrupted", "running"] {
+                let mut req = template_req.clone();
+                req.job_id = JobId::new(format!("job.cpu.{state}")).unwrap();
+                req.attempt_id = AttemptId::new(format!("attempt.cpu.{state}")).unwrap();
+                req.base_revision = RevisionId::new(1);
+                req.output_dir = origin_state_dir
+                    .join("attempts")
+                    .join(req.attempt_id.as_str());
+                fs::create_dir_all(&req.output_dir).unwrap();
+                req.validate().unwrap();
+                let raw = encode(&req).unwrap();
+                tx.execute(
+                    "INSERT INTO jobs(id,attempt,project,base_revision,session,source,state,manifest) VALUES(?1,?2,?3,1,?4,?5,?6,?7)",
+                    params![
+                        req.job_id.as_str(),
+                        req.attempt_id.as_str(),
+                        origin_project_id.as_str(),
+                        origin_session.as_str(),
+                        origin_source.as_str(),
+                        state,
+                        raw,
+                    ],
+                )
+                .unwrap();
+                tx.execute(
+                    "INSERT INTO attempts(id,job,manifest,state) VALUES(?1,?2,?3,?4)",
+                    params![req.attempt_id.as_str(), req.job_id.as_str(), raw, state],
+                )
+                .unwrap();
+                crate::cpu_runtime_db::declare(&tx, &req, &expected_image).unwrap();
+            }
+            tx.commit().unwrap();
+            assert_eq!(
+                db.query_row("PRAGMA main.user_version", [], |r| r.get::<_, i64>(0))
+                    .unwrap(),
+                36
+            );
+        }
+
+        // 2. Export format-15 package from origin Engine.
+        let origin_plan = super::project_packages::capture(
+            &origin_engine,
+            &origin_session,
+            &origin_token,
+            &origin_project_id,
+            RevisionId::new(1),
+        )
+        .unwrap();
+        let parsed_manifest = origin_plan.manifest.clone();
+        let mut object_bytes = BTreeMap::new();
+        for desc in &parsed_manifest.objects {
+            let mut buf = Vec::new();
+            origin_plan
+                .open_object(desc)
+                .unwrap()
+                .read_to_end(&mut buf)
+                .unwrap();
+            object_bytes.insert(desc.sha256.clone(), buf);
+        }
+        drop(origin_plan);
+        let (origin_export_status, origin_package_bytes) = export_package_bytes(
+            &origin_engine,
+            &origin_session,
+            &origin_token,
+            &origin_project_id,
+        );
+        let origin_artifact = origin_export_status.artifact.clone().unwrap();
+        assert_eq!(
+            origin_artifact.format_version,
+            PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY
+        );
+        {
+            let db = origin_engine.db.lock().unwrap();
+            assert_eq!(
+                db.query_row("PRAGMA main.user_version", [], |r| r.get::<_, i64>(0))
+                    .unwrap(),
+                39
+            );
+            assert_eq!(crate::portable_cpu_archives::version(&db).unwrap(), 36);
+        }
+        // Retire the synthetic running row before shutting down origin Engine so assert_engine_retired is clean.
+        {
+            let db = origin_engine.db.lock().unwrap();
+            db.execute(
+                "UPDATE jobs SET state='interrupted' WHERE id='job.cpu.running'",
+                [],
+            )
+            .unwrap();
+            db.execute(
+                "UPDATE attempts SET state='interrupted' WHERE id='attempt.cpu.running'",
+                [],
+            )
+            .unwrap();
+        }
+        let origin_pin = open_reader_pin(&origin_state_dir);
+        drop_and_join_engine(origin_engine);
+
+        // Make original host source, model, and policy files unavailable to prove clones never touch origin paths.
+        fs::remove_file(&local_media).unwrap();
+        fs::remove_file(&local_model).unwrap();
+        fs::remove_file(&policy_path).unwrap();
+
+        // 3a. Exercise preceding reader against WAL-pinned origin state directory.
+        let origin_reader_probe = run_preceding_reader_engine(
+            &preceding_pulsar,
+            &preceding_worker,
+            &origin_state_dir,
+            origin_pin,
+        );
+        assert_eq!(origin_reader_probe["exit_code"], 1);
+        assert_eq!(origin_reader_probe["identical_state_files"], true);
+        assert_eq!(origin_reader_probe["reader39_in_committed_wal"], true);
+        assert_eq!(origin_reader_probe["shm_diff"]["changed_byte_count"], 0);
+        assert!(origin_reader_probe["stderr"]
+            .as_str()
+            .unwrap()
+            .contains("unknown captured CPU live reader version"));
+
+        // 3b. Exercise preceding reader CLI package-import against format-15 package file.
+        let pkg_file_path = root_dir.path().join("origin-format15.pulspkg");
+        fs::write(&pkg_file_path, &origin_package_bytes).unwrap();
+        let cli_pin = open_reader_pin(&origin_state_dir);
+        let mut cli_retained_fds = Vec::new();
+        let pkg_pin_before = pin_file(&pkg_file_path, &mut cli_retained_fds);
+        let origin_pins_before_cli = state_pins(&origin_state_dir, &mut cli_retained_fds);
+        let cli_out = ProcessCommand::new(&preceding_pulsar)
+            .arg("package-import")
+            .arg(&pkg_file_path)
+            .current_dir(&origin_state_dir)
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin")
+            .env("HOME", &origin_state_dir)
+            .env("PULSAR_STATE_DIR", &origin_state_dir)
+            .output()
+            .unwrap();
+        let cli_stderr = String::from_utf8_lossy(&cli_out.stderr).trim().to_owned();
+        assert_eq!(cli_out.status.code(), Some(1));
+        assert!(
+            cli_stderr.contains("engine startup exited with exit status: 1")
+                || cli_stderr.contains("unsupported package format version")
+                || cli_stderr.contains("package format version is not supported"),
+            "unexpected CLI stderr: {cli_stderr}"
+        );
+        assert_eq!(
+            pin_file(&pkg_file_path, &mut cli_retained_fds),
+            pkg_pin_before
+        );
+        assert_eq!(
+            state_pins(&origin_state_dir, &mut cli_retained_fds),
+            origin_pins_before_cli
+        );
+        let _ = cli_pin.execute_batch("ROLLBACK;");
+        drop(cli_pin);
+        drop(cli_retained_fds);
+
+        // 3c. Exercise preceding reader CLI package-import against format-15 package file with a running preceding-reader Engine (clean state) so PreparedPackageImport::open rejects format 15 before upload.
+        let cli_clean_dir = root_dir.path().join("cli-clean-state");
+        fs::create_dir_all(&cli_clean_dir).unwrap();
+        fs::set_permissions(&cli_clean_dir, fs::Permissions::from_mode(0o700)).unwrap();
+        let cli_pkg_out = ProcessCommand::new(&preceding_pulsar)
+            .arg("package-import")
+            .arg(&pkg_file_path)
+            .current_dir(&cli_clean_dir)
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin")
+            .env("HOME", &cli_clean_dir)
+            .env("PULSAR_STATE_DIR", &cli_clean_dir)
+            .env("PULSAR_WORKER_EXECUTABLE", &preceding_worker)
+            .output()
+            .unwrap();
+        let cli_pkg_stderr = String::from_utf8_lossy(&cli_pkg_out.stderr)
+            .trim()
+            .to_owned();
+        assert_eq!(cli_pkg_out.status.code(), Some(1));
+        assert!(
+            cli_pkg_stderr.contains("package format version")
+                || cli_pkg_stderr.contains("unsupported"),
+            "unexpected CLI package format refusal stderr: {cli_pkg_stderr}"
+        );
+        let mut pkg_check_fds = Vec::new();
+        assert_eq!(pin_file(&pkg_file_path, &mut pkg_check_fds), pkg_pin_before);
+        drop(pkg_check_fds);
+
+        // 4. Import into first clean clone Engine, join/shutdown, exercise preceding reader, and restart.
+        let clone1_state_dir = root_dir.path().join("clone1-state");
+        let clone1_worker = root_dir.path().join("inert-clone-worker");
+        fs::write(&clone1_worker, b"clone engine never executes workers\n").unwrap();
+        let clone1_cfg = EngineConfig::new(clone1_state_dir.clone(), clone1_worker.clone());
+        let clone1_engine = Engine::open(clone1_cfg.clone()).unwrap();
+        // Pin an initial read snapshot before format-15 import so the later committed schema-39 header stays in the WAL.
+        let clone1_initial_pin = open_reader_pin(&clone1_state_dir);
+        let (clone1_session, clone1_token) = pair_with_token(&clone1_engine, "clone1-owner");
+        let clone1_import = import_package_bytes(
+            &clone1_engine,
+            &clone1_session,
+            &clone1_token,
+            &origin_package_bytes,
+        );
+        assert_eq!(
+            clone1_import.state,
+            PackageImportOperationState::Completed,
+            "{:?}",
+            clone1_import.error
+        );
+        let clone1_receipt = clone1_import.receipt.clone().unwrap();
+        let clone1_project_id = clone1_receipt.project_id.clone();
+        assert_ne!(clone1_project_id, origin_project_id);
+        assert_eq!(
+            clone1_receipt.package.format_version,
+            PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY
+        );
+        {
+            let db = clone1_engine.db.lock().unwrap();
+            assert_eq!(
+                db.query_row("PRAGMA main.user_version", [], |r| r.get::<_, i64>(0))
+                    .unwrap(),
+                39
+            );
+            assert_eq!(crate::portable_cpu_archives::version(&db).unwrap(), 25);
+        }
+        let clone1_pin = open_reader_pin(&clone1_state_dir);
+        drop_and_join_engine(clone1_engine);
+
+        // 4b. Reproduce and record what happens WITHOUT the conditional schema-39 barrier on a copy of clone1,
+        // proving why the conditional portable_cpu_reader (39) barrier is required to prevent preceding-reader
+        // progression past open.state_probe into open.layout_probe.
+        let prebarrier_dir = root_dir.path().join("prebarrier-reproduction");
+        let copy_status = ProcessCommand::new("/bin/cp")
+            .args([
+                "-a",
+                clone1_state_dir.to_str().unwrap(),
+                prebarrier_dir.to_str().unwrap(),
+            ])
+            .status()
+            .unwrap();
+        assert!(copy_status.success());
+        let prebarrier_pin = {
+            let pre_db = Connection::open(prebarrier_dir.join("projects.sqlite3")).unwrap();
+            pre_db
+                .execute_batch(
+                    "PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0; DROP TABLE portable_cpu_reader; PRAGMA main.user_version=25;",
+                )
+                .unwrap();
+            let pin = open_reader_pin(&prebarrier_dir);
+            drop(pre_db);
+            pin
+        };
+        let prebarrier_probe = run_preceding_reader_engine(
+            &preceding_pulsar,
+            &preceding_worker,
+            &prebarrier_dir,
+            prebarrier_pin,
+        );
+        assert_eq!(prebarrier_probe["exit_code"], 1);
+        assert!(
+            !prebarrier_probe["stderr"]
+                .as_str()
+                .unwrap()
+                .contains("unknown captured CPU live reader version"),
+            "without schema-39 barrier, preceding reader does not refuse at open.state_probe's reader header"
+        );
+        assert!(
+            prebarrier_probe["stderr"]
+                .as_str()
+                .unwrap()
+                .contains("portable CUDA root archive binding differs")
+                || prebarrier_probe["stderr"]
+                    .as_str()
+                    .unwrap()
+                    .contains("unknown")
+                || !prebarrier_probe["stderr"].as_str().unwrap().is_empty(),
+            "unexpected prebarrier stderr: {}",
+            prebarrier_probe["stderr"]
+        );
+
+        // 4c. Exercise preceding reader against the actual WAL-pinned first-clone state directory (with schema-39 barrier).
+        let clone1_reader_probe = run_preceding_reader_engine(
+            &preceding_pulsar,
+            &preceding_worker,
+            &clone1_state_dir,
+            clone1_pin,
+        );
+        let _ = clone1_initial_pin.execute_batch("ROLLBACK;");
+        drop(clone1_initial_pin);
+        assert_eq!(clone1_reader_probe["exit_code"], 1);
+        assert_eq!(clone1_reader_probe["identical_state_files"], true);
+        assert_eq!(clone1_reader_probe["reader39_in_committed_wal"], true);
+        assert_eq!(clone1_reader_probe["shm_diff"]["changed_byte_count"], 0);
+        assert!(clone1_reader_probe["stderr"]
+            .as_str()
+            .unwrap()
+            .contains("unknown captured CPU live reader version"));
+
+        // 4d. Restart first-clone Engine and verify exact correspondence, inert history, and re-export.
+        let clone1_engine = Engine::open(clone1_cfg).unwrap();
+        assert!(clone1_engine.cpu_owner_policy.is_none());
+        let clone1_candidate_id: CandidateId = {
+            let db = clone1_engine.db.lock().unwrap();
+            assert_eq!(
+                db.query_row("SELECT COUNT(*) FROM jobs", [], |r| r.get::<_, i64>(0))
+                    .unwrap(),
+                0
+            );
+            assert_eq!(
+                db.query_row("SELECT COUNT(*) FROM attempts", [], |r| r.get::<_, i64>(0))
+                    .unwrap(),
+                0
+            );
+            let cpu_tables: i64 = db
+                .query_row(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE name IN ('cpu_runtime_reader','cpu_runtime_attempts','live_cpu_reader','live_cpu_admissions','inference_fallback_reader','inference_fallback_jobs','inference_fallback_attempts','inference_fallback_pending')",
+                    [],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert_eq!(cpu_tables, 0);
+            let origin_sess_count: i64 = db
+                .query_row(
+                    "SELECT COUNT(*) FROM sessions WHERE id=?1",
+                    [origin_session.as_str()],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert_eq!(origin_sess_count, 0);
+            let cid: String = db
+                .query_row(
+                    "SELECT id FROM candidates WHERE project=?1",
+                    [clone1_project_id.as_str()],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            CandidateId::new(cid).unwrap()
+        };
+        let ResponseBody::ArchivedGeneration(clone1_arch) = clone1_engine
+            .handle(authed_req(
+                &clone1_session,
+                &clone1_token,
+                Some(&clone1_project_id),
+                None,
+                Command::ArchivedGenerationStatus {
+                    candidate_id: clone1_candidate_id.clone(),
+                    master_revision: Some(RevisionId::new(1)),
+                },
+            ))
+            .result
+            .unwrap()
+        else {
+            panic!("ArchivedGenerationStatus on clone1")
+        };
+        assert!(
+            clone1_arch.archival
+                && !clone1_arch.active_job
+                && !clone1_arch.publication_authority
+                && !clone1_arch.release_qualified
+                && clone1_arch.master_derivation.is_some()
+        );
+        assert_eq!(clone1_arch.origins.len(), 1);
+        assert_eq!(clone1_arch.origins[0].project_id, origin_project_id);
+        assert_eq!(clone1_arch.origins[0].job_id, completed_job.job_id);
+        assert_eq!(clone1_arch.origins[0].attempt_id, completed_job.attempt_id);
+        assert_eq!(
+            encode(&clone1_arch.origins[0].settings.inference_profile).unwrap(),
+            encode(&Some(explicit_profile.clone())).unwrap()
+        );
+
+        let (clone1_export_status, clone1_package_bytes) = export_package_bytes(
+            &clone1_engine,
+            &clone1_session,
+            &clone1_token,
+            &clone1_project_id,
+        );
+        assert_eq!(
+            clone1_export_status
+                .artifact
+                .as_ref()
+                .unwrap()
+                .format_version,
+            PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY
+        );
+        drop_and_join_engine(clone1_engine);
+
+        // 5. Import into second clean clone Engine, restart, and verify two-hop original + ancestor correspondence.
+        let clone2_state_dir = root_dir.path().join("clone2-state");
+        let clone2_cfg = EngineConfig::new(clone2_state_dir.clone(), clone1_worker.clone());
+        let clone2_engine = Engine::open(clone2_cfg.clone()).unwrap();
+        let clone2_initial_pin = open_reader_pin(&clone2_state_dir);
+        let (clone2_session, clone2_token) = pair_with_token(&clone2_engine, "clone2-owner");
+        let clone2_import = import_package_bytes(
+            &clone2_engine,
+            &clone2_session,
+            &clone2_token,
+            &clone1_package_bytes,
+        );
+        assert_eq!(
+            clone2_import.state,
+            PackageImportOperationState::Completed,
+            "{:?}",
+            clone2_import.error
+        );
+        let clone2_project_id = clone2_import.receipt.as_ref().unwrap().project_id.clone();
+        assert_ne!(clone2_project_id, clone1_project_id);
+        assert_ne!(clone2_project_id, origin_project_id);
+        let clone2_pin = open_reader_pin(&clone2_state_dir);
+        drop_and_join_engine(clone2_engine);
+
+        let clone2_reader_probe = run_preceding_reader_engine(
+            &preceding_pulsar,
+            &preceding_worker,
+            &clone2_state_dir,
+            clone2_pin,
+        );
+        let _ = clone2_initial_pin.execute_batch("ROLLBACK;");
+        drop(clone2_initial_pin);
+        assert_eq!(clone2_reader_probe["exit_code"], 1);
+        assert_eq!(clone2_reader_probe["identical_state_files"], true);
+        assert_eq!(clone2_reader_probe["reader39_in_committed_wal"], true);
+        assert_eq!(clone2_reader_probe["shm_diff"]["changed_byte_count"], 0);
+
+        let clone2_engine = Engine::open(clone2_cfg).unwrap();
+        let clone2_candidate_id: CandidateId = {
+            let db = clone2_engine.db.lock().unwrap();
+            assert_eq!(
+                db.query_row("SELECT COUNT(*) FROM jobs", [], |r| r.get::<_, i64>(0))
+                    .unwrap(),
+                0
+            );
+            assert_eq!(
+                db.query_row("SELECT COUNT(*) FROM attempts", [], |r| r.get::<_, i64>(0))
+                    .unwrap(),
+                0
+            );
+            let cid: String = db
+                .query_row(
+                    "SELECT id FROM candidates WHERE project=?1",
+                    [clone2_project_id.as_str()],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            CandidateId::new(cid).unwrap()
+        };
+        let ResponseBody::ArchivedGeneration(clone2_arch) = clone2_engine
+            .handle(authed_req(
+                &clone2_session,
+                &clone2_token,
+                Some(&clone2_project_id),
+                None,
+                Command::ArchivedGenerationStatus {
+                    candidate_id: clone2_candidate_id,
+                    master_revision: Some(RevisionId::new(1)),
+                },
+            ))
+            .result
+            .unwrap()
+        else {
+            panic!("ArchivedGenerationStatus on clone2")
+        };
+        assert_eq!(clone2_arch.origins.len(), 1);
+        assert_eq!(clone2_arch.origins[0].project_id, origin_project_id);
+        assert_eq!(clone2_arch.origins[0].job_id, completed_job.job_id);
+        assert_eq!(clone2_arch.origins[0].attempt_id, completed_job.attempt_id);
+        assert_eq!(
+            encode(&clone2_arch.origins[0].settings.inference_profile).unwrap(),
+            encode(&Some(explicit_profile.clone())).unwrap()
+        );
+
+        let clone2_plan = super::project_packages::capture(
+            &clone2_engine,
+            &clone2_session,
+            &clone2_token,
+            &clone2_project_id,
+            RevisionId::new(1),
+        )
+        .unwrap();
+        assert_eq!(
+            clone2_plan.manifest.format_version,
+            PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY
+        );
+        assert_eq!(clone2_plan.manifest.imported_origins.len(), 2);
+        assert!(clone2_plan.manifest.generated_origins.is_empty());
+        assert!(clone2_plan.manifest.candidates[0]
+            .lineage
+            .contains(&expected_image_id));
+        assert!(clone2_plan.manifest.candidates[0]
+            .lineage
+            .contains(&profile_id));
+
+        // Verify all 5 attempt states and their exact CpuRuntimeImage declarations in the retained origin manifest inside clone2.
+        let mut retained_states = BTreeSet::new();
+        for descriptor in clone2_plan
+            .manifest
+            .objects
+            .iter()
+            .filter(|d| d.roles.contains(&PackageObjectRole::ImportedManifest))
+        {
+            let mut buf = Vec::new();
+            clone2_plan
+                .open_object(descriptor)
+                .unwrap()
+                .read_to_end(&mut buf)
+                .unwrap();
+            let ancestor: PortableProjectManifest = serde_json::from_slice(&buf).unwrap();
+            for origin in &ancestor.generated_origins {
+                assert_eq!(
+                    origin.cpu_runtime.as_ref().unwrap().identity().unwrap(),
+                    expected_image_id
+                );
+                retained_states.insert(origin.state.clone());
+            }
+        }
+        assert_eq!(
+            retained_states,
+            BTreeSet::from([
+                "completed".to_owned(),
+                "cancelled".to_owned(),
+                "failed".to_owned(),
+                "interrupted".to_owned(),
+                "running".to_owned(),
+            ])
+        );
+        drop(clone2_plan);
+
+        // 6. Verify actual package import refusals for stripped/mutated CPU image declarations and fallback tags.
+        let mut mutated_manifest = parsed_manifest.clone();
+        let fake_policy_sha = "f".repeat(64);
+        let mutated_image = mutated_manifest.generated_origins[0]
+            .cpu_runtime
+            .as_mut()
+            .unwrap();
+        mutated_image.owner_policy.artifact_id = ArtifactId::new(fake_policy_sha.clone()).unwrap();
+        mutated_image.owner_policy.sha256 = fake_policy_sha;
+        let mut mutated_pkg = Vec::new();
+        write_package(
+            &mutated_manifest,
+            &mut mutated_pkg,
+            |desc| {
+                Ok(Box::new(std::io::Cursor::new(
+                    object_bytes[&desc.sha256].clone(),
+                )))
+            },
+            PackageCodecLimits {
+                max_package_bytes: DEFAULT_MAX_PROJECT_PACKAGE_BYTES,
+            },
+        )
+        .unwrap();
+        let refused_import =
+            import_package_bytes(&clone2_engine, &clone2_session, &clone2_token, &mutated_pkg);
+        assert_eq!(refused_import.state, PackageImportOperationState::Failed);
+        {
+            let db = clone2_engine.db.lock().unwrap();
+            assert_eq!(
+                db.query_row("SELECT COUNT(*) FROM projects", [], |r| r.get::<_, i64>(0))
+                    .unwrap(),
+                1
+            );
+        }
+        drop_and_join_engine(clone2_engine);
+
+        match prev_ffmpeg {
+            Some(v) => std::env::set_var("PULSAR_FFMPEG", v),
+            None => std::env::remove_var("PULSAR_FFMPEG"),
+        }
+        match prev_ffmpeg_bin {
+            Some(v) => std::env::set_var("PULSAR_FFMPEG_BIN", v),
+            None => std::env::remove_var("PULSAR_FFMPEG_BIN"),
+        }
+        match prev_ffprobe {
+            Some(v) => std::env::set_var("PULSAR_FFPROBE", v),
+            None => std::env::remove_var("PULSAR_FFPROBE"),
+        }
+        match prev_ffprobe_bin {
+            Some(v) => std::env::set_var("PULSAR_FFPROBE_BIN", v),
+            None => std::env::remove_var("PULSAR_FFPROBE_BIN"),
+        }
+        match prev_ort {
+            Some(v) => std::env::set_var("PULSAR_ORT_DYLIB", v),
+            None => std::env::remove_var("PULSAR_ORT_DYLIB"),
+        }
+
+        if let Ok(receipt_path) = std::env::var("PULSAR_PORTABLE_CPU_ROUNDTRIP_RECEIPT") {
+            let report = json!({
+                "status": "PASS",
+                "task": "CPU-ROUNDTRIP",
+                "qualified": false,
+                "physical_device_contacted": false,
+                "cpu_roundtrip_closed": false,
+                "scope": "Two-clone inert archival and preceding-reader refusal; running and interrupted rows are constructed from a completed request, not actual running capture or process interruption.",
+                "actual_running_capture_verified": false,
+                "actual_process_interruption_verified": false,
+                "subjects": {
+                    "worker": {
+                        "path": worker_bin,
+                        "sha256": worker_bin_id.sha256,
+                        "byte_len": worker_bin_id.byte_len,
+                    },
+                    "preceding_reader_pulsar": {
+                        "path": preceding_pulsar,
+                        "sha256": preceding_pulsar_id.sha256,
+                        "byte_len": preceding_pulsar_id.byte_len,
+                    },
+                    "preceding_reader_worker": {
+                        "path": preceding_worker,
+                        "sha256": preceding_worker_id.sha256,
+                        "byte_len": preceding_worker_id.byte_len,
+                    },
+                    "cpu_owner_policy_sha256": owner.identity().sha256,
+                    "cpu_runtime_image_sha256": expected_image_id.sha256,
+                    "model_sha256": model_id.sha256,
+                    "profile_sha256": profile_id.sha256,
+                },
+                "confined_cpu_attempts": {
+                    "negative_missing_stdcpp_failed": neg_final.state == "failed",
+                    "completed_attempt_id": completed_job.attempt_id,
+                    "completed_successful_runs": completed_receipt_json["inference_execution"]["successful_runs"],
+                    "cancelled_attempt_id": cancelled_job.attempt_id,
+                    "failed_attempt_id": failed_job.attempt_id,
+                    "retained_states_across_two_clones": retained_states,
+                },
+                "roundtrip": {
+                    "origin_project_id": origin_project_id,
+                    "origin_package_sha256": origin_artifact.sha256,
+                    "origin_package_byte_len": origin_artifact.byte_len,
+                    "clone1_project_id": clone1_project_id,
+                    "clone1_package_sha256": clone1_export_status.artifact.as_ref().unwrap().sha256,
+                    "clone2_project_id": clone2_project_id,
+                    "clone2_imported_origins_count": 2,
+                    "inert_history_verified": true,
+                    "mutated_package_import_refused": true,
+                },
+                "preceding_reader_verification": {
+                    "prebarrier_reproduction_mutated_fence_inode": prebarrier_probe["before"]["fence"]["inode"] != prebarrier_probe["after"]["fence"]["inode"],
+                    "prebarrier_probe": prebarrier_probe,
+                    "origin_state_probe": origin_reader_probe,
+                    "clone1_state_probe": clone1_reader_probe,
+                    "clone2_state_probe": clone2_reader_probe,
+                    "cli_package_import_exit_code": cli_out.status.code(),
+                    "cli_package_import_stderr": cli_stderr,
+                    "cli_clean_state_package_import_exit_code": cli_pkg_out.status.code(),
+                    "cli_clean_state_package_import_stderr": cli_pkg_stderr,
+                },
+            });
+            fs::write(receipt_path, serde_json::to_vec_pretty(&report).unwrap()).unwrap();
+        }
     }
 }

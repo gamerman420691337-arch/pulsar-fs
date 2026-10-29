@@ -77,7 +77,7 @@ fn origin_bytes(origin: &Origin) -> Result<Vec<u8>> {
 
 fn layout(db: &Connection) -> Result<bool> {
     crate::live_cpu_reader::version(db)?;
-    let raw: i64 = db.query_row("PRAGMA main.user_version", [], |r| r.get(0))?;
+    let raw = crate::portable_cpu_archives::version(db)?;
     let temporary: bool = db.query_row("SELECT EXISTS(SELECT 1 FROM temp.sqlite_master WHERE (lower(name) GLOB 'live_cpu_*' OR lower(tbl_name) GLOB 'live_cpu_*') AND lower(name)!='live_cpu_reader' AND lower(tbl_name)!='live_cpu_reader')", [], |r| r.get(0))?;
     ensure!(
         !temporary,

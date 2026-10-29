@@ -522,7 +522,7 @@ impl Engine {
             crate::job_attempt_history::validate(&probe)?;
             wasm_edits::validate(&probe)?;
             assistant_operations::validate(&probe)?;
-            anyhow::ensure!(matches!(version,0|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38),"project database schema requires an explicit recoverable migration; original was not modified");
+            anyhow::ensure!(matches!(version,0|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38|39),"project database schema requires an explicit recoverable migration; original was not modified");
             crate::portable_annotated_db::validate_metadata(&probe)?;
             stash_batches::validate_annotated_reader(&probe)?;
             crate::annotated_generation_db::validate(
@@ -699,7 +699,7 @@ impl Engine {
             handy_qualification::validate(&probe)?;
             handy_browser_start_qualification::validate(&probe)?;
             handy_hsp_source_qualification::validate(&probe)?;
-            anyhow::ensure!(matches!(version,0|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38),"project database schema requires an explicit recoverable migration; original was not modified");
+            anyhow::ensure!(matches!(version,0|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38|39),"project database schema requires an explicit recoverable migration; original was not modified");
             library_batches::validate_reader(&probe, &config)?;
             crate::native_preparation_db::validate(&probe)?;
             crate::job_attempt_history::validate(&probe)?;
@@ -759,7 +759,7 @@ impl Engine {
         crate::cpu_runtime_db::validate(&db)?;
         inference_fallback_store::validate(&db)?;
         crate::live_cpu_history::validate(&db)?;
-        anyhow::ensure!(matches!(version,0|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38), "project database schema requires an explicit recoverable migration; original was not modified");
+        anyhow::ensure!(matches!(version,0|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38|39), "project database schema requires an explicit recoverable migration; original was not modified");
         library_batches::validate_reader(&db, &config)?;
         crate::native_preparation_db::validate(&db)?;
         crate::job_attempt_history::validate(&db)?;
