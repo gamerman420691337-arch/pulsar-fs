@@ -97,6 +97,8 @@ mod captured_cpu_browser_native_tests {
         fixture: ArtifactReference,
         decoded: DecodedFixture,
         pixels: Vec<u8>,
+        cpu_threads: u16,
+        owner_cpu_threads: u16,
     }
     impl Inputs {
         fn load() -> Result<Self> {
@@ -192,6 +194,12 @@ mod captured_cpu_browser_native_tests {
                 fixture,
                 decoded,
                 pixels,
+                cpu_threads: std::env::var("PULSAR_CAPTURED_CPU_BROWSER_THREADS")
+                    .unwrap_or_else(|_| "2".into())
+                    .parse()?,
+                owner_cpu_threads: std::env::var("PULSAR_CAPTURED_CPU_BROWSER_OWNER_THREADS")
+                    .unwrap_or_else(|_| "4".into())
+                    .parse()?,
             })
         }
         fn verify_unchanged(&self) -> Result<()> {
@@ -212,7 +220,7 @@ mod captured_cpu_browser_native_tests {
             Ok(())
         }
         fn subjects(&self) -> Value {
-            json!({"worker":self.worker,"policy":self.policy,"model":self.model,"media":self.media,"rgb_fixture":self.fixture,"rgb":self.decoded.rgb,"decoder":self.decoded.decoder,"decoder_arguments":self.decoded.arguments,"authored_neutral_model":true,"authored_browser_observations":true,"browser_capture":false,"physical_device":false,"qualified":false})
+            json!({"worker":self.worker,"policy":self.policy,"model":self.model,"media":self.media,"rgb_fixture":self.fixture,"rgb":self.decoded.rgb,"decoder":self.decoded.decoder,"decoder_arguments":self.decoded.arguments,"cpu_threads":self.cpu_threads,"owner_cpu_threads":self.owner_cpu_threads,"authored_neutral_model":true,"authored_browser_observations":true,"browser_capture":false,"physical_device":false,"qualified":false})
         }
         fn bytes(&self, index: usize) -> Result<&[u8]> {
             ensure!(
@@ -244,7 +252,7 @@ mod captured_cpu_browser_native_tests {
                 provider: InferenceProvider::Cpu,
                 minimum_memory_bytes: 128 << 20,
                 minimum_output_bytes: 1 << 20,
-                cpu_threads: 2,
+                cpu_threads: self.cpu_threads,
                 cuda_resources: None,
             };
             profile.validate()?;
@@ -1407,6 +1415,7 @@ mod captured_cpu_browser_native_tests {
             let mut config =
                 EngineConfig::new(directory.path().join("state"), inputs.worker.path.clone());
             config.cpu_owner_policy = Some(inputs.policy.path.clone());
+            config.max_cpu_threads = inputs.owner_cpu_threads;
             config.worker_timeout = Duration::from_secs(60);
             engine = Some(Engine::open(config)?);
             let client = Client::new(engine.as_ref().unwrap())?;
