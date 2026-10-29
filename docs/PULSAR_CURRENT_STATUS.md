@@ -4,11 +4,11 @@
 
 The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue and milestone ledger.
 
-Reconciled **2026-10-29**. Roadmap **INCOMPLETE**; autonomous runner observation **paused**.
+Reconciled **2026-10-29**. Roadmap **INCOMPLETE**; autonomous runner observation **active**.
 
-**Working tree: VERIFIED.** Stale successor replacement and unissued cleanup are repaired. Selected rendered lifecycle faults pass, while earlier intermittent timing_exchange_unconfirmed, full browser fault/reliability coverage, startup cause and model/platform/physical/human acceptance remain open.
+**Working tree: VERIFIED.** Seek/rate/hidden-page checks now have scoped rendered evidence. A longer 264867d preview session exits 1 with native timing cleanup unconfirmed / timing_exchange_unconfirmed; operation/cause remain unresolved. Full runtime reliability and model/platform/physical/human acceptance remain open.
 
-**Next: BROWSER-DEMO — Verify the real rendered-browser-to-recording/export demo.** Exit required: Resolve retained intermittent timing_exchange_unconfirmed failures and establish repeatable runtime reliability against the cutover baseline; complete the applicable browser fault matrix, including seek/rate/hidden-page, pending source/transfer replacement and expired/unknown outcomes with exact source/clock/CPU correspondence. One full40s recording/review/export run remains a pinned positive checkpoint. Current explicit Stop/reprepare, active reload, subsequent continuation, owned preview crash and fresh reconnection pass selected rendered cases; these do not explain earlier timing failures or close the full campaign.
+**Next: BROWSER-DEMO — Verify the real rendered-browser-to-recording/export demo.** Exit required: Localize retained timing_exchange_unconfirmed failures, including the 264867d native timing cleanup exit 1, with bounded secret-free operation/cause evidence at the failing path; establish repeatable reliability without extending original deadlines. Finish applicable pending source/transfer replacement and expired/unknown-outcome coverage with exact source/clock/CPU correspondence. Selected rendered Stop/reprepare, reload, crash/reconnect, seek, rate and exact-main-window hidden-page cases pass; a full 40s recording/review/export remains a pinned positive checkpoint, not general runtime qualification.
 
 Last verified checkpoint: Engine **1890 passed / 110 ignored**, clients **697 passed / 14 ignored**, Protocol **397 passed**. Engine: pinned causal HSP repair, full default-thread suite. Clients: current lifecycle repair, full suite with one test thread. Protocol: separate pinned component checkpoint. Selected rendered/native checks do not establish general runtime or physical qualification.
 
