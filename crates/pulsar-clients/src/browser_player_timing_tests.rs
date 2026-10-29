@@ -4,6 +4,75 @@ use std::os::unix::net::UnixListener;
 
 const NATIVE: u64 = (1_u64 << 53) + 17;
 
+#[cfg(target_os = "linux")]
+include!("browser_player_timing_native_tests.rs");
+
+#[test]
+fn failed_ordinary_probe_retains_diagnostic_but_exact_release_settles_cleanup() {
+    for release in ["inactive", "foreign", "current", "drop"] {
+        let mut report = None;
+        let mut server = Server::new(move |request| match &request.command {
+            Command::OpenBrowserTiming { .. } => {
+                let value = opened(request);
+                report = Some(value.clone());
+                body(value)
+            }
+            Command::IssueBrowserTimingProbe { .. } => Some(Err(ProtocolError::new(
+                ErrorCode::Unavailable,
+                "browser timing binding is not current",
+            ))),
+            Command::ReleaseBrowserTiming { binding_id, player } => {
+                let mut value = report.take().unwrap();
+                assert_eq!(binding_id, &value.binding.binding_id);
+                assert_eq!(player, &value.binding.player);
+                if release == "drop" {
+                    return None;
+                }
+                value.current = release == "current";
+                if release == "foreign" {
+                    value.binding.binding_id = ArtifactId::new("foreign-release").unwrap();
+                }
+                body(value)
+            }
+            _ => panic!("failed timing must not retry or reopen"),
+        });
+        let mut timing = Timing::new(&server.client()).unwrap();
+        let player = player();
+        timing
+            .open(player.clone(), Arc::new(AtomicBool::new(false)), media())
+            .unwrap();
+        ready(&timing);
+        timing
+            .handle("/player/timing-probe", &player, b"", 1)
+            .unwrap();
+        assert!(reply(&timing, &player, 1).is_err());
+        let cleanup = timing.shutdown();
+        let records = state(&timing.shared);
+        let record = &records.entries[0];
+        assert!(record.retired);
+        if release == "inactive" {
+            assert!(record.release == ReleaseState::Acknowledged);
+            assert!(!record.report.as_ref().unwrap().current);
+            assert!(
+                cleanup.is_ok(),
+                "exact retirement must settle custody: {cleanup:?}"
+            );
+        } else {
+            assert!(record.release == ReleaseState::Unknown);
+            assert!(cleanup
+                .unwrap_err()
+                .to_string()
+                .contains("release_unconfirmed"));
+        }
+        assert!(
+            record.first_failure.is_some(),
+            "do not erase the failed exchange"
+        );
+        drop(records);
+        assert_eq!(server.finish().len(), 3);
+    }
+}
+
 #[test]
 fn retirement_after_worker_skip_before_open_dispatch_does_not_create_unknown_custody() {
     let mut server = Server::new(|_| panic!("retired Open must never reach the Engine"));
@@ -1034,7 +1103,15 @@ fn foreign_probe_or_changed_observation_refuses_and_releases_only_original_bindi
         assert!(timing
             .handle("/player/timing-probe", &player, b"", 3)
             .is_err());
-        assert!(timing.shutdown().is_err());
+        timing.shutdown().unwrap();
+        {
+            let records = state(&timing.shared);
+            let record = &records.entries[0];
+            assert!(record.release == ReleaseState::Acknowledged);
+            assert!(!record.report.as_ref().unwrap().current);
+            assert!(record.first_failure.is_some());
+            assert!(record.probe.is_none());
+        }
         let calls = server.finish();
         assert_eq!(calls.len(), if fault.starts_with("probe") { 3 } else { 4 });
     }

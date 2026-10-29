@@ -6,11 +6,11 @@ The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue
 
 Reconciled **2026-10-29**. Roadmap **INCOMPLETE**; autonomous runner observation **active**.
 
-**Working tree: VERIFIED.** CPU-ROUNDTRIP software campaign verified with actual running capture and Engine SIGKILL/restart. Engine1891 passed/0 failed/112 ignored; strict lint passes. Next: unresolved browser timing cleanup and remaining lifecycle/fault coverage. All25 model/platform/real-media/device/human acceptance gates remain open.
+**Working tree: VERIFIED.** Native acknowledged-retirement bookkeeping repaired with a causal Engine/IPC regression.702 client tests/15 ignored,164 JS tests, strict lint and default build pass. Historical420s trigger, wider rendered lifecycle/fault coverage and all25 acceptance gates remain open.
 
 **Next: BROWSER-DEMO — Verify the real rendered-browser-to-recording/export demo.** Exit required: Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification.
 
-Last verified checkpoint: Engine **1891 passed / 112 ignored**, clients **701 passed / 14 ignored**, Protocol **397 passed**. Current Engine CPU archival evidence:1891 passed/112 ignored, strict lint and actual running/interruption two-clone campaign. Clients/Protocol retain their separate pinned checkpoints. Browser timing cleanup and all parent acceptance gates remain open.
+Last verified checkpoint: Engine **1891 passed / 112 ignored**, clients **702 passed / 15 ignored**, Protocol **397 passed**. Current client timing-retirement code:702 passed/15 ignored,164 JS tests, strict lint/default build and native causal probe-release regression. Engine1891/112 ignored and Protocol397 remain separately pinned. Historical420s trigger and broader acceptance remain open.
 
 Native core/browser/restart/resource scenarios have scoped passing evidence. Real rendered acquisition, useful learned quality, installed-Stash compatibility, physical Handy synchronization and full platform/human/release acceptance remain open. The earlier startup failure remains unexplained.
 
