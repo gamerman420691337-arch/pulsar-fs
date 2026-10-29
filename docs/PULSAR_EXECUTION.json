@@ -30,9 +30,9 @@
   "working_tree": {
     "build_state": "verified",
     "evidence": "EV-TIMING-RETIREMENT",
-    "scope": "Confirmed native timing retirement settles failed ordinary probe/observation custody while retaining its allowlisted first_failure. Invalid results remain rejected, retired timing cannot resume, and missing/foreign/current release replies still fail cleanup. Real IPC regression and actual private Engine media-release scenario turn red to green with only the timing implementation changed. Native Engine exits0;702 client tests/15 ignored,164 browser JS tests, strict client lint and default App/Worker build pass. Authored source/declared clocks; no rendered, model or physical qualification. The original420s trigger remains independently unproven.",
+    "scope": "Current source is unchanged from the verified6d4c9fa timing-retirement build. Rendered counterevidence EV-RENDERED-TRANSFER-ABORT now drives BROWSER-DEMO: reproduce the successor-lifetime/pair/status interleaving, preserving original deadlines and the failed run. Native timing bookkeeping repair remains independently verified; full browser reliability is not established.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "Native acknowledged-retirement bookkeeping repaired with a causal Engine/IPC regression.702 client tests/15 ignored,164 JS tests, strict lint and default build pass. Historical420s trigger, wider rendered lifecycle/fault coverage and all25 acceptance gates remain open.",
+    "failure_summary": "Build/library checkpoint remains VERIFIED. New rendered qualification FAIL: a transfer retires before its successor pair is accepted; retained native refusal is original successor lifetime retired. Repeat stays fresh through11.3s; cause remains unproven. Browser servers/Engine exit0 and fence custody clears. All25 acceptance gates remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -1227,7 +1227,8 @@
         "EV-TIMING-EXPIRY",
         "EV-HANDOFF-PAIR",
         "EV-LOOKAHEAD-MARGIN",
-        "EV-TIMING-RETIREMENT"
+        "EV-TIMING-RETIREMENT",
+        "EV-RENDERED-TRANSFER-ABORT"
       ]
     },
     {
@@ -3952,6 +3953,119 @@
             "native_engine_exit_code"
           ],
           "equals": 0
+        }
+      ]
+    },
+    {
+      "id": "EV-RENDERED-TRANSFER-ABORT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/browser-expiry/verification.json",
+      "sha256": "bf4f78eb73fd08e6eeadd989f9eb62fb75e43f979e08b358ea6ca166dafffd0f",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Rendered qualification FAIL on repaired6d4c9fa subject. Real Chrome/sterile40s source/authored neutral CPU model/10s media leases/500ms requested lead/original1000ms age budget: initial fresh output, then original-transfer status fails with browser player retired. Retained native abort confirms predecessor joined and delivery settled but successor pair unaccepted, with dependency_mismatch: original successor lifetime retired. Separate repeat shows fresh provisional output through source11.3s, so simple deterministic expiry is not established.10 retained CPU admission declarations include prepared successors and do not prove10 committed captures. Both measured browser servers and Engine exit0; worker fence custody empty. Full EOF/export/reliability and the historical420s cause remain unproven. No model or physical qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historical_420s_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "rendered_transfer_abort_observed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_abort_original_successor_retired"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "predecessor_worker_joined"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "predecessor_delivery_settled"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "successor_pair_accepted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "repeat_fresh_at_source_11_3_seconds"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_cpu_admission_declarations"
+          ],
+          "equals": 10
+        },
+        {
+          "pointer": [
+            "checks",
+            "first_capture_retained_samples"
+          ],
+          "equals": 18
+        },
+        {
+          "pointer": [
+            "checks",
+            "measured_server_exit_code"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "repeat_server_exit_code"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_exit_code"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "worker_fence_custody_empty"
+          ],
+          "equals": true
         }
       ]
     }

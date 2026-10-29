@@ -6,7 +6,7 @@ The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue
 
 Reconciled **2026-10-29**. Roadmap **INCOMPLETE**; autonomous runner observation **active**.
 
-**Working tree: VERIFIED.** Native acknowledged-retirement bookkeeping repaired with a causal Engine/IPC regression.702 client tests/15 ignored,164 JS tests, strict lint and default build pass. Historical420s trigger, wider rendered lifecycle/fault coverage and all25 acceptance gates remain open.
+**Working tree: VERIFIED.** Build/library checkpoint remains VERIFIED. New rendered qualification FAIL: a transfer retires before its successor pair is accepted; retained native refusal is original successor lifetime retired. Repeat stays fresh through11.3s; cause remains unproven. Browser servers/Engine exit0 and fence custody clears. All25 acceptance gates remain open.
 
 **Next: BROWSER-DEMO — Verify the real rendered-browser-to-recording/export demo.** Exit required: Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification.
 
