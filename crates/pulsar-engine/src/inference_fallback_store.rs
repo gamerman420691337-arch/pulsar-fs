@@ -59,6 +59,9 @@ pub(super) struct HistorySnapshot {
     indices: BTreeMap<AttemptId, usize>,
 }
 impl HistorySnapshot {
+    pub(super) fn into_archive(self) -> Option<InferenceFallbackHistory> {
+        self.archive
+    }
     pub(super) fn trace_for(
         &self,
         request: &WorkerRequest,

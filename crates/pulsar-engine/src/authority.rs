@@ -18,6 +18,9 @@ use std::sync::{
 };
 use uuid::Uuid;
 
+#[path = "portable_fallback_payload.rs"]
+mod portable_fallback_payload;
+
 #[path = "generation_attempt_origin.rs"]
 mod generation_attempt_origin;
 #[path = "inference_fallback_execution.rs"]

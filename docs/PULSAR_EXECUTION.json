@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-FALLBACK-PACKAGE-BARRIER",
-    "scope": "Conditional format16 fallback-history object references, exact role/size bounds and legacy omitted-field encoding; clients recognize header16 and refuse17, while Engine root/ancestor object graphs remain explicitly refused. Reader40 composes in all24 orders with CPU39/live38/local-fallback37 and preserves transactional/monotonic publication. Metadata fields/roles/ancestors require the marker before recovery. Current startup rejects unsupported cold main-file headers before daemon locks or SQLite; normal validation still refuses a newer committed WAL version. Native pinned preceding App refuses40 but creates three auxiliary files; its original files retain observed bytes/modes. The current App reopens40 and refuses cold41 with observed state inventory/modes/contents unchanged. This does not clear prior-reader or hot-WAL filesystem-wide side effects. Final Engine1911/0/115 ignored,Protocol398/0,Clients702/0/15 ignored,strict three-library lint and default App/Worker build pass. Full fallback package payload/graph/capture/clone and live/browser work remain incomplete; all25 acceptance gates stay open.",
+    "evidence": "EV-FALLBACK-PAYLOAD-CAPTURE",
+    "scope": "Transaction-owned fallback payload production and local-node validation, with public full-graph export/import still refused. Retain original canonical decision/request membership and all eight raw evidence documents after pending/completed withdrawal without restoring current acceptance. Preserve original job state and inert pending predecessor/engine/outcome observation. The bounded PULSFH1 frame checks canonical headers, complete used-report/document sets, original decision/admission clocks, profile/environment/direction and exact worker bytes. Local-node checks bind original project/job/attempt/state/media/object membership; allocation refuses before output-frame creation, including exact-size-minus-one controls. Query-only SQL snapshot capture round-trips after database close. Eight new authored metadata controls pass; no public acceptance, scientific measurement, native worker, model/platform, physical or human qualification. Final Engine1919/0/115 ignored,Protocol398/0,strict Engine/Protocol lint and default App/Worker build pass. Root/ancestor candidate/opaque-worker closure, owner-registry disclosure authorization, import and actual two-clone lifecycle remain open.",
     "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Current declaration/barrier/cold-main-header checks pass. Preceding reader40 creates lock/WAL/SHM side files; complete hot-WAL and historical browser/cache/timing causes remain unqualified. Full fallback payload/capture/import/clone/live work and all25 acceptance gates remain open.",
+    "failure_summary": "Payload producer/local-node authored checks pass. Full root/ancestor object graph, owner-registry disclosure authorization, public import/export and native two-clone lifecycle remain unfinished and guarded. Prior reader/WAL/browser/timing counterevidence remains; all25 acceptance gates stay open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -88,7 +88,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/authority.rs",
-        "sha256": "5e170724b47c14b2e947f189ca85f4a042ef4c70523c8c9f85ad78577b43a26b"
+        "sha256": "1d1c588ccf08e4402914715e9d16b6d185182d36773b2a24c837fbf6de561b7f"
       },
       {
         "path": "crates/pulsar-engine/src/browser_media.rs",
@@ -179,8 +179,16 @@
         "sha256": "3e457a747e16d3ecf6e0e59ca2585f006baf6de64013657c68935f6ddc7c62f9"
       },
       {
+        "path": "crates/pulsar-engine/src/inference_equivalence_resolver_store_tests.rs",
+        "sha256": "f20a840d98f8a37b56c17a4b0845adf4e8c650c72c63079bc698d128819af385"
+      },
+      {
+        "path": "crates/pulsar-engine/src/inference_equivalence_store.rs",
+        "sha256": "45fb7010bf74cba1e98da7a7de2abf7053efb54daf5a1bec78e6f1e7e2dbae73"
+      },
+      {
         "path": "crates/pulsar-engine/src/inference_fallback_execution.rs",
-        "sha256": "07970bb9a218e8e1cf3ef67b750788a92f18277ea06d6691cb1928b68527d15e"
+        "sha256": "54dba41a9c3097fa201f4aaa5dd7d65f3712ea3084d3b68fe86140da2d3360a3"
       },
       {
         "path": "crates/pulsar-engine/src/inference_fallback_reader.rs",
@@ -188,7 +196,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/inference_fallback_store.rs",
-        "sha256": "08b0815b519ae5599a861b99e07c92d85c07d70fa0bbff3a5bc1d0292158af4f"
+        "sha256": "a9509b7600e60b38ed3c52231224f93e64f2b2269d11afa292738431e1cc6956"
       },
       {
         "path": "crates/pulsar-engine/src/job_attempt_history.rs",
@@ -287,6 +295,10 @@
         "sha256": "862366e22cd68515e353ec646b07622e2c6e97ce1c283699b3f779d0a8fe51fe"
       },
       {
+        "path": "crates/pulsar-engine/src/portable_fallback_payload.rs",
+        "sha256": "7d9068ce4b5201d64d1e51d2ecf7a7cb2ac8287e5a454e74c0910b44b77c32bb"
+      },
+      {
         "path": "crates/pulsar-engine/src/portable_fallback_reader.rs",
         "sha256": "508ca63ddeb1f54169d9b2f8f97620eb38791a41d0fcc71385548891ab1d7b3d"
       },
@@ -312,7 +324,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/project_packages.rs",
-        "sha256": "1655ff6792cacdbdcdf034d219b8bdb7649bca47b4ea3240c576e4cfd407e113"
+        "sha256": "be997ece02564f64296ea5cd8c407b4528a99c307e03a917d739e09feca751bc"
       },
       {
         "path": "crates/pulsar-engine/src/project_packages_native_cpu_support.rs",
@@ -396,7 +408,7 @@
       },
       {
         "path": "crates/pulsar-protocol/src/project_package.rs",
-        "sha256": "44f42a4d9c4ac1b772c978598ede240241e2076e278e975d2153e05031a6a289"
+        "sha256": "7c2a0d7490758ab3390a8fa94f6b7c15e13a4c21de73c9cc83d8d5343083b246"
       },
       {
         "path": "crates/pulsar-protocol/src/project_package_format.rs",
@@ -416,7 +428,7 @@
       },
       {
         "path": "docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md",
-        "sha256": "9e09f09012d0d24477dcc667203d6e1ccaa533089010288f2975fddd18189277"
+        "sha256": "08b16b9f15e6d3f08bb92c03361bebea213339922d3b1325878b87feeccae9ca"
       },
       {
         "path": "scripts/browser-live-player.test.mjs",
@@ -432,19 +444,20 @@
       "EV-FALLBACK-HISTORY-SNAPSHOT",
       "EV-FALLBACK-ARCHIVE-CONTRACT",
       "EV-FALLBACK-PACKAGE-BARRIER",
-      "EV-FALLBACK-READER-NATIVE"
+      "EV-FALLBACK-READER-NATIVE",
+      "EV-FALLBACK-PAYLOAD-CAPTURE"
     ],
-    "scope": "Final Engine1911/0/115 ignored,Protocol398/0,Clients702/0/15 ignored; strict three-library lint and default App/Worker build pass. One ignored native registration executes separately and retains PARTIAL compatibility scope: current cold41 observation passes; preceding40 side-file creation and broader hot-WAL/reliability/package/live qualification remain open.",
+    "scope": "Current payload checkpoint:Engine1919/0/115 ignored,Protocol398/0,strict Engine/Protocol lint and App/Worker build pass. Client702/15 ignored remains the separately pinned preceding checkpoint; client implementation source is unchanged. Payload tests are authored metadata only; no public fallback archive admission or model/platform/device/human clearance.",
     "metric_refs": {
       "engine_passed": {
-        "evidence": "EV-FALLBACK-PACKAGE-BARRIER",
+        "evidence": "EV-FALLBACK-PAYLOAD-CAPTURE",
         "pointer": [
           "checks",
           "engine_passed"
         ]
       },
       "engine_ignored": {
-        "evidence": "EV-FALLBACK-PACKAGE-BARRIER",
+        "evidence": "EV-FALLBACK-PAYLOAD-CAPTURE",
         "pointer": [
           "checks",
           "engine_ignored"
@@ -465,7 +478,7 @@
         ]
       },
       "protocol_passed": {
-        "evidence": "EV-FALLBACK-PACKAGE-BARRIER",
+        "evidence": "EV-FALLBACK-PAYLOAD-CAPTURE",
         "pointer": [
           "checks",
           "protocol_passed"
@@ -1246,6 +1259,18 @@
         "EV-FALLBACK-PACKAGE-BARRIER",
         "EV-FALLBACK-READER-NATIVE"
       ]
+    },
+    {
+      "id": "SC-FALLBACK-PAYLOAD-CAPTURE",
+      "title": "Snapshot-owned inert decision/evidence payload and original-node correspondence",
+      "parents": [
+        "M2-INTERCHANGE",
+        "M6-INSTALL"
+      ],
+      "scope": "Transaction-owned fallback payload production and local-node validation, with public full-graph export/import still refused. Retain original canonical decision/request membership and all eight raw evidence documents after pending/completed withdrawal without restoring current acceptance. Preserve original job state and inert pending predecessor/engine/outcome observation. The bounded PULSFH1 frame checks canonical headers, complete used-report/document sets, original decision/admission clocks, profile/environment/direction and exact worker bytes. Local-node checks bind original project/job/attempt/state/media/object membership; allocation refuses before output-frame creation, including exact-size-minus-one controls. Query-only SQL snapshot capture round-trips after database close. Eight new authored metadata controls pass; no public acceptance, scientific measurement, native worker, model/platform, physical or human qualification. Final Engine1919/0/115 ignored,Protocol398/0,strict Engine/Protocol lint and default App/Worker build pass. Root/ancestor candidate/opaque-worker closure, owner-registry disclosure authorization, import and actual two-clone lifecycle remain open.",
+      "evidence": [
+        "EV-FALLBACK-PAYLOAD-CAPTURE"
+      ]
     }
   ],
   "queue": [
@@ -1435,12 +1460,14 @@
       "depends_on": [
         "CPU-ROUNDTRIP"
       ],
-      "exit": "Implement the full retained fallback/live namespaces and authority/expiry/withdrawal behavior through actual consumers. Shared inert contract, format16 declarations and reader40 composition now have scoped checks. Next connect payload objects and original evidence within snapshot capture, complete root/ancestor object graph validation and run actual export/clone/restart/re-export/second-clone lifecycle; then native browser/live admission and lifetime campaigns. Existing payload-graph/export refusals stay enabled. See docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md.",
+      "exit": "Implement full fallback/live namespaces and authority/expiry/withdrawal through actual consumers. Transaction-owned original decision/evidence capsules and local-node checks now pass authored tests. Next complete root/ancestor candidate/opaque-worker object closure, enforce owner-registry evidence disclosure authority, connect public import/export and run actual two-clone lifecycle; then native browser/live admission and lifetime campaigns. Public full-graph refusals remain enabled. See docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md.",
       "evidence": [
         "EV-FALLBACK-HISTORY-SNAPSHOT",
         "EV-FALLBACK-ARCHIVE-CONTRACT",
         "EV-FALLBACK-PACKAGE-BARRIER",
-        "EV-FALLBACK-READER-NATIVE"
+        "EV-FALLBACK-READER-NATIVE",
+        "EV-FALLBACK-PAYLOAD-CAPTURE",
+        "EV-FALLBACK-PAYLOAD-COUNTER"
       ]
     },
     {
@@ -4732,6 +4759,86 @@
         {
           "pointer": [
             "older_reader_and_hot_wal_side_effects_fully_resolved"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-FALLBACK-PAYLOAD-COUNTER",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/fallback-payload/counterevidence.json",
+      "sha256": "afcd0594734b1ce90bab709e1534b765195052ecaea883a4a0b62cc41504cc22",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Development-only namespace/import compilation failure and stale authored scope-hash fixture failures, corrected without weakening validation.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "fixture_failed"
+          ],
+          "equals": 2
+        }
+      ]
+    },
+    {
+      "id": "EV-FALLBACK-PAYLOAD-CAPTURE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/fallback-payload/verification.json",
+      "sha256": "71b9a7b0908533b352b9ef55ed5625684c42c637525cfae1b24dc96a8bf19b65",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Transaction-owned fallback payload production and local-node validation, with public full-graph export/import still refused. Retain original canonical decision/request membership and all eight raw evidence documents after pending/completed withdrawal without restoring current acceptance. Preserve original job state and inert pending predecessor/engine/outcome observation. The bounded PULSFH1 frame checks canonical headers, complete used-report/document sets, original decision/admission clocks, profile/environment/direction and exact worker bytes. Local-node checks bind original project/job/attempt/state/media/object membership; allocation refuses before output-frame creation, including exact-size-minus-one controls. Query-only SQL snapshot capture round-trips after database close. Eight new authored metadata controls pass; no public acceptance, scientific measurement, native worker, model/platform, physical or human qualification. Final Engine1919/0/115 ignored,Protocol398/0,strict Engine/Protocol lint and default App/Worker build pass. Root/ancestor candidate/opaque-worker closure, owner-registry disclosure authorization, import and actual two-clone lifecycle remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_passed"
+          ],
+          "equals": 1919
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_ignored"
+          ],
+          "equals": 115
+        },
+        {
+          "pointer": [
+            "checks",
+            "protocol_passed"
+          ],
+          "equals": 398
+        },
+        {
+          "pointer": [
+            "public_fallback_archive_admitted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
           ],
           "equals": false
         }
