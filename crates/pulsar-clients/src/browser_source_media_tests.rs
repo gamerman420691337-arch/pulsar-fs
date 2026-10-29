@@ -1,4 +1,227 @@
 use super::*;
+
+#[test]
+fn replacement_preparation_detaches_prior_successor_without_losing_cleanup() {
+    for dispatched in [true, false] {
+        // Drive the actual controller routes with an authored native response and
+        // an inspectable worker queue. No Engine, media pixels or device is used.
+        let directory = tempfile::tempdir().unwrap();
+        let original = binding();
+        let page_cancelled = Arc::new(AtomicBool::new(false));
+        let prior = intent(&original, page_cancelled.clone());
+        prior.released.store(true, Ordering::Release);
+        prior.cancelled.store(true, Ordering::Release);
+        let mut child = intent(&original, page_cancelled.clone());
+        child.dispatched.store(dispatched, Ordering::Release);
+        child.request_id = RequestId::new("prior-successor-request").unwrap();
+        child.predecessor = Some(original.clone());
+        child.cancelled.store(true, Ordering::Release);
+        let old_deadline = child.expires;
+        let child_id = child.request_id.clone();
+        let child_selection = child.selection_id.clone();
+        let prepared = |intent, pending| Prepared {
+            intent,
+            report: None,
+            ready: None,
+            pending,
+            release_pending: false,
+            cleanup_attempted: false,
+            error: None,
+        };
+        let (operations, queued) = mpsc::sync_channel(4);
+        let (events, received) = mpsc::channel();
+        let generation = AttemptId::new("replacement-catalog").unwrap();
+        let entry = AttemptId::new("replacement-entry").unwrap();
+        let mut controller = MediaController {
+            project: original.project_id.clone(),
+            revision: original.revision,
+            end: Instant::now() + Duration::from_secs(120),
+            lease_cap_ms: 30_000,
+            catalog: Some(Catalog {
+                page: "page".into(),
+                generation: generation.clone(),
+                value: BrowserMediaCatalog {
+                    engine_epoch: original.engine_epoch.clone(),
+                    project_id: original.project_id.clone(),
+                    revision: original.revision,
+                    entries: vec![BrowserMediaCatalogEntry {
+                        label: "authored".into(),
+                        selection: original.selection.clone(),
+                    }],
+                },
+                entries: BTreeMap::from([(entry.to_string(), original.selection.clone())]),
+            }),
+            prepared: Some(prepared(prior, 0)),
+            successor: Some(prepared(child, 1)),
+            retired: Vec::new(),
+            route: Arc::new(Mutex::new(None)),
+            operations: Some(operations),
+            events: received,
+            ranges: Vec::new(),
+            threads: Vec::new(),
+            stop: Arc::new(AtomicBool::new(false)),
+            range_slots: Arc::new(AtomicUsize::new(0)),
+            next_range: AtomicUsize::new(0),
+            cleanup: SessionClient::from_credentials(
+                &directory.path().join("missing.sock"),
+                SessionId::new("authored-replacement").unwrap(),
+                "authored-authentication".into(),
+            )
+            .unwrap(),
+            // No native worker was started; the queue and replies are driven here.
+            shutdown_done: true,
+            shutdown_error: None,
+        };
+        let scope = Scope {
+            page: "page".into(),
+            ..Scope::default()
+        };
+        let body = serde_json::to_vec(&serde_json::json!({
+            "catalog_generation":generation, "entry_id":entry,
+            "presentation_anchor_us":"5000000", "elapsed_anchor_us":"1000000",
+            "allow_declared_clock":true
+        }))
+        .unwrap();
+        assert!(matches!(
+            controller
+                .handle("/media/prepare", &scope, page_cancelled.clone(), &body, 1)
+                .unwrap(),
+            MediaReply::Pending
+        ));
+        assert!(
+            controller.successor.is_none(),
+            "replacement inherited the original successor"
+        );
+        assert_eq!(controller.retired.len(), 1);
+        assert_eq!(controller.retired[0].intent.request_id, child_id);
+        assert_eq!(controller.retired[0].intent.expires, old_deadline);
+        assert_eq!(controller.retired[0].pending, 1);
+        assert!(!controller.retired[0]
+            .intent
+            .released
+            .load(Ordering::Acquire));
+        let Operation::Preparation {
+            intent: new,
+            kind: OpKind::Prepare,
+            ..
+        } = queued.try_recv().unwrap()
+        else {
+            panic!("fresh preparation was not queued")
+        };
+        assert!(new.predecessor.is_none());
+        let active = controller.prepared.as_mut().unwrap();
+        let mut fresh_binding = original.clone();
+        fresh_binding.preparation_request_id = new.request_id.clone();
+        fresh_binding.lease_id = ArtifactId::new("new-parent-lease").unwrap();
+        fresh_binding.lease_ms = new.lease_ms;
+        active.pending = 0;
+        active.ready = Some(Arc::new(ReadySource {
+            intent: active.intent.clone(),
+            binding: fresh_binding.clone(),
+            token: "b".repeat(64),
+            mime: "video/mp4",
+        }));
+        let continuation =
+            serde_json::to_vec(&serde_json::json!({"selection_id":new.selection_id})).unwrap();
+        assert!(matches!(
+            controller
+                .handle("/media/continue", &scope, page_cancelled, &continuation, 2)
+                .unwrap(),
+            MediaReply::Pending
+        ));
+        let Operation::Preparation {
+            intent: next,
+            kind: OpKind::Prepare,
+            ..
+        } = queued.try_recv().unwrap()
+        else {
+            panic!("new continuation reused an old intent")
+        };
+        assert_ne!(next.request_id, child_id);
+        assert_eq!(next.predecessor.as_ref(), Some(&fresh_binding));
+        assert_eq!(next.selection_id, new.selection_id);
+        events
+            .send(Event {
+                ticket: None,
+                page: "page".into(),
+                selection_id: Some(child_selection),
+                request_id: Some(child_id.clone()),
+                result: Err(anyhow::anyhow!("authored late original failure")),
+            })
+            .unwrap();
+        assert!(controller.poll().is_empty());
+        assert_eq!(controller.retired[0].pending, 0);
+        assert_eq!(controller.successor.as_ref().unwrap().pending, 1);
+        controller.tick();
+        let Operation::Preparation {
+            intent: release,
+            kind: OpKind::Release,
+            ..
+        } = queued.try_recv().unwrap()
+        else {
+            panic!("original cleanup was lost")
+        };
+        assert_eq!(release.request_id, child_id);
+        assert_eq!(release.expires, old_deadline);
+        assert!(release.cancelled.load(Ordering::Acquire));
+        assert_eq!(controller.retired[0].pending, 1);
+        assert_eq!(release.dispatched.load(Ordering::Acquire), dispatched);
+        if !dispatched {
+            // The worker's local-only release never calls a native command.
+            release.released.store(true, Ordering::Release);
+            events
+                .send(Event {
+                    ticket: None,
+                    page: "page".into(),
+                    selection_id: Some(release.selection_id.clone()),
+                    request_id: Some(release.request_id.clone()),
+                    result: Ok(Payload::LocalRelease),
+                })
+                .unwrap();
+            assert!(controller.poll().is_empty());
+            controller.tick();
+            assert!(controller.retired.is_empty());
+        }
+        // A saturated cleanup set must refuse before replacing either live slot.
+        for n in controller.retired.len()..4 {
+            let mut extra = intent(&original, Arc::new(AtomicBool::new(false)));
+            extra.request_id = RequestId::new(format!("unsettled-cleanup-{n}")).unwrap();
+            controller.retired.push(prepared(extra, 1));
+        }
+        let current = controller.prepared.as_mut().unwrap();
+        current.intent.released.store(true, Ordering::Release);
+        current.ready = None;
+        let current_id = current.intent.request_id.clone();
+        let successor_id = controller
+            .successor
+            .as_ref()
+            .unwrap()
+            .intent
+            .request_id
+            .clone();
+        let error = controller
+            .handle(
+                "/media/prepare",
+                &scope,
+                Arc::new(AtomicBool::new(false)),
+                &body,
+                3,
+            )
+            .err()
+            .unwrap();
+        assert!(error.to_string().contains("cleanup must settle"));
+        assert_eq!(controller.retired.len(), 4);
+        assert_eq!(
+            controller.prepared.as_ref().unwrap().intent.request_id,
+            current_id
+        );
+        assert_eq!(
+            controller.successor.as_ref().unwrap().intent.request_id,
+            successor_id
+        );
+    }
+}
+
 fn binding() -> BrowserMediaBinding {
     BrowserMediaBinding {
         preparation_request_id: RequestId::new("prepare-source").unwrap(),

@@ -569,6 +569,17 @@ impl MediaController {
             )
             .in_project(intent.project.clone(), Some(intent.revision))
             .validate()?;
+            ensure!(
+                self.successor.is_none() || self.retired.len() < 4,
+                "media predecessor cleanup must settle before replacement"
+            );
+            // A new original preparation cannot inherit an earlier parent's
+            // successor. Keep its pending replies and exact native cleanup
+            // obligation addressable until retirement actually settles.
+            if let Some(previous) = self.successor.take() {
+                previous.intent.cancelled.store(true, Ordering::Release);
+                self.retired.push(previous);
+            }
             self.prepared = Some(Prepared {
                 intent: intent.clone(),
                 report: None,
@@ -864,12 +875,13 @@ impl MediaController {
                 p.intent.cancelled.store(true, Ordering::Release);
             }
             if p.intent.cancelled.load(Ordering::Acquire)
-                && p.intent.dispatched.load(Ordering::Acquire)
                 && !p.intent.released.load(Ordering::Acquire)
                 && !p.release_pending
                 && !p.cleanup_attempted
                 && p.pending == 0
             {
+                // The worker resolves an unissued intent locally; it still
+                // needs a confirmed release to clear its retained cleanup slot.
                 p.ready = None;
                 p.release_pending = true;
                 p.cleanup_attempted = true;

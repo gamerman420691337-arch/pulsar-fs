@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "reconciled_on": "2026-10-28",
+  "reconciled_on": "2026-10-29",
   "timezone": "America/New_York",
   "full_roadmap": "incomplete",
   "runner_state": "paused",
@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-HSP-READINESS",
-    "scope": "Causal HSP journal-contention repair with deterministic regression, full default-thread Engine suite, strict lint and default App/Worker compilation. Native/physical qualification remains separate.",
-    "active_work": "CLIENT-CORRECTNESS",
-    "failure_summary": "The reproduced HSP acknowledgment/readiness journal race is repaired with unchanged deadlines and one synchronization. Browser timing_exchange_unconfirmed, rendered stop/reconnect/fault coverage, startup cause and physical/model/platform acceptance remain open.",
+    "evidence": "EV-BROWSER-LIFECYCLE",
+    "scope": "Current client lifecycle repair: full client suite, strict lint, App/Worker build and selected actual rendered Stop/reload/crash/reconnect checks.",
+    "active_work": "BROWSER-DEMO",
+    "failure_summary": "Stale successor replacement and unissued cleanup are repaired. Selected rendered lifecycle faults pass, while earlier intermittent timing_exchange_unconfirmed, full browser fault/reliability coverage, startup cause and model/platform/physical/human acceptance remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -337,16 +337,24 @@
       {
         "path": "crates/pulsar-engine/src/engine_handy_hsp_preparation_tests.rs",
         "sha256": "0c6f03a72a00c8d0b6f5d4dc4fec1bc0b99b8d52635ffdfb5c184a302a700693"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_source_media.rs",
+        "sha256": "2a7417bb4f39598eafdf9ebdab87f5384255aeee3ac6edf26f5934f786ae6f7e"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_source_media_tests.rs",
+        "sha256": "cc1cf1bdadbaf4628c6792ddf4d44fe55bd38daa2639b672231d16f88f533fd9"
       }
     ]
   },
   "last_verified": {
     "evidence": [
       "EV-HSP-READINESS",
-      "EV-RECORDING-CHECKS",
-      "EV-CPU-ARCHIVE"
+      "EV-BROWSER-LIFECYCLE",
+      "EV-RECORDING-CHECKS"
     ],
-    "scope": "Engine: current causal journal-contention repair, full default-thread suite. Protocol and clients: separate pinned component checkpoints, not combined native/physical/runtime qualification.",
+    "scope": "Engine: pinned causal HSP repair, full default-thread suite. Clients: current lifecycle repair, full suite with one test thread. Protocol: separate pinned component checkpoint. Selected rendered/native checks do not establish general runtime or physical qualification.",
     "metric_refs": {
       "engine_passed": {
         "evidence": "EV-HSP-READINESS",
@@ -365,16 +373,16 @@
         ]
       },
       "clients_passed": {
-        "evidence": "EV-CPU-ARCHIVE",
+        "evidence": "EV-BROWSER-LIFECYCLE",
         "pointer": [
-          "totals",
+          "checks",
           "clients_passed"
         ]
       },
       "clients_ignored": {
-        "evidence": "EV-CPU-ARCHIVE",
+        "evidence": "EV-BROWSER-LIFECYCLE",
         "pointer": [
-          "totals",
+          "checks",
           "clients_ignored"
         ]
       },
@@ -1013,6 +1021,18 @@
       "evidence": [
         "EV-HSP-READINESS"
       ]
+    },
+    {
+      "id": "SC-BROWSER-LIFECYCLE",
+      "title": "Browser source replacement cleanup and rendered lifecycle faults",
+      "parents": [
+        "M2-DOMAIN",
+        "M5-LIVE"
+      ],
+      "scope": "New preparation retires its old successor into bounded cleanup custody, preserving late replies, original IDs/deadlines and issued/unissued cleanup. Saturation refuses before replacement. Red controller and rendered failures turn green;697 client tests/14 ignored, strict lint and default build pass. Actual rendered Stop/reprepare, active reload, post-reload continuation, owned-server SIGKILL and explicit fresh reconnection are verified. Old epoch stays retired; new epoch/lease differ with identical source/placement/declared clock; master remains revision1 with no actions. Authored model, sterile media, no device or general timing qualification.",
+      "evidence": [
+        "EV-BROWSER-LIFECYCLE"
+      ]
     }
   ],
   "queue": [
@@ -1074,7 +1094,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Resolve retained intermittent timing_exchange_unconfirmed failures and establish runtime reliability against the cutover baseline; execute actual rendered Stop, reconnect and fault scenarios with source/clock/CPU correspondence. The regular executable now passes one full 40s multi-epoch recording/review/export run with 381 inferred estimates and 6 explicitly authored gap repairs; that positive run does not explain earlier failures or close the remaining campaign.",
+      "exit": "Resolve retained intermittent timing_exchange_unconfirmed failures and establish repeatable runtime reliability against the cutover baseline; complete the applicable browser fault matrix, including seek/rate/hidden-page, pending source/transfer replacement and expired/unknown outcomes with exact source/clock/CPU correspondence. One full40s recording/review/export run remains a pinned positive checkpoint. Current explicit Stop/reprepare, active reload, subsequent continuation, owned preview crash and fresh reconnection pass selected rendered cases; these do not explain earlier timing failures or close the full campaign.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
@@ -1082,7 +1102,8 @@
         "EV-BROWSER-TRACE",
         "EV-PREVIEW-CUTOVER",
         "EV-RECORDING-LEASES",
-        "EV-BOUND-RENDERED-EXPORT"
+        "EV-BOUND-RENDERED-EXPORT",
+        "EV-BROWSER-LIFECYCLE"
       ]
     },
     {
@@ -2498,6 +2519,180 @@
           "pointer": [
             "checks",
             "default_app_worker_build"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-LIFECYCLE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/browser-faults/verification.json",
+      "sha256": "b3584af19a74c6e51726b6e12b63fe403ac56c3054fc211b56cd884d107666a1",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Causal stale-successor and unissued-cleanup repair with controller regression;697 client tests/14 ignored, strict lint and App/Worker build. Actual sterile rendered Stop/reprepare, active reload, subsequent continuation, owned preview SIGKILL and fresh reconnect pass selected cases. Native capture retires between2.01s and4.03s observations; no physical or general timing clearance.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "browser_timing_causal_repair_established"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "full_runtime_reliability_cleared"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "stale_successor_regression_red_then_green"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "issued_and_unissued_cleanup_retained"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "late_original_replies_reconcile_old_intent"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "cleanup_capacity_refuses_replacement_without_mutation"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_passed"
+          ],
+          "equals": 697
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_ignored"
+          ],
+          "equals": 14
+        },
+        {
+          "pointer": [
+            "checks",
+            "strict_clients_lib_tests_clippy"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "default_app_worker_build"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "explicit_stop_counts_settle"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "active_reload_retires_recordings"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "post_reload_reprepare_and_continuity"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "hard_connection_loss_retires_capture"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "reconnect_requires_fresh_preparation_and_play"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "reconnect_epoch_and_lease_differ"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "original_epoch_stays_retired"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "project_master_revision"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "checks",
+            "project_master_actions"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "owned_apps_joined"
           ],
           "equals": true
         }
