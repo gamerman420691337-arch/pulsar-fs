@@ -6,11 +6,11 @@ The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue
 
 Reconciled **2026-10-28**. Roadmap **INCOMPLETE**; autonomous runner observation **paused**.
 
-**Working tree: VERIFIED.** Positive bound multi-epoch review/export is now verified on the regular executable. Earlier intermittent timing_exchange_unconfirmed failures remain causally unresolved; reliability and stop/reconnect/fault coverage remain open. External CUDA unit-fixture portability remains open.
+**Working tree: VERIFIED.** External CUDA unit-fixture dependency is repaired. Default-thread HSP preparation restart can retire with metadata pending; the exact test passes alone and the full suite passes with two threads, without causal clearance. Browser timing reliability and rendered stop/reconnect/fault coverage remain open.
 
-**Next: CPU-ROUNDTRIP — Prove complete CPU export/clone/restart/re-export/second-clone lifecycle.** Exit required: Actual confined CPU attempts retain exact inert history across two clones; no origin execution authority revives. Preceding reader refuses before mutation; processes, storage and memory release are verified.
+**Next: CLIENT-CORRECTNESS — Close shared-client correctness and editing fault scenarios.** Exit required: Verify source/view/time correspondence and target loss/reacquisition through real consumers; exercise protected editing, review/commit/rebase/undo/restart and crash/storage faults in CLI/desktop. Retain real-media limitations under M1-DATA. External CUDA test report dependence is repaired with authored inputs; resolve the retained default-thread HSP preparation restart readiness/metadata-pending failure without weakening deadlines or substituting isolated/thread-limited passes for causal clearance.
 
-Last verified checkpoint: Engine **1884 passed / 110 ignored**, clients **695 passed / 14 ignored**, Protocol **395 passed**. Pinned pre-format15 checkpoints, not a passing result for the current working tree.
+Last verified checkpoint: Engine **1887 passed / 110 ignored**, clients **696 passed / 14 ignored**, Protocol **397 passed**. Engine: current authored-fixture source, full suite with two test threads; default-thread HSP failure unresolved. Protocol and clients: separate pinned component checkpoints, not a combined runtime or release qualification.
 
 Native core/browser/restart/resource scenarios have scoped passing evidence. Real rendered acquisition, useful learned quality, installed-Stash compatibility, physical Handy synchronization and full platform/human/release acceptance remain open. The earlier startup failure remains unexplained.
 

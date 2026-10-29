@@ -166,23 +166,70 @@ impl LiveCudaEvidence {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
-    fn original() -> (
+    /// Authored parser/storage inputs only. No native execution, GPU, report
+    /// directory or qualification receipt is consulted or established here.
+    pub(crate) fn original() -> (
         LiveCudaInferenceManifest,
         LiveCudaStreamSummary,
         Vec<u8>,
         Vec<u8>,
     ) {
-        let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(
-            "../../docs/evidence/roadmap-2026-10-07/live-cuda-provisional-report/native-engine",
-        );
-        (
-            serde_json::from_slice(&std::fs::read(base.join("manifest.json")).unwrap()).unwrap(),
-            serde_json::from_slice(&std::fs::read(base.join("summary.json")).unwrap()).unwrap(),
-            std::fs::read(base.join("receipt.json")).unwrap(),
-            std::fs::read(base.join("original-trace.json")).unwrap(),
-        )
+        use pulsar_protocol::{FrameId, InferenceProvider, SourceTimestamp};
+        use serde_json::json;
+        let mut manifest: LiveCudaInferenceManifest = serde_json::from_str(include_str!(
+            "../tests/fixtures/authored-live-cuda-manifest.json"
+        ))
+        .unwrap();
+        // These are declarations, never opened. Use the host's absolute path
+        // syntax so portable parser tests do not depend on Unix path semantics.
+        let root = if cfg!(windows) {
+            "C:/authored"
+        } else {
+            "/authored"
+        };
+        let root = std::path::Path::new(root);
+        manifest.stream.model.path = root.join("input/model");
+        manifest.execution.library_directory = root.join("libraries");
+        manifest.stream.runtime.path = manifest
+            .execution
+            .library_directory
+            .join("libonnxruntime.so.1");
+        manifest.output_dir = root.join("output");
+        let summary = LiveCudaStreamSummary {
+            schema_version: 1,
+            manifest_sha256: manifest.identity_sha256().unwrap(),
+            successful_runs: 1,
+            last_sequence: 1,
+            last_frame: FrameId::new(1),
+            last_source_time: SourceTimestamp::new(1, 1000).unwrap(),
+            transcript_sha256: "b".repeat(64),
+        };
+        // Preserve deliberately noncanonical original bytes through the real
+        // parser and database paths; hashing a reserialized trace would differ.
+        let trace = br#" [
+            {"cat":"Node","name":"Authored_0_kernel_time","ph":"X","ts":11,"dur":2,"pid":1,"tid":2,
+                "args":{"provider":"CUDAExecutionProvider","op_name":"Conv"}},
+            {"cat":"Session","name":"model_run","ph":"X","ts":10,"dur":10,"pid":1,"tid":2}
+        ]
+"#
+        .to_vec();
+        let receipt = serde_json::to_vec_pretty(&json!({
+            "provider":"cuda", "provider_evidence":"strict-cuda-node-trace",
+            "device":{
+                "device_uuid":manifest.execution.device_uuid,
+                "pci_bus_address":manifest.execution.pci_bus_address,
+                "device_ordinal":manifest.execution.device_ordinal,
+                "visible_device_count":1, "total_bytes":1u64 << 30, "driver_version":13040
+            },
+            "successful_runs":1,
+            "trace_path":manifest.output_dir.join("live_cuda_model_authored.json"),
+            "trace":crate::inference_trace::validate_node_trace(&trace, InferenceProvider::Cuda, 1).unwrap(),
+            "live_binding":summary
+        }))
+        .unwrap();
+        (manifest, summary, receipt, trace)
     }
     #[test]
     fn retained_native_bytes_roundtrip_without_cuda_loading_and_keep_memory_claim() {

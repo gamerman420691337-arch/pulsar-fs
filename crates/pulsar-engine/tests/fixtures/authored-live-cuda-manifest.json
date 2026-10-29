@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "stream": {
+    "version": 2,
+    "attempt_id": "authored-live-cuda-attempt",
+    "identity": {
+      "epoch": "authored-capture",
+      "project": "authored-live-cuda-project",
+      "revision": 0,
+      "source": "authored-live-cuda-source"
+    },
+    "clock": {
+      "epoch": "authored-capture",
+      "source_anchor": {
+        "numerator": 0,
+        "denominator": 1
+      },
+      "project_anchor": 0,
+      "presentation_anchor": 0,
+      "added_buffer_ns": 0
+    },
+    "model": {
+      "identity": {
+        "artifact_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "byte_len": 10
+      },
+      "path": "/authored/input/model"
+    },
+    "runtime": {
+      "identity": {
+        "artifact_id": "3333333333333333333333333333333333333333333333333333333333333333",
+        "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+        "byte_len": 10
+      },
+      "path": "/authored/libraries/libonnxruntime.so.1"
+    },
+    "worker": {
+      "artifact_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "byte_len": 10
+    },
+    "profile": {
+      "schema_version": 2,
+      "model": {
+        "artifact_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "byte_len": 10
+      },
+      "runtime": {
+        "artifact_id": "3333333333333333333333333333333333333333333333333333333333333333",
+        "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+        "byte_len": 10
+      },
+      "preprocessing": {
+        "input": {
+          "width": 64,
+          "height": 64,
+          "channels": 6,
+          "layout": "nchw",
+          "class_count": 1,
+          "decoder": "temporal_script_position"
+        },
+        "resize": "nearest_stretch",
+        "color": "rgb_frame_pair",
+        "scale": [
+          0.003921568859368563,
+          0.003921568859368563,
+          0.003921568859368563,
+          0.003921568859368563,
+          0.003921568859368563,
+          0.003921568859368563
+        ],
+        "bias": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "padding_byte": 0
+      },
+      "provider": "cuda",
+      "minimum_memory_bytes": 134217728,
+      "minimum_output_bytes": 4096,
+      "cpu_threads": 2,
+      "cuda_resources": {
+        "device_uuid": "GPU-00000000-0000-0000-0000-000000000001",
+        "device_ordinal": 0,
+        "address_space_bytes": 17179869184,
+        "device_reservation_bytes": 67108864,
+        "arena_limit_bytes": 16777216
+      }
+    },
+    "budget": {
+      "memory_bytes": 268435456,
+      "output_bytes": 16777216,
+      "wall_time_ms": 30000,
+      "cpu_threads": 2
+    }
+  },
+  "execution": {
+    "schema_version": 1,
+    "owner_policy": {
+      "artifact_id": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "byte_len": 10
+    },
+    "device_uuid": "GPU-00000000-0000-0000-0000-000000000001",
+    "pci_bus_address": "0000:01:00.0",
+    "device_minor": 0,
+    "device_ordinal": 0,
+    "library_directory": "/authored/libraries",
+    "libraries": [
+      {
+        "identity": {
+          "artifact_id": "1111111111111111111111111111111111111111111111111111111111111111",
+          "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "byte_len": 10
+        },
+        "names": [
+          "ld-linux-x86-64.so.2"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "2222222222222222222222222222222222222222222222222222222222222222",
+          "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+          "byte_len": 10
+        },
+        "names": [
+          "libcuda.so.1"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "3333333333333333333333333333333333333333333333333333333333333333",
+          "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+          "byte_len": 10
+        },
+        "names": [
+          "libonnxruntime.so.1"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "4444444444444444444444444444444444444444444444444444444444444444",
+          "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+          "byte_len": 10
+        },
+        "names": [
+          "libonnxruntime_providers_cuda.so"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "5555555555555555555555555555555555555555555555555555555555555555",
+          "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+          "byte_len": 10
+        },
+        "names": [
+          "libonnxruntime_providers_shared.so"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "6666666666666666666666666666666666666666666666666666666666666666",
+          "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+          "byte_len": 10
+        },
+        "names": [
+          "libcudnn.so.9"
+        ]
+      },
+      {
+        "identity": {
+          "artifact_id": "7777777777777777777777777777777777777777777777777777777777777777",
+          "sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+          "byte_len": 10
+        },
+        "names": [
+          "libnvidia-ml.so.1"
+        ]
+      }
+    ]
+  },
+  "dependencies": [
+    {
+      "artifact_id": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "byte_len": 10
+    },
+    {
+      "artifact_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "byte_len": 10
+    },
+    {
+      "artifact_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "byte_len": 10
+    },
+    {
+      "artifact_id": "1111111111111111111111111111111111111111111111111111111111111111",
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "byte_len": 10
+    },
+    {
+      "artifact_id": "2222222222222222222222222222222222222222222222222222222222222222",
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "byte_len": 10
+    },
+    {
+      "artifact_id": "3333333333333333333333333333333333333333333333333333333333333333",
+      "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "byte_len": 10
+    },
+    {
+      "artifact_id": "4444444444444444444444444444444444444444444444444444444444444444",
+      "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+      "byte_len": 10
+    },
+    {
+      "artifact_id": "5555555555555555555555555555555555555555555555555555555555555555",
+      "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "byte_len": 10
+    },
+    {
+      "artifact_id": "6666666666666666666666666666666666666666666666666666666666666666",
+      "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+      "byte_len": 10
+    },
+    {
+      "artifact_id": "7777777777777777777777777777777777777777777777777777777777777777",
+      "sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+      "byte_len": 10
+    }
+  ],
+  "output_dir": "/authored/output"
+}
