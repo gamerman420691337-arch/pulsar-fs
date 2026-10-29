@@ -364,35 +364,72 @@ impl Registry {
                 "original successor reservation retired or consumed",
             ));
         }
-        for selected in [native.predecessor(), native.successor()] {
+        for (predecessor, selected) in [(true, native.predecessor()), (false, native.successor())] {
+            let source_refusal = |prior: &'static str, next: &'static str| {
+                refused(if predecessor { prior } else { next })
+            };
             let entry = self
                 .entries
                 .get(selected.identity.epoch.as_str())
                 .ok_or_else(|| refused("transfer epoch absent"))?;
-            if !entry.report.active
-                || entry.cancel.load(Ordering::Acquire)
-                || entry
-                    .native_delivery
-                    .as_ref()
-                    .is_some_and(|sink| !sink.current())
-                || selection(entry)? != *selected
-                || tick(entry).is_err()
-                || entry.created.elapsed()
-                    >= Duration::from_millis(u64::from(entry.report.options.lease_ms))
-                || entry.native_clock.latest_native()?.latest_ns >= native.expires_at_ns()
-                || entry
-                    .browser_media
-                    .as_ref()
-                    .is_none_or(|pin| !pin.current())
-                || entry.browser_analysis_pin.as_ref().is_none_or(|pin| {
-                    entry
-                        .native_clock
-                        .latest_native()
-                        .map_or(true, |at| !pin.current(at.latest_ns))
-                })
+            if !entry.report.active || entry.cancel.load(Ordering::Acquire) {
+                return Err(source_refusal(
+                    "original transfer predecessor capture retired",
+                    "original transfer successor capture retired",
+                ));
+            }
+            if entry
+                .native_delivery
+                .as_ref()
+                .is_some_and(|sink| !sink.current())
             {
-                return Err(refused(
-                    "original transfer source capability expired or changed",
+                return Err(source_refusal(
+                    "original transfer predecessor delivery retired",
+                    "original transfer successor delivery retired",
+                ));
+            }
+            if selection(entry)? != *selected {
+                return Err(source_refusal(
+                    "original transfer predecessor selection changed",
+                    "original transfer successor selection changed",
+                ));
+            }
+            if tick(entry).is_err() {
+                return Err(source_refusal(
+                    "original transfer predecessor native clock refused",
+                    "original transfer successor native clock refused",
+                ));
+            }
+            if entry.created.elapsed()
+                >= Duration::from_millis(u64::from(entry.report.options.lease_ms))
+            {
+                return Err(source_refusal(
+                    "original transfer predecessor capture lease expired",
+                    "original transfer successor capture lease expired",
+                ));
+            }
+            if entry.native_clock.latest_native()?.latest_ns >= native.expires_at_ns() {
+                return Err(refused("original transfer reservation deadline expired"));
+            }
+            if entry
+                .browser_media
+                .as_ref()
+                .is_none_or(|pin| !pin.current())
+            {
+                return Err(source_refusal(
+                    "original transfer predecessor media authority retired or expired",
+                    "original transfer successor media authority retired or expired",
+                ));
+            }
+            if entry.browser_analysis_pin.as_ref().is_none_or(|pin| {
+                entry
+                    .native_clock
+                    .latest_native()
+                    .map_or(true, |at| !pin.current(at.latest_ns))
+            }) {
+                return Err(source_refusal(
+                    "original transfer predecessor timing authority retired or expired",
+                    "original transfer successor timing authority retired or expired",
                 ));
             }
         }
@@ -498,12 +535,16 @@ impl Registry {
                 !matches!(
                     s.phase,
                     BrowserAnalysisSuccessorPhase::Active | BrowserAnalysisSuccessorPhase::Aborted
-                ) && self.check_successor(&s.native).is_err()
+                )
             })
-            .map(|s| s.native.0.id.clone())
+            .filter_map(|s| {
+                self.check_successor(&s.native)
+                    .err()
+                    .map(|error| (s.native.0.id.clone(), error))
+            })
             .collect();
-        for id in expired {
-            self.abort_successor(&id, refused("original successor lifetime retired"))?;
+        for (id, error) in expired {
+            self.abort_successor(&id, error)?;
         }
         Ok(())
     }
