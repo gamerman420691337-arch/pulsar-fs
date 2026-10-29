@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-CPU-INTEGRATION",
-    "scope": "Integrated committed CPU reader-39 barrier and two-clone inert archival checks. Actual completed/failed/cancelled confined execution; constructed running/interrupted history only. Actual running capture and process interruption remain owed. Host dependency identities refreshed by test, without qualification inheritance. External uncommitted Handy changes excluded.",
-    "active_work": "CPU-ROUNDTRIP",
-    "failure_summary": "Engine 1891 passed, zero failed,111 ignored; strict lint/default build and scoped native two-clone/older-reader campaign pass. Actual running capture and interruption/restart remain owed; generic browser timing cleanup and all25 acceptance gates remain open.",
+    "evidence": "EV-CPU-ROUNDTRIP",
+    "scope": "Actual confined CPU generation at16-sample progress barriers replaces constructed history. Kill a separate owning Engine via SIGKILL; restart retires all original pidfds/cgroup and retains interrupted history without relaunch. Export while another actual worker is frozen/running, cancel through the public operation, verify retirement. Complete original declaration bytes survive export/clone/restart/re-export/second-clone, origin paths absent; old readers refuse with pinned DB/WAL/SHM/fence bytes unchanged. Full memory quota re-admits after every Engine; thread/storage reservations clear. Authored neutral model, refreshed host library declaration, no model/platform/device/human qualification.",
+    "active_work": "BROWSER-DEMO",
+    "failure_summary": "CPU-ROUNDTRIP software campaign verified with actual running capture and Engine SIGKILL/restart. Engine1891 passed/0 failed/112 ignored; strict lint passes. Next: unresolved browser timing cleanup and remaining lifecycle/fault coverage. All25 model/platform/real-media/device/human acceptance gates remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -212,7 +212,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/project_packages.rs",
-        "sha256": "2d6abc364c0ac49538a9a1920667fa39560d79b5e411407c39657b7ec3691644"
+        "sha256": "dcb3a7e1da8fffaf2912706b4c65b799776e43cc79395ea09d922bb4e6e8e79b"
       },
       {
         "path": "crates/pulsar-engine/src/worker/annotated_portable_tests.rs",
@@ -381,6 +381,10 @@
       {
         "path": "crates/pulsar-engine/src/project_package_exports.rs",
         "sha256": "9a1aa7e674afcffa01fd4e1e34f7bdc32b28080ae83b6e3affe8da9b1bd8ee1b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/project_packages_native_cpu_support.rs",
+        "sha256": "543f3f0ab9f5d6283773628f3d121448bb707c11c0e407e1183071d24bcff881"
       }
     ]
   },
@@ -388,19 +392,19 @@
     "evidence": [
       "EV-LOOKAHEAD-MARGIN",
       "EV-RECORDING-CHECKS",
-      "EV-CPU-INTEGRATION"
+      "EV-CPU-ROUNDTRIP"
     ],
-    "scope": "Engine current CPU integration:1891 passed/111 ignored and scoped native two-clone campaign. Clients/Protocol remain separate pinned checkpoints; actual running/interruption, browser cleanup and real-model/device/human acceptance remain open.",
+    "scope": "Current Engine CPU archival evidence:1891 passed/112 ignored, strict lint and actual running/interruption two-clone campaign. Clients/Protocol retain their separate pinned checkpoints. Browser timing cleanup and all parent acceptance gates remain open.",
     "metric_refs": {
       "engine_passed": {
-        "evidence": "EV-CPU-INTEGRATION",
+        "evidence": "EV-CPU-ROUNDTRIP",
         "pointer": [
           "checks",
           "engine_passed"
         ]
       },
       "engine_ignored": {
-        "evidence": "EV-CPU-INTEGRATION",
+        "evidence": "EV-CPU-ROUNDTRIP",
         "pointer": [
           "checks",
           "engine_ignored"
@@ -1116,6 +1120,18 @@
       "evidence": [
         "EV-LOOKAHEAD-MARGIN"
       ]
+    },
+    {
+      "id": "SC-CPU-ROUNDTRIP",
+      "title": "Native CPU archival through two clones and actual Engine interruption",
+      "parents": [
+        "M2-INTERCHANGE",
+        "M6-INSTALL"
+      ],
+      "scope": "Actual confined CPU generation at16-sample progress barriers replaces constructed history. Kill a separate owning Engine via SIGKILL; restart retires all original pidfds/cgroup and retains interrupted history without relaunch. Export while another actual worker is frozen/running, cancel through the public operation, verify retirement. Complete original declaration bytes survive export/clone/restart/re-export/second-clone, origin paths absent; old readers refuse with pinned DB/WAL/SHM/fence bytes unchanged. Full memory quota re-admits after every Engine; thread/storage reservations clear. Authored neutral model, refreshed host library declaration, no model/platform/device/human qualification.",
+      "evidence": [
+        "EV-CPU-ROUNDTRIP"
+      ]
     }
   ],
   "queue": [
@@ -1157,14 +1173,14 @@
         "M2-INTERCHANGE",
         "M6-INSTALL"
       ],
-      "state": "in_progress",
-      "owner": "Parallel implementation agent + independent verification",
+      "state": "verified",
+      "owner": "Codex native execution and evidence reconciliation",
       "depends_on": [
         "CPU-ARCHIVE"
       ],
       "exit": "Actual confined CPU attempts retain exact inert history across two clones; no origin execution authority revives. Preceding reader refuses before mutation; processes, storage and memory release are verified.",
       "evidence": [
-        "EV-CPU-INTEGRATION"
+        "EV-CPU-ROUNDTRIP"
       ]
     },
     {
@@ -3682,6 +3698,118 @@
             "actual_process_interruption_verified"
           ],
           "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-CPU-ROUNDTRIP",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/cpu-execution-history/verification.json",
+      "sha256": "751cb5228261e815cb0f410b738c90ba8b4f443c48decce55cdb87a3055a2fa7",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Actual confined CPU generation at16-sample progress barriers replaces constructed history. Kill a separate owning Engine via SIGKILL; restart retires all original pidfds/cgroup and retains interrupted history without relaunch. Export while another actual worker is frozen/running, cancel through the public operation, verify retirement. Complete original declaration bytes survive export/clone/restart/re-export/second-clone, origin paths absent; old readers refuse with pinned DB/WAL/SHM/fence bytes unchanged. Full memory quota re-admits after every Engine; thread/storage reservations clear. Authored neutral model, refreshed host library declaration, no model/platform/device/human qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "cpu_roundtrip_closed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_passed"
+          ],
+          "equals": 1891
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_ignored"
+          ],
+          "equals": 112
+        },
+        {
+          "pointer": [
+            "checks",
+            "strict_engine_clippy"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_campaign_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "actual_running_samples"
+          ],
+          "equals": 16
+        },
+        {
+          "pointer": [
+            "checks",
+            "actual_interrupted_samples"
+          ],
+          "equals": 16
+        },
+        {
+          "pointer": [
+            "checks",
+            "exact_original_declarations_after_two_clones"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "old_reader_state_unchanged"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "all_owned_processes_and_groups_retired"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "full_memory_quota_readmitted"
+          ],
+          "equals": true
         }
       ]
     }

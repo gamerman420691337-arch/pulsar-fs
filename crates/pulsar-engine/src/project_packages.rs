@@ -1568,6 +1568,8 @@ fn merge_imported_capture(
 #[cfg(test)]
 mod capture_review_tests {
     use super::*;
+    #[cfg(target_os = "linux")]
+    include!("project_packages_native_cpu_support.rs");
 
     struct Fixture {
         engine: Arc<Engine>,
@@ -2797,6 +2799,14 @@ mod capture_review_tests {
             assert!(!engine.worker_fence.has_pending_worker_custody().unwrap());
             assert_eq!(engine.pool.reserved_storage(), 0);
             assert_eq!(engine.pool.reserved_cpu_threads(), Ok(0));
+            // Re-admit the whole configured memory quota. Any leaked worker
+            // reservation makes this fail, even when its thread has exited.
+            drop(
+                engine
+                    .pool
+                    .reserve_memory(engine.config.max_ram_bytes)
+                    .unwrap(),
+            );
         }
         fn drop_and_join_engine(engine: Arc<Engine>) {
             assert_engine_retired(&engine);
@@ -3577,57 +3587,82 @@ mod capture_review_tests {
             std::thread::sleep(Duration::from_millis(5));
         }
 
-        // Attempt 4 (interrupted) and Attempt 5 (captured-running):
-        // Clone the exact captured WorkerRequest from Attempt 1 and declare both states in cpu_runtime_attempts.
+        // Attempt 4: a separate real Engine owns a confined worker after verified
+        // progress. Kill the Engine process, then let normal restart recovery
+        // retain its interrupted attempt without restoring captured execution.
+        drop_and_join_engine(origin_engine);
+        let crash_spec = CpuCrashSpec {
+            state_dir: origin_state_dir.clone(),
+            worker: worker_bin.clone(),
+            policy: policy_path.clone(),
+            project: origin_project_id.clone(),
+            session: origin_session.clone(),
+            source: origin_source.clone(),
+            settings: gen_settings.clone(),
+            model: local_model.clone(),
+            ready: root_dir.path().join("crash-child-ready.json"),
+        };
+        let crash_spec_path = root_dir.path().join("crash-child-spec.json");
+        fs::write(&crash_spec_path, serde_json::to_vec(&crash_spec).unwrap()).unwrap();
+        let child_log = fs::File::create(root_dir.path().join("crash-child.log")).unwrap();
+        let mut crash_child = CpuCrashChild(ProcessCommand::new(std::env::current_exe().unwrap())
+            .args(["authority::project_packages::capture_review_tests::native_cpu_interruption_child", "--exact", "--ignored", "--nocapture", "--test-threads=1"])
+            .env("PULSAR_CPU_CRASH_CHILD_SPEC", &crash_spec_path)
+                .env("PULSAR_CPU_CRASH_AUTH_TOKEN", &origin_token)
+            .stdin(Stdio::null()).stdout(child_log.try_clone().unwrap()).stderr(child_log)
+            .spawn().unwrap());
+        let crash_deadline = Instant::now() + Duration::from_secs(25);
+        while !crash_spec.ready.exists() {
+            assert!(
+                crash_child.0.try_wait().unwrap().is_none(),
+                "native crash child exited before progress: {}",
+                fs::read_to_string(root_dir.path().join("crash-child.log")).unwrap()
+            );
+            assert!(
+                Instant::now() < crash_deadline,
+                "native crash child did not rendezvous"
+            );
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        let crash_ready: Value =
+            serde_json::from_slice(&fs::read(&crash_spec.ready).unwrap()).unwrap();
+        let interrupted_job: JobSnapshot =
+            serde_json::from_value(crash_ready["job"].clone()).unwrap();
+        let mut crashed_group = HeldCpuGroup::open(crash_ready["group"].clone());
+        crashed_group.pin_processes();
+        crashed_group.frozen = true;
+        crash_child.0.kill().unwrap();
+        use std::os::unix::process::ExitStatusExt;
+        assert_eq!(crash_child.0.wait().unwrap().signal(), Some(libc::SIGKILL));
+        crashed_group.thaw();
+        let origin_engine = Engine::open(origin_cfg.clone()).unwrap();
+        crashed_group.assert_exited();
+        assert!(!Path::new(crashed_group.observation["path"].as_str().unwrap()).exists());
+        assert_engine_retired(&origin_engine);
         {
-            let mut db = origin_engine.db.lock().unwrap();
-            let completed_raw: String = db
+            let db = origin_engine.db.lock().unwrap();
+            assert_eq!(
+                job_snapshot(&db, &interrupted_job.job_id, &origin_project_id)
+                    .unwrap()
+                    .state,
+                "interrupted"
+            );
+            let state: String = db
                 .query_row(
-                    "SELECT manifest FROM attempts WHERE id=?1",
-                    [completed_job.attempt_id.as_str()],
+                    "SELECT state FROM attempts WHERE id=?1",
+                    [interrupted_job.attempt_id.as_str()],
                     |r| r.get(0),
                 )
                 .unwrap();
-            let template_req: WorkerRequest = decode(&completed_raw).unwrap();
-            let tx = db.transaction().unwrap();
-            for state in ["interrupted", "running"] {
-                let mut req = template_req.clone();
-                req.job_id = JobId::new(format!("job.cpu.{state}")).unwrap();
-                req.attempt_id = AttemptId::new(format!("attempt.cpu.{state}")).unwrap();
-                req.base_revision = RevisionId::new(1);
-                req.output_dir = origin_state_dir
-                    .join("attempts")
-                    .join(req.attempt_id.as_str());
-                fs::create_dir_all(&req.output_dir).unwrap();
-                req.validate().unwrap();
-                let raw = encode(&req).unwrap();
-                tx.execute(
-                    "INSERT INTO jobs(id,attempt,project,base_revision,session,source,state,manifest) VALUES(?1,?2,?3,1,?4,?5,?6,?7)",
-                    params![
-                        req.job_id.as_str(),
-                        req.attempt_id.as_str(),
-                        origin_project_id.as_str(),
-                        origin_session.as_str(),
-                        origin_source.as_str(),
-                        state,
-                        raw,
-                    ],
-                )
-                .unwrap();
-                tx.execute(
-                    "INSERT INTO attempts(id,job,manifest,state) VALUES(?1,?2,?3,?4)",
-                    params![req.attempt_id.as_str(), req.job_id.as_str(), raw, state],
-                )
-                .unwrap();
-                crate::cpu_runtime_db::declare(&tx, &req, &expected_image).unwrap();
-            }
-            tx.commit().unwrap();
-            assert_eq!(
-                db.query_row("PRAGMA main.user_version", [], |r| r.get::<_, i64>(0))
-                    .unwrap(),
-                36
-            );
+            assert_eq!(state, "interrupted");
         }
+
+        // Attempt 5: capture the actual running worker at its native progress
+        // barrier. The freezer changes scheduling only; all requests, image
+        // declarations and persisted states are authored by the regular Engine.
+        let running_job = start_cpu_history_job(&origin_engine, &crash_spec, &origin_token);
+        let mut running_group = hold_running_cpu(&origin_engine, &running_job);
+        let actual_running_observation = running_group.observation.clone();
 
         // 2. Export format-15 package from origin Engine.
         let origin_plan = super::project_packages::capture(
@@ -3639,6 +3674,22 @@ mod capture_review_tests {
         )
         .unwrap();
         let parsed_manifest = origin_plan.manifest.clone();
+        for (job, state) in [
+            (&completed_job, "completed"),
+            (&cancelled_job, "cancelled"),
+            (&failed_job, "failed"),
+            (&interrupted_job, "interrupted"),
+            (&running_job, "running"),
+        ] {
+            let matches: Vec<_> = parsed_manifest
+                .generated_origins
+                .iter()
+                .filter(|origin| origin.attempt_id == job.attempt_id)
+                .collect();
+            assert_eq!(matches.len(), 1);
+            assert_eq!(matches[0].job_id, job.job_id);
+            assert_eq!(matches[0].state, state);
+        }
         let mut object_bytes = BTreeMap::new();
         for desc in &parsed_manifest.objects {
             let mut buf = Vec::new();
@@ -3670,20 +3721,24 @@ mod capture_review_tests {
             );
             assert_eq!(crate::portable_cpu_archives::version(&db).unwrap(), 36);
         }
-        // Retire the synthetic running row before shutting down origin Engine so assert_engine_retired is clean.
-        {
-            let db = origin_engine.db.lock().unwrap();
-            db.execute(
-                "UPDATE jobs SET state='interrupted' WHERE id='job.cpu.running'",
-                [],
-            )
+        // The captured package keeps "running"; retire the origin through the
+        // public cancellation operation before joining its real worker.
+        origin_engine
+            .handle(authed_req(
+                &origin_session,
+                &origin_token,
+                Some(&origin_project_id),
+                None,
+                Command::CancelJob {
+                    job_id: running_job.job_id.clone(),
+                },
+            ))
+            .result
             .unwrap();
-            db.execute(
-                "UPDATE attempts SET state='interrupted' WHERE id='attempt.cpu.running'",
-                [],
-            )
-            .unwrap();
-        }
+        running_group.thaw();
+        assert_engine_retired(&origin_engine);
+        running_group.assert_exited();
+        assert!(!Path::new(running_group.observation["path"].as_str().unwrap()).exists());
         let origin_pin = open_reader_pin(&origin_state_dir);
         drop_and_join_engine(origin_engine);
 
@@ -4078,6 +4133,7 @@ mod capture_review_tests {
 
         // Verify all 5 attempt states and their exact CpuRuntimeImage declarations in the retained origin manifest inside clone2.
         let mut retained_states = BTreeSet::new();
+        let mut exact_original_manifests = 0;
         for descriptor in clone2_plan
             .manifest
             .objects
@@ -4091,6 +4147,13 @@ mod capture_review_tests {
                 .read_to_end(&mut buf)
                 .unwrap();
             let ancestor: PortableProjectManifest = serde_json::from_slice(&buf).unwrap();
+            if ancestor.origin_project_id == origin_project_id {
+                assert_eq!(
+                    encode(&ancestor.generated_origins).unwrap(),
+                    encode(&parsed_manifest.generated_origins).unwrap()
+                );
+                exact_original_manifests += 1;
+            }
             for origin in &ancestor.generated_origins {
                 assert_eq!(
                     origin.cpu_runtime.as_ref().unwrap().identity().unwrap(),
@@ -4109,6 +4172,7 @@ mod capture_review_tests {
                 "running".to_owned(),
             ])
         );
+        assert_eq!(exact_original_manifests, 1);
         drop(clone2_plan);
 
         // 6. Verify actual package import refusals for stripped/mutated CPU image declarations and fallback tags.
@@ -4174,10 +4238,15 @@ mod capture_review_tests {
                 "task": "CPU-ROUNDTRIP",
                 "qualified": false,
                 "physical_device_contacted": false,
-                "cpu_roundtrip_closed": false,
-                "scope": "Two-clone inert archival and preceding-reader refusal; running and interrupted rows are constructed from a completed request, not actual running capture or process interruption.",
-                "actual_running_capture_verified": false,
-                "actual_process_interruption_verified": false,
+                "cpu_roundtrip_closed": true,
+                "scope": "Actual confined completed/failed/cancelled generation, progress-bound running export, Engine-process SIGKILL and inert interrupted restart; two-clone archival and preceding-reader refusal. Authored neutral model; no product/device qualification.",
+                "actual_running_capture_verified": true,
+                "actual_process_interruption_verified": true,
+                "all_original_generation_declarations_exact_after_two_clones": true,
+                "all_owned_processes_and_groups_retired": true,
+                "full_memory_quota_readmitted_after_each_engine": true,
+                "actual_running": actual_running_observation,
+                "actual_interruption": {"engine_signal": "SIGKILL", "job": interrupted_job, "group": crashed_group.observation, "all_original_pidfds_exited": true, "restart_did_not_relaunch": true},
                 "subjects": {
                     "worker": {
                         "path": worker_bin,
