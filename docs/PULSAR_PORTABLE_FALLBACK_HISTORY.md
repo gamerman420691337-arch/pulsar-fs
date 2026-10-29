@@ -72,6 +72,26 @@ reader-41 clones with observed inventory, modes and contents unchanged. This is
 metadata/compatibility evidence, not confined inference, measured equivalence,
 useful script quality, broad hot-WAL or physical qualification.
 
+The separate ignored native test
+`native_cpu_fallback_portable_history_roundtrip` extends this consumer to real
+confined CPU successors. Completed, cancelled-after-progress and
+withdrawn-after-progress cases pass public export, two clone imports, restart
+and re-export. Both original CPU-image declarations remain byte-identical in
+the ancestor manifests, the fallback payload remains checked and inert, and
+root/ancestor state mutations refuse before publication. Imported databases
+contain no executable jobs/attempts, CPU execution rows or equivalence
+acceptance records. Each case joins its workers and removes its private
+database before the host supervisor removes its scratch directory.
+
+Eligibility and primary provider absence in this campaign remain explicitly
+simulated. The exported evaluation/decision records are authored software-test
+shapes, not genuine measurements or human approvals. The actual neutral-model
+CPU execution proves software custody and archival behavior only. This native
+campaign does not repeat the preceding-App probe; the cold reader-41 result
+above retains its original authored-metadata scope. Captured-running and
+process-interrupted fallback histories, remaining corruption/resource/fault
+cases and browser/live fallback still require evidence.
+
 An initial native probe found that the pinned preceding executable rejects
 reader 40 without changing existing files, but creates an empty daemon lock
 and SQLite WAL/SHM files on a cold startup. That failure remains retained;
