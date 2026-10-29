@@ -2,6 +2,21 @@
 use super::*;
 
 #[test]
+fn initial_lookahead_follows_half_age_with_an_explicit_floor_and_cap() {
+    for (age_ns, expected_ms) in [
+        (1, 1),
+        (2_000_000, 1),
+        (100_000_000, 50),
+        (1_000_000_000, 500),
+        (2_000_000_000, 1000),
+        (10_000_000_000, 1000),
+        (u64::MAX, 1000),
+    ] {
+        assert_eq!(lookahead_default_ms(age_ns), expected_ms);
+    }
+}
+
+#[test]
 fn timing_routes_keep_player_scope_and_existing_bounded_ingress() {
     let scope = scope();
     for path in [
@@ -323,6 +338,9 @@ struct GatedPreview {
 }
 
 impl PreviewBackend for GatedPreview {
+    fn initial_lookahead_ms(&self) -> Option<u32> {
+        Some(500)
+    }
     fn initialize(&mut self) -> Result<()> {
         Ok(())
     }
@@ -452,6 +470,7 @@ impl TestServer {
             .unwrap()
             .0;
         let value: serde_json::Value = serde_json::from_str(value).unwrap();
+        assert_eq!(value["default_lookahead_ms"], 500);
         Scope {
             launch: value["launch_id"].as_str().unwrap().into(),
             page: value["page_id"].as_str().unwrap().into(),

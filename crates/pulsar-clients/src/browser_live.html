@@ -7,6 +7,7 @@ const PAGE_SCOPE = /*__PULSAR_PAGE_SCOPE__*/ null;
 const video=document.getElementById('video'),status=document.getElementById('status'),position=document.getElementById('position'),canvas=document.createElement('canvas');canvas.width=canvas.height=64;
 const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.imageSmoothingEnabled=false;
 const analysisVideo=document.getElementById('analysis-video'),lookaheadInput=document.getElementById('lookahead'),lookaheadMs=document.getElementById('lookahead-ms'),lookaheadStatus=document.getElementById('lookahead-status'),analysisEstimate=document.getElementById('analysis-estimate');
+if(PAGE_SCOPE?.default_lookahead_ms!==undefined){const ms=PAGE_SCOPE.default_lookahead_ms;if(!Number.isSafeInteger(ms)||ms<1||ms>15000)throw Error('Invalid native lookahead default.');lookaheadMs.value=String(ms);}
 const continuityInput=document.getElementById('analysis-continuity');
 const MAX_FUTURE_ESTIMATES=1024;
 let analysisReader=null,visibleFrameTickUs=null,futureEstimates=[],lastFutureEstimate=null,futureTimer=null;
