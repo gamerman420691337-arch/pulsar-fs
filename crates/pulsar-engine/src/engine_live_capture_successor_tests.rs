@@ -725,6 +725,49 @@ mod successor_tests {
     }
 
     #[test]
+    fn successor_lifetime_refusal_identifies_original_clock_and_lease_without_renewal() {
+        for predecessor in [true, false] {
+            for fault in ["unavailable", "suspended", "expired"] {
+                let x = delivery_fixture();
+                let cap = preview_successor(&x);
+                let deadline = cap.expires_at_ns();
+                let selected = if predecessor {
+                    cap.predecessor()
+                } else {
+                    cap.successor()
+                };
+                let mut registry = x.f.engine.live_captures.lock().unwrap();
+                match fault {
+                    "unavailable" => registry.unavailable_clock_for_test(&selected.identity.epoch),
+                    "suspended" => registry.suspend_for_test(&selected.identity.epoch),
+                    "expired" => registry.expire_for_test(&selected.identity.epoch),
+                    _ => unreachable!(),
+                }
+                let error = registry.native_successor_basis(&cap).err().unwrap();
+                let expected = match (predecessor, fault) {
+                    (_, "unavailable") => "native capture clock: suspend-aware correspondence unavailable for this epoch",
+                    (true, "expired") => "original transfer predecessor capture lease expired",
+                    (false, "expired") => "original transfer successor capture lease expired",
+                    (true, _) => "original transfer predecessor native clock refused",
+                    (false, _) => "original transfer successor native clock refused",
+                };
+                assert_eq!(error.message, expected, "{predecessor}/{fault}");
+                assert_eq!(
+                    error.code,
+                    if fault == "unavailable" {
+                        ErrorCode::Unavailable
+                    } else {
+                        ErrorCode::DependencyMismatch
+                    }
+                );
+                assert_eq!(cap.expires_at_ns(), deadline);
+                drop(registry);
+                cap.cancel();
+            }
+        }
+    }
+
+    #[test]
     fn retired_original_transfer_cannot_commit_or_reopen_either_input() {
         let x = delivery_fixture();
         let a = TransferSink::new(&x);
@@ -752,18 +795,19 @@ mod successor_tests {
         let proof = a.transfers.lock().unwrap()[0].clone();
         let deadline = proof.expires_at_ns();
         cap.cancel();
-        assert!(x
-            .f
-            .engine
-            .live_captures
-            .lock()
-            .unwrap()
-            .claim_native_transfer(&proof)
-            .is_err());
-        assert_eq!(
-            status(&x, &original.request_id).phase,
-            BrowserAnalysisTransferPhase::Aborted
-        );
+        let original_refusal =
+            x.f.engine
+                .live_captures
+                .lock()
+                .unwrap()
+                .claim_native_transfer(&proof)
+                .err()
+                .unwrap();
+        let swept = status(&x, &original.request_id);
+        assert_eq!(swept.phase, BrowserAnalysisTransferPhase::Aborted);
+        assert_eq!(swept.error.as_ref().unwrap().message, original_refusal.message,
+            "maintenance must retain the original refusal, not replace it with a generic lifetime failure");
+        assert_eq!(status(&x, &original.request_id).error, swept.error);
         assert_eq!(
             transfer_report(x.f.engine.handle(original).result.unwrap()).phase,
             BrowserAnalysisTransferPhase::Aborted

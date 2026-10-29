@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-TIMING-RETIREMENT",
-    "scope": "Current source is unchanged from the verified6d4c9fa timing-retirement build. Rendered counterevidence EV-RENDERED-TRANSFER-ABORT now drives BROWSER-DEMO: reproduce the successor-lifetime/pair/status interleaving, preserving original deadlines and the failed run. Native timing bookkeeping repair remains independently verified; full browser reliability is not established.",
+    "evidence": "EV-TRANSFER-REFUSAL",
+    "scope": "Preserve the original checked native refusal when successor sweeping aborts a reservation; static messages distinguish predecessor/successor capture, delivery, selection, clock, lease, media and timing guards. Preserve all admission predicates, checks, error codes and original deadlines. Cancellation refusal regression turns red to green; unavailable-clock/suspend/lease cases on both sides pass without renewing the reservation. Default-thread Engine repeat1892/0/112 ignored, strict Engine lint and default App/Worker build pass. One new rendered sterile40s/authored-model run reaches EOF with381 historically fresh accepted estimates over9 recording epochs, exact declared+5s mapping and pinned CPU worker/policy identities; servers/Engine exit0 and fence empties. No original-race repair, model/device or general reliability clearance. The first full suite hit a retained runtime cache-busy failure, not reproduced by the repeat.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "Build/library checkpoint remains VERIFIED. New rendered qualification FAIL: a transfer retires before its successor pair is accepted; retained native refusal is original successor lifetime retired. Repeat stays fresh through11.3s; cause remains unproven. Browser servers/Engine exit0 and fence custody clears. All25 acceptance gates remain open.",
+    "failure_summary": "Transfer sweep now preserves the original checked refusal; native clock/lease predicates and deadlines remain unchanged. Default Engine repeat1892/0/112 ignored, strict lint/build and one rendered40s EOF/381-estimate run pass. Earlier rendered abort,420s cause and first-run runtime-cache contention remain unresolved; all25 acceptance gates remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -308,7 +308,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/live_capture_successor.rs",
-        "sha256": "7ae73b372ad320000c817d406d7d549383e3765f8623f560181b16cc47f0b0a6"
+        "sha256": "9c3d4b691dc50fe2178e96699e82b7bb2d366b594bbe328458184465663225b2"
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
@@ -320,7 +320,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_capture_successor_tests.rs",
-        "sha256": "6bd9e4446a485842c42fefd08847ceb4215c7be76853b943c7da48a893bce957"
+        "sha256": "d21bcd7dc6e80a5652af1ed4c6a212306e61f7e4e44960b9c90e6c8809efe613"
       },
       {
         "path": "crates/pulsar-engine/src/live_cuda_evidence.rs",
@@ -395,20 +395,20 @@
   "last_verified": {
     "evidence": [
       "EV-RECORDING-CHECKS",
-      "EV-CPU-ROUNDTRIP",
-      "EV-TIMING-RETIREMENT"
+      "EV-TIMING-RETIREMENT",
+      "EV-TRANSFER-REFUSAL"
     ],
-    "scope": "Current client timing-retirement code:702 passed/15 ignored,164 JS tests, strict lint/default build and native causal probe-release regression. Engine1891/112 ignored and Protocol397 remain separately pinned. Historical420s trigger and broader acceptance remain open.",
+    "scope": "Current Engine repeat:1892 passed/112 ignored, strict lint/default build and rendered40s EOF; prior default-thread runtime-cache busy failure remains unresolved. Client702/15 ignored and Protocol397 are separately pinned. No general browser/model/device clearance.",
     "metric_refs": {
       "engine_passed": {
-        "evidence": "EV-CPU-ROUNDTRIP",
+        "evidence": "EV-TRANSFER-REFUSAL",
         "pointer": [
           "checks",
           "engine_passed"
         ]
       },
       "engine_ignored": {
-        "evidence": "EV-CPU-ROUNDTRIP",
+        "evidence": "EV-TRANSFER-REFUSAL",
         "pointer": [
           "checks",
           "engine_ignored"
@@ -1148,6 +1148,18 @@
       "evidence": [
         "EV-TIMING-RETIREMENT"
       ]
+    },
+    {
+      "id": "SC-TRANSFER-REFUSAL",
+      "title": "Retain exact successor refusal and distinguish native lifetime guards",
+      "parents": [
+        "M2-DOMAIN",
+        "M5-LIVE"
+      ],
+      "scope": "Preserve the original checked native refusal when successor sweeping aborts a reservation; static messages distinguish predecessor/successor capture, delivery, selection, clock, lease, media and timing guards. Preserve all admission predicates, checks, error codes and original deadlines. Cancellation refusal regression turns red to green; unavailable-clock/suspend/lease cases on both sides pass without renewing the reservation. Default-thread Engine repeat1892/0/112 ignored, strict Engine lint and default App/Worker build pass. One new rendered sterile40s/authored-model run reaches EOF with381 historically fresh accepted estimates over9 recording epochs, exact declared+5s mapping and pinned CPU worker/policy identities; servers/Engine exit0 and fence empties. No original-race repair, model/device or general reliability clearance. The first full suite hit a retained runtime cache-busy failure, not reproduced by the repeat.",
+      "evidence": [
+        "EV-TRANSFER-REFUSAL"
+      ]
     }
   ],
   "queue": [
@@ -1228,7 +1240,8 @@
         "EV-HANDOFF-PAIR",
         "EV-LOOKAHEAD-MARGIN",
         "EV-TIMING-RETIREMENT",
-        "EV-RENDERED-TRANSFER-ABORT"
+        "EV-RENDERED-TRANSFER-ABORT",
+        "EV-TRANSFER-REFUSAL"
       ]
     },
     {
@@ -1267,9 +1280,10 @@
       "state": "open",
       "owner": "Codex",
       "depends_on": [],
-      "exit": "Use existing bounded phase probes on the failing path; establish a causal repair and regression, or a specifically evidenced observation-contract correction. Healthy later runs do not erase the failure.",
+      "exit": "Use existing bounded phase probes on the failing path; establish a causal repair and regression, or a specifically evidenced observation-contract correction. Healthy later runs do not erase the failure. Also localize the retained default-thread runtime archive-cache busy failure; a passing repeat does not establish its cause.",
       "evidence": [
-        "EV-STARTUP"
+        "EV-STARTUP",
+        "EV-RUNTIME-CACHE-BUSY"
       ]
     },
     {
@@ -4066,6 +4080,176 @@
             "worker_fence_custody_empty"
           ],
           "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-TRANSFER-REFUSAL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/transfer-refusal/verification.json",
+      "sha256": "cca91e34b65ba0a33ae1fedac03ca3f3e96d2fd952213eadd47372c535e926e4",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Preserve the original checked native refusal when successor sweeping aborts a reservation; static messages distinguish predecessor/successor capture, delivery, selection, clock, lease, media and timing guards. Preserve all admission predicates, checks, error codes and original deadlines. Cancellation refusal regression turns red to green; unavailable-clock/suspend/lease cases on both sides pass without renewing the reservation. Default-thread Engine repeat1892/0/112 ignored, strict Engine lint and default App/Worker build pass. One new rendered sterile40s/authored-model run reaches EOF with381 historically fresh accepted estimates over9 recording epochs, exact declared+5s mapping and pinned CPU worker/policy identities; servers/Engine exit0 and fence empties. No original-race repair, model/device or general reliability clearance. The first full suite hit a retained runtime cache-busy failure, not reproduced by the repeat.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "original_rendered_transfer_abort_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "runtime_cache_contention_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_passed"
+          ],
+          "equals": 1892
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_ignored"
+          ],
+          "equals": 112
+        },
+        {
+          "pointer": [
+            "checks",
+            "strict_engine_clippy"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "default_app_worker_build"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "cancellation_refusal_red_then_green"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "clock_suspend_lease_guard_matrix_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "original_reservation_deadline_unchanged"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "rendered_eof"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "recorded_estimates"
+          ],
+          "equals": 381
+        },
+        {
+          "pointer": [
+            "checks",
+            "recording_epochs"
+          ],
+          "equals": 9
+        },
+        {
+          "pointer": [
+            "checks",
+            "declared_offset_seconds"
+          ],
+          "equals": 5
+        },
+        {
+          "pointer": [
+            "checks",
+            "cpu_subject_correspondence"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "server_exit_code"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_exit_code"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "worker_fence_custody_empty"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-RUNTIME-CACHE-BUSY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/transfer-refusal/runtime-cache-failure.json",
+      "sha256": "5e9eeea01f6a44f109751c1b2bf78e272c20659e02c081f46cf2b1784f5a1f04",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Source-identical first default-thread Engine suite failed at archive cache reuse. Original message retained; passing repeat is not a causal repair.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "failed"
+          ],
+          "equals": 1
         }
       ]
     }
