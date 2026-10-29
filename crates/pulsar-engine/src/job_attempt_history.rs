@@ -181,7 +181,7 @@ fn declared_profile(request: &WorkerRequest) -> Option<DeclaredInferenceProfile>
     }
 }
 
-fn read_outcome(
+pub(crate) fn read_outcome(
     db: &Connection,
     request: &WorkerRequest,
     manifest_sha256: &str,

@@ -130,6 +130,8 @@ mod inference_environment;
 mod inference_equivalence;
 mod inference_fallback_selection;
 pub use inference_fallback_selection::*;
+mod inference_fallback_history;
+pub use inference_fallback_history::*;
 mod inference_profile;
 mod job_attempts;
 pub use annotated_preview::*;

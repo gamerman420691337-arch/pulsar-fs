@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-FALLBACK-HISTORY-SNAPSHOT",
-    "scope": "Checked fallback/resume history is read once within the public JobAttempts transaction, bound to project/job and canonical attempt manifests, bounded to 128 attempts and 512KiB trace metadata, and returned as inert history. Fallback predecessors require failed state; resumed history accepts retained interruptions/pauses and legacy cancelled predecessors without allowing new resumes of cancelled attempts. Public grant revocation cancels only the current attempt and preserves consumed history. Six new tests and the final default Engine suite pass; strict Engine lint and default App/Worker build pass. Full live/browser and portable fallback namespaces remain incomplete and existing export refusals remain enabled. No model, physical or human qualification.",
+    "evidence": "EV-FALLBACK-ARCHIVE-CONTRACT",
+    "scope": "Shared inert fallback archive contract and checked local producer: original predecessor-ordered selection, states, manifests, profile/environment bindings and optional outcomes validate without opening historical paths. Each fallback edge requires the original provider-unavailable settlement; missing observations stay unknown. Canonical round-trip survives database closure;21 mutation controls, missing-settlement, raw-byte bounds and unknown/noncanonical field refusals pass. Original namespace, semantic preservation, expiry metadata and legacy cancelled resume history remain inert. The public JobAttempts snapshot uses this shared contract. Engine1904/0/114 ignored,Protocol397/0,strict Engine/Protocol lint and default App/Worker build pass. Package capture/import/reader-barrier/two-clone integration and live/browser fallback remain incomplete; existing portable export refusals stay enabled. No model, platform, physical or human qualification.",
     "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Current scoped software checks pass. Earlier cache/timing failures, rendered transfer abort, interrupted verification and linker failure remain retained. Full live/portable fallback support and all 25 acceptance gates remain open.",
+    "failure_summary": "Current archive-contract and local consumer checks pass. Full portable/live integration, prior browser transfer abort and broader cache/timing reliability incidents remain unresolved; all25 acceptance gates remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -184,7 +184,11 @@
       },
       {
         "path": "crates/pulsar-engine/src/inference_fallback_store.rs",
-        "sha256": "23d9d07520af5c280ba04d5c8f5113a5067a27f8bb4025505b76592e8528c028"
+        "sha256": "08b0815b519ae5599a861b99e07c92d85c07d70fa0bbff3a5bc1d0292158af4f"
+      },
+      {
+        "path": "crates/pulsar-engine/src/job_attempt_history.rs",
+        "sha256": "3b7604f7a4490b0a5e75f2b151aa5217016d269c0b5612a46efb703cafa683ae"
       },
       {
         "path": "crates/pulsar-engine/src/lib.rs",
@@ -359,8 +363,12 @@
         "sha256": "f3d078950676572de2fd81f4e440986102ab3edd16bc9cd31ae97ce2001e8203"
       },
       {
+        "path": "crates/pulsar-protocol/src/inference_fallback_history.rs",
+        "sha256": "92d17f1fa96a71c3645a4d43a5ebfeb2d2f93247f6a65215e34799eb2f0a488a"
+      },
+      {
         "path": "crates/pulsar-protocol/src/lib.rs",
-        "sha256": "5695681c893f2b1f6007ae324502bcdea44f8b03ca629c6043e69f83aa918371"
+        "sha256": "51b8963ecf38d1f4caca7967be7227f31e416d0500636cebdb04fd183c84dbae"
       },
       {
         "path": "crates/pulsar-protocol/src/live_capture.rs",
@@ -399,6 +407,10 @@
         "sha256": "270008fb720c184fffd38aef3696741d706ce44895b7e32d76d2c4e708813caa"
       },
       {
+        "path": "docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md",
+        "sha256": "cfec0220abdf829a0147d32e574fbbe93fa5a3845a5087d4eff97018ff6b548b"
+      },
+      {
         "path": "scripts/browser-live-player.test.mjs",
         "sha256": "652e9b5050929167a3862b20c914a3804c2ee65a01c22fb1889836690ec5a219"
       }
@@ -409,19 +421,20 @@
       "EV-RECORDING-CHECKS",
       "EV-TIMING-RETIREMENT",
       "EV-CACHE-OWNERSHIP",
-      "EV-FALLBACK-HISTORY-SNAPSHOT"
+      "EV-FALLBACK-HISTORY-SNAPSHOT",
+      "EV-FALLBACK-ARCHIVE-CONTRACT"
     ],
-    "scope": "Final default Engine1900/0/114 ignored;50 focused fallback tests/0 failed/2 ignored, strict Engine lint and App/Worker build pass. Client702/15 ignored and Protocol397 remain separately pinned. Full live/portable fallback support, prior browser reliability incidents and all25 acceptance gates remain open.",
+    "scope": "Current archive-contract checkpoint:Engine1904/0/114 ignored,Protocol397/0,strict Engine/Protocol lint and default App/Worker build pass. Client702/15 ignored remains separately pinned. Full package/live fallback support, prior browser/timing incidents and all25 acceptance gates remain open.",
     "metric_refs": {
       "engine_passed": {
-        "evidence": "EV-FALLBACK-HISTORY-SNAPSHOT",
+        "evidence": "EV-FALLBACK-ARCHIVE-CONTRACT",
         "pointer": [
           "checks",
           "engine_passed"
         ]
       },
       "engine_ignored": {
-        "evidence": "EV-FALLBACK-HISTORY-SNAPSHOT",
+        "evidence": "EV-FALLBACK-ARCHIVE-CONTRACT",
         "pointer": [
           "checks",
           "engine_ignored"
@@ -442,7 +455,7 @@
         ]
       },
       "protocol_passed": {
-        "evidence": "EV-RECORDING-CHECKS",
+        "evidence": "EV-FALLBACK-ARCHIVE-CONTRACT",
         "pointer": [
           "checks",
           "protocol_passed"
@@ -1197,6 +1210,19 @@
       "evidence": [
         "EV-FALLBACK-HISTORY-SNAPSHOT"
       ]
+    },
+    {
+      "id": "SC-FALLBACK-ARCHIVE-CONTRACT",
+      "title": "Shared inert fallback archive contract and checked local producer",
+      "parents": [
+        "M3-MODELS",
+        "M5-LIVE",
+        "M2-INTERCHANGE"
+      ],
+      "scope": "Shared inert fallback archive contract and checked local producer: original predecessor-ordered selection, states, manifests, profile/environment bindings and optional outcomes validate without opening historical paths. Each fallback edge requires the original provider-unavailable settlement; missing observations stay unknown. Canonical round-trip survives database closure;21 mutation controls, missing-settlement, raw-byte bounds and unknown/noncanonical field refusals pass. Original namespace, semantic preservation, expiry metadata and legacy cancelled resume history remain inert. The public JobAttempts snapshot uses this shared contract. Engine1904/0/114 ignored,Protocol397/0,strict Engine/Protocol lint and default App/Worker build pass. Package capture/import/reader-barrier/two-clone integration and live/browser fallback remain incomplete; existing portable export refusals stay enabled. No model, platform, physical or human qualification.",
+      "evidence": [
+        "EV-FALLBACK-ARCHIVE-CONTRACT"
+      ]
     }
   ],
   "queue": [
@@ -1382,9 +1408,10 @@
       "depends_on": [
         "CPU-ROUNDTRIP"
       ],
-      "exit": "Implement the full retained fallback/live namespaces and authority/expiry/withdrawal behavior through actual consumers. Existing refusals remain until complete correspondence exists.",
+      "exit": "Implement the full retained fallback/live namespaces and authority/expiry/withdrawal behavior through actual consumers. Shared inert archive contract and local producer now pass. Next connect conditional package objects and snapshot capture, import graph validation, persistent reader barrier and actual two-clone lifecycle; then native browser/live admission and lifetime campaigns. Existing export refusals remain until complete correspondence exists. See docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md.",
       "evidence": [
-        "EV-FALLBACK-HISTORY-SNAPSHOT"
+        "EV-FALLBACK-HISTORY-SNAPSHOT",
+        "EV-FALLBACK-ARCHIVE-CONTRACT"
       ]
     },
     {
@@ -4492,6 +4519,63 @@
             "engine_ignored"
           ],
           "equals": 114
+        }
+      ]
+    },
+    {
+      "id": "EV-FALLBACK-ARCHIVE-CONTRACT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/fallback-archive-contract/verification.json",
+      "sha256": "5e1f0fa52735826acd2e31e6103959e84f0ec2b9e2c84e515b5658fa81ec7acc",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Shared inert fallback archive contract and checked local producer: original predecessor-ordered selection, states, manifests, profile/environment bindings and optional outcomes validate without opening historical paths. Each fallback edge requires the original provider-unavailable settlement; missing observations stay unknown. Canonical round-trip survives database closure;21 mutation controls, missing-settlement, raw-byte bounds and unknown/noncanonical field refusals pass. Original namespace, semantic preservation, expiry metadata and legacy cancelled resume history remain inert. The public JobAttempts snapshot uses this shared contract. Engine1904/0/114 ignored,Protocol397/0,strict Engine/Protocol lint and default App/Worker build pass. Package capture/import/reader-barrier/two-clone integration and live/browser fallback remain incomplete; existing portable export refusals stay enabled. No model, platform, physical or human qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_passed"
+          ],
+          "equals": 1904
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_ignored"
+          ],
+          "equals": 114
+        },
+        {
+          "pointer": [
+            "checks",
+            "protocol_passed"
+          ],
+          "equals": 397
+        },
+        {
+          "pointer": [
+            "portable_and_live_namespaces_complete"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "portable_export_refusals_enabled"
+          ],
+          "equals": true
         }
       ]
     }
