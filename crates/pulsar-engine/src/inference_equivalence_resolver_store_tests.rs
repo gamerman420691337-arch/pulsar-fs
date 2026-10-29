@@ -421,6 +421,114 @@ fn payload_fixture() -> (
     (payload, request)
 }
 
+/// Private authored shapes only, not a measurement or public acceptance.
+pub(in crate::authority) fn seed_package_history(
+    db: &mut Connection,
+    session: &SessionId,
+    project: &ProjectId,
+    source: SourceArtifact,
+    root: &Path,
+) -> WorkerRequest {
+    use super::super::inference_fallback_store::{
+        self as history, FallbackAdmission, FallbackAdmissionKind,
+    };
+    let (_, mut payload, mut request) = payload_fixture_record();
+    request.project_id = project.clone();
+    request.job_id = JobId::new(uuid::Uuid::new_v4().to_string()).unwrap();
+    request.attempt_id = AttemptId::new(uuid::Uuid::new_v4().to_string()).unwrap();
+    request.source = source;
+    request.output_dir = root.join("attempts").join(request.attempt_id.as_str());
+    let report = &mut payload.header.reports[0];
+    let decision = report.decision.as_mut().unwrap();
+    decision.actor_session = session.clone();
+    decision.request_id = RequestId::new(uuid::Uuid::new_v4().to_string()).unwrap();
+    let decision_request = decision.request_id.clone();
+    let reference = InferenceFallbackReference {
+        dossier_id: report.dossier_id.clone(),
+        expected_revision: 2,
+        expected_report_sha256: digest(encode(report).unwrap().as_bytes()),
+    };
+    let mut selection = payload.header.history.selection.clone();
+    selection.equivalents = vec![reference.clone()];
+    request.dependencies.retain(|d| {
+        !d.artifact_id
+            .as_str()
+            .starts_with(INFERENCE_FALLBACK_SELECTION_ID_PREFIX)
+    });
+    request.dependencies.push(selection.identity().unwrap());
+    request.validate().unwrap();
+    let tx = db.transaction().unwrap();
+    let docs: Vec<_> = report
+        .manifest
+        .evidence
+        .iter()
+        .map(|e| (e.kind, payload.documents[&e.identity.sha256].clone()))
+        .collect();
+    import_pending(&tx, &report.manifest, &docs).unwrap();
+    write_decision(&tx, report, 1).unwrap();
+    let fp = digest(b"UNIT TEST ONLY - storage identity, not an acceptance command");
+    tx.execute(
+        "INSERT INTO request_identities(session,request,fingerprint) VALUES(?1,?2,?3)",
+        params![session.as_str(), decision_request.as_str(), fp],
+    )
+    .unwrap();
+    let receipt = ResponseBody::InferenceEquivalenceSaved(Box::new(InferenceEquivalenceReceipt {
+        request_id: decision_request.clone(),
+        input_sha256: None,
+        report: report.clone(),
+    }));
+    tx.execute(
+        "INSERT INTO requests(session,request,fingerprint,response) VALUES(?1,?2,?3,?4)",
+        params![
+            session.as_str(),
+            decision_request.as_str(),
+            fp,
+            encode(&receipt).unwrap()
+        ],
+    )
+    .unwrap();
+    tx.execute(
+        "UPDATE inference_equivalence_schema SET clock_floor_unix_ms=MAX(clock_floor_unix_ms,3000)",
+        [],
+    )
+    .unwrap();
+    let raw = encode(&request).unwrap();
+    tx.execute("INSERT INTO jobs(id,attempt,project,base_revision,session,source,state,manifest) VALUES(?1,?2,?3,0,?4,?5,'queued',?6)",params![request.job_id.as_str(),request.attempt_id.as_str(),project.as_str(),session.as_str(),request.source.source_version.as_str(),raw]).unwrap();
+    tx.execute(
+        "INSERT INTO attempts(id,job,manifest,state) VALUES(?1,?2,?3,'queued')",
+        params![request.attempt_id.as_str(), request.job_id.as_str(), raw],
+    )
+    .unwrap();
+    history::declare_initial(
+        &tx,
+        &request,
+        &selection,
+        &FallbackAdmission {
+            schema_version: 1,
+            kind: FallbackAdmissionKind::Initial,
+            ordinal: 0,
+            predecessor: None,
+            reference,
+            observed_environment: report.manifest.subject.from_environment.clone(),
+            admitted_at_unix_ms: 4000,
+            expires_at_unix_ms: 10000,
+        },
+    )
+    .unwrap();
+    tx.execute(
+        "UPDATE jobs SET state='interrupted' WHERE id=?1",
+        [request.job_id.as_str()],
+    )
+    .unwrap();
+    tx.execute(
+        "UPDATE attempts SET state='interrupted' WHERE id=?1",
+        [request.attempt_id.as_str()],
+    )
+    .unwrap();
+    tx.commit().unwrap();
+    request
+}
+
 #[test]
 fn fallback_payload_capture_owns_original_sql_snapshot_without_filesystem_access() {
     use super::super::inference_fallback_store::{
@@ -663,6 +771,49 @@ fn fallback_payload_node_requires_exact_job_attempt_state_and_object_membership(
     };
     let verified = super::super::portable_fallback_payload::validate_node(&manifest, read).unwrap();
     assert!(verified.contains(&(worker_ref.sha256.clone(), worker_ref.byte_len)));
+    let mut original = manifest.clone();
+    original.candidates.push(PackageCandidate {
+        rebased_from: None,
+        project_interval: None,
+        candidate_id: CandidateId::new("unit-only-candidate").unwrap(),
+        base_revision: request.base_revision,
+        motion: original.head.motion.clone(),
+        job_origin: Some(request.job_id.clone()),
+        lineage: vec![payload.header.history.selection.identity().unwrap()],
+        committed_revision: None,
+        review: vec![],
+    });
+    let mut imported = original.clone();
+    imported.origin_project_id = ProjectId::new("unit-only-clone").unwrap();
+    imported.generated_origins.clear();
+    imported.candidates[0].job_origin = None;
+    let mut graph = super::super::portable_fallback_payload::GraphIndex::default();
+    graph.observe_node(&imported, read).unwrap();
+    assert!(graph.finish().is_err());
+    graph.observe_node(&original, read).unwrap();
+    graph.finish().unwrap();
+    graph.check_payload(&reference).unwrap();
+    graph.check_worker(&worker_ref, &request).unwrap();
+    let mut foreign = request.clone();
+    foreign.attempt_id = AttemptId::new("foreign").unwrap();
+    let foreign_raw = encode(&foreign).unwrap();
+    assert!(graph
+        .check_worker(
+            &PackageObjectRef {
+                sha256: digest(foreign_raw.as_bytes()),
+                byte_len: foreign_raw.len() as u64
+            },
+            &foreign
+        )
+        .is_err());
+    assert!(graph.check_payload(&worker_ref).is_err());
+    let mut wrong = original.clone();
+    wrong.candidates[0].lineage.clear();
+    assert!(
+        super::super::portable_fallback_payload::GraphIndex::default()
+            .observe_node(&wrong, read)
+            .is_err()
+    );
     for changed in 0..7 {
         let mut bad = manifest.clone();
         match changed {

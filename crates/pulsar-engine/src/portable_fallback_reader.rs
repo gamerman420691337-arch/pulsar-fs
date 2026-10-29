@@ -6,8 +6,8 @@ use rusqlite::{Connection, OptionalExtension, Transaction};
 
 const READER_NAME: &str = "portable_fallback_reader";
 const READER_MARKER: &str = "CREATE TABLE portable_fallback_reader(singleton INTEGER PRIMARY KEY NOT NULL CHECK(singleton=1),underlying_version INTEGER NOT NULL CHECK(underlying_version BETWEEN 2 AND 39))";
-pub(crate) const MAX_STORAGE_VERSION: i64 = 40;
-const OUTER_VERSION: i64 = MAX_STORAGE_VERSION;
+pub(crate) const MAX_STORAGE_VERSION: i64 = 41;
+const OUTER_VERSION: i64 = 40;
 
 /// Fast negative check before SQLite or daemon lock creation. This inspects
 /// only the main-file header; it never admits a schema or substitutes for the
@@ -46,10 +46,10 @@ pub(crate) fn preflight_main_header(state: &std::path::Path) -> Result<()> {
 }
 
 fn header(db: &Connection) -> Result<(i64, bool)> {
-    let raw: i64 = db.query_row("PRAGMA main.user_version", [], |r| r.get(0))?;
+    let raw = crate::portable_fallback_graph_reader::version(db)?;
     ensure!(
         raw == 0 || (2..=OUTER_VERSION).contains(&raw),
-        "unknown portable fallback reader version"
+        "unknown portable fallback graph reader version"
     );
     let temporary: bool = db.query_row(
         "SELECT EXISTS(SELECT 1 FROM temp.sqlite_master WHERE name=?1 COLLATE NOCASE OR tbl_name=?1 COLLATE NOCASE)",
@@ -124,11 +124,7 @@ pub(crate) fn publish(db: &Connection, new_version: i64) -> Result<()> {
             "portable fallback reader publication lost its retained header"
         );
     } else {
-        db.pragma_update(
-            Some(rusqlite::DatabaseName::Main),
-            "user_version",
-            new_version,
-        )?;
+        crate::portable_fallback_graph_reader::publish(db, new_version)?;
     }
     Ok(())
 }
@@ -145,11 +141,7 @@ pub(crate) fn arm(tx: &Transaction<'_>) -> Result<()> {
             "INSERT INTO main.portable_fallback_reader(singleton,underlying_version) VALUES(1,?1)",
             [old],
         )?;
-        tx.pragma_update(
-            Some(rusqlite::DatabaseName::Main),
-            "user_version",
-            OUTER_VERSION,
-        )?;
+        crate::portable_fallback_graph_reader::publish(tx, OUTER_VERSION)?;
     }
     ensure!(
         header(tx)? == (old, true),
@@ -161,6 +153,7 @@ pub(crate) fn arm(tx: &Transaction<'_>) -> Result<()> {
 /// Read-only preflight before recovery. Declarations and object roles, including
 /// inherited format16 containers, cannot silently lose their reader barrier.
 pub(crate) fn validate_metadata(db: &Connection) -> Result<()> {
+    crate::portable_fallback_graph_reader::validate_metadata(db)?;
     let (_, armed) = header(db)?;
     for table in ["project_import_archives", "project_package_exports"] {
         let present: bool = db.query_row(
@@ -201,12 +194,12 @@ mod tests {
         assert_eq!(std::fs::read(&path).unwrap(), b"short");
         let mut header = [0u8; 100];
         header[..16].copy_from_slice(b"SQLite format 3\0");
-        for raw in [0u32, 2, 25, 39, 40] {
+        for raw in [0u32, 2, 25, 39, 40, 41] {
             header[60..64].copy_from_slice(&raw.to_be_bytes());
             std::fs::write(&path, header).unwrap();
             preflight_main_header(tmp.path()).unwrap();
         }
-        for raw in [1u32, 41, u32::MAX] {
+        for raw in [1u32, 42, u32::MAX] {
             header[60..64].copy_from_slice(&raw.to_be_bytes());
             std::fs::write(&path, header).unwrap();
             assert!(preflight_main_header(tmp.path()).is_err());
@@ -223,7 +216,7 @@ mod tests {
         crate::artifacts::private_directory(&state).unwrap();
         let path = state.join("projects.sqlite3");
         let db = Connection::open(&path).unwrap();
-        db.execute_batch("PRAGMA journal_mode=WAL;PRAGMA wal_autocheckpoint=0;CREATE TABLE probe(x);PRAGMA user_version=25;PRAGMA wal_checkpoint(TRUNCATE);PRAGMA user_version=41").unwrap();
+        db.execute_batch("PRAGMA journal_mode=WAL;PRAGMA wal_autocheckpoint=0;CREATE TABLE probe(x);PRAGMA user_version=25;PRAGMA wal_checkpoint(TRUNCATE);PRAGMA user_version=42").unwrap();
         let main = std::fs::read(&path).unwrap();
         assert_eq!(u32::from_be_bytes(main[60..64].try_into().unwrap()), 25);
         let wal = std::fs::read(state.join("projects.sqlite3-wal")).unwrap();
@@ -237,7 +230,7 @@ mod tests {
         assert!(
             error
                 .to_string()
-                .contains("unknown portable fallback reader version"),
+                .contains("unknown portable fallback graph reader version"),
             "{error:#}"
         );
         assert_eq!(std::fs::read(&path).unwrap(), main);
@@ -360,7 +353,7 @@ mod tests {
                     .unwrap(),
                 40
             );
-            db.pragma_update(None, "user_version", 41).unwrap();
+            db.pragma_update(None, "user_version", 42).unwrap();
         }
         // Only the empty lock created by the preceding CLI is removed. SQLite
         // must itself have checkpointed/closed its side files; never erase a WAL.
@@ -397,7 +390,7 @@ mod tests {
             "current cold refusal changed state"
         );
         let value = serde_json::json!({
-            "status":"PARTIAL", "scope":"Preceding reader refuses40 but creates auxiliary files; current cold main-header41 refusal preserves state. Hot-WAL and full package integration remain open.",
+            "status":"PARTIAL", "scope":"Preceding reader refuses40 but creates auxiliary files; current cold main-header42 refusal preserves state. Hot-WAL and full package integration remain open.",
             "preceding_executable":Path::new(&preceding),
             "preceding_sha256":format!("{:x}",Sha256::digest(fs::read(&preceding).unwrap())),
             "test_executable_sha256":format!("{:x}",Sha256::digest(fs::read(&worker).unwrap())),
@@ -564,6 +557,7 @@ mod tests {
             assert!(validate_metadata(&db).is_err());
             let tx = db.transaction().unwrap();
             arm(&tx).unwrap();
+            crate::portable_fallback_graph_reader::arm(&tx).unwrap();
             tx.commit().unwrap();
             validate_metadata(&db).unwrap();
             db.execute_batch("DROP TABLE portable_fallback_reader;PRAGMA user_version=25")

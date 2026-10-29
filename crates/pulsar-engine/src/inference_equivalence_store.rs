@@ -1246,4 +1246,4 @@ pub(super) fn validate(db: &Connection) -> PResult<()> {
 
 #[cfg(test)]
 #[path = "inference_equivalence_resolver_store_tests.rs"]
-mod resolver_store_tests;
+pub(super) mod resolver_store_tests;

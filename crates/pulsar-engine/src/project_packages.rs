@@ -270,6 +270,26 @@ fn authenticate_capture(
     Ok(())
 }
 
+fn require_fallback_disclosure_approval(
+    db: &Connection,
+    session: &SessionId,
+    project: &ProjectId,
+) -> PResult<()> {
+    // PackageProject alone is not an implicit registry-disclosure capability.
+    // Require the project-specific host-owner approval and its retained Ack.
+    let allowed:bool=db.query_row(
+        "SELECT EXISTS(SELECT 1 FROM main.project_package_approvals a JOIN main.requests r ON r.session=a.session AND r.request=a.request JOIN main.request_identities i ON i.session=r.session AND i.request=r.request WHERE a.session=?1 AND a.project=?2 AND a.approval_kind='os_owner_capability' AND typeof(r.fingerprint)='text' AND length(r.fingerprint)=64 AND r.fingerprint=i.fingerprint AND r.response=?3)",
+        params![session.as_str(),project.as_str(),encode(&ResponseBody::Ack)?],|r|r.get(0),
+    ).map_err(internal)?;
+    if !allowed {
+        return Err(ProtocolError::new(
+            ErrorCode::Forbidden,
+            "fallback evidence disclosure requires the project's host-owner packaging approval",
+        ));
+    }
+    Ok(())
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct EditReceipt {
@@ -353,19 +373,95 @@ fn require_portable_cpu_objects(
     objects: &BTreeMap<String, CapturedObject>,
 ) -> PResult<()> {
     let mut index = crate::portable_cpu_archives::CpuArchiveIndex::default();
-    index.observe_manifest(manifest)?;
-    for object in objects.values().filter(|object| {
-        object
-            .descriptor
+    let mut ancestors = BTreeMap::new();
+    let mut ancestor_bytes = 0u64;
+    for object in objects.values().filter(|o| {
+        o.descriptor
             .roles
             .contains(&PackageObjectRole::ImportedManifest)
     }) {
-        let ancestor: PortableProjectManifest = serde_json::from_slice(&cpu_mode_bytes(
+        ancestor_bytes = ancestor_bytes
+            .checked_add(object.descriptor.byte_len)
+            .filter(|n| *n <= MAX_PACKAGE_ORIGIN_MANIFEST_BYTES)
+            .ok_or_else(|| {
+                ProtocolError::new(
+                    ErrorCode::ResourceExhausted,
+                    "fallback ancestor metadata admission exceeded",
+                )
+            })?;
+        if ancestors.len() >= MAX_PACKAGE_IMPORTED_ORIGINS {
+            return Err(ProtocolError::new(
+                ErrorCode::ResourceExhausted,
+                "fallback ancestor count admission exceeded",
+            ));
+        }
+        let node: PortableProjectManifest = serde_json::from_slice(&cpu_mode_bytes(
             object,
             MAX_PROJECT_PACKAGE_MANIFEST_BYTES as u64,
         )?)
-        .map_err(|_| ProtocolError::invalid("invalid portable ancestor mode declaration"))?;
-        index.observe_manifest(&ancestor)?;
+        .map_err(|_| ProtocolError::invalid("invalid portable ancestor metadata"))?;
+        ancestors.insert(object.descriptor.sha256.clone(), node);
+    }
+    super::portable_fallback_payload::validate_metadata_graph(manifest, &ancestors)?;
+    let mut fallback = super::portable_fallback_payload::GraphIndex::default();
+    let read = |reference: &PackageObjectRef| {
+        let object = objects
+            .get(&reference.sha256)
+            .filter(|o| o.descriptor.byte_len == reference.byte_len)
+            .ok_or_else(|| ProtocolError::invalid("portable mode object absent"))?;
+        cpu_mode_bytes(
+            object,
+            if object
+                .descriptor
+                .roles
+                .contains(&PackageObjectRole::InferenceFallbackHistory)
+            {
+                MAX_PACKAGE_FALLBACK_HISTORY_BYTES as u64
+            } else {
+                1024 * 1024
+            },
+        )
+    };
+    if !objects.values().any(|o| {
+        o.descriptor
+            .roles
+            .contains(&PackageObjectRole::InferenceFallbackHistory)
+    }) {
+        for object in objects.values().filter(|o| {
+            o.descriptor
+                .roles
+                .contains(&PackageObjectRole::WorkerManifest)
+        }) {
+            let request: WorkerRequest =
+                serde_json::from_slice(&cpu_mode_bytes(object, 1024 * 1024)?)
+                    .map_err(|_| ProtocolError::invalid("invalid opaque worker"))?;
+            crate::portable_cpu_archives::require_no_fallback(&request.dependencies)?;
+        }
+    }
+    index.observe_manifest(manifest)?;
+    for ancestor in ancestors.values() {
+        index.observe_manifest(ancestor)?;
+    }
+    // Preserve mode-declaration refusal before reading unrelated payloads.
+    index.finish()?;
+    for object in objects.values().filter(|o| {
+        o.descriptor
+            .roles
+            .contains(&PackageObjectRole::WorkerManifest)
+    }) {
+        let request: WorkerRequest = serde_json::from_slice(&cpu_mode_bytes(object, 1024 * 1024)?)
+            .map_err(|_| ProtocolError::invalid("invalid opaque CPU worker"))?;
+        index.check_worker(
+            &PackageObjectRef {
+                sha256: object.descriptor.sha256.clone(),
+                byte_len: object.descriptor.byte_len,
+            },
+            &request,
+        )?;
+    }
+    fallback.observe_node(manifest, read)?;
+    for ancestor in ancestors.values() {
+        fallback.observe_node(ancestor, read)?;
     }
     // Check every role, including opaque inherited workers that have no local
     // attempt rows. A CPU tag needs an exact original declaration in this graph.
@@ -384,8 +480,26 @@ fn require_portable_cpu_objects(
             },
             &request,
         )?;
+        fallback.check_worker(
+            &PackageObjectRef {
+                sha256: object.descriptor.sha256.clone(),
+                byte_len: object.descriptor.byte_len,
+            },
+            &request,
+        )?;
     }
     index.finish()?;
+    for object in objects.values().filter(|o| {
+        o.descriptor
+            .roles
+            .contains(&PackageObjectRole::InferenceFallbackHistory)
+    }) {
+        fallback.check_payload(&PackageObjectRef {
+            sha256: object.descriptor.sha256.clone(),
+            byte_len: object.descriptor.byte_len,
+        })?;
+    }
+    fallback.finish()?;
     check_cpu_origin_objects(manifest, objects)?;
     for object in objects.values().filter(|object| {
         object
@@ -491,6 +605,13 @@ fn capture_inner(
             .transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)
             .map_err(internal)?;
         authenticate_capture(engine, &tx, session, token, project, expected_revision)?;
+        let inherited_fallback:bool=tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM main.project_import_archives WHERE project=?1 AND CASE WHEN typeof(manifest)='text' AND length(CAST(manifest AS BLOB)) BETWEEN 1 AND 16777216 AND json_valid(manifest) THEN json_extract(manifest,'$.format_version')>=16 ELSE 0 END)",
+            [project.as_str()],|r|r.get(0),
+        ).map_err(internal)?;
+        if inherited_fallback {
+            require_fallback_disclosure_approval(&tx, session, project)?;
+        }
         crate::annotated_generation_db::validate(&tx, &engine.pool).map_err(unavailable)?;
         let mut budget = SnapshotBudget::default();
         let (cuda_metadata_bytes, cuda_members) =
@@ -691,6 +812,7 @@ fn capture_inner(
                 }
             }
             if needs_fallback && !fallback_histories.contains_key(&job_id) {
+                require_fallback_disclosure_approval(&tx, session, project)?;
                 let available =
                     MAX_CAPTURE_METADATA
                         .checked_sub(budget.bytes)
@@ -1703,6 +1825,22 @@ mod capture_review_tests {
         }
     }
     impl Fixture {
+        fn approve_packaging(&self) {
+            self.engine
+                .handle(
+                    Request::new(
+                        id!(RequestId),
+                        Command::AllowProjectPackaging {
+                            owner_proof: self.engine.package_owner_token.clone(),
+                        },
+                    )
+                    .with_session(self.session.clone())
+                    .with_auth_token(self.token.clone())
+                    .in_project(self.project.clone(), None),
+                )
+                .result
+                .unwrap();
+        }
         fn capture(&self) -> PResult<ProjectCapturePlan> {
             capture(
                 &self.engine,
@@ -1820,6 +1958,7 @@ mod capture_review_tests {
     #[test]
     fn portable_fallback_selection_refuses_export_import_and_inert_ancestor_objects() {
         let f = fixture();
+        f.approve_packaging();
         let source = f.import(b"neutral authored fallback portability fixture; never executed");
         let mut request = f.failed_origin(source);
         let plan = f.capture().unwrap();
@@ -1906,6 +2045,154 @@ mod capture_review_tests {
             .unwrap();
         }
         assert!(matches!(f.capture(),Err(error) if error.code==ErrorCode::Unsupported));
+    }
+
+    #[test]
+    fn fallback_capture_checks_explicit_owner_disclosure_and_retains_complete_payload() {
+        let f = fixture();
+        let source = f.import(b"source");
+        let request =
+            super::inference_equivalence_store::resolver_store_tests::seed_package_history(
+                &mut f.engine.db.lock().unwrap(),
+                &f.session,
+                &f.project,
+                source,
+                &f.engine.config.state_dir,
+            );
+        assert_eq!(f.capture().err().unwrap().code, ErrorCode::Forbidden);
+        f.approve_packaging();
+        let (delegate, delegate_token) = match f
+            .engine
+            .handle(Request::new(
+                id!(RequestId),
+                Command::Pair {
+                    client_name: "unit-only delegated package scope".into(),
+                    pairing_token: f.engine.token.clone(),
+                },
+            ))
+            .result
+            .unwrap()
+        {
+            ResponseBody::Paired {
+                session,
+                auth_token,
+            } => (session, auth_token),
+            _ => panic!("paired"),
+        };
+        f.engine
+            .handle(
+                Request::new(
+                    id!(RequestId),
+                    Command::Grant {
+                        session: delegate.clone(),
+                        project_id: f.project.clone(),
+                        scopes: vec![Scope::PackageProject],
+                    },
+                )
+                .with_session(f.session.clone())
+                .with_auth_token(f.token.clone()),
+            )
+            .result
+            .unwrap();
+        assert_eq!(
+            capture(
+                &f.engine,
+                &delegate,
+                &delegate_token,
+                &f.project,
+                RevisionId::new(0)
+            )
+            .err()
+            .unwrap()
+            .code,
+            ErrorCode::Forbidden
+        );
+        let plan = f.capture().unwrap();
+        assert_eq!(plan.manifest.format_version, 16);
+        let origin = &plan.manifest.generated_origins[0];
+        assert_eq!(origin.attempt_id, request.attempt_id);
+        let reference = origin.fallback_history.as_ref().unwrap();
+        let data = cpu_mode_bytes(
+            &plan.objects[&reference.sha256],
+            MAX_PACKAGE_FALLBACK_HISTORY_BYTES as u64,
+        )
+        .unwrap();
+        let payload = super::portable_fallback_payload::Payload::decode(&data).unwrap();
+        assert_eq!(payload.header.history.job_id, request.job_id);
+        assert_eq!(payload.header.job_state, "interrupted");
+        let mut bytes = Vec::new();
+        crate::project_package_format::write_package(
+            &plan.manifest,
+            &mut bytes,
+            |object| plan.open_object(object),
+            crate::project_package_format::PackageCodecLimits::default(),
+        )
+        .unwrap();
+        let ResponseBody::PackageExport(started) = f
+            .engine
+            .handle(
+                Request::new(id!(RequestId), Command::StartProjectExport)
+                    .with_session(f.session.clone())
+                    .with_auth_token(f.token.clone())
+                    .in_project(f.project.clone(), Some(RevisionId::new(0))),
+            )
+            .result
+            .unwrap()
+        else {
+            panic!("export start")
+        };
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        let artifact = loop {
+            let ResponseBody::PackageExport(status) = f
+                .engine
+                .handle(
+                    Request::new(
+                        id!(RequestId),
+                        Command::ProjectPackageStatus {
+                            operation_id: started.operation_id.clone(),
+                        },
+                    )
+                    .with_session(f.session.clone())
+                    .with_auth_token(f.token.clone())
+                    .in_project(f.project.clone(), None),
+                )
+                .result
+                .unwrap()
+            else {
+                panic!("export status")
+            };
+            if status.state == PackageExportOperationState::Ready {
+                break status.artifact.unwrap();
+            }
+            assert!(
+                !matches!(
+                    status.state,
+                    PackageExportOperationState::Failed | PackageExportOperationState::Cancelled
+                ) && std::time::Instant::now() < deadline,
+                "{status:?}"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        };
+        let public = fs::read(
+            f.engine
+                .config
+                .state_dir
+                .join("project-packages")
+                .join(&artifact.sha256),
+        )
+        .unwrap();
+        assert_eq!(public, bytes);
+        assert_eq!(artifact.format_version, 16);
+        assert_eq!(
+            f.engine
+                .db
+                .lock()
+                .unwrap()
+                .query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            41
+        );
+        super::project_package_imports::exercise_fallback_portable_lifecycle(&bytes, reference);
     }
 
     #[test]

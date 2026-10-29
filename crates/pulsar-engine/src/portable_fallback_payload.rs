@@ -407,11 +407,25 @@ pub(super) fn validate_node(
     manifest: &PortableProjectManifest,
     mut bytes: impl FnMut(&PackageObjectRef) -> PResult<Vec<u8>>,
 ) -> PResult<BTreeSet<(String, u64)>> {
+    Ok(check_node(manifest, &mut bytes)?.workers)
+}
+
+struct CheckedNode {
+    workers: BTreeSet<(String, u64)>,
+    tags: BTreeMap<JobId, ArtifactIdentity>,
+    payloads: BTreeSet<(String, u64)>,
+}
+fn check_node(
+    manifest: &PortableProjectManifest,
+    bytes: &mut impl FnMut(&PackageObjectRef) -> PResult<Vec<u8>>,
+) -> PResult<CheckedNode> {
     let mut groups: BTreeMap<&JobId, Vec<&PackageGeneratedOrigin>> = BTreeMap::new();
     for origin in &manifest.generated_origins {
         groups.entry(&origin.job_id).or_default().push(origin);
     }
     let mut verified = BTreeSet::new();
+    let mut tags = BTreeMap::new();
+    let mut payloads = BTreeSet::new();
     for (job, origins) in groups {
         let references: BTreeSet<_> = origins
             .iter()
@@ -448,6 +462,8 @@ pub(super) fn validate_node(
         }
         let payload = Payload::decode(&raw)?;
         let history = &payload.header.history;
+        tags.insert(job.clone(), history.selection.identity()?);
+        payloads.insert((reference.sha256.clone(), reference.byte_len));
         if history.project_id != manifest.origin_project_id
             || history.job_id != *job
             || history.attempts.len() != origins.len()
@@ -532,5 +548,182 @@ pub(super) fn validate_node(
             return Err(invalid("fallback history attached to an ordinary worker"));
         }
     }
-    Ok(verified)
+    for candidate in &manifest.candidates {
+        if let Some(tag) = candidate.job_origin.as_ref().and_then(|job| tags.get(job)) {
+            let selected: Vec<_> = candidate.lineage.iter().filter(|d| is_tag(d)).collect();
+            if selected.len() != 1 || selected[0] != tag {
+                return Err(invalid(
+                    "fallback candidate lost its exact original job policy",
+                ));
+            }
+        }
+    }
+    Ok(CheckedNode {
+        workers: verified,
+        tags,
+        payloads,
+    })
+}
+
+fn is_tag(identity: &ArtifactIdentity) -> bool {
+    identity
+        .artifact_id
+        .as_str()
+        .starts_with(INFERENCE_FALLBACK_SELECTION_ID_PREFIX)
+}
+fn identity_key(identity: &ArtifactIdentity) -> (String, String, u64) {
+    (
+        identity.artifact_id.to_string(),
+        identity.sha256.clone(),
+        identity.byte_len,
+    )
+}
+
+/// Metadata-only closure preflight. Bytes still require GraphIndex below before
+/// a captured/exported/imported graph can be published.
+pub(crate) fn validate_metadata_graph(
+    manifest: &PortableProjectManifest,
+    origins: &BTreeMap<String, PortableProjectManifest>,
+) -> PResult<()> {
+    let has_payload = std::iter::once(manifest)
+        .chain(origins.values())
+        .any(|node| {
+            node.generated_origins
+                .iter()
+                .any(|o| o.fallback_history.is_some())
+        });
+    for node in std::iter::once(manifest).chain(origins.values()) {
+        let mut jobs: BTreeMap<&JobId, Vec<&PackageGeneratedOrigin>> = BTreeMap::new();
+        for origin in &node.generated_origins {
+            jobs.entry(&origin.job_id).or_default().push(origin);
+        }
+        for group in jobs.values() {
+            let refs: BTreeSet<_> = group
+                .iter()
+                .filter_map(|o| o.fallback_history.as_ref().map(|r| (&r.sha256, r.byte_len)))
+                .collect();
+            if refs.len() > 1
+                || (!refs.is_empty() && group.iter().any(|o| o.fallback_history.is_none()))
+            {
+                return Err(invalid(
+                    "fallback job payload declarations differ or are stripped",
+                ));
+            }
+        }
+        if !has_payload && node.candidates.iter().any(|c| c.lineage.iter().any(is_tag)) {
+            return Err(ProtocolError::unsupported(
+                "portable fallback lineage has no declared original payload",
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Bounded original-graph membership only. No report is installed in the local
+/// owner registry and no historical observation becomes execution authority.
+#[derive(Default)]
+pub(crate) struct GraphIndex {
+    workers: BTreeSet<(String, u64)>,
+    tags: BTreeSet<(String, String, u64)>,
+    candidates: BTreeSet<(String, String, u64)>,
+    payloads: BTreeSet<(String, u64)>,
+    bytes: usize,
+}
+impl GraphIndex {
+    fn charge(&mut self, bytes: usize) -> PResult<()> {
+        self.bytes = self
+            .bytes
+            .checked_add(bytes)
+            .filter(|n| *n <= 128 * 1024 * 1024)
+            .ok_or_else(|| {
+                ProtocolError::new(
+                    ErrorCode::ResourceExhausted,
+                    "fallback graph index admission exceeded",
+                )
+            })?;
+        Ok(())
+    }
+    pub(crate) fn observe_node(
+        &mut self,
+        node: &PortableProjectManifest,
+        mut bytes: impl FnMut(&PackageObjectRef) -> PResult<Vec<u8>>,
+    ) -> PResult<()> {
+        let checked = check_node(node, &mut bytes)?;
+        for worker in checked.workers {
+            if !self.workers.contains(&worker) {
+                self.charge(128)?;
+                self.workers.insert(worker);
+            }
+        }
+        for tag in checked.tags.values().map(identity_key) {
+            if !self.tags.contains(&tag) {
+                self.charge(384)?;
+                self.tags.insert(tag);
+            }
+        }
+        for payload in checked.payloads {
+            if !self.payloads.contains(&payload) {
+                self.charge(128)?;
+                self.payloads.insert(payload);
+            }
+        }
+        for tag in node
+            .candidates
+            .iter()
+            .flat_map(|c| &c.lineage)
+            .filter(|d| is_tag(d))
+            .map(identity_key)
+        {
+            if !self.candidates.contains(&tag) {
+                self.charge(384)?;
+                self.candidates.insert(tag);
+            }
+        }
+        Ok(())
+    }
+    pub(crate) fn check_worker(
+        &self,
+        reference: &PackageObjectRef,
+        request: &WorkerRequest,
+    ) -> PResult<()> {
+        if self
+            .workers
+            .contains(&(reference.sha256.clone(), reference.byte_len))
+            || request.dependencies.iter().any(is_tag)
+        {
+            request.validate()?;
+            let raw = encode(request)?;
+            if raw.len() as u64 != reference.byte_len || digest(raw.as_bytes()) != reference.sha256
+            {
+                return Err(invalid("fallback graph worker identity changed"));
+            }
+        }
+        if request.dependencies.iter().any(is_tag)
+            && !self
+                .workers
+                .contains(&(reference.sha256.clone(), reference.byte_len))
+        {
+            return Err(ProtocolError::unsupported(
+                "portable fallback worker lacks its exact checked original payload",
+            ));
+        }
+        Ok(())
+    }
+    pub(crate) fn check_payload(&self, reference: &PackageObjectRef) -> PResult<()> {
+        if !self
+            .payloads
+            .contains(&(reference.sha256.clone(), reference.byte_len))
+        {
+            return Err(invalid("detached fallback payload object in archive graph"));
+        }
+        Ok(())
+    }
+    pub(crate) fn finish(&self) -> PResult<()> {
+        if !self.candidates.is_subset(&self.tags) {
+            return Err(invalid(
+                "fallback lineage lacks its exact checked policy in the origin graph",
+            ));
+        }
+        Ok(())
+    }
 }
