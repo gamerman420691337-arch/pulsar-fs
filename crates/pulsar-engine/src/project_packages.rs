@@ -1287,6 +1287,7 @@ fn capture_inner(
             PackageObjectRole::WorkerManifest,
         )?;
         manifest.generated_origins.push(PackageGeneratedOrigin {
+            fallback_history: None,
             cpu_runtime,
             image_origin,
             annotated_model,

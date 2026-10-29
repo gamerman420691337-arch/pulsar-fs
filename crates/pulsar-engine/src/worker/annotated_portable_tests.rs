@@ -168,6 +168,7 @@ pub(super) fn verify_native_portable(
         }],
         legacy_cells: vec![],
         generated_origins: vec![PackageGeneratedOrigin {
+            fallback_history: None,
             cpu_runtime: None,
             image_origin: None,
             annotated_model: Some(model.identity.clone()),

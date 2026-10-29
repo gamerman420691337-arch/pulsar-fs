@@ -531,6 +531,7 @@ mod tests {
     fn portable_cpu_declaration_is_exact_and_inert_across_attempt_states() {
         let closed = request("portable-original", true);
         let mut origin = PackageGeneratedOrigin {
+            fallback_history: None,
             cpu_runtime: Some(Box::new(image())),
             image_origin: None,
             annotated_model: None,

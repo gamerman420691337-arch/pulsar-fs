@@ -29,6 +29,7 @@ pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_WASM_INVOCATIONS: u16 = 12;
 pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_IMAGE_ORIGINS: u16 = 13;
 pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_DEVICE_EXPORTS: u16 = 14;
 pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY: u16 = 15;
+pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY: u16 = 16;
 pub const MAX_PROJECT_PACKAGE_MANIFEST_BYTES: usize = 16 * 1024 * 1024;
 pub const MAX_PROJECT_PACKAGE_ENTRIES: usize = 100_000;
 pub const DEFAULT_MAX_PROJECT_PACKAGE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
@@ -42,6 +43,7 @@ pub enum PackageObjectRole {
     EditReceipt,
     WorkerReceipt,
     WorkerManifest,
+    InferenceFallbackHistory,
     LegacyMotionBytes,
     DependencyEvidence,
     ExportReceipt,
@@ -380,6 +382,9 @@ pub struct PackageImageOrigin {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PackageGeneratedOrigin {
+    /// Exact original job history, shared by its attempts. Never execution authority.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_history: Option<PackageObjectRef>,
     /// Original expected image only; never executable installation authority.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cpu_runtime: Option<Box<crate::CpuRuntimeImage>>,
@@ -545,6 +550,22 @@ impl PortableProjectManifest {
     }
 
     pub fn required_format_version(&self) -> u16 {
+        if self
+            .generated_origins
+            .iter()
+            .any(|origin| origin.fallback_history.is_some())
+            || self.objects.iter().any(|object| {
+                object
+                    .roles
+                    .contains(&PackageObjectRole::InferenceFallbackHistory)
+            })
+            || self.imported_origins.iter().any(|origin| {
+                origin.container.format_version
+                    >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY
+            })
+        {
+            return PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY;
+        }
         if self
             .generated_origins
             .iter()
@@ -735,6 +756,14 @@ impl PortableProjectManifest {
             .collect();
         let mut job_receipts: BTreeMap<&str, BTreeSet<(&str, &str, u64)>> = BTreeMap::new();
         for origin in &self.generated_origins {
+            if let Some(history) = &origin.fallback_history {
+                history.validate()?;
+                if history.byte_len == 0
+                    || history.byte_len > crate::MAX_INFERENCE_FALLBACK_HISTORY_BYTES as u64
+                {
+                    return invalid("fallback history object exceeds portable admission");
+                }
+            }
             if let Some(image) = &origin.cpu_runtime {
                 image.validate()?;
                 if origin.cuda_evidence.is_some() {
@@ -1023,13 +1052,18 @@ impl PortableProjectManifest {
             {
                 return invalid("generation origin references a missing revision or source");
             }
-            if !matches!(
-                origin.state.as_str(),
-                "queued" | "running" | "interrupted" | "completed" | "failed" | "cancelled"
-            ) {
+            if !(origin.state == "assistant_paused" && origin.fallback_history.is_some())
+                && !matches!(
+                    origin.state.as_str(),
+                    "queued" | "running" | "interrupted" | "completed" | "failed" | "cancelled"
+                )
+            {
                 return invalid("unsupported archival generation state");
             }
             required.reference(&origin.manifest, PackageObjectRole::WorkerManifest)?;
+            if let Some(history) = &origin.fallback_history {
+                required.reference(history, PackageObjectRole::InferenceFallbackHistory)?;
+            }
             if let Some(image) = &origin.image_origin {
                 if image.record.byte_len == 0
                     || image.record.byte_len > 128 * 1024
@@ -1673,6 +1707,94 @@ mod tests {
         assert!(original.format_version < 11);
     }
     #[test]
+    fn fallback_history_requires_format16_exact_role_and_bounded_object() {
+        let legacy = generated_fixture();
+        assert!(serde_json::to_value(&legacy.generated_origins[0])
+            .unwrap()
+            .get("fallback_history")
+            .is_none());
+        let history = PackageObjectRef {
+            sha256: "7".repeat(64),
+            byte_len: 100,
+        };
+        let mut current = legacy.clone();
+        current.generated_origins[0].fallback_history = Some(history.clone());
+        assert_eq!(
+            current.required_format_version(),
+            PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY
+        );
+        current.format_version = PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY;
+        assert!(current.validate().is_err());
+        current.objects.push(PackageObjectDescriptor {
+            sha256: history.sha256.clone(),
+            byte_len: history.byte_len,
+            roles: vec![PackageObjectRole::InferenceFallbackHistory],
+        });
+        current.objects.sort_by(|a, b| a.sha256.cmp(&b.sha256));
+        current.counts = current.record_counts().unwrap();
+        current.validate().unwrap();
+        let bytes = current.canonical_bytes().unwrap();
+        let restored: PortableProjectManifest = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(restored.canonical_bytes().unwrap(), bytes);
+        for version in [1, 14, 15] {
+            let mut bad = current.clone();
+            bad.format_version = version;
+            assert!(bad.validate().is_err());
+        }
+        let mut bad = current.clone();
+        bad.objects
+            .iter_mut()
+            .find(|o| o.sha256 == history.sha256)
+            .unwrap()
+            .roles = vec![PackageObjectRole::DependencyEvidence];
+        assert!(bad.validate().is_err());
+        for size in [0, crate::MAX_INFERENCE_FALLBACK_HISTORY_BYTES as u64 + 1] {
+            let mut bad = current.clone();
+            bad.generated_origins[0]
+                .fallback_history
+                .as_mut()
+                .unwrap()
+                .byte_len = size;
+            bad.objects
+                .iter_mut()
+                .find(|o| o.sha256 == history.sha256)
+                .unwrap()
+                .byte_len = size;
+            assert!(bad.validate().is_err());
+        }
+        let mut paused = current.clone();
+        paused.generated_origins[0].state = "assistant_paused".into();
+        paused.generated_origins[0].receipt = None;
+        paused.generated_origins[0].program = None;
+        // Remove the candidate and its otherwise-required worker receipt role.
+        paused.candidates.clear();
+        paused
+            .objects
+            .retain(|object| object.sha256 != "2".repeat(64));
+        for object in &mut paused.objects {
+            object
+                .roles
+                .retain(|role| *role != PackageObjectRole::DependencyEvidence);
+        }
+        paused.counts = paused.record_counts().unwrap();
+        paused.validate().unwrap();
+        let mut legacy_paused = legacy;
+        legacy_paused.generated_origins[0].state = "assistant_paused".into();
+        assert!(legacy_paused.validate().is_err());
+        let mut header = vec![0; crate::PACKAGE_IMPORT_HEADER_BYTES];
+        header[..8].copy_from_slice(b"PULSPKG\0");
+        header[12..20].copy_from_slice(&1u64.to_le_bytes());
+        header[8..10]
+            .copy_from_slice(&PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY.to_le_bytes());
+        assert_eq!(crate::package_format_version(&header).unwrap(), 16);
+        header[8..10].copy_from_slice(&17u16.to_le_bytes());
+        assert_eq!(
+            crate::package_format_version(&header).unwrap_err().code,
+            crate::ErrorCode::Unsupported
+        );
+    }
+
+    #[test]
     fn cpu_image_history_requires_format15_and_preserves_legacy_bytes() {
         let legacy = generated_fixture();
         let value = serde_json::to_value(&legacy.generated_origins[0]).unwrap();
@@ -1751,6 +1873,7 @@ mod tests {
             stash_associations: vec![],
         });
         m.generated_origins.push(PackageGeneratedOrigin {
+            fallback_history: None,
             cpu_runtime: None,
             image_origin: None,
             annotated_model: None,

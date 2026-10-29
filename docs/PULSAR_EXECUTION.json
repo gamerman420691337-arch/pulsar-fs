@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-FALLBACK-ARCHIVE-CONTRACT",
-    "scope": "Shared inert fallback archive contract and checked local producer: original predecessor-ordered selection, states, manifests, profile/environment bindings and optional outcomes validate without opening historical paths. Each fallback edge requires the original provider-unavailable settlement; missing observations stay unknown. Canonical round-trip survives database closure;21 mutation controls, missing-settlement, raw-byte bounds and unknown/noncanonical field refusals pass. Original namespace, semantic preservation, expiry metadata and legacy cancelled resume history remain inert. The public JobAttempts snapshot uses this shared contract. Engine1904/0/114 ignored,Protocol397/0,strict Engine/Protocol lint and default App/Worker build pass. Package capture/import/reader-barrier/two-clone integration and live/browser fallback remain incomplete; existing portable export refusals stay enabled. No model, platform, physical or human qualification.",
+    "evidence": "EV-FALLBACK-PACKAGE-BARRIER",
+    "scope": "Conditional format16 fallback-history object references, exact role/size bounds and legacy omitted-field encoding; clients recognize header16 and refuse17, while Engine root/ancestor object graphs remain explicitly refused. Reader40 composes in all24 orders with CPU39/live38/local-fallback37 and preserves transactional/monotonic publication. Metadata fields/roles/ancestors require the marker before recovery. Current startup rejects unsupported cold main-file headers before daemon locks or SQLite; normal validation still refuses a newer committed WAL version. Native pinned preceding App refuses40 but creates three auxiliary files; its original files retain observed bytes/modes. The current App reopens40 and refuses cold41 with observed state inventory/modes/contents unchanged. This does not clear prior-reader or hot-WAL filesystem-wide side effects. Final Engine1911/0/115 ignored,Protocol398/0,Clients702/0/15 ignored,strict three-library lint and default App/Worker build pass. Full fallback package payload/graph/capture/clone and live/browser work remain incomplete; all25 acceptance gates stay open.",
     "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Current archive-contract and local consumer checks pass. Full portable/live integration, prior browser transfer abort and broader cache/timing reliability incidents remain unresolved; all25 acceptance gates remain open.",
+    "failure_summary": "Current declaration/barrier/cold-main-header checks pass. Preceding reader40 creates lock/WAL/SHM side files; complete hot-WAL and historical browser/cache/timing causes remain unqualified. Full fallback payload/capture/import/clone/live work and all25 acceptance gates remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -84,11 +84,11 @@
       },
       {
         "path": "crates/pulsar-clients/src/project_package_import.rs",
-        "sha256": "1a5f9d3b7c20bb558672307c5ed8ce9d35718256d48884ca691547d42ba4f733"
+        "sha256": "24a0122b081a6215b529e31bb52c3f4cbff4674fbb173643f032d1d1cfa52e59"
       },
       {
         "path": "crates/pulsar-engine/src/authority.rs",
-        "sha256": "54d28e8b6687aa08475ab53d256b096fa6ca741a1f09e52fb1274cc48629d32f"
+        "sha256": "5e170724b47c14b2e947f189ca85f4a042ef4c70523c8c9f85ad78577b43a26b"
       },
       {
         "path": "crates/pulsar-engine/src/browser_media.rs",
@@ -104,7 +104,11 @@
       },
       {
         "path": "crates/pulsar-engine/src/cpu_runtime_db.rs",
-        "sha256": "65ba579a91cb3954213e80ed27c20af1d6127a1012a839db3f7955d83bc19693"
+        "sha256": "723b680149949d3eeaad5300be5171d28a2adbde9058c24764060634b9965b8a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/daemon.rs",
+        "sha256": "701a295e34106dfb82eb72666f667c41f14372015d6a7d69fe0ae74138e3822f"
       },
       {
         "path": "crates/pulsar-engine/src/engine_handy_hsp_browser_continuity_fixture.rs",
@@ -192,7 +196,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/lib.rs",
-        "sha256": "ca0e58ea0cf4cb1b7f62969137970fde655b98151cab7fd4ba25dbefed915910"
+        "sha256": "e37d7ce5915ad70b20602071565385cf0c2647d2649c7689e6e48e3f925024b8"
       },
       {
         "path": "crates/pulsar-engine/src/live_capture_clock.rs",
@@ -244,7 +248,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/live_cuda_evidence_db.rs",
-        "sha256": "e937dfad6a4eb03466777b25ab67cf70105936e1fdcd9864cea851e6ac41adaf"
+        "sha256": "9f6ff3c19571792557abd773e9434090ea48201fbdfe8b0d5a1ddad35d6cc56e"
       },
       {
         "path": "crates/pulsar-engine/src/live_frames.rs",
@@ -280,7 +284,11 @@
       },
       {
         "path": "crates/pulsar-engine/src/portable_cpu_archives.rs",
-        "sha256": "eb6ea6b11cb766adae00b47b83091bf2000dbb713dad899d1145dd3144872013"
+        "sha256": "862366e22cd68515e353ec646b07622e2c6e97ce1c283699b3f779d0a8fe51fe"
+      },
+      {
+        "path": "crates/pulsar-engine/src/portable_fallback_reader.rs",
+        "sha256": "508ca63ddeb1f54169d9b2f8f97620eb38791a41d0fcc71385548891ab1d7b3d"
       },
       {
         "path": "crates/pulsar-engine/src/portable_wasm_db.rs",
@@ -288,15 +296,15 @@
       },
       {
         "path": "crates/pulsar-engine/src/project_package_exports.rs",
-        "sha256": "9a1aa7e674afcffa01fd4e1e34f7bdc32b28080ae83b6e3affe8da9b1bd8ee1b"
+        "sha256": "f17e2877c6c9e4959d1d3916139a97d01cf6305ad8e2de46cba63a204c6aedf7"
       },
       {
         "path": "crates/pulsar-engine/src/project_package_import_plan.rs",
-        "sha256": "2e35e6aa8077f03698e1f6f55818495507b8742a4668f59c5645dd382823ed13"
+        "sha256": "a218f324f8e6589db3202335c65038f8821b2315dd965a317ae341902d721138"
       },
       {
         "path": "crates/pulsar-engine/src/project_package_imports.rs",
-        "sha256": "baf7b010e17405afe4eab3132a51321409640793199870e7536ac708986329db"
+        "sha256": "7b755b2e20ffad6753a5000d57bee52e764baa8dd5832b47c99e7f32db168823"
       },
       {
         "path": "crates/pulsar-engine/src/project_package_storage.rs",
@@ -304,7 +312,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/project_packages.rs",
-        "sha256": "dcb3a7e1da8fffaf2912706b4c65b799776e43cc79395ea09d922bb4e6e8e79b"
+        "sha256": "1655ff6792cacdbdcdf034d219b8bdb7649bca47b4ea3240c576e4cfd407e113"
       },
       {
         "path": "crates/pulsar-engine/src/project_packages_native_cpu_support.rs",
@@ -316,7 +324,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/worker/annotated_portable_tests.rs",
-        "sha256": "2b9fd173cc8cc9596a63783636389d8c41af64c637eedd54f25645893088fd7d"
+        "sha256": "83b902e859c8cb64ebdfa7f8aced9f0181f454803217661319197d4095c89c66"
       },
       {
         "path": "crates/pulsar-engine/src/worker/live_stream.rs",
@@ -388,19 +396,19 @@
       },
       {
         "path": "crates/pulsar-protocol/src/project_package.rs",
-        "sha256": "74ffee22863aec8881e37db7e301bec583fdc20eeb6ad7a3cd5c637d071774af"
+        "sha256": "44f42a4d9c4ac1b772c978598ede240241e2076e278e975d2153e05031a6a289"
       },
       {
         "path": "crates/pulsar-protocol/src/project_package_format.rs",
-        "sha256": "14eedb7448ac6c6d85f5f929f4ba316784fc18ee089b09644060fc39673ffbc8"
+        "sha256": "44faf99262762c8a8b3903008cd4974defb763c592db6b9e9ebbf0d288b69dd3"
       },
       {
         "path": "crates/pulsar-protocol/src/project_package_import_operations.rs",
-        "sha256": "523b91a38c80c6438927dd42f1af225dd8689b115b73a5814e71f774310153f4"
+        "sha256": "e0287144b2a5bce792bed3757d5f31cd1fb3b648295935504b44d647bfcbddc2"
       },
       {
         "path": "crates/pulsar-protocol/src/project_package_operations.rs",
-        "sha256": "eb141fb78cd383b3fb7a0396ee11543294d4cabc65178b319e6b45539f10d541"
+        "sha256": "88b4269aef029afb24cac91bb15d29bc38534ecedee86fae2759728b769710be"
       },
       {
         "path": "docs/PULSAR_APP_QUICKSTART.md",
@@ -408,7 +416,7 @@
       },
       {
         "path": "docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md",
-        "sha256": "cfec0220abdf829a0147d32e574fbbe93fa5a3845a5087d4eff97018ff6b548b"
+        "sha256": "9e09f09012d0d24477dcc667203d6e1ccaa533089010288f2975fddd18189277"
       },
       {
         "path": "scripts/browser-live-player.test.mjs",
@@ -422,40 +430,42 @@
       "EV-TIMING-RETIREMENT",
       "EV-CACHE-OWNERSHIP",
       "EV-FALLBACK-HISTORY-SNAPSHOT",
-      "EV-FALLBACK-ARCHIVE-CONTRACT"
+      "EV-FALLBACK-ARCHIVE-CONTRACT",
+      "EV-FALLBACK-PACKAGE-BARRIER",
+      "EV-FALLBACK-READER-NATIVE"
     ],
-    "scope": "Current archive-contract checkpoint:Engine1904/0/114 ignored,Protocol397/0,strict Engine/Protocol lint and default App/Worker build pass. Client702/15 ignored remains separately pinned. Full package/live fallback support, prior browser/timing incidents and all25 acceptance gates remain open.",
+    "scope": "Final Engine1911/0/115 ignored,Protocol398/0,Clients702/0/15 ignored; strict three-library lint and default App/Worker build pass. One ignored native registration executes separately and retains PARTIAL compatibility scope: current cold41 observation passes; preceding40 side-file creation and broader hot-WAL/reliability/package/live qualification remain open.",
     "metric_refs": {
       "engine_passed": {
-        "evidence": "EV-FALLBACK-ARCHIVE-CONTRACT",
+        "evidence": "EV-FALLBACK-PACKAGE-BARRIER",
         "pointer": [
           "checks",
           "engine_passed"
         ]
       },
       "engine_ignored": {
-        "evidence": "EV-FALLBACK-ARCHIVE-CONTRACT",
+        "evidence": "EV-FALLBACK-PACKAGE-BARRIER",
         "pointer": [
           "checks",
           "engine_ignored"
         ]
       },
       "clients_passed": {
-        "evidence": "EV-TIMING-RETIREMENT",
+        "evidence": "EV-FALLBACK-PACKAGE-BARRIER",
         "pointer": [
           "checks",
           "clients_passed"
         ]
       },
       "clients_ignored": {
-        "evidence": "EV-TIMING-RETIREMENT",
+        "evidence": "EV-FALLBACK-PACKAGE-BARRIER",
         "pointer": [
           "checks",
           "clients_ignored"
         ]
       },
       "protocol_passed": {
-        "evidence": "EV-FALLBACK-ARCHIVE-CONTRACT",
+        "evidence": "EV-FALLBACK-PACKAGE-BARRIER",
         "pointer": [
           "checks",
           "protocol_passed"
@@ -1223,6 +1233,19 @@
       "evidence": [
         "EV-FALLBACK-ARCHIVE-CONTRACT"
       ]
+    },
+    {
+      "id": "SC-FALLBACK-PACKAGE-BARRIER",
+      "title": "Conditional fallback package declaration, reader40 composition and cold header refusal",
+      "parents": [
+        "M2-INTERCHANGE",
+        "M6-INSTALL"
+      ],
+      "scope": "Conditional format16 fallback-history object references, exact role/size bounds and legacy omitted-field encoding; clients recognize header16 and refuse17, while Engine root/ancestor object graphs remain explicitly refused. Reader40 composes in all24 orders with CPU39/live38/local-fallback37 and preserves transactional/monotonic publication. Metadata fields/roles/ancestors require the marker before recovery. Current startup rejects unsupported cold main-file headers before daemon locks or SQLite; normal validation still refuses a newer committed WAL version. Native pinned preceding App refuses40 but creates three auxiliary files; its original files retain observed bytes/modes. The current App reopens40 and refuses cold41 with observed state inventory/modes/contents unchanged. This does not clear prior-reader or hot-WAL filesystem-wide side effects. Final Engine1911/0/115 ignored,Protocol398/0,Clients702/0/15 ignored,strict three-library lint and default App/Worker build pass. Full fallback package payload/graph/capture/clone and live/browser work remain incomplete; all25 acceptance gates stay open.",
+      "evidence": [
+        "EV-FALLBACK-PACKAGE-BARRIER",
+        "EV-FALLBACK-READER-NATIVE"
+      ]
     }
   ],
   "queue": [
@@ -1330,7 +1353,8 @@
         "EV-RECORDING-LEASES",
         "EV-CUDA-FIXTURE-PORTABILITY",
         "EV-CUDA-FIXTURE-CHECKS",
-        "EV-HSP-READINESS"
+        "EV-HSP-READINESS",
+        "EV-FALLBACK-PACKAGE-BARRIER"
       ]
     },
     {
@@ -1348,7 +1372,10 @@
         "EV-STARTUP",
         "EV-RUNTIME-CACHE-BUSY",
         "EV-CACHE-OWNERSHIP",
-        "EV-CACHE-VERIFY-COUNTER"
+        "EV-CACHE-VERIFY-COUNTER",
+        "EV-FALLBACK-READER-COUNTER",
+        "EV-FALLBACK-PACKAGE-BARRIER",
+        "EV-FALLBACK-READER-NATIVE"
       ]
     },
     {
@@ -1408,10 +1435,12 @@
       "depends_on": [
         "CPU-ROUNDTRIP"
       ],
-      "exit": "Implement the full retained fallback/live namespaces and authority/expiry/withdrawal behavior through actual consumers. Shared inert archive contract and local producer now pass. Next connect conditional package objects and snapshot capture, import graph validation, persistent reader barrier and actual two-clone lifecycle; then native browser/live admission and lifetime campaigns. Existing export refusals remain until complete correspondence exists. See docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md.",
+      "exit": "Implement the full retained fallback/live namespaces and authority/expiry/withdrawal behavior through actual consumers. Shared inert contract, format16 declarations and reader40 composition now have scoped checks. Next connect payload objects and original evidence within snapshot capture, complete root/ancestor object graph validation and run actual export/clone/restart/re-export/second-clone lifecycle; then native browser/live admission and lifetime campaigns. Existing payload-graph/export refusals stay enabled. See docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md.",
       "evidence": [
         "EV-FALLBACK-HISTORY-SNAPSHOT",
-        "EV-FALLBACK-ARCHIVE-CONTRACT"
+        "EV-FALLBACK-ARCHIVE-CONTRACT",
+        "EV-FALLBACK-PACKAGE-BARRIER",
+        "EV-FALLBACK-READER-NATIVE"
       ]
     },
     {
@@ -4576,6 +4605,135 @@
             "portable_export_refusals_enabled"
           ],
           "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-FALLBACK-READER-COUNTER",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/fallback-package-barrier/preceding-reader-counterevidence.json",
+      "sha256": "43afd550a419a98f1c6b6b459544bccf08b07a5b2f2c96a59491e62972955a6a",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Native preceding db8939f App rejects40 with original file bytes/modes unchanged but creates empty engine.lock/WAL plus SQLite SHM. Filesystem-wide unchanged-state refusal is not established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "old_reader_state_unchanged"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-FALLBACK-READER-NATIVE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/fallback-package-barrier/native-reader-current-final-proof.json",
+      "sha256": "2c3ca55d0daee42b9ad64444af6b40f2f13d125ecfa4e954a82d11017b3695e0",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Exact native observations: preceding reader40 auxiliary-file creation retained; current Engine reopens40 and final App cold41 refusal preserves observed inventory/modes/contents. Inodes/timestamps and complete hot-WAL side effects are not qualified.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "old_reader_state_unchanged"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "current_reader_reopened"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "current_cold_main_header_refusal_state_unchanged"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-FALLBACK-PACKAGE-BARRIER",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/fallback-package-barrier/verification.json",
+      "sha256": "9c55d8bec1d4dbd62971fd335ab7ac772417b065129153a18adb449ff16ed0ee",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Conditional format16 fallback-history object references, exact role/size bounds and legacy omitted-field encoding; clients recognize header16 and refuse17, while Engine root/ancestor object graphs remain explicitly refused. Reader40 composes in all24 orders with CPU39/live38/local-fallback37 and preserves transactional/monotonic publication. Metadata fields/roles/ancestors require the marker before recovery. Current startup rejects unsupported cold main-file headers before daemon locks or SQLite; normal validation still refuses a newer committed WAL version. Native pinned preceding App refuses40 but creates three auxiliary files; its original files retain observed bytes/modes. The current App reopens40 and refuses cold41 with observed state inventory/modes/contents unchanged. This does not clear prior-reader or hot-WAL filesystem-wide side effects. Final Engine1911/0/115 ignored,Protocol398/0,Clients702/0/15 ignored,strict three-library lint and default App/Worker build pass. Full fallback package payload/graph/capture/clone and live/browser work remain incomplete; all25 acceptance gates stay open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_passed"
+          ],
+          "equals": 1911
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_ignored"
+          ],
+          "equals": 115
+        },
+        {
+          "pointer": [
+            "checks",
+            "protocol_passed"
+          ],
+          "equals": 398
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_passed"
+          ],
+          "equals": 702
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_ignored"
+          ],
+          "equals": 15
+        },
+        {
+          "pointer": [
+            "portable_and_live_namespaces_complete"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "older_reader_and_hot_wal_side_effects_fully_resolved"
+          ],
+          "equals": false
         }
       ]
     }

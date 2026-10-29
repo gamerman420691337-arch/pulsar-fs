@@ -14,7 +14,7 @@ const READER_MARKER: &str = "CREATE TABLE portable_cpu_reader(singleton INTEGER 
 const OUTER_VERSION: i64 = 39;
 
 fn header(db: &Connection) -> Result<(i64, bool)> {
-    let raw: i64 = db.query_row("PRAGMA main.user_version", [], |r| r.get(0))?;
+    let raw = crate::portable_fallback_reader::version(db)?;
     ensure!(
         raw == 0 || (2..=OUTER_VERSION).contains(&raw),
         "unknown portable CPU reader version"
@@ -89,11 +89,7 @@ pub(crate) fn publish(db: &Connection, new_version: i64) -> Result<()> {
             "portable CPU reader publication lost its retained header"
         );
     } else {
-        db.pragma_update(
-            Some(rusqlite::DatabaseName::Main),
-            "user_version",
-            new_version,
-        )?;
+        crate::portable_fallback_reader::publish(db, new_version)?;
     }
     Ok(())
 }
@@ -110,11 +106,7 @@ pub(crate) fn arm(tx: &Transaction<'_>) -> Result<()> {
             "INSERT INTO main.portable_cpu_reader(singleton,underlying_version) VALUES(1,?1)",
             [old],
         )?;
-        tx.pragma_update(
-            Some(rusqlite::DatabaseName::Main),
-            "user_version",
-            OUTER_VERSION,
-        )?;
+        crate::portable_fallback_reader::publish(tx, OUTER_VERSION)?;
     }
     ensure!(
         header(tx)? == (old, true),
@@ -126,6 +118,7 @@ pub(crate) fn arm(tx: &Transaction<'_>) -> Result<()> {
 /// Detect stripped format-15 portable CPU reader markers before any recovery,
 /// using SQL byte admission before JSON parsing.
 pub(crate) fn validate_metadata(db: &Connection) -> Result<()> {
+    crate::portable_fallback_reader::validate_metadata(db)?;
     let (_, armed) = header(db)?;
     for table in ["project_import_archives", "project_package_exports"] {
         let present: bool = db.query_row(
@@ -177,6 +170,11 @@ pub(crate) fn check_request(
     origin: &PackageGeneratedOrigin,
     request: &WorkerRequest,
 ) -> PResult<()> {
+    if origin.fallback_history.is_some() {
+        return Err(ProtocolError::unsupported(
+            "portable inference fallback object graph is not implemented",
+        ));
+    }
     require_no_fallback(&request.dependencies)?;
     match (
         origin.cpu_runtime.as_deref(),

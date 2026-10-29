@@ -56,6 +56,18 @@ pub(crate) fn require_portable_cpu_dependencies(dependencies: &[ArtifactIdentity
 }
 
 pub(crate) fn require_portable_cpu_manifest(manifest: &PortableProjectManifest) -> PResult<()> {
+    // Format declarations are implemented before their full object graph and
+    // clone reader. Do not admit a partial history as ordinary inert metadata.
+    if manifest.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY
+        || manifest
+            .generated_origins
+            .iter()
+            .any(|origin| origin.fallback_history.is_some())
+    {
+        return Err(ProtocolError::unsupported(
+            "portable inference fallback object graph is not implemented",
+        ));
+    }
     for candidate in &manifest.candidates {
         crate::portable_cpu_archives::require_no_fallback(&candidate.lineage)?;
     }
@@ -1278,6 +1290,24 @@ mod tests {
             let error = require_portable_cpu_dependencies(&[identity(&name)]).unwrap_err();
             assert_eq!(error.code, ErrorCode::Unsupported);
         }
+    }
+
+    #[test]
+    fn fallback_format16_remains_refused_in_root_and_ancestor_until_object_closure() {
+        let original = fixture();
+        let mut declared = original.clone();
+        declared.format_version = PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY;
+        let error = require_portable_cpu_manifest(&declared).unwrap_err();
+        assert_eq!(error.code, ErrorCode::Unsupported);
+        assert!(error.message.contains("object graph"));
+        let mut ancestors = BTreeMap::new();
+        ancestors.insert("b".repeat(64), declared);
+        assert_eq!(
+            validate_retained_origin_graph(&original, &ancestors)
+                .unwrap_err()
+                .code,
+            ErrorCode::Unsupported
+        );
     }
 
     #[test]
