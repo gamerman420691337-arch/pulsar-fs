@@ -29,18 +29,26 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-INTEGRATED-BUILD",
-    "scope": "Clean default App and Worker executables build on CPU handback commit 54f9ab6 with zero compiler errors; library compile/focused archive evidence remains separately retained. No full Engine suite or native CPU roundtrip is claimed.",
+    "evidence": "EV-CPU-ROUNDTRIP",
+    "scope": "Working tree verified for CPU-ROUNDTRIP: complete CPU export/clone/restart/re-export/second-clone lifecycle and preceding-reader refusal proven.",
     "active_work": "CPU-ROUNDTRIP",
-    "failure_summary": "Recorded App/Worker and library test-target builds pass. Native CPU roundtrip and source-bound browser rollover, timing cleanup and recording assembly remain open; earlier compile failures remain retained.",
+    "failure_summary": "Zero failures; portable CPU roundtrip and preceding reader refusal verified across 2 clone hops.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
         "sha256": "27cde74f042f82caa954e77c3d9690d69b463984ed2d3dbdb2a221f9dd7811b2"
       },
       {
+        "path": "crates/pulsar-clients/src/browser_analysis_feed_tests.rs",
+        "sha256": "4ba178ac7f42b507d7e201f3faad7932e9552e6872262e2127566c447fffc6ee"
+      },
+      {
         "path": "crates/pulsar-clients/src/browser_captured_cpu_tests.rs",
         "sha256": "d80d73cc9fee461ca783e8d4b608e04970b127a32c0011da58ee81586aa5b373"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_live.rs",
+        "sha256": "a6fba519826c2f08527aa17d025d6f7d382568808055a9d9c4f1b3db09ebddd6"
       },
       {
         "path": "crates/pulsar-clients/src/project_package_import.rs",
@@ -48,7 +56,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/authority.rs",
-        "sha256": "40687f6240ec04fc0be05f3d8b173eed22452805a399e73aeea45fab4a2621cf"
+        "sha256": "255bb25879891a7e93bc7ac6d6d8329ff37277b4868da0157baa5fe6554b2c25"
       },
       {
         "path": "crates/pulsar-engine/src/browser_media.rs",
@@ -152,7 +160,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/live_cpu_history.rs",
-        "sha256": "11286ccd9ab6b7409f6c8f60dc7de8df417bd12c7141787693f1ad3f4c6cd44d"
+        "sha256": "40f59038350d6e48290b49bfe3b7c7c2b328354d901d75cb42dcc22648664766"
       },
       {
         "path": "crates/pulsar-engine/src/live_cpu_history_tests.rs",
@@ -168,7 +176,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/live_cpu_reader.rs",
-        "sha256": "e62a35c038d7dbef7e613ad5e159e2038121faadd79025a86f3568937a823702"
+        "sha256": "06f0cdcff48240800bfd3286fe09531a5ae50f9f40981ac987c4ba6c1d76d3e1"
       },
       {
         "path": "crates/pulsar-engine/src/live_cuda_capture_db.rs",
@@ -176,7 +184,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/live_cuda_evidence_db.rs",
-        "sha256": "0c150831e7973a1126798706369c3625bb4beebf82a29c92e8f920ea114a4cea"
+        "sha256": "11a13fb9e331e3fc813829a04bb21884ceece516deb07ff731ae809fdf64cf7d"
       },
       {
         "path": "crates/pulsar-engine/src/live_frames.rs",
@@ -212,7 +220,15 @@
       },
       {
         "path": "crates/pulsar-engine/src/portable_cpu_archives.rs",
-        "sha256": "8152717c41a7020f5fbacce60758c2179b87917880b6bd47982abaf136ddda98"
+        "sha256": "eb6ea6b11cb766adae00b47b83091bf2000dbb713dad899d1145dd3144872013"
+      },
+      {
+        "path": "crates/pulsar-engine/src/portable_wasm_db.rs",
+        "sha256": "7423d50b0862a47c6899a2cd03109103b89b34c4edb11cfaed731e03def13c22"
+      },
+      {
+        "path": "crates/pulsar-engine/src/project_package_exports.rs",
+        "sha256": "9a1aa7e674afcffa01fd4e1e34f7bdc32b28080ae83b6e3affe8da9b1bd8ee1b"
       },
       {
         "path": "crates/pulsar-engine/src/project_package_import_plan.rs",
@@ -220,7 +236,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/project_package_imports.rs",
-        "sha256": "302a3b6ea57bb19e119e79e24ff2c05cbc5d3433fe37b73fa2f5dac3981a82d6"
+        "sha256": "baf7b010e17405afe4eab3132a51321409640793199870e7536ac708986329db"
       },
       {
         "path": "crates/pulsar-engine/src/project_package_storage.rs",
@@ -228,7 +244,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/project_packages.rs",
-        "sha256": "c8cc9f3107e812170e9cde1fd45945221ae9866ec9351bc39b226705efb44f5f"
+        "sha256": "2b66285608c5d621b8157c3631af8d93d19136b5d91fd70567928ea8f0727d17"
       },
       {
         "path": "crates/pulsar-engine/src/worker/annotated_portable_tests.rs",
@@ -309,14 +325,6 @@
       {
         "path": "crates/pulsar-protocol/src/project_package_operations.rs",
         "sha256": "eb141fb78cd383b3fb7a0396ee11543294d4cabc65178b319e6b45539f10d541"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_live.rs",
-        "sha256": "a6fba519826c2f08527aa17d025d6f7d382568808055a9d9c4f1b3db09ebddd6"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_analysis_feed_tests.rs",
-        "sha256": "4ba178ac7f42b507d7e201f3faad7932e9552e6872262e2127566c447fffc6ee"
       }
     ]
   },
@@ -973,13 +981,15 @@
         "M2-INTERCHANGE",
         "M6-INSTALL"
       ],
-      "state": "ready",
+      "state": "verified",
       "owner": "Parallel implementation agent + independent verification",
       "depends_on": [
         "CPU-ARCHIVE"
       ],
       "exit": "Actual confined CPU attempts retain exact inert history across two clones; no origin execution authority revives. Preceding reader refuses before mutation; processes, storage and memory release are verified.",
-      "evidence": []
+      "evidence": [
+        "EV-CPU-ROUNDTRIP"
+      ]
     },
     {
       "id": "BROWSER-DEMO",
@@ -1886,6 +1896,57 @@
             "temporary_source_probes_restored"
           ],
           "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-CPU-ROUNDTRIP",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/portable-cpu-history/roundtrip-verification.json",
+      "sha256": "02578ce9da84855f0dbf7d15f41b0ebf768a10858bd7be8c01c72b7373a76f39",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Confined CPU attempts execute with exact runtime declarations; format-15 package export/clone/restart/re-export/second-clone lifecycle proves 2-hop inert history correspondence and non-revival. Preceding reader refuses before mutation with 0 changed SHM bytes across all state directories.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "cpu_roundtrip_closed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_portable_cpu_roundtrip_and_preceding_reader_campaign",
+            "passed"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_portable_cpu_roundtrip_and_preceding_reader_campaign",
+            "failed"
+          ],
+          "equals": 0
         }
       ]
     }

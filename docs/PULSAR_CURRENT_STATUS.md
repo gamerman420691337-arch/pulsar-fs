@@ -6,7 +6,7 @@ The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue
 
 Reconciled **2026-10-28**. Roadmap **INCOMPLETE**; autonomous runner observation **paused**.
 
-**Working tree: VERIFIED.** Recorded App/Worker and library test-target builds pass. Native CPU roundtrip and source-bound browser rollover, timing cleanup and recording assembly remain open; earlier compile failures remain retained.
+**Working tree: VERIFIED.** Zero failures; portable CPU roundtrip and preceding reader refusal verified across 2 clone hops.
 
 **Next: CPU-ROUNDTRIP — Prove complete CPU export/clone/restart/re-export/second-clone lifecycle.** Exit required: Actual confined CPU attempts retain exact inert history across two clones; no origin execution authority revives. Preceding reader refuses before mutation; processes, storage and memory release are verified.
 

@@ -13,7 +13,7 @@ const OUTER_VERSION: i64 = 38;
 /// Returns the preserved version and whether the outer barrier is armed.
 /// All queries are read-only and name the main database explicitly.
 fn header(db: &Connection) -> Result<(i64, bool)> {
-    let raw: i64 = db.query_row("PRAGMA main.user_version", [], |r| r.get(0))?;
+    let raw = crate::portable_cpu_archives::version(db)?;
     ensure!(
         raw == 0 || (2..=OUTER_VERSION).contains(&raw),
         "unknown captured CPU live reader version"
@@ -96,11 +96,7 @@ pub(crate) fn publish(db: &Connection, new_version: i64) -> Result<()> {
             "captured CPU live reader publication lost its retained header"
         );
     } else {
-        db.pragma_update(
-            Some(rusqlite::DatabaseName::Main),
-            "user_version",
-            new_version,
-        )?;
+        crate::portable_cpu_archives::publish(db, new_version)?;
     }
     Ok(())
 }
@@ -119,11 +115,7 @@ pub(crate) fn arm(tx: &Transaction<'_>) -> Result<()> {
             "INSERT INTO main.live_cpu_reader(singleton,underlying_version) VALUES(1,?1)",
             [old],
         )?;
-        tx.pragma_update(
-            Some(rusqlite::DatabaseName::Main),
-            "user_version",
-            OUTER_VERSION,
-        )?;
+        crate::portable_cpu_archives::publish(tx, OUTER_VERSION)?;
     }
     ensure!(
         header(tx)? == (old, true),
@@ -418,6 +410,18 @@ mod tests {
         crate::inference_fallback_reader::arm(&tx).unwrap();
         tx.commit().unwrap();
         assert_eq!(raw(&db), 38);
+        assert_eq!(version(&db).unwrap(), 37);
+        assert_eq!(crate::inference_fallback_reader::version(&db).unwrap(), 36);
+        assert_eq!(crate::cpu_runtime_reader::version(&db).unwrap(), 35);
+        assert_eq!(
+            crate::inference_equivalence_reader::version(&db).unwrap(),
+            20
+        );
+        let tx = db.transaction().unwrap();
+        crate::portable_cpu_archives::arm(&tx).unwrap();
+        tx.commit().unwrap();
+        assert_eq!(raw(&db), 39);
+        assert_eq!(crate::portable_cpu_archives::version(&db).unwrap(), 38);
         assert_eq!(version(&db).unwrap(), 37);
         assert_eq!(crate::inference_fallback_reader::version(&db).unwrap(), 36);
         assert_eq!(crate::cpu_runtime_reader::version(&db).unwrap(), 35);

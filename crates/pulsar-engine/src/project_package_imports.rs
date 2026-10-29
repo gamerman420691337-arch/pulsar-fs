@@ -1054,6 +1054,9 @@ impl Engine {
         if manifest.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_WASM_INVOCATIONS {
             crate::portable_wasm_db::arm(&tx).map_err(internal)?;
         }
+        if manifest.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY {
+            crate::portable_cpu_archives::arm(&tx).map_err(internal)?;
+        }
         for candidate in &manifest.candidates {
             tx.execute("INSERT INTO candidates(id,project,base_revision,program,job,lineage,committed_revision,review) VALUES(?1,?2,?3,?4,NULL,?5,?6,?7)",
                 params![candidate.candidate_id.as_str(),project.as_str(),rev_sql(candidate.base_revision)?,reference(&candidate.motion),
