@@ -4,13 +4,13 @@
 
 The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue and milestone ledger.
 
-Reconciled **2026-10-28**. Roadmap **INCOMPLETE**; autonomous runner observation **paused**.
+Reconciled **2026-10-29**. Roadmap **INCOMPLETE**; autonomous runner observation **paused**.
 
-**Working tree: VERIFIED.** The reproduced HSP acknowledgment/readiness journal race is repaired with unchanged deadlines and one synchronization. Browser timing_exchange_unconfirmed, rendered stop/reconnect/fault coverage, startup cause and physical/model/platform acceptance remain open.
+**Working tree: VERIFIED.** Stale successor replacement and unissued cleanup are repaired. Selected rendered lifecycle faults pass, while earlier intermittent timing_exchange_unconfirmed, full browser fault/reliability coverage, startup cause and model/platform/physical/human acceptance remain open.
 
-**Next: CLIENT-CORRECTNESS — Close shared-client correctness and editing fault scenarios.** Exit required: Verify source/view/time correspondence and target loss/reacquisition through real consumers; exercise protected editing, review/commit/rebase/undo/restart and crash/storage faults in CLI/desktop. Retain real-media limitations under M1-DATA. CUDA unit-report dependencies and the reproduced HSP journal-contention readiness race have scoped repairs; complete remaining shared-client and editing fault scenarios without treating unit fixtures as qualification.
+**Next: BROWSER-DEMO — Verify the real rendered-browser-to-recording/export demo.** Exit required: Resolve retained intermittent timing_exchange_unconfirmed failures and establish repeatable runtime reliability against the cutover baseline; complete the applicable browser fault matrix, including seek/rate/hidden-page, pending source/transfer replacement and expired/unknown outcomes with exact source/clock/CPU correspondence. One full40s recording/review/export run remains a pinned positive checkpoint. Current explicit Stop/reprepare, active reload, subsequent continuation, owned preview crash and fresh reconnection pass selected rendered cases; these do not explain earlier timing failures or close the full campaign.
 
-Last verified checkpoint: Engine **1890 passed / 110 ignored**, clients **696 passed / 14 ignored**, Protocol **397 passed**. Engine: current causal journal-contention repair, full default-thread suite. Protocol and clients: separate pinned component checkpoints, not combined native/physical/runtime qualification.
+Last verified checkpoint: Engine **1890 passed / 110 ignored**, clients **697 passed / 14 ignored**, Protocol **397 passed**. Engine: pinned causal HSP repair, full default-thread suite. Clients: current lifecycle repair, full suite with one test thread. Protocol: separate pinned component checkpoint. Selected rendered/native checks do not establish general runtime or physical qualification.
 
 Native core/browser/restart/resource scenarios have scoped passing evidence. Real rendered acquisition, useful learned quality, installed-Stash compatibility, physical Handy synchronization and full platform/human/release acceptance remain open. The earlier startup failure remains unexplained.
 
