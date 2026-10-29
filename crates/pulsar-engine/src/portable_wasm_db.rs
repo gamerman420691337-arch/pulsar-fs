@@ -71,6 +71,7 @@ pub(crate) fn arm(tx: &Transaction<'_>) -> Result<()> {
 }
 /// Detect stripped markers before any recovery, using SQL byte admission before JSON.
 pub(crate) fn validate_metadata(db: &Connection) -> Result<()> {
+    crate::portable_cpu_archives::validate_metadata(db)?;
     storage_version(db)?;
     for table in ["project_import_archives", "project_package_exports"] {
         let present: bool = db.query_row(
