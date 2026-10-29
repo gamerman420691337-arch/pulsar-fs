@@ -131,6 +131,10 @@ fn native_cpu_fallback_portable_history_roundtrip() {
                 .unwrap()
                 .push(campaign_case(mode, true)?);
         }
+        receipt["interruption"] = native_fallback_interruption_campaign()?;
+        if let Some(path) = std::env::var_os("PULSAR_FALLBACK_GRAPH_PROOF") {
+            receipt["preceding_reader"] = json_file(Path::new(&path))?;
+        }
         Ok(())
     })();
     match &result {

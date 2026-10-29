@@ -9,6 +9,55 @@ mod live_capture_delivery_tests {
     use std::sync::{atomic::AtomicUsize, Weak};
     use std::time::{Duration, Instant};
 
+    fn callback_lock_available<T>(mutex: &Mutex<T>, wait: Duration) -> bool {
+        let end = Instant::now() + wait;
+        loop {
+            match mutex.try_lock() {
+                Ok(_) => return true,
+                Err(std::sync::TryLockError::Poisoned(_)) => {
+                    panic!("callback probe mutex poisoned")
+                }
+                Err(std::sync::TryLockError::WouldBlock) => {}
+            }
+            if Instant::now() >= end {
+                return false;
+            }
+            std::thread::sleep(Duration::from_millis(1));
+        }
+    }
+    fn assert_capture_authority_unlocked(engine: &Engine) {
+        // A watchdog may briefly own either mutex on another thread. A mutex
+        // retained by this callback's own caller cannot become acquirable while
+        // the callback is on that stack, and still fails this bounded probe.
+        let wait = Duration::from_secs(1);
+        assert!(
+            callback_lock_available(&engine.db, wait),
+            "callback retained DB guard"
+        );
+        assert!(
+            callback_lock_available(&engine.live_captures, wait),
+            "callback retained capture guard"
+        );
+    }
+
+    #[test]
+    fn native_callback_lock_probe_distinguishes_self_ownership_from_transient_contention() {
+        let mutex = Arc::new(Mutex::new(()));
+        let held = mutex.lock().unwrap();
+        assert!(!callback_lock_available(&mutex, Duration::ZERO));
+        drop(held);
+        let (ready, observed) = std::sync::mpsc::sync_channel(1);
+        let other = mutex.clone();
+        let holder = std::thread::spawn(move || {
+            let _held = other.lock().unwrap();
+            ready.send(()).unwrap();
+            std::thread::sleep(Duration::from_millis(50));
+        });
+        observed.recv_timeout(Duration::from_secs(1)).unwrap();
+        assert!(callback_lock_available(&mutex, Duration::from_secs(1)));
+        holder.join().unwrap();
+    }
+
     struct DeliveryFixture {
         f: Fixture,
         capture: LiveCaptureReport,
@@ -406,14 +455,7 @@ mod live_capture_delivery_tests {
     impl NativeCaptureSink for TestSink {
         fn offer(&self, accepted: NativeAcceptedCapture) -> PResult<()> {
             let engine = self.engine.upgrade().unwrap();
-            assert!(
-                engine.db.try_lock().is_ok(),
-                "delivery retained project DB guard"
-            );
-            assert!(
-                engine.live_captures.try_lock().is_ok(),
-                "delivery retained capture guard"
-            );
+            assert_capture_authority_unlocked(&engine);
             self.offers.lock().unwrap().push(accepted);
             if self.fail {
                 return Err(ProtocolError::new(
@@ -1241,8 +1283,7 @@ mod live_capture_delivery_tests {
         ));
         drop(result);
         drop(captures);
-        assert!(x.f.engine.live_captures.try_lock().is_ok());
-        assert!(x.f.engine.db.try_lock().is_ok());
+        assert_capture_authority_unlocked(&x.f.engine);
         assert!(subscription.current());
         assert_eq!(sink.retired.load(Ordering::Acquire), 0);
         drop(held);
