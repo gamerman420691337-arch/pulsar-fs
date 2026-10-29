@@ -3,7 +3,7 @@
   "reconciled_on": "2026-10-29",
   "timezone": "America/New_York",
   "full_roadmap": "incomplete",
-  "runner_state": "paused",
+  "runner_state": "active",
   "authority": [
     {
       "path": "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-BROWSER-LIFECYCLE",
-    "scope": "Current client lifecycle repair: full client suite, strict lint, App/Worker build and selected actual rendered Stop/reload/crash/reconnect checks.",
+    "evidence": "EV-BROWSER-INPUTS",
+    "scope": "Production source unchanged from 264867d; pinned executable passes selected rendered seek/rate/hidden-page checks. Last component baseline retained; no general timing reliability claim.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "Stale successor replacement and unissued cleanup are repaired. Selected rendered lifecycle faults pass, while earlier intermittent timing_exchange_unconfirmed, full browser fault/reliability coverage, startup cause and model/platform/physical/human acceptance remain open.",
+    "failure_summary": "Seek/rate/hidden-page checks now have scoped rendered evidence. A longer 264867d preview session exits 1 with native timing cleanup unconfirmed / timing_exchange_unconfirmed; operation/cause remain unresolved. Full runtime reliability and model/platform/physical/human acceptance remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -1033,6 +1033,18 @@
       "evidence": [
         "EV-BROWSER-LIFECYCLE"
       ]
+    },
+    {
+      "id": "SC-BROWSER-INPUTS",
+      "title": "Rendered seek, speed and hidden-page admission checks",
+      "parents": [
+        "M2-DOMAIN",
+        "M5-LIVE"
+      ],
+      "scope": "Actual native keyboard seek retires analysis and settles recording; explicit valid resume admits a new capture while preserving the existing source read lease and exact +5s declared mapping. Expired source reuse and 1.5x Play refuse; native speed change retires analysis. Exact Chrome main-window minimize/restore leaves Native capture and recording inactive, with no automatic resume; both fresh server and Engine exit0. Authored model and sterile media; freshness-margin warning and longer-session timing cleanup failure are retained, without general runtime or physical qualification.",
+      "evidence": [
+        "EV-BROWSER-INPUTS"
+      ]
     }
   ],
   "queue": [
@@ -1094,7 +1106,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Resolve retained intermittent timing_exchange_unconfirmed failures and establish repeatable runtime reliability against the cutover baseline; complete the applicable browser fault matrix, including seek/rate/hidden-page, pending source/transfer replacement and expired/unknown outcomes with exact source/clock/CPU correspondence. One full40s recording/review/export run remains a pinned positive checkpoint. Current explicit Stop/reprepare, active reload, subsequent continuation, owned preview crash and fresh reconnection pass selected rendered cases; these do not explain earlier timing failures or close the full campaign.",
+      "exit": "Localize retained timing_exchange_unconfirmed failures, including the 264867d native timing cleanup exit 1, with bounded secret-free operation/cause evidence at the failing path; establish repeatable reliability without extending original deadlines. Finish applicable pending source/transfer replacement and expired/unknown-outcome coverage with exact source/clock/CPU correspondence. Selected rendered Stop/reprepare, reload, crash/reconnect, seek, rate and exact-main-window hidden-page cases pass; a full 40s recording/review/export remains a pinned positive checkpoint, not general runtime qualification.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
@@ -1103,7 +1115,9 @@
         "EV-PREVIEW-CUTOVER",
         "EV-RECORDING-LEASES",
         "EV-BOUND-RENDERED-EXPORT",
-        "EV-BROWSER-LIFECYCLE"
+        "EV-BROWSER-LIFECYCLE",
+        "EV-BROWSER-INPUTS",
+        "EV-TIMING-CLEANUP"
       ]
     },
     {
@@ -2693,6 +2707,192 @@
           "pointer": [
             "checks",
             "owned_apps_joined"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-INPUTS",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/browser-seek-rate/verification.json",
+      "sha256": "b2a8dc0a02f9618b613517514fd233fe415c0c37d9433d355f7671d2fb07779a",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Pinned 264867d actual Chrome/sterile clip: seek retires analysis, valid explicit resume uses a new capture with the same media lease and +5s declared project mapping; expired read refuses. Native 1.5x speed change stops analysis and non-normal Play refuses. Exact-main-window minimize/restore retires capture/recording without auto-resume on live Engine/server; short session exits 0. Separate long-session timing cleanup failure remains unresolved.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "browser_timing_cleanup_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "full_runtime_reliability_cleared"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "seek_retires_analysis"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "seek_recording_counts_settle"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "expired_prepared_source_cannot_resume"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "valid_seek_allows_explicit_new_capture"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "seek_capture_ids_differ_with_same_media_lease"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "seek_source_project_offset_seconds"
+          ],
+          "equals": 5
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_speed_change_retires_analysis"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "non_normal_play_is_refused"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "rate_recording_counts_settle"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "minimized_main_window_retires_analysis"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "restore_does_not_auto_resume"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_capture_and_recording_inactive"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "fresh_hidden_session_shutdown_exit_code"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "all_owned_apps_joined"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-TIMING-CLEANUP",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/browser-seek-rate/timing-cleanup-failure.json",
+      "sha256": "c12465c3dad2141fdddeeb9d519e23e546f20e3fa4af6654082c07ed85ffa56c",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Actual 264867d 420s preview session exits 1 with Browser timing cleanup unconfirmed / timing_exchange_unconfirmed, worker_failed=false, native expiry fallback. Native capture/recording are observed retired; cause and native cleanup acknowledgment remain unresolved.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "exit_code"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "issue"
+          ],
+          "equals": "timing_exchange_unconfirmed"
+        },
+        {
+          "pointer": [
+            "worker_failed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "cause_unresolved"
           ],
           "equals": true
         }
