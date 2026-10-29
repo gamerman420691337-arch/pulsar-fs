@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-CPU-ROUNDTRIP",
-    "scope": "Actual confined CPU generation at16-sample progress barriers replaces constructed history. Kill a separate owning Engine via SIGKILL; restart retires all original pidfds/cgroup and retains interrupted history without relaunch. Export while another actual worker is frozen/running, cancel through the public operation, verify retirement. Complete original declaration bytes survive export/clone/restart/re-export/second-clone, origin paths absent; old readers refuse with pinned DB/WAL/SHM/fence bytes unchanged. Full memory quota re-admits after every Engine; thread/storage reservations clear. Authored neutral model, refreshed host library declaration, no model/platform/device/human qualification.",
+    "evidence": "EV-TIMING-RETIREMENT",
+    "scope": "Confirmed native timing retirement settles failed ordinary probe/observation custody while retaining its allowlisted first_failure. Invalid results remain rejected, retired timing cannot resume, and missing/foreign/current release replies still fail cleanup. Real IPC regression and actual private Engine media-release scenario turn red to green with only the timing implementation changed. Native Engine exits0;702 client tests/15 ignored,164 browser JS tests, strict client lint and default App/Worker build pass. Authored source/declared clocks; no rendered, model or physical qualification. The original420s trigger remains independently unproven.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "CPU-ROUNDTRIP software campaign verified with actual running capture and Engine SIGKILL/restart. Engine1891 passed/0 failed/112 ignored; strict lint passes. Next: unresolved browser timing cleanup and remaining lifecycle/fault coverage. All25 model/platform/real-media/device/human acceptance gates remain open.",
+    "failure_summary": "Native acknowledged-retirement bookkeeping repaired with a causal Engine/IPC regression.702 client tests/15 ignored,164 JS tests, strict lint and default build pass. Historical420s trigger, wider rendered lifecycle/fault coverage and all25 acceptance gates remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -348,11 +348,11 @@
       },
       {
         "path": "crates/pulsar-clients/src/browser_player_timing.rs",
-        "sha256": "07cd42f68c71e284362717894cad49bc9b47fdc86766cc6995fb80528344ac1f"
+        "sha256": "89e8d6a7f4a6b1075d9c45bffd9482000bbf34d6a1f1cc09ee823fcceb53aba8"
       },
       {
         "path": "crates/pulsar-clients/src/browser_player_timing_tests.rs",
-        "sha256": "3270dc37367d7d49ff84189aea9c27159bbabd01df89bafe4fde2837674a4981"
+        "sha256": "0579b18bc7f8122581d55e1859c8e98e38c1fd5240f8f12ae60ceeca58df3c46"
       },
       {
         "path": "crates/pulsar-clients/src/browser_live.html",
@@ -385,16 +385,20 @@
       {
         "path": "crates/pulsar-engine/src/project_packages_native_cpu_support.rs",
         "sha256": "543f3f0ab9f5d6283773628f3d121448bb707c11c0e407e1183071d24bcff881"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_timing_native_tests.rs",
+        "sha256": "d8ddb59d0d1f9d3e5070f239565e805c72cfc150364d4570643eb379d76d65f1"
       }
     ]
   },
   "last_verified": {
     "evidence": [
-      "EV-LOOKAHEAD-MARGIN",
       "EV-RECORDING-CHECKS",
-      "EV-CPU-ROUNDTRIP"
+      "EV-CPU-ROUNDTRIP",
+      "EV-TIMING-RETIREMENT"
     ],
-    "scope": "Current Engine CPU archival evidence:1891 passed/112 ignored, strict lint and actual running/interruption two-clone campaign. Clients/Protocol retain their separate pinned checkpoints. Browser timing cleanup and all parent acceptance gates remain open.",
+    "scope": "Current client timing-retirement code:702 passed/15 ignored,164 JS tests, strict lint/default build and native causal probe-release regression. Engine1891/112 ignored and Protocol397 remain separately pinned. Historical420s trigger and broader acceptance remain open.",
     "metric_refs": {
       "engine_passed": {
         "evidence": "EV-CPU-ROUNDTRIP",
@@ -411,14 +415,14 @@
         ]
       },
       "clients_passed": {
-        "evidence": "EV-LOOKAHEAD-MARGIN",
+        "evidence": "EV-TIMING-RETIREMENT",
         "pointer": [
           "checks",
           "clients_passed"
         ]
       },
       "clients_ignored": {
-        "evidence": "EV-LOOKAHEAD-MARGIN",
+        "evidence": "EV-TIMING-RETIREMENT",
         "pointer": [
           "checks",
           "clients_ignored"
@@ -1132,6 +1136,18 @@
       "evidence": [
         "EV-CPU-ROUNDTRIP"
       ]
+    },
+    {
+      "id": "SC-TIMING-RETIREMENT",
+      "title": "Confirmed native retirement after failed ordinary timing exchanges",
+      "parents": [
+        "M2-DOMAIN",
+        "M5-LIVE"
+      ],
+      "scope": "Confirmed native timing retirement settles failed ordinary probe/observation custody while retaining its allowlisted first_failure. Invalid results remain rejected, retired timing cannot resume, and missing/foreign/current release replies still fail cleanup. Real IPC regression and actual private Engine media-release scenario turn red to green with only the timing implementation changed. Native Engine exits0;702 client tests/15 ignored,164 browser JS tests, strict client lint and default App/Worker build pass. Authored source/declared clocks; no rendered, model or physical qualification. The original420s trigger remains independently unproven.",
+      "evidence": [
+        "EV-TIMING-RETIREMENT"
+      ]
     }
   ],
   "queue": [
@@ -1210,7 +1226,8 @@
         "EV-TIMING-DIAGNOSTICS",
         "EV-TIMING-EXPIRY",
         "EV-HANDOFF-PAIR",
-        "EV-LOOKAHEAD-MARGIN"
+        "EV-LOOKAHEAD-MARGIN",
+        "EV-TIMING-RETIREMENT"
       ]
     },
     {
@@ -3810,6 +3827,131 @@
             "full_memory_quota_readmitted"
           ],
           "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-TIMING-RETIREMENT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/timing-retirement/verification.json",
+      "sha256": "452938f39677030a81e1791713287179d52c7b7218fa257f8aa475de4a83ca5d",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Confirmed native timing retirement settles failed ordinary probe/observation custody while retaining its allowlisted first_failure. Invalid results remain rejected, retired timing cannot resume, and missing/foreign/current release replies still fail cleanup. Real IPC regression and actual private Engine media-release scenario turn red to green with only the timing implementation changed. Native Engine exits0;702 client tests/15 ignored,164 browser JS tests, strict client lint and default App/Worker build pass. Authored source/declared clocks; no rendered, model or physical qualification. The original420s trigger remains independently unproven.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historical_420s_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "full_runtime_reliability_cleared"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_passed"
+          ],
+          "equals": 702
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_ignored"
+          ],
+          "equals": 15
+        },
+        {
+          "pointer": [
+            "checks",
+            "browser_js_passed"
+          ],
+          "equals": 164
+        },
+        {
+          "pointer": [
+            "checks",
+            "browser_js_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "strict_clients_clippy"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "default_app_worker_build"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_causal_red_then_green"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "exact_native_release_confirmed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "failure_diagnostic_retained"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "unknown_foreign_current_release_still_refuse"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_engine_exit_code"
+          ],
+          "equals": 0
         }
       ]
     }

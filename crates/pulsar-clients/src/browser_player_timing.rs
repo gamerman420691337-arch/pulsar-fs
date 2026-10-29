@@ -125,9 +125,15 @@ struct Record {
 impl Record {
     fn acknowledge_release(&mut self) {
         self.release = ReleaseState::Acknowledged;
-        // A cancelled probe/observation cannot outlive permanent retirement of
-        // its exact native binding. Other exchange failures remain diagnostic.
-        if self.issue == Some("cancelled_timing_exchange_unconfirmed") {
+        // Permanent retirement settles probe/observation custody even when the
+        // exchange failed before cancellation. Keep first_failure as history;
+        // it must neither revive the binding nor invent unresolved ownership.
+        let failed_exchange = self.issue == Some("timing_exchange_unconfirmed")
+            && self
+                .first_failure
+                .as_ref()
+                .is_some_and(|failure| matches!(failure.operation, "probe" | "observe"));
+        if self.issue == Some("cancelled_timing_exchange_unconfirmed") || failed_exchange {
             self.issue = None;
         }
     }
