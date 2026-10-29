@@ -55,7 +55,8 @@ pub(super) struct PendingFallback {
 /// lease, settlement handle, permission or provider-acceptance authority.
 pub(super) struct HistorySnapshot {
     job: JobId,
-    traces: Option<BTreeMap<AttemptId, (String, JobAttemptFallbackTrace)>>,
+    archive: Option<InferenceFallbackHistory>,
+    indices: BTreeMap<AttemptId, usize>,
 }
 impl HistorySnapshot {
     pub(super) fn trace_for(
@@ -67,21 +68,23 @@ impl HistorySnapshot {
             request.job_id == self.job,
             "fallback snapshot names another job",
         )?;
-        let Some(traces) = &self.traces else {
+        let Some(archive) = &self.archive else {
             ensure(
                 tagged(request)?.is_none(),
                 "fallback selection has no retained history snapshot",
             )?;
             return Ok(None);
         };
-        let (manifest, trace) = traces
+        let index = self
+            .indices
             .get(&request.attempt_id)
             .ok_or_else(|| invalid("fallback snapshot lacks the original attempt"))?;
+        let entry = &archive.attempts[*index];
         ensure(
-            *manifest == digest(encode(request)?.as_bytes()),
+            entry.manifest_sha256 == digest(encode(request)?.as_bytes()),
             "fallback snapshot worker manifest differs",
         )?;
-        Ok(Some(trace.clone()))
+        Ok(Some(entry.trace.clone()))
     }
 }
 
@@ -108,13 +111,15 @@ pub(super) fn history_snapshot(
         ensure(!pending, "pending fallback job lacks retained history")?;
         return Ok(HistorySnapshot {
             job: job_id.clone(),
-            traces: None,
+            archive: None,
+            indices: BTreeMap::new(),
         });
     };
     validate_pending(tx, &job)?;
     let selection = job.selection.identity()?;
-    let mut traces = BTreeMap::new();
+    let mut attempts = Vec::new();
     let mut bytes = 0usize;
+    let mut archive_bytes = encode(&job.selection)?.len();
     walk_chain(tx, &job, &job.current, job.count, |attempt| {
         let admission = &attempt.admission;
         let trace = JobAttemptFallbackTrace {
@@ -141,15 +146,59 @@ pub(super) fn history_snapshot(
             bytes <= MAX_HISTORY_TRACE_BYTES,
             "fallback history snapshot exceeds byte admission",
         )?;
-        traces.insert(
-            attempt.request.attempt_id.clone(),
-            (digest(encode(&attempt.request)?.as_bytes()), trace),
-        );
+        let manifest_sha256 = digest(encode(&attempt.request)?.as_bytes());
+        let outcome =
+            crate::job_attempt_history::read_outcome(tx, &attempt.request, &manifest_sha256)?;
+        let entry = ArchivedInferenceFallbackAttempt {
+            attempt_id: attempt.request.attempt_id.clone(),
+            manifest_sha256,
+            profile_sha256: attempt.profile_sha.clone(),
+            state: attempt.state.clone(),
+            trace,
+            observed_environment: admission.observed_environment.clone(),
+            outcome,
+        };
+        // Admit each addition before retaining it. The shared contract applies
+        // its final aggregate bound and original-manifest checks below.
+        let entry_bytes = encode(&entry)?.len();
+        ensure(
+            entry_bytes <= 128 * 1024,
+            "fallback archive entry exceeds byte admission",
+        )?;
+        archive_bytes = archive_bytes
+            .checked_add(entry_bytes)
+            .ok_or_else(|| invalid("fallback archive byte count overflow"))?;
+        ensure(
+            archive_bytes <= MAX_INFERENCE_FALLBACK_HISTORY_BYTES,
+            "fallback archive exceeds byte admission",
+        )?;
+        attempts.push(entry);
         Ok(())
     })?;
+    attempts.reverse();
+    let archive = InferenceFallbackHistory {
+        schema_version: 1,
+        history_only: true,
+        project_id: job.project.clone(),
+        job_id: job.id.clone(),
+        base_revision: RevisionId::new(job.revision),
+        source_version: job.source.clone(),
+        initial_attempt: job.initial.clone(),
+        current_attempt: job.current.clone(),
+        selection: job.selection.clone(),
+        attempts,
+    };
+    archive.validate_with_manifests(|id| request_row(tx, &job, id).map(|(request, _)| request))?;
+    let indices = archive
+        .attempts
+        .iter()
+        .enumerate()
+        .map(|(i, a)| (a.attempt_id.clone(), i))
+        .collect();
     Ok(HistorySnapshot {
         job: job_id.clone(),
-        traces: Some(traces),
+        archive: Some(archive),
+        indices,
     })
 }
 
@@ -1364,6 +1413,196 @@ mod tests {
         )
         .unwrap();
         tx.commit().unwrap();
+    }
+
+    #[test]
+    fn archive_contract_roundtrips_after_snapshot_transaction_and_database_close() {
+        let previous = fixture_request("initial", 3);
+        let next = fixture_request("next", 8);
+        let mut db = fixture_database(&previous);
+        fixture_declare(&mut db, &previous);
+        fixture_pending(&mut db, &previous);
+        fixture_transition(&mut db, &previous, &next);
+        let tx = db.transaction().unwrap();
+        tx.execute_batch("PRAGMA query_only=ON").unwrap();
+        let history = history_snapshot(&tx, &next.project_id, &next.job_id).unwrap();
+        let raw = history.archive.as_ref().unwrap().canonical_bytes().unwrap();
+        tx.rollback().unwrap();
+        drop(db);
+        let restored = InferenceFallbackHistory::from_canonical_bytes(&raw).unwrap();
+        restored
+            .validate_with_manifests(|id| {
+                if *id == previous.attempt_id {
+                    Ok(previous.clone())
+                } else if *id == next.attempt_id {
+                    Ok(next.clone())
+                } else {
+                    Err(ProtocolError::invalid("unresolved original attempt"))
+                }
+            })
+            .unwrap();
+        assert_eq!(restored.canonical_bytes().unwrap(), raw);
+        assert!(restored.history_only);
+        assert_eq!(restored.attempts[0].state, "failed");
+        assert_eq!(restored.attempts[1].state, "queued");
+        assert_eq!(
+            restored.attempts[1].trace.predecessor,
+            Some(previous.attempt_id)
+        );
+        assert!(restored.attempts[0]
+            .outcome
+            .as_ref()
+            .unwrap()
+            .worker_retirement
+            .as_ref()
+            .unwrap()
+            .provider_unavailable
+            .is_some());
+        assert_eq!(restored.attempts[0].trace.expires_at_unix_ms, 100);
+        assert!(previous
+            .source
+            .path
+            .to_string_lossy()
+            .starts_with("/nonexistent/"));
+    }
+
+    #[test]
+    fn archive_contract_refuses_mutated_correspondence_and_missing_settlement() {
+        let previous = fixture_request("initial", 3);
+        let next = fixture_request("next", 8);
+        let mut db = fixture_database(&previous);
+        fixture_declare(&mut db, &previous);
+        fixture_pending(&mut db, &previous);
+        fixture_transition(&mut db, &previous, &next);
+        let tx = db.transaction().unwrap();
+        let history = history_snapshot(&tx, &next.project_id, &next.job_id)
+            .unwrap()
+            .archive
+            .unwrap();
+        let resolve = |id: &AttemptId| {
+            if *id == previous.attempt_id {
+                Ok(previous.clone())
+            } else if *id == next.attempt_id {
+                Ok(next.clone())
+            } else {
+                Err(ProtocolError::invalid("foreign original attempt"))
+            }
+        };
+        type ArchiveMutation = Box<dyn Fn(&mut InferenceFallbackHistory)>;
+        let changes: Vec<ArchiveMutation> = vec![
+            Box::new(|h| h.history_only = false),
+            Box::new(|h| h.schema_version = 2),
+            Box::new(|h| h.project_id = ProjectId::new("foreign-project").unwrap()),
+            Box::new(|h| h.job_id = JobId::new("foreign-job").unwrap()),
+            Box::new(|h| h.base_revision = RevisionId::new(2)),
+            Box::new(|h| h.source_version = SourceVersionId::new("foreign-source").unwrap()),
+            Box::new(|h| h.current_attempt = h.initial_attempt.clone()),
+            Box::new(|h| h.attempts.swap(0, 1)),
+            Box::new(|h| h.attempts[1].attempt_id = h.initial_attempt.clone()),
+            Box::new(|h| {
+                h.attempts[1].trace.predecessor = Some(AttemptId::new("detached").unwrap())
+            }),
+            Box::new(|h| h.attempts[1].trace.ordinal = 2),
+            Box::new(|h| h.attempts[1].trace.admitted_at_unix_ms = 1),
+            Box::new(|h| h.attempts[0].state = "completed".into()),
+            Box::new(|h| h.attempts[0].outcome = None),
+            Box::new(|h| h.attempts[0].outcome.as_mut().unwrap().worker_retirement = None),
+            Box::new(|h| {
+                h.attempts[0]
+                    .outcome
+                    .as_mut()
+                    .unwrap()
+                    .worker_retirement
+                    .as_mut()
+                    .unwrap()
+                    .provider_unavailable = None
+            }),
+            Box::new(|h| h.attempts[1].manifest_sha256 = "f".repeat(64)),
+            Box::new(|h| h.attempts[1].profile_sha256 = "f".repeat(64)),
+            Box::new(|h| h.attempts[1].observed_environment.hardware = fixture_identity(99)),
+            Box::new(|h| h.attempts[1].trace.reference.expected_revision += 1),
+            Box::new(|h| h.attempts[1].trace.history_only = false),
+        ];
+        for (index, change) in changes.iter().enumerate() {
+            let mut altered = history.clone();
+            change(&mut altered);
+            assert!(
+                altered.validate_with_manifests(resolve).is_err(),
+                "mutation {index} accepted"
+            );
+        }
+        let mut changed = next.clone();
+        changed.source.path = "/changed/source".into();
+        changed.validate().unwrap();
+        assert!(history
+            .validate_with_manifests(|id| if *id == previous.attempt_id {
+                Ok(previous.clone())
+            } else {
+                Ok(changed.clone())
+            })
+            .is_err());
+        let mut too_many = history.clone();
+        while too_many.attempts.len() <= MAX_INFERENCE_FALLBACK_HISTORY_ATTEMPTS {
+            too_many.attempts.push(history.attempts[1].clone());
+        }
+        assert!(too_many.validate().unwrap_err().message.contains("count"));
+    }
+
+    #[test]
+    fn archive_contract_refuses_noncanonical_unknown_and_oversized_bytes() {
+        assert!(InferenceFallbackHistory::from_canonical_bytes(&[]).is_err());
+        assert!(InferenceFallbackHistory::from_canonical_bytes(&vec![
+            b' ';
+            MAX_INFERENCE_FALLBACK_HISTORY_BYTES
+                + 1
+        ])
+        .unwrap_err()
+        .message
+        .contains("byte admission"));
+        let previous = fixture_request("initial", 3);
+        let mut db = fixture_database(&previous);
+        fixture_declare(&mut db, &previous);
+        let tx = db.transaction().unwrap();
+        let history = history_snapshot(&tx, &previous.project_id, &previous.job_id)
+            .unwrap()
+            .archive
+            .unwrap();
+        let mut raw = history.canonical_bytes().unwrap();
+        raw.push(b'\n');
+        assert!(InferenceFallbackHistory::from_canonical_bytes(&raw)
+            .unwrap_err()
+            .message
+            .contains("canonical"));
+        let mut value = serde_json::to_value(&history).unwrap();
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert("execution_authority".into(), serde_json::json!(true));
+        assert!(InferenceFallbackHistory::from_canonical_bytes(
+            &serde_json::to_vec(&value).unwrap()
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn snapshot_refuses_historical_fallback_after_original_outcome_is_removed() {
+        let previous = fixture_request("initial", 3);
+        let next = fixture_request("next", 8);
+        let mut db = fixture_database(&previous);
+        fixture_declare(&mut db, &previous);
+        fixture_pending(&mut db, &previous);
+        fixture_transition(&mut db, &previous, &next);
+        db.execute(
+            "DELETE FROM job_attempt_outcomes WHERE attempt=?1",
+            [previous.attempt_id.as_str()],
+        )
+        .unwrap();
+        let tx = db.transaction().unwrap();
+        assert!(history_snapshot(&tx, &next.project_id, &next.job_id)
+            .err()
+            .unwrap()
+            .message
+            .contains("settlement"));
     }
 
     #[test]
