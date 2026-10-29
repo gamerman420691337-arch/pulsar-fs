@@ -966,6 +966,19 @@ test('successor timing preparation keeps predecessor observations current',async
  for(const request of p.sent.filter(r=>r.route.startsWith('/player/timing-')))assert.deepEqual(request.headers,original);
  assert.equal(p.sent.filter(r=>r.route==='/player/start').length,1);
 });
+test('reserved boundary drains the existing predecessor probe without admitting probes that starve G',async()=>{
+ const p=continuityPlayer({holdTransfer:true});await prepareContinuation(p);
+ p.advance(250);await flush();
+ await p.analysisFrame(1.2);await flush();assert.equal(p.continuityState().phase,'pair');
+ const probes=p.sent.filter(r=>r.route==='/player/timing-probe').length;
+ await p.frame(.3,3);await flush();await flush();
+ await p.elements['inspect-timing'].onclick();await flush();
+ p.advance(250);await flush();await p.analysisFrame(1.3);await flush();
+ assert.equal(p.sent.filter(r=>r.route==='/analysis/successor-frame').length,1,'fresh ordinary probes must not starve the original successor G');
+ assert.equal(p.sent.filter(r=>r.route==='/player/timing-probe').length,probes,'the already issued probe drains but no replacement probe is admitted');
+ assert.equal(p.continuityState().phase,'joining');
+ assert.equal(p.continuityState().epoch,'epoch-one','only native commit can promote');
+});
 test('predecessor timing remains frozen after the original successor G until commit',async()=>{
  const p=continuityPlayer({holdTransfer:true});await prepareContinuation(p);await p.analysisFrame(1.2);await p.analysisFrame(1.3);await flush();
  assert.equal(p.continuityState().phase,'joining');const probes=p.sent.filter(r=>r.route==='/player/timing-probe').length;

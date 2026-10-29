@@ -78,11 +78,11 @@ function showTiming(report,historical=false){
 function beginTiming(scope,configuration){
  if(!configuration?.configured){timingStatus.textContent='Browser timing unavailable for unbound local files, camera or shared-tab sources.';return;}
  if(configuration.error){timingStatus.textContent='Browser timing unavailable: '+configuration.error;return;}
- scope.timing={stopped:false,observationCurrent:false,inflight:false,probe:null,timer:null,deadline:null,expiry:null};void timingProbe(scope);
+ scope.timing={stopped:false,observationCurrent:false,inflight:false,probe:null,timer:null,deadline:null,expiry:null,handoffHeld:false};void timingProbe(scope);
 }
 async function timingProbe(scope){
  const t=scope.timing;if(!currentPlayer(scope)||!t||t.stopped||t.inflight||t.probe)return;
- if(t.inspecting){t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},100);return;}
+ if(t.inspecting||t.handoffHeld){t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},100);return;}
  t.inflight=true;const baseline=presentedFrame?.presented_frames??0,sentAt=performance.now();
  try{
   const reply=await timingPost('/player/timing-probe',new Uint8Array(),scope);
@@ -420,7 +420,7 @@ function sameAnalysisSubmission(left,right){
  if(!left||!right||left.media_us!==right.media_us||!left.observation||!right.observation)return false;
  return ['feed_id','role','generation','visible_media_us','visible_presented_frames','visible_tick_us','analysis_tick_us','presented_frames'].every(key=>left.observation[key]===right.observation[key]);
 }
-function stopContinuation(state){const c=state?.continuation;if(!c)return;c.retired=true;for(const key of ['timer','timingTimer','probeTimer','expiryTimer'])if(c[key]!==null&&c[key]!==undefined)clearTimeout(c[key]);c.probe=null;if(c.heldOldTiming&&playerScope?.timing)playerScope.timing.inspecting=false;}
+function stopContinuation(state){const c=state?.continuation;if(!c)return;c.retired=true;for(const key of ['timer','timingTimer','probeTimer','expiryTimer'])if(c[key]!==null&&c[key]!==undefined)clearTimeout(c[key]);c.probe=null;if(c.heldTiming)c.heldTiming.handoffHeld=false;}
 function currentContinuation(state,c){return currentAnalysis(state)&&currentPlayer(c.scope)&&state.continuation===c&&!c.retired;}
 function continuationLater(state,c,action){if(!currentContinuation(state,c))return;c.timer=setTimeout(()=>{c.timer=null;void action();},100);}
 function checkSuccessor(report,state,c){
@@ -477,7 +477,7 @@ function continuationTimingFrame(state,now,metadata,sampledAt){
 }
 function maybePrepareContinuation(report,state){
  if(!state.selection.continuity||state.continuation||state.inputPhase!=='open'||report.browser?.analysis_continuity?.prepare_due!==true)return;
- const c={scope:playerScope,phase:'media',predecessor:epoch,prepareId:null,prepareSentAt:null,captureDeadline:null,feed:null,transferId:null,pairAck:null,pairSent:false,committedReport:null,heldOldTiming:false,timer:null,timingTimer:null,probeTimer:null,expiryTimer:null,probe:null,timingBusy:false,retired:false};state.continuation=c;
+ const c={scope:playerScope,phase:'media',predecessor:epoch,prepareId:null,prepareSentAt:null,captureDeadline:null,feed:null,transferId:null,pairAck:null,pairSent:false,committedReport:null,heldTiming:null,timer:null,timingTimer:null,probeTimer:null,expiryTimer:null,probe:null,timingBusy:false,retired:false};state.continuation=c;
  const inspect=async(first)=>{if(!currentContinuation(state,c))return;try{
   const media=await mediaPost(first?'/media/continue':'/media/continue-status',{selection_id:state.media.selection_id},false,c.scope);if(!currentContinuation(state,c))return;
   if(media.selection_id!==state.media.selection_id||!['pending','ready'].includes(media.state))throw Error('Media successor identity or state differs.');
@@ -503,7 +503,7 @@ function receiveContinuation(report,state,c){
   showAnalysis(report,0,c.pairAck.submitted.media_us,c.pairAck.capturedAt,state);return true;
  }
  if(!['boundary_reserved','joining_predecessor','awaiting_successor_pair','ready_for_transfer'].includes(transfer.phase))throw Error('Invalid native transfer phase.');
- if(!c.pairSent)c.phase='pair';else c.phase='joining';return false;
+ if(!c.pairSent){c.phase='pair';if(playerScope.timing){c.heldTiming=playerScope.timing;c.heldTiming.handoffHeld=true;}}else c.phase='joining';return false;
 }
 async function inspectContinuation(state,c){
  if(!currentContinuation(state,c))return;
@@ -648,7 +648,7 @@ async function submitAnalysisFrame(reader,media_us,capturedAt,state,analysis){
   const c=state?.continuation,next=!!c&&c.phase==='pair'&&!c.pairSent,feed=next?c.feed:state?.feed;
   const extra=state?{analysis:{feed_id:feed.feed_id,role:'lookahead',generation:feed.generation,...analysis}}:{};
   const head=new TextEncoder().encode(JSON.stringify({epoch:next?feed.capture_epoch:epoch,media_us,...extra})+'\n'),body=new Uint8Array(head.length+rgb.length);body.set(head);body.set(rgb,head.length);
-  const submission=state?{submitted:{media_us,observation:{...extra.analysis}},capturedAt}:null;if(state&&!next)state.lastSubmitted=submission;if(next){c.pairSent=true;c.phase='joining';if(scope.timing){scope.timing.inspecting=true;c.heldOldTiming=true;}}
+  const submission=state?{submitted:{media_us,observation:{...extra.analysis}},capturedAt}:null;if(state&&!next)state.lastSubmitted=submission;if(next){c.pairSent=true;c.phase='joining';if(scope.timing){c.heldTiming=scope.timing;c.heldTiming.handoffHeld=true;}}
   const sent=performance.now(),report=await post(next?'/analysis/successor-frame':'/frame',body,scope);if(observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;
   if(next){const successor=checkSuccessor(report,state,c);if(!sameAnalysisSubmission(successor.last_upload,submission.submitted))throw Error('Successor G acknowledgment differs from original callback.');c.pairAck=submission;if(c.committedReport)receiveContinuation(c.committedReport,state,c);else if(currentContinuation(state,c)&&c.timer===null)continuationLater(state,c,()=>inspectContinuation(state,c));}
   else if(state){checkAnalysisFeed(report,state,scope);if(!sameAnalysisSubmission(report.browser?.analysis_last_upload,submission.submitted))throw Error('Native frame acknowledgement differs from its original browser observation.');state.lastAck=submission;showAnalysis(report,performance.now()-sent,media_us,capturedAt,state);if(c?.phase==='boundary')await reserveContinuationBoundary(state,c);else maybePrepareContinuation(report,state);}else show(report,performance.now()-sent,media_us,capturedAt);

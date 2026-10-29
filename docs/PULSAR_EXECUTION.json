@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-TIMING-DIAGNOSTICS",
-    "scope": "Current timing diagnostics and unsent Open repair passes full client suite, strict lint and default App/Worker compilation; real short-lease observation remains separately partial.",
+    "evidence": "EV-HANDOFF-PAIR",
+    "scope": "Current pair-gate admission repair passes 161 browser JS tests,700 client tests and default App/Worker compilation; selected 120s rendered capture-to-reviewed-export proof is retained.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "Bounded timing operation/stage/cause evidence is implemented and a distinct Open retirement before dispatch race is repaired. The earlier long-session timing_exchange_unconfirmed cleanup failure remains causally unresolved; the short-lease run did not reproduce it. Full runtime/model/platform/physical/human acceptance remains open.",
+    "failure_summary": "Pair-gate starvation is reproduced and repaired; the matching 120s/10s-lease stream now reaches EOF and exact reviewed export. Earlier generic timing_exchange_unconfirmed cleanup cause remains unresolved. Freshness-margin warnings, the Engine harness deadline and full runtime/model/platform/physical/human acceptance remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -353,16 +353,24 @@
       {
         "path": "crates/pulsar-clients/src/browser_player_timing_tests.rs",
         "sha256": "3270dc37367d7d49ff84189aea9c27159bbabd01df89bafe4fde2837674a4981"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_live.html",
+        "sha256": "638871d1757953f2b79d9160a85f6a30b4a6624cc2b2b3c33e8b4f2ab25f477a"
+      },
+      {
+        "path": "scripts/browser-live-player.test.mjs",
+        "sha256": "d8d55422cebc4b257ac7823f4ca0747518580b75484c7fb50c7d42240eb5d904"
       }
     ]
   },
   "last_verified": {
     "evidence": [
       "EV-HSP-READINESS",
-      "EV-TIMING-DIAGNOSTICS",
+      "EV-HANDOFF-PAIR",
       "EV-RECORDING-CHECKS"
     ],
-    "scope": "Engine: pinned causal HSP repair, full default-thread suite. Clients: current timing diagnostic/unsent-Open repair, full suite with one test thread. Protocol: separate pinned component checkpoint. Original long-session timing failure and general runtime/physical qualification remain unresolved.",
+    "scope": "Engine: pinned causal HSP repair, full default-thread suite. Clients: current pair-gate repair, full suite with one test thread plus 161 browser JS tests and selected 120s rendered workflow. Protocol: separate pinned checkpoint. Generic timing cleanup, freshness/usability, harness shutdown and physical qualification remain unresolved.",
     "metric_refs": {
       "engine_passed": {
         "evidence": "EV-HSP-READINESS",
@@ -381,14 +389,14 @@
         ]
       },
       "clients_passed": {
-        "evidence": "EV-TIMING-DIAGNOSTICS",
+        "evidence": "EV-HANDOFF-PAIR",
         "pointer": [
           "checks",
           "clients_passed"
         ]
       },
       "clients_ignored": {
-        "evidence": "EV-TIMING-DIAGNOSTICS",
+        "evidence": "EV-HANDOFF-PAIR",
         "pointer": [
           "checks",
           "clients_ignored"
@@ -1065,6 +1073,19 @@
       "evidence": [
         "EV-TIMING-DIAGNOSTICS"
       ]
+    },
+    {
+      "id": "SC-HANDOFF-PAIR",
+      "title": "Bounded predecessor timing admission at the successor pair gate",
+      "parents": [
+        "M2-DOMAIN",
+        "M2-EDITS",
+        "M5-LIVE"
+      ],
+      "scope": "A deterministic VM interleaving reproduces fresh ordinary timing probes starving successor G. Reserve a separate handoff hold at the pair gate, drain already-issued work, keep manual inspection independent, and release only the exact held timing object. Original expiry and native-only promotion remain enforced; 161 JS /700 client tests and default build pass. Matching 120s rendered source reaches EOF across 23 retained records and 1,151 inferred estimates; explicit review/commit, unresolved-export refusal and 29 separately authored gap repairs yield an exact 1,180-action download with no duplicate milliseconds. Unused EOF successor is preserved without estimates. Native server cleanup passes; Engine harness timeout and original generic timing failure remain retained limitations. No learned-model or physical qualification.",
+      "evidence": [
+        "EV-HANDOFF-PAIR"
+      ]
     }
   ],
   "queue": [
@@ -1126,7 +1147,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Use the implemented bounded first_failure operation/stage/category/code evidence to localize retained timing_exchange_unconfirmed failures, including 264867d cleanup exit 1, then establish repeatable reliability without extending original deadlines. The separate proven-unsent Open race is repaired and does not explain that failure. Finish applicable pending source/transfer replacement and expired/unknown-outcome coverage with exact source/clock/CPU correspondence. Selected rendered lifecycle/input cases and a pinned full 40s recording/review/export remain scoped checkpoints; the short-lease observation overlapped preview shutdown and is not causal clearance.",
+      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure using available first_failure diagnostics, then establish repeatable reliability without extending original deadlines. Pair-gate starvation has a deterministic repair and a matching 120s/10s-lease rendered EOF-to-export checkpoint across 23 records, but does not explain that generic IPC failure. Finish applicable pending replacement, interruption and unknown-outcome coverage; verify useful fresh visible output at the admitted lead, retain harness-limit counterevidence and exact source/clock/CPU correspondence. Selected software checkpoints do not qualify real media, models or physical devices.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
@@ -1139,7 +1160,8 @@
         "EV-BROWSER-INPUTS",
         "EV-TIMING-CLEANUP",
         "EV-TIMING-DIAGNOSTICS",
-        "EV-TIMING-EXPIRY"
+        "EV-TIMING-EXPIRY",
+        "EV-HANDOFF-PAIR"
       ]
     },
     {
@@ -3116,6 +3138,236 @@
             "recording_read_qualified"
           ],
           "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-HANDOFF-PAIR",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/timing-replay/verification.json",
+      "sha256": "8c8bbd739dca765cb0d9399440a822bfc44875b56aef8ee6f5ece82400515b6f",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Pair-gate starvation regression turns red to green by holding new predecessor probes after boundary reservation while draining issued work; manual inspection cannot unlock the separate handoff hold; 161 JS /700 client tests pass. Matching 120s/10s-lease rendered run reaches EOF, preserves23 records/1,151 estimates and produces an exact 1,180-action reviewed/repaired download. Native server exits 0; Engine wrapper reaches 600s harness limit. Original generic timing-cleanup cause and general qualification remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "original_generic_timing_cleanup_cause_localized"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "full_runtime_reliability_cleared"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "rapid_rendered_cycles_passed"
+          ],
+          "equals": 12
+        },
+        {
+          "pointer": [
+            "checks",
+            "rapid_capture_records"
+          ],
+          "equals": 16
+        },
+        {
+          "pointer": [
+            "checks",
+            "pair_gate_regression_red_then_green"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "existing_probe_drains_before_original_G"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "new_ordinary_probes_held_until_commit"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "manual_inspection_cannot_release_handoff_hold"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "hold_cleanup_targets_exact_timing_object"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "original_expiry_and_native_only_promotion_unchanged"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "browser_js_passed"
+          ],
+          "equals": 161
+        },
+        {
+          "pointer": [
+            "checks",
+            "browser_js_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_passed"
+          ],
+          "equals": 700
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_ignored"
+          ],
+          "equals": 14
+        },
+        {
+          "pointer": [
+            "checks",
+            "default_app_worker_build"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "fixed_rendered_eof"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "capture_records"
+          ],
+          "equals": 23
+        },
+        {
+          "pointer": [
+            "checks",
+            "media_leases"
+          ],
+          "equals": 23
+        },
+        {
+          "pointer": [
+            "checks",
+            "accepted_estimates"
+          ],
+          "equals": 1151
+        },
+        {
+          "pointer": [
+            "checks",
+            "authored_gap_intervals"
+          ],
+          "equals": 29
+        },
+        {
+          "pointer": [
+            "checks",
+            "export_actions"
+          ],
+          "equals": 1180
+        },
+        {
+          "pointer": [
+            "checks",
+            "export_matches_master"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "duplicate_milliseconds"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "source_project_offset_seconds"
+          ],
+          "equals": 5
+        },
+        {
+          "pointer": [
+            "checks",
+            "unused_successor_preserved_without_estimates"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "preview_server_exit_code"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_harness_exit_code"
+          ],
+          "equals": 124
+        },
+        {
+          "pointer": [
+            "checks",
+            "all_owned_apps_joined"
+          ],
+          "equals": true
         }
       ]
     }
