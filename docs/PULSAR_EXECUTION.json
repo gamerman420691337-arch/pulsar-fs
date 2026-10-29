@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-LOOKAHEAD-MARGIN",
-    "scope": "Current initial-lead configuration passes 164 browser JS tests, 701 client tests, strict lint and App/Worker build; selected rendered 40s freshness observations retain the original age budget.",
-    "active_work": "BROWSER-DEMO",
-    "failure_summary": "Initial requested lead now accounts for the configured age budget; selected 40s run shows 8/8 current provisional snapshots without increasing expiry. Generic timing_exchange_unconfirmed cleanup cause, full fault/reliability coverage and real-model/platform/physical/human acceptance remain open.",
+    "evidence": "EV-CPU-INTEGRATION",
+    "scope": "Integrated committed CPU reader-39 barrier and two-clone inert archival checks. Actual completed/failed/cancelled confined execution; constructed running/interrupted history only. Actual running capture and process interruption remain owed. Host dependency identities refreshed by test, without qualification inheritance. External uncommitted Handy changes excluded.",
+    "active_work": "CPU-ROUNDTRIP",
+    "failure_summary": "Engine 1891 passed, zero failed,111 ignored; strict lint/default build and scoped native two-clone/older-reader campaign pass. Actual running capture and interruption/restart remain owed; generic browser timing cleanup and all25 acceptance gates remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -48,7 +48,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/authority.rs",
-        "sha256": "40687f6240ec04fc0be05f3d8b173eed22452805a399e73aeea45fab4a2621cf"
+        "sha256": "255bb25879891a7e93bc7ac6d6d8329ff37277b4868da0157baa5fe6554b2c25"
       },
       {
         "path": "crates/pulsar-engine/src/confinement.rs",
@@ -136,7 +136,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/live_cpu_history.rs",
-        "sha256": "11286ccd9ab6b7409f6c8f60dc7de8df417bd12c7141787693f1ad3f4c6cd44d"
+        "sha256": "40f59038350d6e48290b49bfe3b7c7c2b328354d901d75cb42dcc22648664766"
       },
       {
         "path": "crates/pulsar-engine/src/live_cpu_history_tests.rs",
@@ -152,7 +152,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/live_cpu_reader.rs",
-        "sha256": "e62a35c038d7dbef7e613ad5e159e2038121faadd79025a86f3568937a823702"
+        "sha256": "06f0cdcff48240800bfd3286fe09531a5ae50f9f40981ac987c4ba6c1d76d3e1"
       },
       {
         "path": "crates/pulsar-engine/src/live_cuda_capture_db.rs",
@@ -160,7 +160,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/live_cuda_evidence_db.rs",
-        "sha256": "c94a5ddee867fd3b1157967c1d613fa51db946bea95ef36c407f168cd7f928ec"
+        "sha256": "e937dfad6a4eb03466777b25ab67cf70105936e1fdcd9864cea851e6ac41adaf"
       },
       {
         "path": "crates/pulsar-engine/src/live_frames.rs",
@@ -196,7 +196,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/portable_cpu_archives.rs",
-        "sha256": "8152717c41a7020f5fbacce60758c2179b87917880b6bd47982abaf136ddda98"
+        "sha256": "eb6ea6b11cb766adae00b47b83091bf2000dbb713dad899d1145dd3144872013"
       },
       {
         "path": "crates/pulsar-engine/src/project_package_import_plan.rs",
@@ -204,7 +204,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/project_package_imports.rs",
-        "sha256": "302a3b6ea57bb19e119e79e24ff2c05cbc5d3433fe37b73fa2f5dac3981a82d6"
+        "sha256": "baf7b010e17405afe4eab3132a51321409640793199870e7536ac708986329db"
       },
       {
         "path": "crates/pulsar-engine/src/project_package_storage.rs",
@@ -212,7 +212,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/project_packages.rs",
-        "sha256": "c8cc9f3107e812170e9cde1fd45945221ae9866ec9351bc39b226705efb44f5f"
+        "sha256": "2d6abc364c0ac49538a9a1920667fa39560d79b5e411407c39657b7ec3691644"
       },
       {
         "path": "crates/pulsar-engine/src/worker/annotated_portable_tests.rs",
@@ -373,31 +373,37 @@
       {
         "path": "docs/PULSAR_APP_QUICKSTART.md",
         "sha256": "270008fb720c184fffd38aef3696741d706ce44895b7e32d76d2c4e708813caa"
+      },
+      {
+        "path": "crates/pulsar-engine/src/portable_wasm_db.rs",
+        "sha256": "7423d50b0862a47c6899a2cd03109103b89b34c4edb11cfaed731e03def13c22"
+      },
+      {
+        "path": "crates/pulsar-engine/src/project_package_exports.rs",
+        "sha256": "9a1aa7e674afcffa01fd4e1e34f7bdc32b28080ae83b6e3affe8da9b1bd8ee1b"
       }
     ]
   },
   "last_verified": {
     "evidence": [
-      "EV-HSP-READINESS",
       "EV-LOOKAHEAD-MARGIN",
-      "EV-RECORDING-CHECKS"
+      "EV-RECORDING-CHECKS",
+      "EV-CPU-INTEGRATION"
     ],
-    "scope": "Engine: pinned full default-thread HSP-repair suite. Clients: current lookahead-default code, full suite with one test thread plus 164 browser JS tests, strict lint and selected rendered observations. Protocol: separate pinned checkpoint. Generic timing cleanup and broader runtime/real-model/physical qualification remain unresolved.",
+    "scope": "Engine current CPU integration:1891 passed/111 ignored and scoped native two-clone campaign. Clients/Protocol remain separate pinned checkpoints; actual running/interruption, browser cleanup and real-model/device/human acceptance remain open.",
     "metric_refs": {
       "engine_passed": {
-        "evidence": "EV-HSP-READINESS",
+        "evidence": "EV-CPU-INTEGRATION",
         "pointer": [
           "checks",
-          "full_engine_default_threads",
-          "passed"
+          "engine_passed"
         ]
       },
       "engine_ignored": {
-        "evidence": "EV-HSP-READINESS",
+        "evidence": "EV-CPU-INTEGRATION",
         "pointer": [
           "checks",
-          "full_engine_default_threads",
-          "ignored"
+          "engine_ignored"
         ]
       },
       "clients_passed": {
@@ -1151,13 +1157,15 @@
         "M2-INTERCHANGE",
         "M6-INSTALL"
       ],
-      "state": "ready",
+      "state": "in_progress",
       "owner": "Parallel implementation agent + independent verification",
       "depends_on": [
         "CPU-ARCHIVE"
       ],
       "exit": "Actual confined CPU attempts retain exact inert history across two clones; no origin execution authority revives. Preceding reader refuses before mutation; processes, storage and memory release are verified.",
-      "evidence": []
+      "evidence": [
+        "EV-CPU-INTEGRATION"
+      ]
     },
     {
       "id": "BROWSER-DEMO",
@@ -3595,6 +3603,85 @@
             "all_owned_apps_joined"
           ],
           "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-CPU-INTEGRATION",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/cpu-roundtrip-integration/verification.json",
+      "sha256": "d8739fec4c9b21bd5ac19a494b3beaf1dca73106a0c0da01858cf762c1cb5d95",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Integrated committed CPU reader-39 barrier and two-clone inert archival checks. Actual completed/failed/cancelled confined execution; constructed running/interrupted history only. Actual running capture and process interruption remain owed. Host dependency identities refreshed by test, without qualification inheritance. External uncommitted Handy changes excluded.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "cpu_roundtrip_closed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_passed"
+          ],
+          "equals": 1891
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_ignored"
+          ],
+          "equals": 111
+        },
+        {
+          "pointer": [
+            "checks",
+            "strict_engine_clippy"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "default_app_worker_build"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_campaign_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "actual_running_capture_verified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "actual_process_interruption_verified"
+          ],
+          "equals": false
         }
       ]
     }

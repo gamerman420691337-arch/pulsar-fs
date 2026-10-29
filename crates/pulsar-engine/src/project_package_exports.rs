@@ -955,6 +955,9 @@ impl Engine {
             {
                 crate::portable_wasm_db::arm(&tx).map_err(internal)?;
             }
+            if plan.manifest.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY {
+                crate::portable_cpu_archives::arm(&tx).map_err(internal)?;
+            }
             save_status(&tx, &status)?;
             let generation =
                 grant_generation(&tx, request.session.as_ref().unwrap(), project(request)?)?;
