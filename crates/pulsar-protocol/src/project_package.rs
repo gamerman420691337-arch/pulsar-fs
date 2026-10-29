@@ -30,6 +30,8 @@ pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_IMAGE_ORIGINS: u16 = 13;
 pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_DEVICE_EXPORTS: u16 = 14;
 pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY: u16 = 15;
 pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY: u16 = 16;
+/// Canonical history plus the original reports and bounded raw evidence bodies.
+pub const MAX_PACKAGE_FALLBACK_HISTORY_BYTES: usize = 160 * 1024 * 1024;
 pub const MAX_PROJECT_PACKAGE_MANIFEST_BYTES: usize = 16 * 1024 * 1024;
 pub const MAX_PROJECT_PACKAGE_ENTRIES: usize = 100_000;
 pub const DEFAULT_MAX_PROJECT_PACKAGE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
@@ -759,7 +761,7 @@ impl PortableProjectManifest {
             if let Some(history) = &origin.fallback_history {
                 history.validate()?;
                 if history.byte_len == 0
-                    || history.byte_len > crate::MAX_INFERENCE_FALLBACK_HISTORY_BYTES as u64
+                    || history.byte_len > MAX_PACKAGE_FALLBACK_HISTORY_BYTES as u64
                 {
                     return invalid("fallback history object exceeds portable admission");
                 }
@@ -1748,7 +1750,7 @@ mod tests {
             .unwrap()
             .roles = vec![PackageObjectRole::DependencyEvidence];
         assert!(bad.validate().is_err());
-        for size in [0, crate::MAX_INFERENCE_FALLBACK_HISTORY_BYTES as u64 + 1] {
+        for size in [0, MAX_PACKAGE_FALLBACK_HISTORY_BYTES as u64 + 1] {
             let mut bad = current.clone();
             bad.generated_origins[0]
                 .fallback_history

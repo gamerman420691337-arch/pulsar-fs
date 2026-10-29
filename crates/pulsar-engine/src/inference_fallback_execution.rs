@@ -20,7 +20,7 @@ fn digest<T: Serialize>(value: &T) -> PResult<String> {
 fn changed(message: &str) -> ProtocolError {
     ProtocolError::new(ErrorCode::DependencyMismatch, message)
 }
-fn profile(request: &WorkerRequest) -> PResult<&DeclaredInferenceProfile> {
+pub(super) fn profile(request: &WorkerRequest) -> PResult<&DeclaredInferenceProfile> {
     match &request.operation {
         WorkerOperation::Generate {
             settings,
@@ -31,7 +31,7 @@ fn profile(request: &WorkerRequest) -> PResult<&DeclaredInferenceProfile> {
     }
     .ok_or_else(|| ProtocolError::invalid("fallback requires explicit model-backed generation"))
 }
-fn scope_matches(
+pub(super) fn scope_matches(
     selection: &InferenceFallbackSelection,
     subject: &InferenceEquivalenceSubject,
     manifest: &WorkerRequest,

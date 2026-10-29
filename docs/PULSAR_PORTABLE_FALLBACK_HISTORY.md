@@ -6,6 +6,34 @@ refusals remain enabled. This document describes the implemented shared
 metadata contract and the remaining integration requirements; it is not a
 claim that fallback projects can already be exported or cloned.
 
+The snapshot-owned payload builder now retains original equivalence decisions
+and all eight raw evidence documents from the same database transaction as the
+attempt chain. It follows the original decision/request link and canonical
+receipt, including when the current record is withdrawn or expired. It validates
+the declared evidence at the original decision and admission times; it does not
+read current acceptance as permission or advance the current clock floor.
+Independent truth of the measurements, review and approval remains outside
+structural archive validation.
+
+Each payload starts with the eight-byte marker `PULSFH1\0`, a four-byte
+little-endian header length, canonical schema-1 JSON and raw evidence bodies in
+digest order. The JSON retains the job state, inert pending-intent observation,
+history and original reports. The header is bounded to 32 MiB, distinct evidence
+bodies to the registry's 128 MiB aggregate limit and the whole payload to
+160 MiB; the inner history retains its separate 8 MiB bound. Missing, extra,
+changed, truncated and trailing bytes refuse. Pending observations bind the
+original predecessor, engine epoch and exact failed outcome; they cannot become
+a new runtime intent or lease. Admission checks precede allocating the output
+frame, under the capture operation's existing metadata reservation.
+
+Local capture attaches one payload object to every original attempt of the job.
+The node checker binds the payload to the exact original project/job namespace,
+attempt set, states, source kind and canonical worker bytes, and checks the
+original profile/environment/directed transition against the referenced report.
+Filesystem paths inside evidence stay inert. Root/ancestor candidate and opaque
+worker-object closure, import publication and the native two-clone campaign are
+still pending; the existing full-graph admission refusal stays enabled.
+
 The next integration layer declares package format 16, the
 `inference_fallback_history` object role and an optional bounded history-object
 reference on each original generated attempt. Omitted references preserve the
@@ -13,8 +41,8 @@ older canonical bytes. A history reference, its object role or a format-16
 ancestor requires format 16; the ordinary object catalog checks exact lengths
 and roles. A consumed `assistant_paused` state requires this explicit history
 declaration. These are structural declarations only: the Engine still refuses
-format-16 graphs until the complete history payload and original worker-object
-correspondence are implemented.
+format-16 graphs until complete root/ancestor object correspondence is
+implemented and qualified.
 
 Conditional storage reader 40 wraps the existing portable CPU reader 39.
 Underlying publication preserves both markers, and arming is transactional with
@@ -70,9 +98,12 @@ running states do not grant imported work permission to execute.
 
 ## Remaining integration and exit evidence
 
-1. Capture the checked archive alongside original worker manifests within the
+1. Complete public capture qualification of the checked payload alongside original worker manifests within the
    same project snapshot. Account for aggregate metadata and retained object
    bytes before assembly; keep filesystem reads outside the authority lock.
+   The transaction-owned builder and local-node checker are implemented and
+   exercised with authored database/record shapes; this is not native execution
+   or model qualification.
 2. Connect the format-16 declaration and object role to the checked history
    payload. Preserve the selected policy, original environments, outcomes, manifests,
    model/runtime declarations and referenced evidence through root and ancestor
@@ -82,6 +113,10 @@ running states do not grant imported work permission to execute.
    must preserve original historical identities without installing origin
    acceptance decisions, grants, owner policies or executable attempts. Keep
    active local acceptance and imported historical evidence distinct.
+   Before enabling public admission, verify that owner-approved packaging
+   disclosure covers the referenced host-owner registry evidence. Reading a
+   record for internal validation does not itself broaden a client's authority
+   to enumerate or receive registry records.
 4. Qualify the reader-40 barrier through actual format-16 publication, import
    and recovery. An earlier executable must refuse before
    writable recovery or custody changes; record the exact database/WAL and

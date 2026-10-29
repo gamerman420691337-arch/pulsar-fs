@@ -275,6 +275,98 @@ pub(super) fn verify_evidence(
     validate_evidence(&value.manifest, &docs)
 }
 
+/// Original decision bytes and documents for inert archival use. This does not
+/// observe current acceptance, advance a clock, fence withdrawal or grant a
+/// lifetime. The caller owns snapshot and aggregate allocation admission.
+pub(super) fn archival_decision(
+    db: &Connection,
+    reference: &InferenceFallbackReference,
+    remaining: &mut usize,
+) -> PResult<(InferenceEquivalenceReport, BTreeMap<String, Vec<u8>>)> {
+    reference.validate()?;
+    validate_sha256(reference.dossier_id.as_str())?;
+    validate(db)?;
+    let current = report(db, &reference.dossier_id)?;
+    let (actor, request, hash): (String, String, String) = db.query_row(
+        "SELECT CASE WHEN typeof(actor)='text' AND length(CAST(actor AS BLOB)) BETWEEN 1 AND 128 THEN actor ELSE NULL END,CASE WHEN typeof(request)='text' AND length(CAST(request AS BLOB)) BETWEEN 1 AND 128 THEN request ELSE NULL END,CASE WHEN typeof(report_sha256)='text' AND length(report_sha256)=64 THEN report_sha256 ELSE NULL END FROM main.inference_equivalence_decisions WHERE dossier=?1 AND revision=?2",
+        params![reference.dossier_id.as_str(), revision(reference.expected_revision)?],
+        |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?)),
+    ).map_err(internal)?;
+    let actor = SessionId::new(actor).map_err(internal)?;
+    let request = RequestId::new(request).map_err(internal)?;
+    let (_, receipt) = saved_receipt(db, &actor, &request)?;
+    let original = receipt.report.clone();
+    let receipt_raw: String = db.query_row(
+        "SELECT CASE WHEN typeof(response)='text' AND length(CAST(response AS BLOB)) BETWEEN 1 AND 524288 THEN response ELSE NULL END FROM main.requests WHERE session=?1 AND request=?2",
+        params![actor.as_str(),request.as_str()], |r|r.get(0),
+    ).map_err(internal)?;
+    if encode(&ResponseBody::InferenceEquivalenceSaved(Box::new(receipt)))? != receipt_raw {
+        return Err(invalid(
+            "archival equivalence original receipt is not canonical",
+        ));
+    }
+    let canonical = bounded_report(&original)?;
+    if hash != reference.expected_report_sha256
+        || digest(canonical.as_bytes()) != hash
+        || original.dossier_id != reference.dossier_id
+        || original.revision != reference.expected_revision
+        || original.state != InferenceEquivalenceState::Accepted
+        || original.manifest.subject.origin != InferenceEquivalenceOrigin::Measured
+        || encode(&original.manifest)? != encode(&current.manifest)?
+    {
+        return Err(invalid(
+            "archival equivalence decision identity or original acceptance differs",
+        ));
+    }
+    decision_link(db, &original)?;
+    *remaining = remaining.checked_sub(canonical.len()).ok_or_else(|| {
+        ProtocolError::new(
+            ErrorCode::ResourceExhausted,
+            "archival equivalence metadata exceeds capture admission",
+        )
+    })?;
+    let mut documents = BTreeMap::new();
+    let mut by_kind = BTreeMap::new();
+    for item in &original.manifest.evidence {
+        let length: u64 = db.query_row(
+            "SELECT CASE WHEN typeof(data)='blob' AND length(data) BETWEEN 1 AND 4194304 AND typeof(sha256)='text' AND sha256=?3 THEN length(data) ELSE NULL END FROM main.inference_equivalence_evidence WHERE dossier=?1 AND kind=?2",
+            params![reference.dossier_id.as_str(),encode(&item.kind)?,item.identity.sha256], |r|r.get(0),
+        ).map_err(internal)?;
+        if length != item.identity.byte_len {
+            return Err(invalid("archival equivalence document length differs"));
+        }
+        *remaining = remaining.checked_sub(length as usize).ok_or_else(|| {
+            ProtocolError::new(
+                ErrorCode::ResourceExhausted,
+                "archival equivalence evidence exceeds capture admission",
+            )
+        })?;
+        let data: Vec<u8> = db.query_row(
+            "SELECT data FROM main.inference_equivalence_evidence WHERE dossier=?1 AND kind=?2 AND typeof(data)='blob' AND length(data)=?3 AND sha256=?4",
+            params![reference.dossier_id.as_str(),encode(&item.kind)?,length,item.identity.sha256], |r|r.get(0),
+        ).map_err(internal)?;
+        if digest(&data) != item.identity.sha256 {
+            return Err(invalid("archival equivalence document digest differs"));
+        }
+        by_kind.insert(item.kind, data.clone());
+        documents.insert(item.identity.sha256.clone(), data);
+    }
+    let assessment = validate_evidence(&original.manifest, &by_kind)?;
+    let decision = original
+        .decision
+        .as_ref()
+        .ok_or_else(|| invalid("archival equivalence decision absent"))?;
+    assessment.require_acceptance(
+        decision
+            .recorded_at_unix_ms
+            .ok_or_else(|| invalid("archival equivalence decision clock absent"))?,
+    )?;
+    if decision.review_identity.as_ref() != Some(assessment.review_identity()) {
+        return Err(invalid("archival equivalence review identity differs"));
+    }
+    Ok((original, documents))
+}
+
 /// Fresh storage observations only. The caller must separately own authorization,
 /// runtime/environment correspondence, withdrawal fencing and worker admission.
 /// Keeping or cloning report data never extends this observation's check time.

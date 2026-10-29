@@ -483,6 +483,7 @@ fn capture_inner(
         imported_aliases,
         mut cuda_members,
         mut cpu_runtimes,
+        fallback_histories,
         wasm_invocations,
     ) = {
         let mut db = engine.db.lock().map_err(internal)?;
@@ -647,6 +648,7 @@ fn capture_inner(
             }
         }
         let mut cpu_runtimes = BTreeMap::new();
+        let mut fallback_histories = BTreeMap::new();
         for (attempt, job, raw, _) in &attempts {
             let request: WorkerRequest = decode(raw)?;
             request.validate()?;
@@ -661,7 +663,11 @@ fn capture_inner(
                     "historical worker manifest identity mismatch",
                 ));
             }
-            crate::portable_cpu_archives::require_no_fallback(&request.dependencies)?;
+            let mut needs_fallback = request.dependencies.iter().any(|d| {
+                d.artifact_id
+                    .as_str()
+                    .starts_with(INFERENCE_FALLBACK_SELECTION_ID_PREFIX)
+            });
             for table in &fallback_tables {
                 // Only fixed module-owned names select SQL. Membership is bound
                 // to this actual captured job/attempt, including pending intent.
@@ -681,11 +687,42 @@ fn capture_inner(
                 }
                 .map_err(internal)?;
                 if declared {
-                    super::inference_fallback_store::retained(&tx, &request)?;
-                    return Err(ProtocolError::unsupported(
-                        "portable inference fallback history is not implemented",
-                    ));
+                    needs_fallback = true;
                 }
+            }
+            if needs_fallback && !fallback_histories.contains_key(&job_id) {
+                let available =
+                    MAX_CAPTURE_METADATA
+                        .checked_sub(budget.bytes)
+                        .ok_or_else(|| {
+                            ProtocolError::new(
+                                ErrorCode::ResourceExhausted,
+                                "fallback capture admission exhausted",
+                            )
+                        })?;
+                let bytes =
+                    super::portable_fallback_payload::capture(&tx, project, &job_id, available)?
+                        .ok_or_else(|| {
+                            ProtocolError::unsupported(
+                                "portable inference fallback history has no original declaration",
+                            )
+                        })?;
+                budget.bytes = budget
+                    .bytes
+                    .checked_add(bytes.len())
+                    .filter(|n| *n <= MAX_CAPTURE_METADATA)
+                    .ok_or_else(|| {
+                        ProtocolError::new(
+                            ErrorCode::ResourceExhausted,
+                            "fallback capture metadata admission exceeded",
+                        )
+                    })?;
+                let reference = inline_object(
+                    &mut objects,
+                    bytes,
+                    PackageObjectRole::InferenceFallbackHistory,
+                )?;
+                fallback_histories.insert(job_id.clone(), reference);
             }
             // Preserve legacy capture semantics. Consult the durable mode owner
             // only when this attempt actually has a retained declaration.
@@ -707,7 +744,18 @@ fn capture_inner(
                 ))
             } else {
                 crate::project_package_import_plan::require_portable_cpu_dependencies(
-                    &request.dependencies,
+                    &request
+                        .dependencies
+                        .iter()
+                        .filter(|d| {
+                            !fallback_histories.contains_key(&job_id)
+                                || !d
+                                    .artifact_id
+                                    .as_str()
+                                    .starts_with(INFERENCE_FALLBACK_SELECTION_ID_PREFIX)
+                        })
+                        .cloned()
+                        .collect::<Vec<_>>(),
                 )?;
                 None
             };
@@ -850,6 +898,7 @@ fn capture_inner(
             imported_aliases,
             cuda_members,
             cpu_runtimes,
+            fallback_histories,
             wasm_invocations,
         )
     };
@@ -998,7 +1047,10 @@ fn capture_inner(
     for (attempt, job, raw, state) in attempts {
         let request: WorkerRequest = decode(&raw)?;
         request.validate()?;
-        crate::portable_cpu_archives::require_no_fallback(&request.dependencies)?;
+        let fallback_history = fallback_histories.get(&request.job_id).cloned();
+        if fallback_history.is_none() {
+            crate::portable_cpu_archives::require_no_fallback(&request.dependencies)?;
+        }
         let annotated_model = match &request.operation {
             WorkerOperation::Generate {
                 settings,
@@ -1287,7 +1339,7 @@ fn capture_inner(
             PackageObjectRole::WorkerManifest,
         )?;
         manifest.generated_origins.push(PackageGeneratedOrigin {
-            fallback_history: None,
+            fallback_history,
             cpu_runtime,
             image_origin,
             annotated_model,
@@ -1311,6 +1363,30 @@ fn capture_inner(
         return Err(ProtocolError::invalid(
             "portable CPU declaration has no captured attempt",
         ));
+    }
+    if !fallback_histories.is_empty() {
+        manifest.objects = objects
+            .values()
+            .map(|object| object.descriptor.clone())
+            .collect();
+        super::portable_fallback_payload::validate_node(&manifest, |reference| {
+            let object = objects
+                .get(&reference.sha256)
+                .filter(|o| o.descriptor.byte_len == reference.byte_len)
+                .ok_or_else(|| ProtocolError::invalid("fallback captured object absent"))?;
+            cpu_mode_bytes(
+                object,
+                if object
+                    .descriptor
+                    .roles
+                    .contains(&PackageObjectRole::InferenceFallbackHistory)
+                {
+                    MAX_PACKAGE_FALLBACK_HISTORY_BYTES as u64
+                } else {
+                    1024 * 1024
+                },
+            )
+        })?;
     }
     crate::project_package_import_plan::require_portable_cpu_manifest(&manifest)?;
     require_portable_cpu_objects(&manifest, &objects)?;
