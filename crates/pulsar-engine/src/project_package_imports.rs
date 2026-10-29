@@ -1059,6 +1059,7 @@ impl Engine {
         }
         if manifest.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY {
             crate::portable_fallback_reader::arm(&tx).map_err(internal)?;
+            crate::portable_fallback_graph_reader::arm(&tx).map_err(internal)?;
         }
         for candidate in &manifest.candidates {
             tx.execute("INSERT INTO candidates(id,project,base_revision,program,job,lineage,committed_revision,review) VALUES(?1,?2,?3,?4,NULL,?5,?6,?7)",
@@ -1594,6 +1595,89 @@ fn validate_all_evidence(
         .map(|entry| (entry.sha256.as_str(), entry))
         .collect();
     let mut scopes = BTreeMap::new();
+    {
+        let has_fallback = catalog.values().any(|o| {
+            o.roles
+                .contains(&PackageObjectRole::InferenceFallbackHistory)
+        });
+        let _memory = if has_fallback {
+            Some(pool.reserve_memory(transfers::VALIDATION_MEMORY)?)
+        } else {
+            None
+        };
+        let mut read = |reference: &PackageObjectRef| -> PResult<Vec<u8>> {
+            check()?;
+            let descriptor = catalog
+                .get(reference.sha256.as_str())
+                .filter(|o| o.byte_len == reference.byte_len)
+                .ok_or_else(|| {
+                    ProtocolError::invalid("fallback graph object is absent from staged catalog")
+                })?;
+            let limit = if descriptor
+                .roles
+                .contains(&PackageObjectRole::WorkerManifest)
+            {
+                1024 * 1024
+            } else {
+                MAX_PACKAGE_FALLBACK_HISTORY_BYTES as u64
+            };
+            if descriptor.byte_len > limit {
+                return Err(ProtocolError::new(
+                    ErrorCode::ResourceExhausted,
+                    "fallback graph object exceeds byte admission",
+                ));
+            }
+            let file = store.open_staged_object(verified, descriptor)?;
+            let mut data = Vec::new();
+            file.take(descriptor.byte_len + 1)
+                .read_to_end(&mut data)
+                .map_err(unavailable)?;
+            if data.len() as u64 != descriptor.byte_len
+                || format!("{:x}", Sha256::digest(&data)) != descriptor.sha256
+            {
+                return Err(ProtocolError::invalid(
+                    "fallback graph object changed after staging",
+                ));
+            }
+            Ok(data)
+        };
+        let mut fallback = super::portable_fallback_payload::GraphIndex::default();
+        if !has_fallback {
+            for object in catalog
+                .values()
+                .filter(|o| o.roles.contains(&PackageObjectRole::WorkerManifest))
+            {
+                let reference = PackageObjectRef {
+                    sha256: object.sha256.clone(),
+                    byte_len: object.byte_len,
+                };
+                let request: WorkerRequest = serde_json::from_slice(&read(&reference)?)
+                    .map_err(|_| ProtocolError::invalid("invalid opaque worker manifest"))?;
+                fallback.check_worker(&reference, &request)?;
+            }
+        }
+        for node in std::iter::once(verified.manifest()).chain(verified.origins().values()) {
+            fallback.observe_node(node, &mut read)?;
+        }
+        for object in catalog.values() {
+            let reference = PackageObjectRef {
+                sha256: object.sha256.clone(),
+                byte_len: object.byte_len,
+            };
+            if object.roles.contains(&PackageObjectRole::WorkerManifest) {
+                let request: WorkerRequest = serde_json::from_slice(&read(&reference)?)
+                    .map_err(|_| ProtocolError::invalid("invalid opaque fallback worker"))?;
+                fallback.check_worker(&reference, &request)?;
+            }
+            if object
+                .roles
+                .contains(&PackageObjectRole::InferenceFallbackHistory)
+            {
+                fallback.check_payload(&reference)?;
+            }
+        }
+        fallback.finish()?;
+    }
     for manifest in std::iter::once(verified.manifest()).chain(verified.origins().values()) {
         check()?;
         let native = validate_evidence(
@@ -1615,6 +1699,11 @@ fn validate_all_evidence(
                         .contains(&PackageObjectRole::AnnotatedModel)
                     {
                         256 * 1024 * 1024
+                    } else if descriptor
+                        .roles
+                        .contains(&PackageObjectRole::InferenceFallbackHistory)
+                    {
+                        MAX_PACKAGE_FALLBACK_HISTORY_BYTES as u64
                     } else {
                         128 * 1024 * 1024
                     }
@@ -1686,6 +1775,17 @@ pub(crate) fn validate_evidence(
     check: &mut impl FnMut() -> PResult<()>,
 ) -> PResult<BTreeMap<CandidateId, Option<TimeRange>>> {
     crate::project_package_import_plan::require_portable_cpu_manifest(manifest)?;
+    if manifest
+        .generated_origins
+        .iter()
+        .any(|o| o.fallback_history.is_some())
+    {
+        let _memory = pool.reserve_memory(transfers::VALIDATION_MEMORY)?;
+        super::portable_fallback_payload::validate_node(manifest, |reference| {
+            check()?;
+            bytes(reference)
+        })?;
+    }
     let mut scopes = BTreeMap::new();
     let candidates: BTreeMap<_, _> = manifest
         .candidates
@@ -2097,6 +2197,13 @@ pub(crate) fn validate_evidence(
 }
 
 #[cfg(test)]
+pub(in crate::authority) fn exercise_fallback_portable_lifecycle(
+    bytes: &[u8],
+    payload: &PackageObjectRef,
+) {
+    tests::exercise_fallback_portable_lifecycle(bytes, payload);
+}
+#[cfg(test)]
 pub(super) fn exercise_authored_cuda_portable_lifecycle(
     bytes: &[u8],
     trace: &ArtifactIdentity,
@@ -2323,6 +2430,286 @@ mod tests {
             self.drain();
             result.receipt.unwrap()
         }
+    }
+    pub(super) fn exercise_fallback_portable_lifecycle(bytes: &[u8], payload: &PackageObjectRef) {
+        fn no_authority(f: &Fixture) {
+            assert_eq!(f.count("jobs"), 0);
+            assert_eq!(f.count("attempts"), 0);
+            let db = f.engine.db.lock().unwrap();
+            for table in [
+                "inference_equivalence_records",
+                "inference_equivalence_decisions",
+                "inference_fallback_jobs",
+                "inference_fallback_pending",
+                "cpu_runtime_attempts",
+            ] {
+                let present: bool = db
+                    .query_row(
+                        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1)",
+                        [table],
+                        |r| r.get(0),
+                    )
+                    .unwrap();
+                if present {
+                    let count: i64 = db
+                        .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r.get(0))
+                        .unwrap();
+                    assert_eq!(count, 0, "import installed authority in {table}");
+                }
+            }
+            assert_eq!(
+                db.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
+                    .unwrap(),
+                41
+            );
+        }
+        fn check_payload(f: &Fixture, reference: &PackageObjectRef) {
+            let raw = fs::read(
+                f.engine
+                    .config
+                    .state_dir
+                    .join("imported-project-evidence")
+                    .join(&reference.sha256),
+            )
+            .unwrap();
+            assert_eq!(raw.len() as u64, reference.byte_len);
+            assert_eq!(format!("{:x}", Sha256::digest(&raw)), reference.sha256);
+            let value = super::super::portable_fallback_payload::Payload::decode(&raw).unwrap();
+            assert!(value.header.history.history_only);
+            assert!(value.header.reports.iter().all(|r| r.report_only));
+        }
+        fn approve(f: &Fixture, project: &ProjectId) {
+            f.scoped(
+                Command::AllowProjectPackaging {
+                    owner_proof: f.engine.package_owner_token.clone(),
+                },
+                project,
+                None,
+            )
+            .unwrap();
+        }
+        fn unpack(bytes: &[u8]) -> (PortableProjectManifest, BTreeMap<String, Vec<u8>>) {
+            let length = u64::from_le_bytes(bytes[12..20].try_into().unwrap()) as usize;
+            let manifest: PortableProjectManifest =
+                serde_json::from_slice(&bytes[52..52 + length]).unwrap();
+            assert_eq!(manifest.canonical_bytes().unwrap(), &bytes[52..52 + length]);
+            let mut cursor = 52 + length;
+            let mut objects = BTreeMap::new();
+            for object in &manifest.objects {
+                let end = cursor + object.byte_len as usize;
+                let data = bytes[cursor..end].to_vec();
+                assert_eq!(format!("{:x}", Sha256::digest(&data)), object.sha256);
+                objects.insert(object.sha256.clone(), data);
+                cursor = end;
+            }
+            assert_eq!(cursor, bytes.len());
+            (manifest, objects)
+        }
+        fn pack(
+            manifest: &PortableProjectManifest,
+            objects: &BTreeMap<String, Vec<u8>>,
+        ) -> Vec<u8> {
+            let mut bytes = Vec::new();
+            write_package(
+                manifest,
+                &mut bytes,
+                |o| Ok(std::io::Cursor::new(objects[&o.sha256].clone())),
+                PackageCodecLimits::default(),
+            )
+            .unwrap();
+            bytes
+        }
+        fn rejected(bytes: &[u8]) {
+            let f = fixture();
+            let before = f.count("projects");
+            let (_, status) = f.start(bytes);
+            let lease = f.upload(&status, bytes);
+            let done = f.finish(&status, &lease);
+            assert_eq!(done.state, PackageImportOperationState::Failed);
+            assert!(done.receipt.is_none());
+            assert!(
+                done.error
+                    .as_ref()
+                    .is_some_and(|e| e.message.contains("fallback captured origin differs")),
+                "{:?}",
+                done.error
+            );
+            f.drain();
+            assert_eq!(f.count("projects"), before);
+            assert_eq!(f.count("jobs"), 0);
+            let Fixture { engine, dir, .. } = f;
+            Engine::retire_for_test(engine);
+            drop(dir);
+        }
+        fn reopen(f: Fixture) -> Fixture {
+            let Fixture {
+                engine,
+                session,
+                token,
+                project,
+                dir,
+            } = f;
+            let config = Engine::retire_for_test(engine);
+            #[cfg(unix)]
+            if let Some(reader) = std::env::var_os("PULSAR_FALLBACK_GRAPH_PRECEDING_READER") {
+                use std::os::unix::fs::PermissionsExt;
+                fn pins(root: &Path) -> BTreeMap<String, (u32, String)> {
+                    fn walk(root: &Path, path: &Path, out: &mut BTreeMap<String, (u32, String)>) {
+                        let meta = fs::symlink_metadata(path).unwrap();
+                        let data = if meta.is_dir() {
+                            for entry in fs::read_dir(path).unwrap() {
+                                walk(root, &entry.unwrap().path(), out);
+                            }
+                            "directory".into()
+                        } else if meta.file_type().is_symlink() {
+                            format!("link:{}", fs::read_link(path).unwrap().display())
+                        } else {
+                            format!("{:x}", Sha256::digest(fs::read(path).unwrap()))
+                        };
+                        out.insert(
+                            path.strip_prefix(root)
+                                .unwrap()
+                                .to_string_lossy()
+                                .into_owned(),
+                            (meta.permissions().mode(), data),
+                        );
+                    }
+                    let mut out = BTreeMap::new();
+                    walk(root, root, &mut out);
+                    out
+                }
+                let output = std::env::var_os("PULSAR_FALLBACK_GRAPH_PROOF")
+                    .expect("explicit retained proof path");
+                let header = fs::read(config.state_dir.join("projects.sqlite3")).unwrap();
+                assert_eq!(u32::from_be_bytes(header[60..64].try_into().unwrap()), 41);
+                let before = pins(&config.state_dir);
+                let observed = std::process::Command::new("timeout")
+                    .arg("15s")
+                    .arg(&reader)
+                    .arg("engine")
+                    .env("PULSAR_STATE_DIR", &config.state_dir)
+                    .env("PULSAR_WORKER_EXECUTABLE", &config.worker_executable)
+                    .env_remove("PULSAR_CPU_OWNER_POLICY")
+                    .env_remove("PULSAR_CUDA_OWNER_POLICY")
+                    .env_remove("PULSAR_ASSISTANT_OWNER_POLICY")
+                    .env_remove("APPDIR")
+                    .env_remove("APPIMAGE")
+                    .output()
+                    .unwrap();
+                let diagnostic = String::from_utf8_lossy(&observed.stderr);
+                assert!(
+                    !observed.status.success() && observed.status.code() != Some(124),
+                    "{diagnostic}"
+                );
+                assert!(
+                    diagnostic.contains(
+                        "project database schema requires an explicit recoverable migration"
+                    ),
+                    "{diagnostic}"
+                );
+                let after = pins(&config.state_dir);
+                assert_eq!(before, after, "preceding reader changed cold41 state");
+                let path = PathBuf::from(output);
+                let mut runs: Vec<serde_json::Value> = if path.exists() {
+                    serde_json::from_slice(&fs::read(&path).unwrap()).unwrap()
+                } else {
+                    vec![]
+                };
+                runs.push(serde_json::json!({"status":"PASS","scope":"Cold checkpointed reader41 refusal only; authored archive metadata, no confined inference or qualification","preceding_reader":reader,"preceding_sha256":format!("{:x}",Sha256::digest(fs::read(&reader).unwrap())),"exit":observed.status.code(),"diagnostic":diagnostic,"before":before,"after":after,"inventory_modes_contents_unchanged":true,"qualified":false,"physical_device_contacted":false}));
+                fs::write(path, serde_json::to_vec_pretty(&runs).unwrap()).unwrap();
+            }
+            Fixture {
+                engine: Engine::open(config).unwrap(),
+                session,
+                token,
+                project,
+                dir,
+            }
+        }
+        let (mut bad, objects) = unpack(bytes);
+        bad.generated_origins[0].state = "failed".into();
+        rejected(&pack(&bad, &objects));
+        let first = fixture();
+        let imported = first.import(bytes);
+        no_authority(&first);
+        check_payload(&first, payload);
+        let first = reopen(first);
+        no_authority(&first);
+        check_payload(&first, payload);
+        assert_eq!(
+            project_packages::capture(
+                &first.engine,
+                &first.session,
+                &first.token,
+                &imported.project_id,
+                imported.revision
+            )
+            .err()
+            .unwrap()
+            .code,
+            ErrorCode::Forbidden
+        );
+        approve(&first, &imported.project_id);
+        let reexport = first.bytes(&imported.project_id, imported.revision.value());
+        let (outer, mut bodies) = unpack(&reexport);
+        let original_ref = outer.imported_origins[0].manifest.clone();
+        let mut ancestor: PortableProjectManifest =
+            serde_json::from_slice(&bodies[&original_ref.sha256]).unwrap();
+        ancestor.generated_origins[0].state = "failed".into();
+        let ancestor_bytes = ancestor.canonical_bytes().unwrap();
+        let new_sha = format!("{:x}", Sha256::digest(&ancestor_bytes));
+        let ancestor_container = pack(&ancestor, &bodies);
+        bodies.remove(&original_ref.sha256);
+        bodies.insert(new_sha.clone(), ancestor_bytes.clone());
+        let mut value = serde_json::to_value(&outer).unwrap();
+        fn rename(value: &mut serde_json::Value, old: &str, new: &str) {
+            match value {
+                serde_json::Value::String(s) => *s = s.replace(old, new),
+                serde_json::Value::Array(a) => {
+                    for v in a {
+                        rename(v, old, new)
+                    }
+                }
+                serde_json::Value::Object(o) => {
+                    for v in o.values_mut() {
+                        rename(v, old, new)
+                    }
+                }
+                _ => {}
+            }
+        }
+        rename(&mut value, &original_ref.sha256, &new_sha);
+        let mut corrupted: PortableProjectManifest = serde_json::from_value(value).unwrap();
+        let edge = &mut corrupted.imported_origins[0];
+        edge.manifest.byte_len = ancestor_bytes.len() as u64;
+        edge.container.manifest_sha256 = new_sha.clone();
+        edge.container.sha256 = format!("{:x}", Sha256::digest(&ancestor_container));
+        edge.container.byte_len = ancestor_container.len() as u64;
+        for object in &mut corrupted.objects {
+            if object.sha256 == new_sha {
+                object.byte_len = ancestor_bytes.len() as u64;
+            }
+        }
+        corrupted.objects.sort_by(|a, b| a.sha256.cmp(&b.sha256));
+        corrupted.counts = corrupted.record_counts().unwrap();
+        rejected(&pack(&corrupted, &bodies));
+        let second = fixture();
+        let imported2 = second.import(&reexport);
+        no_authority(&second);
+        check_payload(&second, payload);
+        assert_ne!(imported.project_id, imported2.project_id);
+        let second = reopen(second);
+        no_authority(&second);
+        check_payload(&second, payload);
+        approve(&second, &imported2.project_id);
+        let again = second.bytes(&imported2.project_id, imported2.revision.value());
+        assert_eq!(package_format_version(&again[..52]).unwrap(), 16);
+        let Fixture { engine, dir, .. } = first;
+        Engine::retire_for_test(engine);
+        drop(dir);
+        let Fixture { engine, dir, .. } = second;
+        Engine::retire_for_test(engine);
+        drop(dir);
     }
     pub(super) fn exercise_image_preceding_packages(bytes: &[u8], probe: &std::path::Path) {
         let f = fixture();

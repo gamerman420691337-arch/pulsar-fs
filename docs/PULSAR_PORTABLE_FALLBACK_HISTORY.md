@@ -1,10 +1,9 @@
 # Portable fallback history
 
 The portable fallback work is in progress under `LIVE-FALLBACK-HISTORY` in
-[the execution dashboard](PULSAR_MILESTONES.md). Existing project-package
-refusals remain enabled. This document describes the implemented shared
-metadata contract and the remaining integration requirements; it is not a
-claim that fallback projects can already be exported or cloned.
+[the execution dashboard](PULSAR_MILESTONES.md). Format-16 payloads now pass the root/ancestor checker before export or clone
+publication. This document distinguishes implemented metadata interchange from
+remaining native, model, platform, media, physical and human qualification.
 
 The snapshot-owned payload builder now retains original equivalence decisions
 and all eight raw evidence documents from the same database transaction as the
@@ -30,28 +29,48 @@ Local capture attaches one payload object to every original attempt of the job.
 The node checker binds the payload to the exact original project/job namespace,
 attempt set, states, source kind and canonical worker bytes, and checks the
 original profile/environment/directed transition against the referenced report.
-Filesystem paths inside evidence stay inert. Root/ancestor candidate and opaque
-worker-object closure, import publication and the native two-clone campaign are
-still pending; the existing full-graph admission refusal stays enabled.
+Filesystem paths inside evidence stay inert. A bounded graph index checks current
+and ancestor nodes, inherited candidate policy identities, every opaque worker
+manifest and every payload-role object before publication. Missing, stripped,
+detached, cross-job and contradictory declarations refuse. CPU-image checks
+remain independent and retain their original declaration-refusal precedence.
 
-The next integration layer declares package format 16, the
+The interchange uses package format 16, the
 `inference_fallback_history` object role and an optional bounded history-object
 reference on each original generated attempt. Omitted references preserve the
 older canonical bytes. A history reference, its object role or a format-16
 ancestor requires format 16; the ordinary object catalog checks exact lengths
 and roles. A consumed `assistant_paused` state requires this explicit history
-declaration. These are structural declarations only: the Engine still refuses
-format-16 graphs until complete root/ancestor object correspondence is
-implemented and qualified.
+declaration. Structural declarations alone never admit a graph: full payload bytes, original
+worker correspondence and root/ancestor closure must also pass.
 
-Conditional storage reader 40 wraps the existing portable CPU reader 39.
-Underlying publication preserves both markers, and arming is transactional with
+Conditional reader 41 distinguishes admitted fallback graphs from the earlier
+draft reader-40 declaration. It wraps reader 40, which wraps portable CPU reader
+39. Underlying publication preserves every marker, and arming is transactional with
 the metadata requiring it. Startup checks the canonical marker, scalar bounds,
 associated objects and temporary shadows before recovery. Format-16 current or
-ancestor declarations, a history field or its object role require reader 40;
+ancestor declarations, a history field or its object role require reader 41;
 removing the marker does not turn the metadata into ordinary history. Export
-and import publication have the conditional arming calls, behind the retained
-full-graph refusal. The barrier itself grants no authority or qualification.
+and import publication arm this floor in the same transaction as their retained
+metadata. The barriers themselves grant no authority or qualification.
+
+Public capture additionally requires the initiating session's project-specific
+host-owner packaging approval and its retained canonical acknowledgement. A
+delegated `PackageProject` grant alone does not disclose host-owner registry
+evidence. Capture includes only exact decisions referenced by the project,
+never registry enumeration or management rights. The shared CLI/desktop privacy
+notice explicitly includes model evaluation, decision and review records.
+
+The authored Engine campaign reaches public export readiness, uploads/imports
+the package, restarts the destination, re-exports and imports a second clone.
+Payload bytes survive both clones, and no executable job/attempt or acceptance
+registry record is installed. Delegating the package scope without the new
+session's own host-owner approval refuses disclosure. Root and ancestor state
+mutations refuse before project publication even after rebuilding their hashes
+and container identities. A pinned preceding App refuses both cold checkpointed
+reader-41 clones with observed inventory, modes and contents unchanged. This is
+metadata/compatibility evidence, not confined inference, measured equivalence,
+useful script quality, broad hot-WAL or physical qualification.
 
 An initial native probe found that the pinned preceding executable rejects
 reader 40 without changing existing files, but creates an empty daemon lock
@@ -104,20 +123,21 @@ running states do not grant imported work permission to execute.
    The transaction-owned builder and local-node checker are implemented and
    exercised with authored database/record shapes; this is not native execution
    or model qualification.
-2. Connect the format-16 declaration and object role to the checked history
-   payload. Preserve the selected policy, original environments, outcomes, manifests,
+2. Extend the implemented format-16 payload/graph campaigns across the remaining
+   lifecycle and fault scenarios. Preserve the selected policy, original environments, outcomes, manifests,
    model/runtime declarations and referenced evidence through root and ancestor
    graphs. Reject omitted, substituted, duplicated, detached and contradictory
    current or ancestral declarations, including rehashed mutations.
-3. Validate the complete imported object graph before installation. Clone maps
+3. Qualify the implemented full-graph import checks across broader faults and
+   actual confined-worker histories. Clone maps
    must preserve original historical identities without installing origin
    acceptance decisions, grants, owner policies or executable attempts. Keep
    active local acceptance and imported historical evidence distinct.
-   Before enabling public admission, verify that owner-approved packaging
-   disclosure covers the referenced host-owner registry evidence. Reading a
-   record for internal validation does not itself broaden a client's authority
-   to enumerate or receive registry records.
-4. Qualify the reader-40 barrier through actual format-16 publication, import
+   The project-specific host-owner approval check, delegated-scope denial and
+   privacy notice are implemented. Registry enumeration, management and current
+   acceptance remain separate capabilities.
+4. Extend reader-41 qualification beyond the cold checkpointed metadata campaign
+   through actual confined format-16 publication, import
    and recovery. An earlier executable must refuse before
    writable recovery or custody changes; record the exact database/WAL and
    filesystem observations rather than inferring them from an error message.

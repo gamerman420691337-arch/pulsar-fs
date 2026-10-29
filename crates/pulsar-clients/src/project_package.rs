@@ -18,7 +18,7 @@ use std::{
 #[cfg(unix)]
 use std::{fs, io::Read};
 
-pub const PACKAGE_PRIVACY_WARNING: &str = "Portable packages are UNENCRYPTED and include media, prompts, labels, edit history and private provenance. Anyone with the file can read them. Model/runtime executables are not bundled.";
+pub const PACKAGE_PRIVACY_WARNING: &str = "Portable packages are UNENCRYPTED and include media, prompts, labels, edit history and private provenance, including referenced model evaluation, decision and review records. Anyone with the file can read them. Model/runtime executables are not bundled.";
 
 /// Records explicit UI/CLI acknowledgement, not a capability or proof of human presence.
 #[derive(Clone, Debug)]

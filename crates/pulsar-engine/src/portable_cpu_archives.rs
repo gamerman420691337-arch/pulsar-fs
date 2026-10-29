@@ -170,12 +170,11 @@ pub(crate) fn check_request(
     origin: &PackageGeneratedOrigin,
     request: &WorkerRequest,
 ) -> PResult<()> {
-    if origin.fallback_history.is_some() {
-        return Err(ProtocolError::unsupported(
-            "portable inference fallback object graph is not implemented",
-        ));
+    // CPU declarations and fallback payloads have separate validators. Every
+    // publication caller checks the complete fallback graph before this scope.
+    if origin.fallback_history.is_none() {
+        require_no_fallback(&request.dependencies)?;
     }
-    require_no_fallback(&request.dependencies)?;
     match (
         origin.cpu_runtime.as_deref(),
         has_cpu(&request.dependencies),
@@ -259,7 +258,6 @@ impl CpuArchiveIndex {
             }
         }
         for candidate in &manifest.candidates {
-            require_no_fallback(&candidate.lineage)?;
             for identity in candidate.lineage.iter().filter(|identity| {
                 identity
                     .artifact_id
@@ -281,7 +279,6 @@ impl CpuArchiveIndex {
         reference: &PackageObjectRef,
         request: &WorkerRequest,
     ) -> PResult<()> {
-        require_no_fallback(&request.dependencies)?;
         if has_cpu(&request.dependencies)
             && !self
                 .declared_workers
