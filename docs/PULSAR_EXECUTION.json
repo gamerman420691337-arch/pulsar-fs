@@ -3959,7 +3959,7 @@
     {
       "id": "EV-RENDERED-TRANSFER-ABORT",
       "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/browser-expiry/verification.json",
-      "sha256": "bf4f78eb73fd08e6eeadd989f9eb62fb75e43f979e08b358ea6ca166dafffd0f",
+      "sha256": "4e2567f26d153331bb4bbbbe7398583cad8df4ef5bf520961a1b11b7f9f1d283",
       "kind": "json",
       "outcome": "fail",
       "scope": "Rendered qualification FAIL on repaired6d4c9fa subject. Real Chrome/sterile40s source/authored neutral CPU model/10s media leases/500ms requested lead/original1000ms age budget: initial fresh output, then original-transfer status fails with browser player retired. Retained native abort confirms predecessor joined and delivery settled but successor pair unaccepted, with dependency_mismatch: original successor lifetime retired. Separate repeat shows fresh provisional output through source11.3s, so simple deterministic expiry is not established.10 retained CPU admission declarations include prepared successors and do not prove10 committed captures. Both measured browser servers and Engine exit0; worker fence custody empty. Full EOF/export/reliability and the historical420s cause remain unproven. No model or physical qualification.",
