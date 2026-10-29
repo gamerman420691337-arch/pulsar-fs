@@ -13,6 +13,98 @@ enum ReleaseState {
     Acknowledged,
     Unknown,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+enum FailureStage {
+    Local,
+    Exchange,
+    Reply,
+    Queue,
+    Delivery,
+}
+impl std::fmt::Display for FailureStage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "browser timing {self:?}")
+    }
+}
+impl std::error::Error for FailureStage {}
+
+/// Created only by the locked pre-dispatch retirement check, before any IPC.
+#[derive(Debug)]
+struct RetiredBeforeDispatch;
+impl std::fmt::Display for RetiredBeforeDispatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("timing scope retired before dispatch")
+    }
+}
+impl std::error::Error for RetiredBeforeDispatch {}
+
+/// One bounded, allowlisted cause per original record. Raw error text can
+/// contain credentials or paths and must never enter the public diagnostic.
+#[derive(Clone, Copy, serde::Serialize)]
+struct FailureDiagnostic {
+    operation: &'static str,
+    stage: FailureStage,
+    category: &'static str,
+    protocol_code: Option<ErrorCode>,
+}
+impl FailureDiagnostic {
+    fn from_error(operation: &'static str, error: &anyhow::Error) -> Self {
+        use pulsar_protocol::TransportError;
+        let stage = error
+            .downcast_ref::<FailureStage>()
+            .copied()
+            .unwrap_or(FailureStage::Local);
+        let transport = error.downcast_ref::<TransportError>();
+        let protocol = error.downcast_ref::<ProtocolError>().or(match transport {
+            Some(TransportError::Protocol(error)) => Some(error),
+            _ => None,
+        });
+        let io = error.downcast_ref::<std::io::Error>().or(match transport {
+            Some(TransportError::Io(error)) => Some(error),
+            _ => None,
+        });
+        let category = if error.is::<RetiredBeforeDispatch>() {
+            "retired_before_dispatch"
+        } else if stage == FailureStage::Reply {
+            "reply_validation"
+        } else if let Some(protocol) = protocol {
+            match (stage, protocol.message.as_str()) {
+                (FailureStage::Exchange, "browser timing scope or sequence differs") => {
+                    "scope_or_sequence"
+                }
+                (FailureStage::Exchange, "browser timing binding is not current") => {
+                    "binding_not_current"
+                }
+                (FailureStage::Exchange, _) => "protocol_rejected",
+                _ => "local_protocol_validation",
+            }
+        } else if let Some(io) = io {
+            if matches!(
+                io.kind(),
+                std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
+            ) {
+                "transport_timeout"
+            } else {
+                "transport_io"
+            }
+        } else if transport.is_some() {
+            "transport_framing"
+        } else {
+            if stage == FailureStage::Exchange {
+                "exchange_unclassified"
+            } else {
+                "local_state"
+            }
+        };
+        Self {
+            operation,
+            stage,
+            category,
+            protocol_code: protocol.map(|p| p.code),
+        }
+    }
+}
 struct Record {
     request_id: RequestId,
     predecessor: Option<ArtifactId>,
@@ -28,6 +120,7 @@ struct Record {
     probe: Option<BrowserTimingProbe>,
     release: ReleaseState,
     issue: Option<&'static str>,
+    first_failure: Option<FailureDiagnostic>,
 }
 impl Record {
     fn acknowledge_release(&mut self) {
@@ -43,6 +136,13 @@ impl Record {
 struct Records {
     entries: Vec<Record>,
     worker_failed: bool,
+    #[cfg(test)]
+    before_execute: Option<Arc<TestBeforeExecute>>,
+}
+#[cfg(test)]
+struct TestBeforeExecute {
+    entered: mpsc::SyncSender<()>,
+    resume: Mutex<mpsc::Receiver<()>>,
 }
 type Shared = Arc<Mutex<Records>>;
 fn state(shared: &Shared) -> std::sync::MutexGuard<'_, Records> {
@@ -59,7 +159,7 @@ fn policy() -> BrowserTimingPolicy {
 fn diagnostic(record: &Record) -> Value {
     json!({"open_request_id":record.request_id,
         "binding_id":record.report.as_ref().map(|r| &r.binding.binding_id),
-        "player":record.player,"issue":record.issue})
+        "player":record.player,"issue":record.issue,"first_failure":record.first_failure})
 }
 fn unavailable(record: &Record) -> anyhow::Error {
     anyhow::anyhow!(
@@ -111,6 +211,16 @@ enum Operation {
     Probe,
     Observe(Observe),
     Status,
+}
+impl Operation {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Open => "open",
+            Self::Probe => "probe",
+            Self::Observe(_) => "observe",
+            Self::Status => "status",
+        }
+    }
 }
 struct Job {
     identity: HandyPlayerIdentity,
@@ -197,18 +307,23 @@ fn release_retired(client: &SessionClient, shared: &Shared) {
         else {
             continue;
         };
-        let checked = reply
-            .and_then(|reply| checked_report(reply, record))
-            .and_then(|report| {
-                ensure!(!report.current, "timing release was not acknowledged");
-                Ok(report)
-            });
+        let checked = reply.context(FailureStage::Exchange).and_then(|reply| {
+            checked_report(reply, record)
+                .and_then(|report| {
+                    ensure!(!report.current, "timing release was not acknowledged");
+                    Ok(report)
+                })
+                .context(FailureStage::Reply)
+        });
         match checked {
             Ok(report) => {
                 record.report = Some(report);
                 record.acknowledge_release();
             }
-            Err(_) => {
+            Err(error) => {
+                record
+                    .first_failure
+                    .get_or_insert_with(|| FailureDiagnostic::from_error("release", &error));
                 record.release = ReleaseState::Unknown;
                 record.issue = Some("release_unconfirmed");
             }
@@ -224,11 +339,10 @@ fn execute(client: &SessionClient, shared: &Shared, job: &Job) -> Result<Value> 
             .iter()
             .find(|r| r.request_id == job.record_id && r.player == job.identity)
             .context("timing scope absent")?;
-        if !matches!(job.operation, Operation::Status) {
-            ensure!(
-                !record.retired && !record.cancelled.load(Ordering::Acquire),
-                "timing scope retired"
-            );
+        if !matches!(job.operation, Operation::Status)
+            && (record.retired || record.cancelled.load(Ordering::Acquire))
+        {
+            return Err(RetiredBeforeDispatch.into());
         }
         let command = match &job.operation {
             Operation::Open => match &record.predecessor {
@@ -304,7 +418,12 @@ fn execute(client: &SessionClient, shared: &Shared, job: &Job) -> Result<Value> 
             command,
         )
     };
-    let reply = client.browser_call_until(request_id, command, project, revision, job.deadline)?;
+    let reply = client
+        .browser_call_until(request_id, command, project, revision, job.deadline)
+        .context(FailureStage::Exchange)?;
+    accept_reply(shared, job, reply).context(FailureStage::Reply)
+}
+fn accept_reply(shared: &Shared, job: &Job, reply: pulsar_protocol::ResponseBody) -> Result<Value> {
     let mut records = state(shared);
     let record = records
         .entries
@@ -474,6 +593,7 @@ impl Timing {
                 probe: None,
                 release: ReleaseState::Needed,
                 issue: None,
+                first_failure: None,
             });
         }
         self.submit(Job {
@@ -571,6 +691,20 @@ impl Timing {
                         }
                         continue;
                     }
+                    #[cfg(test)]
+                    let hook = {
+                        let mut records = state(&records);
+                        records.before_execute.take()
+                    };
+                    #[cfg(test)]
+                    if let Some(hook) = hook {
+                        hook.entered.send(()).expect("test dispatch signal");
+                        hook.resume
+                            .lock()
+                            .unwrap()
+                            .recv_timeout(Duration::from_secs(2))
+                            .expect("bounded test dispatch release");
+                    }
                     let result = execute(&client, &records, &job);
                     let mut result = {
                         let mut records = state(&records);
@@ -581,20 +715,34 @@ impl Timing {
                             .expect("retained timing record");
                         match result {
                             Ok(value) => Ok(value),
-                            Err(_) => {
+                            Err(error) => {
+                                record.first_failure.get_or_insert_with(|| {
+                                    FailureDiagnostic::from_error(job.operation.name(), &error)
+                                });
                                 let cancelled_exchange = matches!(
                                     job.operation,
                                     Operation::Probe | Operation::Observe(_)
                                 ) && (record.retired
                                     || record.cancelled.load(Ordering::Acquire));
+                                let unsent_open = matches!(job.operation, Operation::Open)
+                                    && error.is::<RetiredBeforeDispatch>()
+                                    && record.report.is_none();
                                 record.retired = true;
-                                record.issue = Some(if matches!(job.operation, Operation::Open) {
-                                    "open_unconfirmed"
-                                } else if cancelled_exchange {
-                                    "cancelled_timing_exchange_unconfirmed"
+                                if unsent_open {
+                                    // Same no-IPC outcome as the earlier skip check.
+                                    // Never infer this from a transport/native error.
+                                    record.acknowledge_release();
+                                    record.issue = None;
                                 } else {
-                                    "timing_exchange_unconfirmed"
-                                });
+                                    record.issue =
+                                        Some(if matches!(job.operation, Operation::Open) {
+                                            "open_unconfirmed"
+                                        } else if cancelled_exchange {
+                                            "cancelled_timing_exchange_unconfirmed"
+                                        } else {
+                                            "timing_exchange_unconfirmed"
+                                        });
+                                }
                                 Err(unavailable(record))
                             }
                         }
@@ -650,6 +798,12 @@ impl Timing {
                                 record.retired = true;
                                 record.pending_reply = false;
                                 record.issue = Some("timing_result_delivery_failed");
+                                record.first_failure.get_or_insert(FailureDiagnostic {
+                                    operation: job.operation.name(),
+                                    stage: FailureStage::Delivery,
+                                    category: "result_delivery",
+                                    protocol_code: None,
+                                });
                             }
                         }
                     } else {
@@ -716,6 +870,7 @@ impl Timing {
                 probe: None,
                 release: ReleaseState::Needed,
                 issue: None,
+                first_failure: None,
             });
         }
         self.submit(Job {
@@ -727,6 +882,7 @@ impl Timing {
         })
     }
     fn submit(&self, job: Job) -> Result<()> {
+        let operation = job.operation.name();
         let identity = job.identity.clone();
         let record_id = job.record_id.clone();
         if self
@@ -746,6 +902,12 @@ impl Timing {
         record.opening = false;
         record.retired = true;
         record.issue = Some("timing_queue_unavailable");
+        record.first_failure.get_or_insert(FailureDiagnostic {
+            operation,
+            stage: FailureStage::Queue,
+            category: "queue_unavailable",
+            protocol_code: None,
+        });
         Err(unavailable(record))
     }
     pub(super) fn handle(

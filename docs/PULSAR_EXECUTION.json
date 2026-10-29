@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-BROWSER-INPUTS",
-    "scope": "Production source unchanged from 264867d; pinned executable passes selected rendered seek/rate/hidden-page checks. Last component baseline retained; no general timing reliability claim.",
+    "evidence": "EV-TIMING-DIAGNOSTICS",
+    "scope": "Current timing diagnostics and unsent Open repair passes full client suite, strict lint and default App/Worker compilation; real short-lease observation remains separately partial.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "Seek/rate/hidden-page checks now have scoped rendered evidence. A longer 264867d preview session exits 1 with native timing cleanup unconfirmed / timing_exchange_unconfirmed; operation/cause remain unresolved. Full runtime reliability and model/platform/physical/human acceptance remain open.",
+    "failure_summary": "Bounded timing operation/stage/cause evidence is implemented and a distinct Open retirement before dispatch race is repaired. The earlier long-session timing_exchange_unconfirmed cleanup failure remains causally unresolved; the short-lease run did not reproduce it. Full runtime/model/platform/physical/human acceptance remains open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -345,16 +345,24 @@
       {
         "path": "crates/pulsar-clients/src/browser_source_media_tests.rs",
         "sha256": "cc1cf1bdadbaf4628c6792ddf4d44fe55bd38daa2639b672231d16f88f533fd9"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_timing.rs",
+        "sha256": "07cd42f68c71e284362717894cad49bc9b47fdc86766cc6995fb80528344ac1f"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_timing_tests.rs",
+        "sha256": "3270dc37367d7d49ff84189aea9c27159bbabd01df89bafe4fde2837674a4981"
       }
     ]
   },
   "last_verified": {
     "evidence": [
       "EV-HSP-READINESS",
-      "EV-BROWSER-LIFECYCLE",
+      "EV-TIMING-DIAGNOSTICS",
       "EV-RECORDING-CHECKS"
     ],
-    "scope": "Engine: pinned causal HSP repair, full default-thread suite. Clients: current lifecycle repair, full suite with one test thread. Protocol: separate pinned component checkpoint. Selected rendered/native checks do not establish general runtime or physical qualification.",
+    "scope": "Engine: pinned causal HSP repair, full default-thread suite. Clients: current timing diagnostic/unsent-Open repair, full suite with one test thread. Protocol: separate pinned component checkpoint. Original long-session timing failure and general runtime/physical qualification remain unresolved.",
     "metric_refs": {
       "engine_passed": {
         "evidence": "EV-HSP-READINESS",
@@ -373,14 +381,14 @@
         ]
       },
       "clients_passed": {
-        "evidence": "EV-BROWSER-LIFECYCLE",
+        "evidence": "EV-TIMING-DIAGNOSTICS",
         "pointer": [
           "checks",
           "clients_passed"
         ]
       },
       "clients_ignored": {
-        "evidence": "EV-BROWSER-LIFECYCLE",
+        "evidence": "EV-TIMING-DIAGNOSTICS",
         "pointer": [
           "checks",
           "clients_ignored"
@@ -1045,6 +1053,18 @@
       "evidence": [
         "EV-BROWSER-INPUTS"
       ]
+    },
+    {
+      "id": "SC-TIMING-DIAGNOSTICS",
+      "title": "Bounded timing failure evidence and proven-unsent Open retirement",
+      "parents": [
+        "M2-DOMAIN",
+        "M5-LIVE"
+      ],
+      "scope": "Timing records retain one allowlisted first-failure snapshot: operation, local/exchange/reply/queue/delivery stage, category and optional protocol code. No raw error payloads, credentials or paths are serialized; later release errors preserve the original cause. A deterministic IPC barrier reproduces Open retirement after the worker skip check but before dispatch; a typed no-IPC marker closes only this unsent case, preserving unknown sent outcomes; 700 client tests/14 ignored, 50 repeated cases, strict lint and App/Worker build pass. The older timing_exchange_unconfirmed cleanup cause remains unresolved.",
+      "evidence": [
+        "EV-TIMING-DIAGNOSTICS"
+      ]
     }
   ],
   "queue": [
@@ -1106,7 +1126,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Localize retained timing_exchange_unconfirmed failures, including the 264867d native timing cleanup exit 1, with bounded secret-free operation/cause evidence at the failing path; establish repeatable reliability without extending original deadlines. Finish applicable pending source/transfer replacement and expired/unknown-outcome coverage with exact source/clock/CPU correspondence. Selected rendered Stop/reprepare, reload, crash/reconnect, seek, rate and exact-main-window hidden-page cases pass; a full 40s recording/review/export remains a pinned positive checkpoint, not general runtime qualification.",
+      "exit": "Use the implemented bounded first_failure operation/stage/category/code evidence to localize retained timing_exchange_unconfirmed failures, including 264867d cleanup exit 1, then establish repeatable reliability without extending original deadlines. The separate proven-unsent Open race is repaired and does not explain that failure. Finish applicable pending source/transfer replacement and expired/unknown-outcome coverage with exact source/clock/CPU correspondence. Selected rendered lifecycle/input cases and a pinned full 40s recording/review/export remain scoped checkpoints; the short-lease observation overlapped preview shutdown and is not causal clearance.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
@@ -1117,7 +1137,9 @@
         "EV-BOUND-RENDERED-EXPORT",
         "EV-BROWSER-LIFECYCLE",
         "EV-BROWSER-INPUTS",
-        "EV-TIMING-CLEANUP"
+        "EV-TIMING-CLEANUP",
+        "EV-TIMING-DIAGNOSTICS",
+        "EV-TIMING-EXPIRY"
       ]
     },
     {
@@ -2895,6 +2917,205 @@
             "cause_unresolved"
           ],
           "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-TIMING-DIAGNOSTICS",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/timing-diagnostics/verification.json",
+      "sha256": "438abde8380131f6874acaf248aef19a9a156ab82f8df383e10297a726f488e3",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Bounded allowlisted first-failure operation/stage/category/code metadata, plus a causal fix only for Open retired after worker skip but before IPC; 700 client tests/14 ignored, 50 repeated race/retention cases, strict lint and default App/Worker build pass. Raw private error payloads remain excluded; real unknown exchanges remain unconfirmed. Original long-session timing cause is not localized.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "long_session_timing_cause_localized"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "full_runtime_reliability_cleared"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "diagnostic_regression_red_then_green"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "operation_and_stage_retained"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "allowlisted_categories_and_protocol_codes_only"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "private_error_payload_excluded"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "first_failure_survives_later_unknown_release"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "proven_unsent_open_race_red_then_green"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "unsent_open_causes_no_native_calls"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "unknown_open_and_release_remain_unconfirmed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "original_timeouts_and_capacity_limits_unchanged"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_passed"
+          ],
+          "equals": 700
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_ignored"
+          ],
+          "equals": 14
+        },
+        {
+          "pointer": [
+            "checks",
+            "repeated_race_and_retention_cases"
+          ],
+          "equals": 50
+        },
+        {
+          "pointer": [
+            "checks",
+            "strict_clients_lib_tests_clippy"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "default_app_worker_build"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-TIMING-EXPIRY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/timing-diagnostics/runtime-verification.json",
+      "sha256": "2755ebe076755268218e22eb0e865a1a1565058b9127ec9c886088bda3a143ac",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Actual new-executable short-source-lease observation: Native capture is inactive/authority_lost, all apps exit 0. Timed preview shutdown overlaps readback; recording refresh reports Failed to fetch. Neither a pure-expiry causal claim nor a read-authorization defect is established; long-session error is not reproduced.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "observed_capture_active"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "media_lease_ms"
+          ],
+          "equals": 8000
+        },
+        {
+          "pointer": [
+            "long_session_failure_reproduced"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "long_session_cause_localized"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "recording_read_qualified"
+          ],
+          "equals": false
         }
       ]
     }
