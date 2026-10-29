@@ -30,9 +30,9 @@
   "working_tree": {
     "build_state": "verified",
     "evidence": "EV-RECORDING-CHECKS",
-    "scope": "App/Worker compile,397 Protocol tests,4 recording-candidate and5 successor Engine tests plus strict Protocol/Engine lint pass. Two new rendered runs fail timing before staging; the prior cutover executable completes40s. This is no end-to-end runtime clearance.",
+    "scope": "Regular 847c2ba executable matches unchanged production source; compilation/component checkpoint and a separate positive rendered full-workflow receipt retained. Temporary diagnostic instrumentation removed.",
     "active_work": "CPU-ROUNDTRIP",
-    "failure_summary": "Rendered timing reliability and complete multi-epoch review/export are unresolved.146 single-epoch estimates stage with missing tail retained; no synthetic tail fill or export. External CUDA unit-fixture portability remains open.",
+    "failure_summary": "Positive bound multi-epoch review/export is now verified on the regular executable. Earlier intermittent timing_exchange_unconfirmed failures remain causally unresolved; reliability and stop/reconnect/fault coverage remain open. External CUDA unit-fixture portability remains open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -957,9 +957,22 @@
         "M2-EDITS",
         "M5-LIVE"
       ],
-      "scope": "Protocol397 tests and Engine staging regression accept distinct leases for identical source/placement/declared clock, retain both full bindings and leave seams unavailable. Engine uses real native leases with authored CPU completions. Rendered multi-epoch workflow and runtime regression clearance remain unverified.",
+      "scope": "Protocol397 tests and Engine staging regression accept distinct leases for identical source/placement/declared clock, retain full bindings and leave seams unavailable. Engine regression uses real native leases with authored CPU completions. Separate regular-executable rendered positive proof is EV-BOUND-RENDERED-EXPORT; earlier timing failures and runtime reliability remain unresolved.",
       "evidence": [
         "EV-RECORDING-LEASES"
+      ]
+    },
+    {
+      "id": "SC-BOUND-RENDERED-EXPORT",
+      "title": "Rendered source-bound multi-epoch recording through reviewed export",
+      "parents": [
+        "M2-DOMAIN",
+        "M2-EDITS",
+        "M5-LIVE"
+      ],
+      "scope": "Regular uninstrumented 847c2ba Linux subject completes 40s with 381 inferred estimates across 4 actual native media leases. All samples retain declared +5s offset. Review/commit preserves 6 gaps and refuses export; separately consented/reviewed repair authors 6 actions. 387-action download exactly matches revision 3 with no duplicate milliseconds. All owned apps join exit 0. Authored neutral model and sterile input; no causal timing repair, reliability clearance, physical synchronization or device/model qualification.",
+      "evidence": [
+        "EV-BOUND-RENDERED-EXPORT"
       ]
     }
   ],
@@ -1022,14 +1035,15 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Resolve the repeated timing_exchange_unconfirmed failures in new-executable trials and establish runtime regression clearance against the completed cutover baseline. Then execute actual multi-epoch recording/review/export with retained source/clock/CPU correspondence and stop/reconnect/fault scenarios. The historical lease-comparison rule passes Protocol/Engine tests but is not a full rendered workflow result.",
+      "exit": "Resolve retained intermittent timing_exchange_unconfirmed failures and establish runtime reliability against the cutover baseline; execute actual rendered Stop, reconnect and fault scenarios with source/clock/CPU correspondence. The regular executable now passes one full 40s multi-epoch recording/review/export run with 381 inferred estimates and 6 explicitly authored gap repairs; that positive run does not explain earlier failures or close the remaining campaign.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
         "EV-TRANSFER-CANCEL",
         "EV-BROWSER-TRACE",
         "EV-PREVIEW-CUTOVER",
-        "EV-RECORDING-LEASES"
+        "EV-RECORDING-LEASES",
+        "EV-BOUND-RENDERED-EXPORT"
       ]
     },
     {
@@ -2110,6 +2124,89 @@
             "protocol_passed"
           ],
           "equals": 397
+        }
+      ]
+    },
+    {
+      "id": "EV-BOUND-RENDERED-EXPORT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/timing-cause/regular-003-verification.json",
+      "sha256": "72a26f8f5be20765499eb9f4f0b6782bd03de95c3b7c1218203dbe129fdbb0e7",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Regular uninstrumented Linux build: actual 40s source-bound browser playback retains 381 inferred estimates across 4 leases; explicit review/commit, unresolved-gap export refusal, separately consented 6 authored repairs and exact 387-action download/master match. All owned apps join exit 0. Earlier timing failures and stop/reconnect/fault remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "real_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "causal_timing_repair_established"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "runtime_reliability_cleared"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "accepted_estimates"
+          ],
+          "equals": 381
+        },
+        {
+          "pointer": [
+            "epochs"
+          ],
+          "equals": 4
+        },
+        {
+          "pointer": [
+            "distinct_leases"
+          ],
+          "equals": 4
+        },
+        {
+          "pointer": [
+            "actions"
+          ],
+          "equals": 387
+        },
+        {
+          "pointer": [
+            "gaps"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "duplicate_milliseconds"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "project_offset_seconds"
+          ],
+          "equals": 5
         }
       ]
     }
