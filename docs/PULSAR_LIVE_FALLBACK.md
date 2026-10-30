@@ -24,9 +24,26 @@ original declared capture lease and any explicit content allowlist. Live
 manifest construction, captured CPU admission rechecks and live CUDA startup
 consume this check. Ordinary capture modes retain their existing path.
 These checks do not establish acquisition, current native media/timing
-ownership or accepted equivalence. Semantic/view-policy projection and the
-held equivalence/environment/failure admission remain unfinished; no automatic
-backend-selection option is exposed by this namespace work.
+ownership or accepted equivalence. No automatic backend-selection option is
+exposed by the namespace and correspondence work.
+
+Browser view applicability has a separate canonical policy identity. Its
+semantic projection starts with the complete typed capture declaration and
+removes only execution-profile selection and per-epoch coordinates: capture
+anchors, continuation mode, declared lease lengths, media preparation/lease
+IDs and analysis feed/timing IDs. Model content and pack choice remain bound,
+along with boot/project/revision, source content and placement, declared source
+clock, player identity, lookahead, maximum analysis age and buffering. Advancing
+capture anchors must still follow the same validated source/project mapping.
+New fields remain in the projection unless explicitly classified as transient.
+The projection adds no inferred quality tier, target, view or device permission.
+
+The actual native successor reservation retains its original semantic identity.
+Preparation checks the derived successor against it; later consumption checks
+both epochs against that original value, including when both declarations have
+changed identically. Existing source/timing pins, profile equality, cancellation,
+worker join and original deadlines remain required. This held correspondence
+does not approve a backend switch or create fallback failure authority.
 
 Current browser succession preserves the predecessor's exact profile and
 source semantics. Its shared-frame transfer proves a particular accepted
@@ -67,10 +84,11 @@ software scenario, not physical timing or latency qualification.
 
 The next implementation must cross these interfaces in order:
 
-1. Complete the browser/live source and semantic correspondence interface. The
-   distinct browser source-policy namespace and manifest correspondence check
-   are implemented; semantic/view-policy projection and held source admission
-   still need actual consumers. The admitted source must come from retained `BrowserMediaBinding`,
+1. Verify browser/live source and semantic correspondence through the native
+   consumers. Distinct source/view namespaces, manifest correspondence and the
+   native successor's retained semantic identity are implemented. Fallback
+   admission must still retain its own actual source and timing ownership
+   through failed-worker retirement. The admitted source must come from retained `BrowserMediaBinding`,
    `BrowserAnalysisCaptureDeclaration` and current native timing/source
    ownership. Bind the project/revision, source placement/view, capture epoch,
    presentation mapping and original lease. File admission must continue to
@@ -81,6 +99,9 @@ The next implementation must cross these interfaces in order:
    applicability, decision revision, evidence identities, permissions,
    withdrawal and expiry when publishing and consuming the live admission.
    A serialized report or archived decision grants no current authority.
+   `LiveCaptureOptions` currently declares no quality tier; the fallback
+   selection must require an explicit tier rather than infer one from a model
+   name or backend. File-job evidence must not silently become live evidence.
 3. Add a live-specific settled-failure and retirement path. Only the original
    native worker's eligible provider-unavailable result, after confirmed
    retirement of worker/resource/delivery custody, may permit an automatic
@@ -88,6 +109,10 @@ The next implementation must cross these interfaces in order:
    output, denied resources and expired authority must not become substitutes
    for that result. Recheck the original lifetime before fresh target resource
    admission; never renew it as a side effect of switching.
+   The live reply currently carries `Error(ProtocolError)`, which is not an
+   eligible native failure witness. Do not recover eligibility from its error
+   code or message; preserve typed provider-absence evidence through actual
+   worker and resource settlement.
 4. Admit the target through the actual live CPU/CUDA consumers and use a fresh
    attempt and epoch. Do not reuse incompatible analysed samples, estimates or
    a fabricated shared-frame completion. Preserve the actual source clock and
