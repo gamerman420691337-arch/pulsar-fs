@@ -3397,9 +3397,13 @@ impl Preview {
             self.promote_analysis_successor()?;
         } else {
             let next = self.analysis_successor.as_mut().unwrap();
-            if next.bulk.is_none() {
-                // Reservation installs the original F seed and opens B ingress.
-                // Preparing B alone must not establish a bulk writer yet.
+            if next.bulk.is_none()
+                && next.transfer.as_ref().is_some_and(|transfer| {
+                    transfer.predecessor_worker_joined && transfer.predecessor_delivery_settled
+                })
+            {
+                // Capture G only after A has actually joined: an early accepted
+                // G can otherwise age out while predecessor custody retires.
                 let prepared = next
                     .report
                     .as_ref()
@@ -3473,13 +3477,18 @@ impl Preview {
             .context("successor absent")?;
         ensure!(
             !next.pair_sent
-                && next.transfer.as_ref().is_some_and(|t| matches!(
-                    t.phase,
-                    BrowserAnalysisTransferPhase::BoundaryReserved
-                        | BrowserAnalysisTransferPhase::JoiningPredecessor
-                        | BrowserAnalysisTransferPhase::AwaitingSuccessorPair
-                )),
-            "successor pair already submitted or transfer not reserved"
+                && next
+                    .transfer
+                    .as_ref()
+                    .is_some_and(|t| t.predecessor_worker_joined
+                        && t.predecessor_delivery_settled
+                        && matches!(
+                            t.phase,
+                            BrowserAnalysisTransferPhase::BoundaryReserved
+                                | BrowserAnalysisTransferPhase::JoiningPredecessor
+                                | BrowserAnalysisTransferPhase::AwaitingSuccessorPair
+                        )),
+            "successor pair already submitted, transfer not reserved, or predecessor join pending"
         );
         ensure!(
             self.last_time.is_none_or(|t| frame.media_us > t),

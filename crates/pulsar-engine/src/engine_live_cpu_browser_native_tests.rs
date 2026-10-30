@@ -99,6 +99,7 @@ mod captured_cpu_browser_native_tests {
         pixels: Vec<u8>,
         cpu_threads: u16,
         owner_cpu_threads: u16,
+        producer_join_wait_ms: u64,
     }
     impl Inputs {
         fn load() -> Result<Self> {
@@ -200,6 +201,8 @@ mod captured_cpu_browser_native_tests {
                 owner_cpu_threads: std::env::var("PULSAR_CAPTURED_CPU_BROWSER_OWNER_THREADS")
                     .unwrap_or_else(|_| "4".into())
                     .parse()?,
+                producer_join_wait_ms: std::env::var("PULSAR_CAPTURED_CPU_BROWSER_JOIN_WAIT_MS")
+                    .unwrap_or_else(|_| "0".into()).parse()?,
             })
         }
         fn verify_unchanged(&self) -> Result<()> {
@@ -220,7 +223,7 @@ mod captured_cpu_browser_native_tests {
             Ok(())
         }
         fn subjects(&self) -> Value {
-            json!({"worker":self.worker,"policy":self.policy,"model":self.model,"media":self.media,"rgb_fixture":self.fixture,"rgb":self.decoded.rgb,"decoder":self.decoded.decoder,"decoder_arguments":self.decoded.arguments,"cpu_threads":self.cpu_threads,"owner_cpu_threads":self.owner_cpu_threads,"authored_neutral_model":true,"authored_browser_observations":true,"browser_capture":false,"physical_device":false,"qualified":false})
+            json!({"worker":self.worker,"policy":self.policy,"model":self.model,"media":self.media,"rgb_fixture":self.fixture,"rgb":self.decoded.rgb,"decoder":self.decoded.decoder,"decoder_arguments":self.decoded.arguments,"cpu_threads":self.cpu_threads,"owner_cpu_threads":self.owner_cpu_threads,"producer_join_wait_ms":self.producer_join_wait_ms,"latency_qualification":false,"authored_neutral_model":true,"authored_browser_observations":true,"browser_capture":false,"physical_device":false,"qualified":false})
         }
         fn bytes(&self, index: usize) -> Result<&[u8]> {
             ensure!(
@@ -1100,11 +1103,47 @@ mod captured_cpu_browser_native_tests {
         media: &BrowserMediaBinding,
         player: &mut AuthoredPlayer,
     ) -> Result<Value> {
+        let mut phases = Vec::new();
+        let result = successor_transfer_traced(client, inputs, media, player, &mut phases);
+        match result {
+            Ok(mut value) => {
+                value["native_transfer_phase_trace"] = json!(phases);
+                Ok(value)
+            }
+            Err(error) => Err(error.context(format!(
+                "native_transfer_phase_trace={}",
+                serde_json::to_string(&phases)?
+            ))),
+        }
+    }
+    fn transfer_phase(
+        phases: &mut Vec<Value>,
+        name: &'static str,
+        report: Option<&BrowserAnalysisTransferReport>,
+    ) -> Result<()> {
+        ensure!(phases.len() < 32, "bounded native phase trace exhausted");
+        phases.push(
+            json!({"phase":name,"boottime_ns":crate::handy_clock::boottime_ns()?,
+            "transfer_phase":report.map(|r| r.phase),
+            "predecessor_worker_joined":report.map(|r| r.predecessor_worker_joined),
+            "successor_pair_accepted":report.map(|r| r.successor_pair_accepted)}),
+        );
+        Ok(())
+    }
+    fn successor_transfer_traced(
+        client: &Client<'_>,
+        inputs: &Inputs,
+        media: &BrowserMediaBinding,
+        player: &mut AuthoredPlayer,
+        phases: &mut Vec<Value>,
+    ) -> Result<Value> {
         let (ready, end) = start(client, inputs, media, player)?;
+        transfer_phase(phases, "predecessor_ready", None)?;
         // The actual successor must exist before F is captured. Preparing before
         // any accepted input also avoids aging an original stamp during startup.
         let (child_media, mut child_player, prepare, child) =
             prepare_successor(client, &ready, media, player, end)?;
+        transfer_phase(phases, "successor_prepared", None)?;
         child_player.observe(client)?;
         let base = player.frame_base()?;
         let first = upload(client, inputs, &ready, player, base, 0, end)?;
@@ -1119,6 +1158,7 @@ mod captured_cpu_browser_native_tests {
             1,
             end,
         )?;
+        transfer_phase(phases, "predecessor_pair_observed", None)?;
         child_player.observe(client)?;
         let transfer = client.intent(
             Some(1),
@@ -1134,6 +1174,7 @@ mod captured_cpu_browser_native_tests {
             bail!("boundary reservation absent")
         };
         reserved.validate()?;
+        transfer_phase(phases, "boundary_reserved", Some(&reserved))?;
         ensure!(
             reserved.phase == BrowserAnalysisTransferPhase::BoundaryReserved
                 && reserved.boundary == second
@@ -1167,8 +1208,35 @@ mod captured_cpu_browser_native_tests {
             old_project == child_project,
             "shared frame changed exact project phase"
         );
+        // Wait for the actual predecessor join before capturing G. Otherwise
+        // G can be accepted fresh and age out while A's custody is retiring.
+        ensure!(inputs.producer_join_wait_ms <= 350, "controlled producer pause exceeds test bound");
+        let wait_started = Instant::now();
+        let mut join_state = None;
+        loop {
+            player.observe(client)?;
+            child_player.observe(client)?;
+            let status = transfer_status(client, &transfer.request_id)?;
+            let state = (status.phase, status.predecessor_worker_joined);
+            if join_state != Some(state) {
+                transfer_phase(phases, "predecessor_join_observed", Some(&status))?;
+                join_state = Some(state);
+            }
+            ensure!(status.phase != BrowserAnalysisTransferPhase::Aborted
+                && status.error.is_none() && Instant::now() < end,
+                "predecessor join did not settle before original lease: {status:?}");
+            ensure!(!status.successor_pair_accepted, "successor pair exists before G capture");
+            if status.predecessor_worker_joined
+                && wait_started.elapsed() >= Duration::from_millis(inputs.producer_join_wait_ms) {
+                ensure!(status.predecessor_delivery_settled, "join precedes settled delivery");
+                break;
+            }
+            std::thread::park_timeout(Duration::from_millis(2));
+        }
         // Only frame1 may enter while transfer is pending. Do not resend F.
+        transfer_phase(phases, "successor_upload_started", None)?;
         let next = upload(client, inputs, &child, &mut child_player, base + 2, 1, end)?;
+        transfer_phase(phases, "successor_uploaded", None)?;
         let successor_first = estimate(
             client,
             inputs,
@@ -1179,9 +1247,20 @@ mod captured_cpu_browser_native_tests {
             1,
             end,
         )?;
+        transfer_phase(phases, "successor_pair_observed", None)?;
+        let mut previous_state = None;
         let transferred = loop {
             child_player.observe(client)?;
             let value = transfer_status(client, &transfer.request_id)?;
+            let state = (
+                value.phase,
+                value.predecessor_worker_joined,
+                value.successor_pair_accepted,
+            );
+            if previous_state != Some(state) {
+                transfer_phase(phases, "transfer_state_observed", Some(&value))?;
+                previous_state = Some(state);
+            }
             if value.phase == BrowserAnalysisTransferPhase::Transferred {
                 break value;
             }
@@ -1552,7 +1631,17 @@ mod captured_cpu_browser_native_tests {
             ensure!(output.is_dir(), "output directory must already exist");
             let inputs = Inputs::load()?;
             receipt["subjects"] = inputs.subjects();
+            let selected_case = std::env::var("PULSAR_CAPTURED_CPU_BROWSER_CASE").ok();
+            ensure!(
+                selected_case
+                    .as_deref()
+                    .is_none_or(|case| CASES.contains(&case)),
+                "unknown selected native browser case"
+            );
             for mode in CASES {
+                if selected_case.as_deref().is_some_and(|case| case != mode) {
+                    continue;
+                }
                 let value = campaign_case(&inputs, mode);
                 let passed = value["passed"] == true;
                 receipt["cases"].as_array_mut().unwrap().push(value);

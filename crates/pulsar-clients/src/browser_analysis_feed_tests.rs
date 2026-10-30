@@ -704,6 +704,7 @@ mod successor_bulk_reservation {
             let mut prepared: Option<BrowserAnalysisSuccessorReport> = None;
             let mut reserved: Option<BrowserAnalysisTransferReport> = None;
             let mut seeded: Option<LiveCaptureReport> = None;
+            let mut status_reads = 0;
             // Retain the accepted channel until cleanup. A second handshake is
             // observable even when no G pixels have been sent on the first one.
             let mut channels = Vec::new();
@@ -855,9 +856,17 @@ mod successor_bulk_reservation {
                                 .lock()
                                 .unwrap()
                                 .push(Call::Status(wire.request_id.clone()));
-                            pulsar_protocol::ResponseBody::BrowserAnalysisTransfer(Box::new(
-                                original.clone(),
-                            ))
+                            status_reads += 1;
+                            let mut report = original.clone();
+                            report.predecessor_delivery_settled = true;
+                            report.predecessor_worker_joined = status_reads >= 2;
+                            report.phase = if report.predecessor_worker_joined {
+                                BrowserAnalysisTransferPhase::AwaitingSuccessorPair
+                            } else {
+                                BrowserAnalysisTransferPhase::JoiningPredecessor
+                            };
+                            report.validate().unwrap();
+                            pulsar_protocol::ResponseBody::BrowserAnalysisTransfer(Box::new(report))
                         }
                         Command::CancelBrowserAnalysisTransfer {
                             transfer_request_id,
@@ -1009,12 +1018,46 @@ mod successor_bulk_reservation {
                     .count(),
                 1
             );
+            let after_stop = observed.len();
             drop(observed);
             preview.stop().unwrap();
             assert_eq!(
                 calls.lock().unwrap().len(),
-                5,
+                after_stop,
                 "confirmed Stop is inert on repetition"
+            );
+        });
+    }
+
+    #[test]
+    fn browser_successor_waits_for_original_join_before_opening_g_ingress() {
+        with_peer(ReservationReply::Reserved, |preview, old, child, calls| {
+            preview.prepare_analysis_successor(child).unwrap();
+            preview.transfer_analysis(old, false).unwrap();
+            let next = preview.analysis_successor.as_ref().unwrap();
+            assert!(!next.transfer.as_ref().unwrap().predecessor_worker_joined);
+            assert!(
+                next.bulk.is_none(),
+                "G ingress opened before predecessor joined"
+            );
+            assert!(!next.pair_sent);
+            assert!(!calls
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|call| matches!(call, Call::Bulk(_))));
+            let sample = frame(&next.feed);
+            let mut early = super::request();
+            early.body = serde_json::to_vec(&serde_json::json!({
+                "epoch":sample.epoch,"media_us":sample.media_us,"analysis":sample.analysis
+            }))
+            .unwrap();
+            early.body.push(b'\n');
+            early.body.resize(early.body.len() + LIVE_FRAME_BYTES, 128);
+            assert!(preview.successor_analysis_frame(&early).is_err());
+            assert!(
+                !preview.analysis_successor.as_ref().unwrap().pair_sent,
+                "early G must not consume the one-use pair latch"
             );
         });
     }
@@ -1044,27 +1087,28 @@ mod successor_bulk_reservation {
             let original = next.transfer_id.clone().unwrap();
             let boundary = next.boundary.clone().unwrap();
             let child_identity = next.report.as_ref().unwrap().successor.identity.clone();
-            assert!(next.bulk.is_some());
+            assert!(next.bulk.is_none());
             assert!(!next.pair_sent);
             assert_eq!(
                 Some(&boundary),
                 preview.report.as_ref().unwrap().last_frame.as_ref()
             );
-            for _ in 0..2 {
+            for expected_open in [false, true, true] {
                 preview.transfer_analysis(old, true).unwrap();
                 let next = preview.analysis_successor.as_ref().unwrap();
                 assert_eq!(next.transfer_id.as_ref(), Some(&original));
                 assert_eq!(next.boundary.as_ref(), Some(&boundary));
-                assert!(next.bulk.is_some());
+                assert_eq!(next.bulk.is_some(), expected_open);
                 assert!(!next.pair_sent);
             }
             let observed = calls.lock().unwrap();
-            assert_eq!(observed.len(), 6);
+            assert_eq!(observed.len(), 7);
             assert_eq!(observed[2], Call::Reserve(original));
-            assert_eq!(observed[3], Call::Bulk(child_identity));
+            assert!(matches!(observed[3], Call::Status(_)));
             assert!(matches!(observed[4], Call::Status(_)));
-            assert!(matches!(observed[5], Call::Status(_)));
-            assert_ne!(observed[4], observed[5]);
+            assert_eq!(observed[5], Call::Bulk(child_identity));
+            assert!(matches!(observed[6], Call::Status(_)));
+            assert_ne!(observed[3], observed[4]);
         });
     }
 

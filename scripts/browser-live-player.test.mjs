@@ -925,12 +925,12 @@ test('original lease expiry and aborted close reports win over finite draining',
 });
 
 // Authored transport results exercise client ordering only; no native transfer proof.
-function continuityPlayer({enabled=true,preparing=0,joining=0,wrongMedia=false,holdTransfer=false,mediaPreparing=0,holdRoute=null}={}){
- let start,scope,nextFeed,oldUpload,nextUpload,prepareCalls=0,statusCalls=0,mediaCalls=0,transferred=false,timingSequence=0;
+function continuityPlayer({enabled=true,preparing=0,joining=0,wrongMedia=false,holdTransfer=false,mediaPreparing=0,holdRoute=null,joinPending=false}={}){
+ let start,scope,nextFeed,oldUpload,nextUpload,prepareCalls=0,statusCalls=0,mediaCalls=0,transferred=false,timingSequence=0,predecessorJoined=!joinPending;
  const ok=data=>({ok:true,json:async()=>data});
  const base=()=>({active:true,identity:{epoch:transferred?'epoch-two':'epoch-one'},options:{lease_ms:30000,policy:{maximum_analysis_age_ns:2e9}},inference:{completed:0}});
  const oldFeed=()=>({feed_id:'analysis-feed-1',role:'lookahead',generation:scope.generation,player:scope,capture_epoch:'epoch-one',policy:start.analysis.policy});
- const transfer=phase=>({original_request_id:'transfer-one',preparation_request_id:'successor-prepare-one',predecessor:{epoch:'epoch-one'},successor:{epoch:'epoch-two'},boundary:{native_only:true},phase,predecessor_worker_joined:phase==='transferred',predecessor_delivery_settled:phase==='transferred',successor_pair_accepted:!!nextUpload,error:null});
+ const transfer=phase=>({original_request_id:'transfer-one',preparation_request_id:'successor-prepare-one',predecessor:{epoch:'epoch-one'},successor:{epoch:'epoch-two'},boundary:{native_only:true},phase,predecessor_worker_joined:predecessorJoined||phase==='transferred',predecessor_delivery_settled:predecessorJoined||phase==='transferred',successor_pair_accepted:!!nextUpload,error:null});
  const pending=phase=>({...base(),browser:{analysis_feed:oldFeed(),analysis_last_upload:oldUpload,analysis_successor:{original_request_id:'successor-prepare-one',feed:nextFeed,report:{original_request_id:'successor-prepare-one',predecessor:{epoch:'epoch-one'},successor:{identity:{epoch:'epoch-two'},options:{lease_ms:30000}},phase:'prepared'},transfer:phase?transfer(phase):null,last_upload:nextUpload}}});
  const p=mediaPlayer({lookahead:true,timing:true,holdRoute,frameReply:{...lookaheadEstimate(1100000),browser:{analysis_continuity:{enabled:true,prepare_due:true}}},replyOverride:r=>{
   if(r.route==='/start'){start=jsonBody(r);scope={launch_id:r.headers['X-Pulsar-Launch'],page_id:r.headers['X-Pulsar-Page'],player_id:r.headers['X-Pulsar-Player'],source_id:r.headers['X-Pulsar-Source'],generation:Number(r.headers['X-Pulsar-Generation']),time_basis:start.source_time_basis};nextFeed={...oldFeed(),feed_id:'analysis-feed-2',capture_epoch:'epoch-two'};}
@@ -940,16 +940,16 @@ function continuityPlayer({enabled=true,preparing=0,joining=0,wrongMedia=false,h
   if(r.route==='/player/timing-next-probe')return ok({sequence:String(++timingSequence),probe_id:'next-probe-'+timingSequence,probe_timeout_ms:1000,observation_timeout_ms:3000});
   if(r.route==='/player/timing-next-observe'){const o=jsonBody(r);return ok({current:true,qualified:false,observation:{sequence:o.sequence}});}
   if(r.route==='/analysis/prepare'){const data=pending();data.browser.analysis_successor.report.phase=++prepareCalls<=preparing?'preparing':'prepared';return ok(data);}
-  if(r.route==='/analysis/transfer')return ok(pending('boundary_reserved'));
-  if(r.route==='/analysis/successor-frame'){const h=rgbPacket(r).header;nextUpload={media_us:h.media_us,observation:h.analysis};return ok(pending('joining_predecessor'));}
+  if(r.route==='/analysis/transfer')return ok(pending(predecessorJoined?'awaiting_successor_pair':'boundary_reserved'));
+  if(r.route==='/analysis/successor-frame'){const h=rgbPacket(r).header;nextUpload={media_us:h.media_us,observation:h.analysis};return ok(pending('ready_for_transfer'));}
   if(r.route==='/analysis/transfer-status'){
-   const phase=!nextUpload||holdTransfer||++statusCalls<=joining?'joining_predecessor':'transferred';
+   const phase=!predecessorJoined?'joining_predecessor':!nextUpload?'awaiting_successor_pair':holdTransfer||++statusCalls<=joining?'ready_for_transfer':'transferred';
    if(phase!=='transferred')return ok(pending(phase));transferred=true;return ok({...base(),browser:{analysis_feed:nextFeed,analysis_last_upload:nextUpload,analysis_transfer_completed:transfer(phase),analysis_continuity:{enabled:true,prepare_due:false,media_preparation_request_id:'media-prepare-two'}}});
   }
   if(r.route==='/analysis/cancel-successor')return ok({...base(),browser:{analysis_feed:oldFeed(),analysis_last_upload:oldUpload}});
   if(transferred&&(r.route==='/analysis/finish'||r.route==='/analysis/finish-status'))return ok({...base(),browser:{analysis_feed:nextFeed,analysis_last_upload:nextUpload,analysis_finish_request_id:'finish-two',analysis_final_result_matches:false},input_close:{original_request_id:'finish-two',phase:'sealed',disposition:'accepted',worker_joined:true,delivery_settled:true}});
  }});
- p.elements['analysis-continuity'].checked=enabled;return p;
+ p.elements['analysis-continuity'].checked=enabled;p.confirmPredecessorJoin=()=>{predecessorJoined=true;};return p;
 }
 async function prepareContinuation(p){await startLookahead(p);await p.analysisFrame(1.1);await flush();await flush();await p.frame(.2,2);await flush();await flush();}
 test('media continuation and its status retain the original complete player scope',async()=>{
@@ -1005,6 +1005,21 @@ test('predecessor timing remains frozen after the original successor G until com
  assert.equal(p.sent.filter(r=>r.route==='/player/timing-probe').length,probes);
  assert.equal(p.sent.filter(r=>r.route==='/analysis/successor-frame').length,1);assert.equal(p.continuityState().phase,'joining');
 });
+test('successor capture waits for predecessor join without reusing a waiting callback',async()=>{
+ const p=continuityPlayer({joinPending:true});await prepareContinuation(p);
+ await p.analysisFrame(1.2);await flush();await flush();
+ assert.equal(p.continuityState().phase,'joining');
+ const draws=p.drawSources.length;
+ await p.analysisFrame(1.3);await flush();
+ assert.equal(p.sent.filter(r=>r.route==='/analysis/successor-frame').length,0);
+ assert.equal(p.drawSources.length,draws,'waiting callback must not capture or retain G pixels');
+ p.confirmPredecessorJoin();p.advance(100);await flush();await flush();
+ assert.equal(p.continuityState().phase,'pair');
+ await p.analysisFrame(1.4);await flush();
+ const next=p.sent.filter(r=>r.route==='/analysis/successor-frame').map(rgbPacket);
+ assert.equal(next.length,1);assert.equal(next[0].header.media_us,1400000);
+});
+
 test('continuity is explicit and prepares one successor without changing active epoch',async()=>{
  const ordinary=continuityPlayer({enabled:false});await prepareContinuation(ordinary);assert.ok(!ordinary.sent.some(r=>r.route==='/media/continue'));assert.equal(jsonBody(ordinary.sent.find(r=>r.route==='/start')).analysis.continuity,undefined);
  const p=continuityPlayer({preparing:1});await prepareContinuation(p);assert.equal(jsonBody(p.sent.find(r=>r.route==='/start')).analysis.continuity,true);assert.equal(p.continuityState().epoch,'epoch-one');assert.equal(p.continuityState().phase,'preparing');p.advance(100);await flush();assert.equal(p.continuityState().phase,'boundary');assert.equal(p.sent.filter(r=>r.route==='/media/continue').length,1);assert.equal(p.sent.filter(r=>r.route==='/analysis/prepare').length,2);assert.equal(p.continuityState().prepareId,'successor-prepare-one');assert.equal(p.sent.filter(r=>r.route==='/player/start').length,1);
@@ -1123,7 +1138,7 @@ function twoTransferHspPlayer(){
  const epoch=n=>n===1?'epoch-one':n===2?'epoch-two':'epoch-three';
  const feed=n=>({feed_id:'analysis-feed-'+n,role:'lookahead',generation:selectedPlayer.generation,player:selectedPlayer,capture_epoch:epoch(n),policy});
  const base=()=>({active:true,identity:{epoch:epoch(current)},options:{lease_ms:30000,policy:{maximum_analysis_age_ns:2e9}},inference:{completed:0}});
- const transfer=phase=>({original_request_id:'transfer-'+current,preparation_request_id:'successor-prepare-'+current,predecessor:{epoch:epoch(current)},successor:{epoch:epoch(current+1)},boundary:{native_only:true},phase,predecessor_worker_joined:phase==='transferred',predecessor_delivery_settled:phase==='transferred',successor_pair_accepted:!!nextUpload});
+ const transfer=phase=>({original_request_id:'transfer-'+current,preparation_request_id:'successor-prepare-'+current,predecessor:{epoch:epoch(current)},successor:{epoch:epoch(current+1)},boundary:{native_only:true},phase,predecessor_worker_joined:phase!=='boundary_reserved'&&phase!=='joining_predecessor',predecessor_delivery_settled:phase!=='boundary_reserved'&&phase!=='joining_predecessor',successor_pair_accepted:!!nextUpload});
  const pending=phase=>({...base(),browser:{analysis_feed:feed(current),analysis_last_upload:upload,analysis_successor:{original_request_id:'successor-prepare-'+current,feed:successor,report:{original_request_id:'successor-prepare-'+current,predecessor:{epoch:epoch(current)},successor:{identity:{epoch:epoch(current+1)},options:{lease_ms:30000}},phase:'prepared'},transfer:phase?transfer(phase):null,last_upload:nextUpload}}});
  const p=hspPlayer({replyOverride:r=>{
   if(r.route==='/start'){const start=jsonBody(r);policy=start.analysis.policy;selectedPlayer={launch_id:r.headers['X-Pulsar-Launch'],page_id:r.headers['X-Pulsar-Page'],player_id:r.headers['X-Pulsar-Player'],source_id:r.headers['X-Pulsar-Source'],generation:Number(r.headers['X-Pulsar-Generation']),time_basis:start.source_time_basis};}
@@ -1133,9 +1148,9 @@ function twoTransferHspPlayer(){
   if(r.route==='/player/timing-next-probe')return ok({sequence:String(++sequence),probe_id:'next-probe-'+sequence,probe_timeout_ms:1000,observation_timeout_ms:3000});
   if(r.route==='/player/timing-next-observe')return ok({current:true,qualified:false,observation:{sequence:jsonBody(r).sequence}});
   if(r.route==='/analysis/prepare'){successor=feed(current+1);nextUpload=null;return ok(pending());}
-  if(r.route==='/analysis/transfer')return ok(pending('boundary_reserved'));
-  if(r.route==='/analysis/successor-frame'){const h=rgbPacket(r).header;nextUpload={media_us:h.media_us,observation:h.analysis};return ok(pending('joining_predecessor'));}
-  if(r.route==='/analysis/transfer-status'){if(!nextUpload)return ok(pending('joining_predecessor'));const completed=transfer('transferred');current++;upload=nextUpload;return ok({...base(),browser:{analysis_feed:feed(current),analysis_last_upload:upload,analysis_transfer_completed:completed,analysis_continuity:{enabled:true,prepare_due:current<3,media_preparation_request_id:'media-prepare-'+current}}});}
+  if(r.route==='/analysis/transfer')return ok(pending('awaiting_successor_pair'));
+  if(r.route==='/analysis/successor-frame'){const h=rgbPacket(r).header;nextUpload={media_us:h.media_us,observation:h.analysis};return ok(pending('ready_for_transfer'));}
+  if(r.route==='/analysis/transfer-status'){if(!nextUpload)return ok(pending('awaiting_successor_pair'));const completed=transfer('transferred');current++;upload=nextUpload;return ok({...base(),browser:{analysis_feed:feed(current),analysis_last_upload:upload,analysis_transfer_completed:completed,analysis_continuity:{enabled:true,prepare_due:current<3,media_preparation_request_id:'media-prepare-'+current}}});}
   if(r.route==='/analysis/finish'||r.route==='/analysis/finish-status')return ok({...base(),browser:{analysis_feed:feed(current),analysis_last_upload:upload,analysis_finish_request_id:'finish-'+current,analysis_final_result_matches:false},input_close:{original_request_id:'finish-'+current,phase:'sealed',disposition:'accepted',worker_joined:true,delivery_settled:true}});
  }});p.elements['analysis-continuity'].checked=true;return p;
 }
