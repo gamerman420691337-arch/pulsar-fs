@@ -504,7 +504,7 @@ function receiveContinuation(report,state,c){
   showAnalysis(report,0,c.pairAck.submitted.media_us,c.pairAck.capturedAt,state);return true;
  }
  if(!['boundary_reserved','joining_predecessor','awaiting_successor_pair','ready_for_transfer'].includes(transfer.phase))throw Error('Invalid native transfer phase.');
- if(!c.pairSent){c.phase='pair';if(playerScope.timing){c.heldTiming=playerScope.timing;c.heldTiming.handoffHeld=true;}}else c.phase='joining';return false;
+ if(!c.pairSent){if(transfer.predecessor_worker_joined!==true||transfer.predecessor_delivery_settled!==true){c.phase='joining';return false;}c.phase='pair';if(playerScope.timing){c.heldTiming=playerScope.timing;c.heldTiming.handoffHeld=true;}}else c.phase='joining';return false;
 }
 async function inspectContinuation(state,c){
  if(!currentContinuation(state,c))return;

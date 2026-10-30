@@ -4,6 +4,8 @@ use crate::live_frames::LiveRgbRuntime;
 use std::time::{Duration, Instant};
 #[path = "live_capture_clock.rs"]
 mod clock;
+#[path = "live_capture_stamp.rs"]
+mod stamp;
 pub(in crate::authority) use clock::{BootBounds, NativeAcceptedCapture};
 #[path = "live_capture_inference.rs"]
 mod inference;
@@ -687,20 +689,18 @@ impl Registry {
                 }
                 let continuity_generation = runtime.status().pair_discontinuities;
                 if let Some(stamp) = &entry.native_accepted {
-                    if stamp.continuity_generation != continuity_generation
-                        || (!sealed
-                            && native_now
-                                .latest_ns
-                                .checked_sub(stamp.capture_boottime.earliest_ns)
-                                .is_none_or(|age| {
-                                    age > entry.report.options.policy.maximum_analysis_age_ns
-                                }))
+                    if let Some(error) = (stamp::Observation {
+                        now_latest_ns: native_now.latest_ns,
+                        capture_earliest_ns: stamp.capture_boottime.earliest_ns,
+                        maximum_age_ns: entry.report.options.policy.maximum_analysis_age_ns,
+                        stamped_generation: stamp.continuity_generation,
+                        current_generation: continuity_generation,
+                        sealed,
+                        successor_scope,
+                    })
+                    .refusal()
                     {
-                        return Err(ProtocolError::new(
-                            ErrorCode::Unavailable,
-                            "original native capture stamp is stale or discontinuous",
-                        )
-                        .into());
+                        return Err(error.into());
                     }
                 }
                 let mut report = entry.report.clone();

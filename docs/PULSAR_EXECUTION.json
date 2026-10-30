@@ -28,11 +28,11 @@
     "original_gate_ledger_sha256": "4632e9da03de2fac2e86c6d6464e70f8de337ef849efaf4562edf84a8a4d5b90"
   },
   "working_tree": {
-    "build_state": "failed",
-    "evidence": "EV-LIVE-PROFILE-TIMING",
-    "scope": "Live CPU admission now uses the selected profile CPU count instead of forcing two threads. Original one-thread public browser start failed InvalidRequest; repaired current one- and four-thread clean-input workflows run the actual captured CPU estimator. Original lease/output classes and owner RAM ceiling remain checked. Prepared four-thread overlap passes only in an explicitly configured eight-slot owner pool; production default four slots are unchanged and its refusal is retained. Current one-thread prepared transfer reaches joined predecessor/delivery and accepted successor pair but aborts at the original stale-or-discontinuous native-stamp guard; exact cause remains UNKNOWN, with the200ms limit unchanged. Current default Engine1924/0/117 ignored, strict Engine lint, fresh App/Worker build,832 architecture checks and36 guards pass. Native matrix is PARTIAL (3/4 scenarios); no automatic backend switching, rendered acquisition, quality, physical or human qualification. The source-policy/settlement/lifetime implementation sequence is in docs/PULSAR_LIVE_FALLBACK.md.",
+    "build_state": "verified",
+    "evidence": "EV-NATIVE-STAMP-REPAIR",
+    "scope": "Causal witness identifies a fresh successor pair accepted while predecessor was still joining; it waited~258ms and reached upper age265.42ms against the unchanged200ms bound, with matching generations. SDK bulk opening, early-send latch guard and browser callback capture now wait for actual predecessor join and settled delivery. Waiting callbacks are not captured/reused; the next callback provides G with its own timestamp. Real framed-client and browser logic regressions fail before and pass after. Bounded native diagnostics distinguish age, continuity, future capture and role using the unchanged predicate. Current component checks pass: Engine1926/0/117 ignored at four threads in disclosed user-runtime tmpfs, Clients703/0/15 ignored,165 browser logic tests,strict three-library lint,fresh App/Worker build,833 architecture checks and36 guards. Ten complete native tmpfs runs pass, alternating normal/controlled250ms producer wait; an eleventh refuses the original500ms pairing gap. SSD runs retain pairing-gap and240s timeout failures under observed severe I/O pressure. No limits or production defaults changed; no whole-path latency, SSD, rendered, model, physical or human qualification. All25 acceptance gates stay open.",
     "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Budget admission repair and default component checks pass, but current one-thread native prepared transfer fails the stale-or-discontinuous stamp guard after worker join and pair acceptance. Native handoff reliability remains unresolved; current source is not fully verified. No deadline or production default was raised.",
+    "failure_summary": "Causal early-G ageing race repaired with red/green client and browser regressions. Scoped functional checks pass, including disclosed tmpfs runs. Whole-path timing remains PARTIAL: retained SSD gap/timeout and a tmpfs over500ms pairing-gap refusal are not cleared; no platform or product acceptance.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -40,7 +40,7 @@
       },
       {
         "path": "crates/pulsar-clients/src/browser_analysis_feed_tests.rs",
-        "sha256": "4ba178ac7f42b507d7e201f3faad7932e9552e6872262e2127566c447fffc6ee"
+        "sha256": "402eca0f4699d77261de2a4a1b4bcdf23480991be54f5ce32a5267ad36567190"
       },
       {
         "path": "crates/pulsar-clients/src/browser_captured_cpu_tests.rs",
@@ -48,11 +48,11 @@
       },
       {
         "path": "crates/pulsar-clients/src/browser_live.html",
-        "sha256": "6619bf9f7eeeca81367cf9d3bdc10017593d2598a5a95328f5918d751bc4d1a4"
+        "sha256": "12733c86d57aab147b48a65ad665fd11dd49b09a6dd6999137143922a6886a54"
       },
       {
         "path": "crates/pulsar-clients/src/browser_live.rs",
-        "sha256": "a6fba519826c2f08527aa17d025d6f7d382568808055a9d9c4f1b3db09ebddd6"
+        "sha256": "de4749f0905a909da10959d1fd3f3a35f2e382e55cc30ed0646e7f32d90a47f4"
       },
       {
         "path": "crates/pulsar-clients/src/browser_player_http.rs",
@@ -160,7 +160,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
-        "sha256": "958ccc234cc62ad0169759a89f0bd3a080263e04cd9b9f704aca54d1c5ccb617"
+        "sha256": "525dc973e3cf0f60e4d66d574e21a8c10cf66a694f1e70af4bd8adb2303f3173"
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_cpu_native_tests.rs",
@@ -231,12 +231,16 @@
         "sha256": "a22bb5a47a1b37af735feda234613238d5fd5c6ccd31b9e0cd0fe38eb58525c5"
       },
       {
+        "path": "crates/pulsar-engine/src/live_capture_stamp.rs",
+        "sha256": "169a295fe446bd68f41df818aac7f8d07da407d7d4596a43f7ff7bc10027d202"
+      },
+      {
         "path": "crates/pulsar-engine/src/live_capture_successor.rs",
         "sha256": "9c3d4b691dc50fe2178e96699e82b7bb2d366b594bbe328458184465663225b2"
       },
       {
         "path": "crates/pulsar-engine/src/live_captures.rs",
-        "sha256": "15b7f6492b6f2265293f998c8c5c0594dbbf4b985b1b78fdcc2f9136a32505dd"
+        "sha256": "db1018a7db0c653712c9ac78fe54799851049d8d514258baa9413482fedd80a5"
       },
       {
         "path": "crates/pulsar-engine/src/live_cpu_history.rs",
@@ -444,7 +448,7 @@
       },
       {
         "path": "docs/PULSAR_LIVE_FALLBACK.md",
-        "sha256": "d06619d573fb342a1e89030d24c6426455bdab840cda45f1594c3986876b76a3"
+        "sha256": "145523e934f64e921ac45e3215f1088cc517f577f8d35176466a97f401e31f16"
       },
       {
         "path": "docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md",
@@ -452,7 +456,7 @@
       },
       {
         "path": "scripts/browser-live-player.test.mjs",
-        "sha256": "652e9b5050929167a3862b20c914a3804c2ee65a01c22fb1889836690ec5a219"
+        "sha256": "a6fa7e67611a0cbd45a9f49a97c6bbe686e84edd77215a9f94860879e3476dc0"
       }
     ]
   },
@@ -474,33 +478,36 @@
       "EV-FALLBACK-RUNNING-COUNTER",
       "EV-LIVE-PROFILE-BUDGET",
       "EV-LIVE-PROFILE-TIMING",
-      "EV-LIVE-PROFILE-CAPACITY"
+      "EV-LIVE-PROFILE-CAPACITY",
+      "EV-NATIVE-STAMP-CAUSE",
+      "EV-NATIVE-STAMP-REPAIR",
+      "EV-NATIVE-STAMP-PLATFORM"
     ],
-    "scope": "Current default Engine1924/0/117 ignored, strict Engine lint, fresh App/Worker build,832 architecture checks and36 guards pass. Selected-profile admission runs actual CPU1/4; current native handoff matrix is PARTIAL with one stale/discontinuous refusal. Protocol398/0 and Clients702/0/15 ignored retain their prior pinned checkpoint. Automatic browser fallback and all25 acceptance gates remain open.",
+    "scope": "Engine1926/0/117 ignored (four-thread tmpfs),Clients703/0/15 ignored,165 browser logic,strict three-library lint,fresh App/Worker build,833 architecture and36 guards pass. Ten normal/controlled-wait tmpfs native runs pass; over500ms gap and SSD timeout/counterevidence remain. Prior Protocol398/0 checkpoint retained. Causal join-before-G repair is functional evidence only; all25 gates remain open.",
     "metric_refs": {
       "engine_passed": {
-        "evidence": "EV-LIVE-PROFILE-BUDGET",
+        "evidence": "EV-NATIVE-STAMP-REPAIR",
         "pointer": [
           "checks",
           "engine_passed"
         ]
       },
       "engine_ignored": {
-        "evidence": "EV-LIVE-PROFILE-BUDGET",
+        "evidence": "EV-NATIVE-STAMP-REPAIR",
         "pointer": [
           "checks",
           "engine_ignored"
         ]
       },
       "clients_passed": {
-        "evidence": "EV-FALLBACK-GRAPH-INTERCHANGE",
+        "evidence": "EV-NATIVE-STAMP-REPAIR",
         "pointer": [
           "checks",
           "clients_passed"
         ]
       },
       "clients_ignored": {
-        "evidence": "EV-FALLBACK-GRAPH-INTERCHANGE",
+        "evidence": "EV-NATIVE-STAMP-REPAIR",
         "pointer": [
           "checks",
           "clients_ignored"
@@ -759,7 +766,10 @@
         "EV-BROWSER",
         "EV-STARTUP",
         "EV-LIVE-PROFILE-BUDGET",
-        "EV-LIVE-PROFILE-TIMING"
+        "EV-LIVE-PROFILE-TIMING",
+        "EV-NATIVE-STAMP-CAUSE",
+        "EV-NATIVE-STAMP-REPAIR",
+        "EV-NATIVE-STAMP-PLATFORM"
       ],
       "source_refs": [
         "crates/pulsar-engine/src/live_captures.rs",
@@ -1340,6 +1350,17 @@
       "evidence": [
         "EV-LIVE-PROFILE-BUDGET"
       ]
+    },
+    {
+      "id": "SC-NATIVE-STAMP-ORDER",
+      "title": "Capture successor G only after actual predecessor join and settled delivery",
+      "parents": [
+        "M5-LIVE"
+      ],
+      "scope": "Causal witness identifies a fresh successor pair accepted while predecessor was still joining; it waited~258ms and reached upper age265.42ms against the unchanged200ms bound, with matching generations. SDK bulk opening, early-send latch guard and browser callback capture now wait for actual predecessor join and settled delivery. Waiting callbacks are not captured/reused; the next callback provides G with its own timestamp. Real framed-client and browser logic regressions fail before and pass after. Bounded native diagnostics distinguish age, continuity, future capture and role using the unchanged predicate. Current component checks pass: Engine1926/0/117 ignored at four threads in disclosed user-runtime tmpfs, Clients703/0/15 ignored,165 browser logic tests,strict three-library lint,fresh App/Worker build,833 architecture checks and36 guards. Ten complete native tmpfs runs pass, alternating normal/controlled250ms producer wait; an eleventh refuses the original500ms pairing gap. SSD runs retain pairing-gap and240s timeout failures under observed severe I/O pressure. No limits or production defaults changed; no whole-path latency, SSD, rendered, model, physical or human qualification. All25 acceptance gates stay open.",
+      "evidence": [
+        "EV-NATIVE-STAMP-REPAIR"
+      ]
     }
   ],
   "queue": [
@@ -1403,7 +1424,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Also localize EV-LIVE-PROFILE-TIMING: original native stamp rejected after predecessor join and successor pair acceptance; distinguish stale from discontinuous without raising freshness or lease limits.",
+      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
@@ -1422,7 +1443,9 @@
         "EV-TIMING-RETIREMENT",
         "EV-RENDERED-TRANSFER-ABORT",
         "EV-TRANSFER-REFUSAL",
-        "EV-LIVE-PROFILE-TIMING"
+        "EV-LIVE-PROFILE-TIMING",
+        "EV-NATIVE-STAMP-REPAIR",
+        "EV-NATIVE-STAMP-PLATFORM"
       ]
     },
     {
@@ -1532,7 +1555,7 @@
       "depends_on": [
         "CPU-ROUNDTRIP"
       ],
-      "exit": "Five-state file CPU fallback archival baseline remains scoped verified. Live selected-profile thread budgeting is repaired; native CPU1/4 clean-input paths run, but current one-thread prepared transfer fails stale/discontinuous stamp validation. Localize that refusal at original200ms freshness, then implement separate browser/live source namespace, current equivalence/environment proof, eligible settled failure and original-lifetime resource admission through real consumers. Follow docs/PULSAR_LIVE_FALLBACK.md; automatic browser fallback, remaining archive faults and all parent gates stay open.",
+      "exit": "Five-state file CPU fallback archival baseline remains scoped verified. Live selected-profile budgets and causal early-G ordering are repaired: first-party capture waits for actual predecessor join, without changing200ms freshness or500ms pairing. Whole-path storage/latency qualification remains partial with retained gap and timeout failures. Next implement explicit browser/live source namespace, current equivalence/environment proof and eligible settled-failure/original-lifetime resource admission through actual consumers. Follow docs/PULSAR_LIVE_FALLBACK.md; remaining archive faults and all parent gates stay open.",
       "evidence": [
         "EV-FALLBACK-HISTORY-SNAPSHOT",
         "EV-FALLBACK-ARCHIVE-CONTRACT",
@@ -1548,7 +1571,10 @@
         "EV-FALLBACK-RUNNING-COUNTER",
         "EV-LIVE-PROFILE-BUDGET",
         "EV-LIVE-PROFILE-TIMING",
-        "EV-LIVE-PROFILE-CAPACITY"
+        "EV-LIVE-PROFILE-CAPACITY",
+        "EV-NATIVE-STAMP-CAUSE",
+        "EV-NATIVE-STAMP-REPAIR",
+        "EV-NATIVE-STAMP-PLATFORM"
       ]
     },
     {
@@ -5269,6 +5295,132 @@
             "owner_cpu_threads"
           ],
           "equals": 4
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-STAMP-CAUSE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/native-stamp/causal-diagnosis.json",
+      "sha256": "3f008ac13b82e634c3221f61baaced4d486ffdf5ef117d5a92ec89a5855ef6a8",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Source-bound reproduced failure: successor age expiry while awaiting predecessor join; exact generations and phase observations identify this mechanism, not all historical failures.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "CAUSE_IDENTIFIED"
+        },
+        {
+          "pointer": [
+            "guard_fields",
+            "role"
+          ],
+          "equals": "successor"
+        },
+        {
+          "pointer": [
+            "guard_fields",
+            "generation_changed"
+          ],
+          "equals": "false"
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-STAMP-REPAIR",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/native-stamp/verification.json",
+      "sha256": "4fcbdaa9b07690f4cb953e8776a808b9735917e6e500a9e53e9749d9b5764841",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Causal witness identifies a fresh successor pair accepted while predecessor was still joining; it waited~258ms and reached upper age265.42ms against the unchanged200ms bound, with matching generations. SDK bulk opening, early-send latch guard and browser callback capture now wait for actual predecessor join and settled delivery. Waiting callbacks are not captured/reused; the next callback provides G with its own timestamp. Real framed-client and browser logic regressions fail before and pass after. Bounded native diagnostics distinguish age, continuity, future capture and role using the unchanged predicate. Current component checks pass: Engine1926/0/117 ignored at four threads in disclosed user-runtime tmpfs, Clients703/0/15 ignored,165 browser logic tests,strict three-library lint,fresh App/Worker build,833 architecture checks and36 guards. Ten complete native tmpfs runs pass, alternating normal/controlled250ms producer wait; an eleventh refuses the original500ms pairing gap. SSD runs retain pairing-gap and240s timeout failures under observed severe I/O pressure. No limits or production defaults changed; no whole-path latency, SSD, rendered, model, physical or human qualification. All25 acceptance gates stay open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_passed"
+          ],
+          "equals": 1926
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_ignored"
+          ],
+          "equals": 117
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_passed"
+          ],
+          "equals": 703
+        },
+        {
+          "pointer": [
+            "checks",
+            "clients_ignored"
+          ],
+          "equals": 15
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_ram_complete_passes"
+          ],
+          "equals": 10
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_ram_attempts"
+          ],
+          "equals": 11
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-STAMP-PLATFORM",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/native-stamp/platform-counterevidence.json",
+      "sha256": "a643edf1acef5759c40886ff6f9c5ada8a02fbc9948e4766077769543b1d6fa1",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Preserved post-fix platform and pairing-gap counterevidence; no bounds relaxed. These results do not refute the verified join-before-G ordering repair, but leave whole-path latency/SSD qualification open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "ram_complete_passes"
+          ],
+          "equals": 10
+        },
+        {
+          "pointer": [
+            "ram_attempts"
+          ],
+          "equals": 11
         }
       ]
     }

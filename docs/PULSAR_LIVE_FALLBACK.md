@@ -32,6 +32,24 @@ an explicitly configured eight-slot owner pool; the ordinary four-slot limit
 must continue to refuse that overlap. Backend selection must account for
 available owner resources rather than silently increasing that limit.
 
+First-party browser succession now waits for the predecessor's actual worker
+join and settled delivery before opening the successor writer or capturing its
+first pair frame. Preparation and boundary reservation alone are insufficient.
+Callbacks received while waiting are not captured or retained for later use;
+the next eligible callback supplies the new frame and its original timestamp.
+This removes the race where a fresh successor estimate aged out while waiting
+for predecessor retirement. The capture-age, pairing-gap and lease limits remain
+unchanged, and an unknown upload still consumes its one-use send latch.
+
+Native stamp refusals report the source role, sealed state, stamped/current
+continuity generations, upper age bound, limit and sampled clock bounds. These
+are diagnostics from the same already-sampled refusal predicate; they do not
+sample a new clock or renew any timestamp. Generation mismatches still refuse
+for sealed history; the existing sealed-history age rule is unchanged. A native
+test can select one existing case with `PULSAR_CAPTURED_CPU_BROWSER_CASE` and
+record bounded transfer phase observations. Its controlled producer wait is a
+software scenario, not physical timing or latency qualification.
+
 The next implementation must cross these interfaces in order:
 
 1. Introduce an explicit browser/live source policy and semantic correspondence
