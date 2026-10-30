@@ -28,11 +28,11 @@
     "original_gate_ledger_sha256": "4632e9da03de2fac2e86c6d6464e70f8de337ef849efaf4562edf84a8a4d5b90"
   },
   "working_tree": {
-    "build_state": "unverified",
-    "evidence": "EV-LIVE-SEMANTICS",
-    "scope": "Browser view policy has a separate canonical namespace. The complete capture declaration is projected by removing only profile selection and per-epoch coordinates; model content, pack choice, boot/project/revision, source/placement/clock, player, lookahead, age and buffer policy remain bound. Actual native successor preparation and consumption retain the original semantic identity, rejecting even equal mutations of both epochs. Protocol 406 tests, Engine/client compilation, strict three-library lint, 835 architecture checks, 36 source guards and 12 dashboard tests pass. The new Engine retention regression and native browser campaign time out, leaving runtime verification incomplete. No automatic backend switch, accepted live equivalence, physical or quality qualification is claimed.",
+    "build_state": "verified",
+    "evidence": "EV-LIVE-SEMANTICS-RUNTIME",
+    "scope": "Unchanged fe23e5e Engine test binary passes the original-semantic-retention regression both traced and untraced. The actual confined CPU browser campaign passes clean-input EOF and prepared-successor transfer, with five checked estimates, original freshness/lease bounds, both cleanup stages and full resource readmission. The native supervisor joins its child and retires all observed owned processes. This verifies the current source/view and native semantic-retention changes in their scoped software paths; authored neutral model/browser observations do not establish learned quality, rendered acquisition, whole-path timing or physical qualification. Earlier full-suite and native timeouts remain retained.",
     "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Semantic projection and native successor retention are implemented. Protocol 406 tests, compilation and strict lint pass; current Engine regression and native browser verification remain incomplete after timeouts.",
+    "failure_summary": "Current source/view and semantic-retention changes pass scoped Protocol, Engine-regression and confined CPU-browser checks. Broader full-suite, storage/timing, model, platform and physical acceptance remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -499,9 +499,10 @@
       "EV-NATIVE-STAMP-REPAIR",
       "EV-NATIVE-STAMP-PLATFORM",
       "EV-LIVE-SOURCE-POLICY",
-      "EV-LIVE-SEMANTICS"
+      "EV-LIVE-SEMANTICS",
+      "EV-LIVE-SEMANTICS-RUNTIME"
     ],
-    "scope": "Current source: Protocol 406/0, Engine/client test compilation and strict three-library lint pass. The last complete Engine 1926/0/117 ignored and client 703/0/15 ignored suites belong to EV-NATIVE-STAMP-REPAIR. Current semantic-retention Engine regression and native-browser campaign time out; earlier full-suite and timing failures remain retained. All 25 acceptance gates remain open.",
+    "scope": "Current source: Protocol 406/0, Engine/client compilation, strict lint, two retained-semantics Engine regression runs and a two-case confined CPU-browser campaign pass. The last complete Engine 1926/0/117 ignored and client 703/0/15 ignored suites remain the separately pinned EV-NATIVE-STAMP-REPAIR checkpoint. Old full-suite/native timeouts and observed SSD latency remain unresolved qualification limits. All 25 acceptance gates stay open.",
     "metric_refs": {
       "engine_passed": {
         "evidence": "EV-NATIVE-STAMP-REPAIR",
@@ -1387,10 +1388,11 @@
         "M3-MODELS",
         "M5-LIVE"
       ],
-      "scope": "Browser/file source and view policies have distinct canonical identities and refuse cross-deserialization. Protocol 406 tests verify exact source metadata, preserved semantic settings and bounded view applicability. Native successor preparation and consumption retain the original semantic identity, including protection against equal changes to both epochs; this wiring compiles and passes strict lint but its Engine/native runtime checks time out. Automatic live fallback and actual equivalence/quality/device qualification remain open.",
+      "scope": "Browser source/view policies preserve canonical domain separation and original semantic settings. Protocol 406 tests and strict lint pass on the pinned source. The unchanged Engine binary passes the retained-identity mutation regression twice and the actual confined CPU campaign passes EOF and successor transfer with five checked estimates and full retirement. Prior timeouts and unqualified storage/timing/model/device behavior remain recorded; automatic live fallback is not implemented.",
       "evidence": [
         "EV-LIVE-SOURCE-POLICY",
-        "EV-LIVE-SEMANTICS"
+        "EV-LIVE-SEMANTICS",
+        "EV-LIVE-SEMANTICS-RUNTIME"
       ]
     }
   ],
@@ -1516,7 +1518,7 @@
       "state": "open",
       "owner": "Codex",
       "depends_on": [],
-      "exit": "Use existing bounded phase probes on the failing path; establish a causal repair and regression, or a specifically evidenced observation-contract correction. Healthy later runs do not erase the failure. Also localize the retained default-thread runtime archive-cache busy failure; a passing repeat does not establish its cause.",
+      "exit": "Localize retained startup/Ready and archive-cache stalls with bounded phase probes; establish a causal repair and regression without erasing earlier failures. Unchanged-binary semantic regressions now pass, while syscall tracing and an independent 4KiB write probe show variable SSD sync latency up to 11.138 seconds. That observation does not isolate startup-only cost, identify a particular competing workload, or close the original timeout. Preserve durability and original live bounds.",
       "evidence": [
         "EV-STARTUP",
         "EV-RUNTIME-CACHE-BUSY",
@@ -1526,7 +1528,8 @@
         "EV-FALLBACK-PACKAGE-BARRIER",
         "EV-FALLBACK-READER-NATIVE",
         "EV-FALLBACK-GRAPH-COUNTER",
-        "EV-FALLBACK-GRAPH-INTERCHANGE"
+        "EV-FALLBACK-GRAPH-INTERCHANGE",
+        "EV-STARTUP-IO-OBSERVATION"
       ]
     },
     {
@@ -1586,7 +1589,7 @@
       "depends_on": [
         "CPU-ROUNDTRIP"
       ],
-      "exit": "Source/view namespaces, browser semantic projection and the native successor original-semantic binding are implemented. Current Protocol tests, build and strict lint pass; complete current consumer runtime verification after retained timeouts. Then require explicit requested tier, current accepted directed equivalence and held environment/source proof, typed eligible native failure after full retirement, original-lifetime target admission and inert history. Preserve all original timing bounds, archive fault obligations and parent gates. Follow docs/PULSAR_LIVE_FALLBACK.md.",
+      "exit": "Source/view namespaces and original semantic retention now have current Protocol and actual Engine/native consumer evidence. Next implement explicit requested tier, current accepted directed equivalence and held environment/source proof, typed eligible native failure after full retirement, original-lifetime target admission and inert history. Retain prior full-suite/native timeouts, storage/timing qualification, archive fault obligations and all parent gates. Follow docs/PULSAR_LIVE_FALLBACK.md.",
       "evidence": [
         "EV-FALLBACK-HISTORY-SNAPSHOT",
         "EV-FALLBACK-ARCHIVE-CONTRACT",
@@ -1609,7 +1612,8 @@
         "EV-LIVE-SOURCE-POLICY",
         "EV-LIVE-SOURCE-TIMEOUTS",
         "EV-LIVE-SEMANTICS",
-        "EV-LIVE-SEMANTICS-TIMEOUTS"
+        "EV-LIVE-SEMANTICS-TIMEOUTS",
+        "EV-LIVE-SEMANTICS-RUNTIME"
       ]
     },
     {
@@ -5608,6 +5612,98 @@
             "observed_native_processes_retired"
           ],
           "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-LIVE-SEMANTICS-RUNTIME",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/startup-io/verification.json",
+      "sha256": "998fdb04fd687a2e2483528434885bd9f0699ec767b738bb82efc6132e5debdb",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Unchanged fe23e5e Engine test binary passes the original-semantic-retention regression both traced and untraced. The actual confined CPU browser campaign passes clean-input EOF and prepared-successor transfer, with five checked estimates, original freshness/lease bounds, both cleanup stages and full resource readmission. The native supervisor joins its child and retires all observed owned processes. This verifies the current source/view and native semantic-retention changes in their scoped software paths; authored neutral model/browser observations do not establish learned quality, rendered acquisition, whole-path timing or physical qualification. Earlier full-suite and native timeouts remain retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_regression_runs_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_cases_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_estimates_checked"
+          ],
+          "equals": 5
+        },
+        {
+          "pointer": [
+            "checks",
+            "all_observed_owned_processes_retired"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STARTUP-IO-OBSERVATION",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/startup-io/storage-observation.json",
+      "sha256": "c77916c5a7e7f9fd2ff2e8bf1cde9b335f26641da87ed2832e50adc58bc20c45",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Evidence implicates variable shared persistent-storage latency. No durability policy, test/native bound, system I/O setting, or unrelated process was changed. Previous timeout cause and timing qualification remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "OBSERVED"
+        },
+        {
+          "pointer": [
+            "application_fix_claimed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "prior_timeout_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "fsync_calls_in_trace"
+          ],
+          "equals": 108
+        },
+        {
+          "pointer": [
+            "independent_probe_bytes"
+          ],
+          "equals": 32768
         }
       ]
     }
