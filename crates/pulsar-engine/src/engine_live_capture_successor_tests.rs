@@ -725,6 +725,23 @@ mod successor_tests {
     }
 
     #[test]
+    fn successor_retains_original_semantics_even_if_both_epochs_change_together() {
+        let x = delivery_fixture();
+        let cap = preview_successor(&x);
+        let deadline = cap.expires_at_ns();
+        let mut registry = x.f.engine.live_captures.lock().unwrap();
+        registry.native_successor_basis(&cap).unwrap();
+        registry.change_successor_age_policy_for_test(&cap.predecessor().identity.epoch);
+        registry.change_successor_age_policy_for_test(&cap.successor().identity.epoch);
+        let error = registry.native_successor_basis(&cap).err().unwrap();
+        assert_eq!(error.code, ErrorCode::DependencyMismatch);
+        assert_eq!(error.message, "original successor semantic declaration changed");
+        assert_eq!(cap.expires_at_ns(), deadline);
+        drop(registry);
+        cap.cancel();
+    }
+
+    #[test]
     fn successor_lifetime_refusal_identifies_original_clock_and_lease_without_renewal() {
         for predecessor in [true, false] {
             for fault in ["unavailable", "suspended", "expired"] {

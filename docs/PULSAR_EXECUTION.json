@@ -3,7 +3,7 @@
   "reconciled_on": "2026-10-30",
   "timezone": "America/New_York",
   "full_roadmap": "incomplete",
-  "runner_state": "unknown",
+  "runner_state": "active",
   "authority": [
     {
       "path": "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-LIVE-SOURCE-POLICY",
-    "scope": "Distinct browser-media source policy and metadata correspondence guard are implemented at live manifest construction, captured CPU admission and CUDA startup. File policy bytes remain unchanged. Protocol 402 tests, current Engine/client compilation, strict three-library lint, formatting, architecture/source guards and dashboard tests pass. Current full client/Engine suites time out at 300 seconds each; native browser campaign times out at its 240-second deadline. This is a development checkpoint with incomplete consumer runtime verification, not automatic backend fallback or model/platform/device qualification.",
+    "evidence": "EV-LIVE-SEMANTICS",
+    "scope": "Browser view policy has a separate canonical namespace. The complete capture declaration is projected by removing only profile selection and per-epoch coordinates; model content, pack choice, boot/project/revision, source/placement/clock, player, lookahead, age and buffer policy remain bound. Actual native successor preparation and consumption retain the original semantic identity, rejecting even equal mutations of both epochs. Protocol 406 tests, Engine/client compilation, strict three-library lint, 835 architecture checks, 36 source guards and 12 dashboard tests pass. The new Engine retention regression and native browser campaign time out, leaving runtime verification incomplete. No automatic backend switch, accepted live equivalence, physical or quality qualification is claimed.",
     "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Compilation, strict lint and 402 Protocol tests pass. Current full Engine/client suites and native browser campaign time out; consumer runtime verification remains incomplete.",
+    "failure_summary": "Semantic projection and native successor retention are implemented. Protocol 406 tests, compilation and strict lint pass; current Engine regression and native browser verification remain incomplete after timeouts.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -156,7 +156,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_capture_successor_tests.rs",
-        "sha256": "d21bcd7dc6e80a5652af1ed4c6a212306e61f7e4e44960b9c90e6c8809efe613"
+        "sha256": "219dd1a84dad7240004b57259cd0172d1dea0b6a8450b054dbf95c519a401968"
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
@@ -240,7 +240,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/live_capture_successor.rs",
-        "sha256": "9c3d4b691dc50fe2178e96699e82b7bb2d366b594bbe328458184465663225b2"
+        "sha256": "5a3d34151e0dcf51f6b124dbad0cda3126756567a6fc1cfecf937f542927d4c0"
       },
       {
         "path": "crates/pulsar-engine/src/live_captures.rs",
@@ -395,8 +395,12 @@
         "sha256": "830b1ff08338fd22568c79621fe2c0445944c43ae2032792bc58c821cee9279f"
       },
       {
+        "path": "crates/pulsar-protocol/src/browser_inference_semantics.rs",
+        "sha256": "0f8e7f9f47630018765a743341911b44681425b004ff50431c74116aaa4896a8"
+      },
+      {
         "path": "crates/pulsar-protocol/src/browser_inference_source_tests.rs",
-        "sha256": "0e4546e9e00d2c74a5ac6421f9fcf78fdc37d27ecd64f5df981c2b65c4d15ac2"
+        "sha256": "9927004358d2244d07938374d0bd9c07c5459ae38d8579632500cb59ca4b24d3"
       },
       {
         "path": "crates/pulsar-protocol/src/browser_media.rs",
@@ -416,7 +420,7 @@
       },
       {
         "path": "crates/pulsar-protocol/src/inference_fallback_selection.rs",
-        "sha256": "c93c46118dfbf009393a3458dd5ece2c0ab7cfda21100e5b1573bab949eb7f18"
+        "sha256": "5b1eb5547ab033e464cf063783b8ed78678f91c43803ba78bc086a146234249b"
       },
       {
         "path": "crates/pulsar-protocol/src/lib.rs",
@@ -432,7 +436,7 @@
       },
       {
         "path": "crates/pulsar-protocol/src/live_inference.rs",
-        "sha256": "23bc169fe03de5774e4ae56adf96b4f79ba13ca43db9e0d995d057e885c6eec9"
+        "sha256": "5acbea93cb597ab7963b886c5952dcbaa2dde9e14d6818e81a79a682f4b5b53c"
       },
       {
         "path": "crates/pulsar-protocol/src/live_recording_assembly.rs",
@@ -460,7 +464,7 @@
       },
       {
         "path": "docs/PULSAR_LIVE_FALLBACK.md",
-        "sha256": "099d1b0212098480f457d6a12784b49b48d6be04792382f1d2ee180bb8f273d9"
+        "sha256": "c151032dc70aaca83f3baa42401355b86dc7f137ec4989110fcacfa2f5dc4880"
       },
       {
         "path": "docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md",
@@ -494,9 +498,10 @@
       "EV-NATIVE-STAMP-CAUSE",
       "EV-NATIVE-STAMP-REPAIR",
       "EV-NATIVE-STAMP-PLATFORM",
-      "EV-LIVE-SOURCE-POLICY"
+      "EV-LIVE-SOURCE-POLICY",
+      "EV-LIVE-SEMANTICS"
     ],
-    "scope": "Current source: Protocol 402/0, Engine/client compile and strict three-library lint pass. The last complete Engine 1926/0/117 ignored and client 703/0/15 ignored runs belong to EV-NATIVE-STAMP-REPAIR; current SSD full suites and native-browser rerun time out. Previous rendered/native checkpoints and timing counterevidence remain scoped to their pinned subjects. All 25 gates remain open.",
+    "scope": "Current source: Protocol 406/0, Engine/client test compilation and strict three-library lint pass. The last complete Engine 1926/0/117 ignored and client 703/0/15 ignored suites belong to EV-NATIVE-STAMP-REPAIR. Current semantic-retention Engine regression and native-browser campaign time out; earlier full-suite and timing failures remain retained. All 25 acceptance gates remain open.",
     "metric_refs": {
       "engine_passed": {
         "evidence": "EV-NATIVE-STAMP-REPAIR",
@@ -527,7 +532,7 @@
         ]
       },
       "protocol_passed": {
-        "evidence": "EV-LIVE-SOURCE-POLICY",
+        "evidence": "EV-LIVE-SEMANTICS",
         "pointer": [
           "checks",
           "protocol_passed"
@@ -1377,14 +1382,15 @@
     },
     {
       "id": "SC-LIVE-SOURCE-NAMESPACE",
-      "title": "Separate browser source namespace and manifest metadata checks",
+      "title": "Browser source/view policy and semantic correspondence contracts",
       "parents": [
         "M3-MODELS",
         "M5-LIVE"
       ],
-      "scope": "Browser/file policy hashes and deserialization are distinct; exact boot/project/revision/source/clock/profile/model-path/lease correspondence and content allowlist refusals pass four new Protocol tests. Guards are wired into actual Engine consumers and compile with strict lint. Native consumer verification remains incomplete after timed-out reruns; this does not implement automatic live fallback.",
+      "scope": "Browser/file source and view policies have distinct canonical identities and refuse cross-deserialization. Protocol 406 tests verify exact source metadata, preserved semantic settings and bounded view applicability. Native successor preparation and consumption retain the original semantic identity, including protection against equal changes to both epochs; this wiring compiles and passes strict lint but its Engine/native runtime checks time out. Automatic live fallback and actual equivalence/quality/device qualification remain open.",
       "evidence": [
-        "EV-LIVE-SOURCE-POLICY"
+        "EV-LIVE-SOURCE-POLICY",
+        "EV-LIVE-SEMANTICS"
       ]
     }
   ],
@@ -1580,7 +1586,7 @@
       "depends_on": [
         "CPU-ROUNDTRIP"
       ],
-      "exit": "Browser source namespace and metadata correspondence checks are implemented; current compilation, strict lint and Protocol tests pass, but full Engine/client and native-browser reruns time out. First complete current consumer verification, then semantic/view projection, held source and current equivalence/environment proof, eligible settled-failure/original-lifetime resource admission, target execution and inert history. Preserve previous file CPU archival and join-before-G proofs, all timing counterevidence, remaining archive faults and all parent acceptance gates. Follow docs/PULSAR_LIVE_FALLBACK.md.",
+      "exit": "Source/view namespaces, browser semantic projection and the native successor original-semantic binding are implemented. Current Protocol tests, build and strict lint pass; complete current consumer runtime verification after retained timeouts. Then require explicit requested tier, current accepted directed equivalence and held environment/source proof, typed eligible native failure after full retirement, original-lifetime target admission and inert history. Preserve all original timing bounds, archive fault obligations and parent gates. Follow docs/PULSAR_LIVE_FALLBACK.md.",
       "evidence": [
         "EV-FALLBACK-HISTORY-SNAPSHOT",
         "EV-FALLBACK-ARCHIVE-CONTRACT",
@@ -1601,7 +1607,9 @@
         "EV-NATIVE-STAMP-REPAIR",
         "EV-NATIVE-STAMP-PLATFORM",
         "EV-LIVE-SOURCE-POLICY",
-        "EV-LIVE-SOURCE-TIMEOUTS"
+        "EV-LIVE-SOURCE-TIMEOUTS",
+        "EV-LIVE-SEMANTICS",
+        "EV-LIVE-SEMANTICS-TIMEOUTS"
       ]
     },
     {
@@ -5519,6 +5527,85 @@
         {
           "pointer": [
             "native_processes_retired"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-LIVE-SEMANTICS",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-equivalence/verification.json",
+      "sha256": "51a32d47a6ab7ce01e4f9a4ef30af5d9e73dd6bf58e6610e00198c48fa677ee1",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Browser view policy has a separate canonical namespace. The complete capture declaration is projected by removing only profile selection and per-epoch coordinates; model content, pack choice, boot/project/revision, source/placement/clock, player, lookahead, age and buffer policy remain bound. Actual native successor preparation and consumption retain the original semantic identity, rejecting even equal mutations of both epochs. Protocol 406 tests, Engine/client compilation, strict three-library lint, 835 architecture checks, 36 source guards and 12 dashboard tests pass. The new Engine retention regression and native browser campaign time out, leaving runtime verification incomplete. No automatic backend switch, accepted live equivalence, physical or quality qualification is claimed.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "checks",
+            "protocol_passed"
+          ],
+          "equals": 406
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_clients_compile"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "strict_three_library_clippy"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-LIVE-SEMANTICS-TIMEOUTS",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-equivalence/counterevidence.json",
+      "sha256": "3ee9a83ff1f1d3820db60f373750da21dfe0ca23e4bf1ace0e0c09a94a8804fb",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "No successful current Engine semantic-retention or native-browser runtime result. One exact test-thread snapshot shows kernel rq_qos_wait under high host I/O pressure; this does not establish the entire causal chain. Original test and production bounds were not changed.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "engine_regression_exit"
+          ],
+          "equals": 124
+        },
+        {
+          "pointer": [
+            "native_browser_timed_out"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "observed_native_processes_retired"
           ],
           "equals": true
         }

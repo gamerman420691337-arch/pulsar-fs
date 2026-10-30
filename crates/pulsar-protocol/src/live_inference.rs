@@ -1,6 +1,22 @@
 //! Private engine/worker stream contracts, not client authority or device motion.
 use crate::*;
 use serde::{Deserialize, Serialize};
+impl DeclaredInferenceProfile {
+    /// Adapter metadata only; callers must separately validate the profile and
+    /// admit its native execution and resources.
+    pub(crate) fn supports_live_temporal_input(&self) -> bool {
+        let p = &self.preprocessing;
+        matches!(
+            self.provider,
+            InferenceProvider::Cpu | InferenceProvider::Cuda
+        ) && p.input.decoder == DetectorDecoder::TemporalScriptPosition
+            && matches!(p.resize, InferenceResize::NearestStretch)
+            && matches!(p.color, InferenceColor::RgbFramePair)
+            && p.scale.iter().all(|v| *v == 1.0f32 / 255.0)
+            && p.bias.iter().all(|v| *v == 0.0)
+            && p.padding_byte == 0
+    }
+}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LiveInferenceManifest {
@@ -57,22 +73,12 @@ impl LiveInferenceManifest {
             .map_err(|e| ProtocolError::invalid(e.to_string()))?;
         self.budget.validate()?;
         self.profile.admit(&self.budget)?;
-        let p = &self.profile.preprocessing;
         if self.clock.epoch != self.identity.epoch
             || self.profile.model != self.model.identity
             || self.profile.runtime != self.runtime.identity
             || self.budget.wall_time_ms > 30_000
             || self.budget.cpu_threads != self.profile.cpu_threads
-            || !matches!(
-                self.profile.provider,
-                InferenceProvider::Cpu | InferenceProvider::Cuda
-            )
-            || p.input.decoder != DetectorDecoder::TemporalScriptPosition
-            || !matches!(p.resize, InferenceResize::NearestStretch)
-            || !matches!(p.color, InferenceColor::RgbFramePair)
-            || p.scale.iter().any(|v| *v != 1.0f32 / 255.0)
-            || p.bias.iter().any(|v| *v != 0.0)
-            || p.padding_byte != 0
+            || !self.profile.supports_live_temporal_input()
         {
             return Err(ProtocolError::invalid(
                 "live temporal profile, identity or lifetime differs",

@@ -2,6 +2,9 @@
 //! still owns accepted evidence, source kind, current authority, environment,
 //! retirement, deadlines and fresh resource custody. These values grant none.
 use crate::*;
+#[path = "browser_inference_semantics.rs"]
+mod browser_semantics;
+pub use browser_semantics::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
@@ -309,23 +312,7 @@ pub struct InferenceFallbackViewPolicy {
 }
 impl InferenceFallbackViewPolicy {
     pub fn validate(&self) -> Result<(), ProtocolError> {
-        check(
-            self.schema_version == 1,
-            "unsupported fallback view policy version",
-        )?;
-        if let InferenceFallbackViewApplicability::ExactSettings { sha256 } = &self.applicability {
-            check(
-                !sha256.is_empty() && sha256.len() <= INFERENCE_EQUIVALENCE_MAX_CASES,
-                "fallback settings allowlist must be nonempty and bounded",
-            )?;
-            for hash in sha256 {
-                validate_sha256(hash)?;
-            }
-            check(
-                sha256.windows(2).all(|pair| pair[0] < pair[1]),
-                "fallback settings allowlist must be uniquely sorted",
-            )?;
-        }
+        validate_view_applicability(self.schema_version, &self.applicability)?;
         encoded(self).map(|_| ())
     }
     pub fn identity(&self) -> Result<ArtifactIdentity, ProtocolError> {
@@ -343,6 +330,30 @@ impl InferenceFallbackViewPolicy {
             }
         })
     }
+}
+
+fn validate_view_applicability(
+    schema_version: u16,
+    applicability: &InferenceFallbackViewApplicability,
+) -> Result<(), ProtocolError> {
+    check(
+        schema_version == 1,
+        "unsupported fallback view policy version",
+    )?;
+    if let InferenceFallbackViewApplicability::ExactSettings { sha256 } = applicability {
+        check(
+            !sha256.is_empty() && sha256.len() <= INFERENCE_EQUIVALENCE_MAX_CASES,
+            "fallback settings allowlist must be nonempty and bounded",
+        )?;
+        for hash in sha256 {
+            validate_sha256(hash)?;
+        }
+        check(
+            sha256.windows(2).all(|pair| pair[0] < pair[1]),
+            "fallback settings allowlist must be uniquely sorted",
+        )?;
+    }
+    Ok(())
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

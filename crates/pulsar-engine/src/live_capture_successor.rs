@@ -20,6 +20,7 @@ struct SuccessorIdentity {
     preparation_request: RequestId,
     predecessor: NativeCaptureSelection,
     successor: NativeCaptureSelection,
+    semantics: ArtifactIdentity,
     expires_at_ns: u64,
     retired: AtomicBool,
     transfer_started: AtomicBool,
@@ -394,6 +395,9 @@ impl Registry {
                     "original transfer successor selection changed",
                 ));
             }
+            if browser_inference_semantic_identity(&entry.report.options)? != native.0.semantics {
+                return Err(refused("original successor semantic declaration changed"));
+            }
             if tick(entry).is_err() {
                 return Err(source_refusal(
                     "original transfer predecessor native clock refused",
@@ -653,6 +657,7 @@ impl Registry {
             .get(predecessor.as_str())
             .ok_or_else(|| refused("test predecessor absent"))?;
         let selected = selection(prior)?;
+        let semantics = browser_inference_semantic_identity(&prior.report.options)?;
         tick(prior)?;
         let a_until = prior
             .native_clock
@@ -679,6 +684,7 @@ impl Registry {
                 .expect("browser test")
                 .timing_binding_id = timing.binding().binding_id.clone();
         }
+        validate_browser_inference_semantic_successor(&prior.report.options, &options)?;
         let clock = options.clock(identity.epoch.clone());
         let mut info = prior
             .report
@@ -718,6 +724,7 @@ impl Registry {
             id: id!(ArtifactId),
             preparation_request: id!(RequestId),
             predecessor: selected,
+            semantics,
             successor: NativeCaptureSelection {
                 cpu_manifest_sha256: cpu_manifest_hash(&info)?,
                 owner: prior.owner.clone(),
@@ -770,6 +777,15 @@ impl Registry {
             },
         );
         Ok(native)
+    }
+    pub(in crate::authority) fn change_successor_age_policy_for_test(&mut self, epoch: &AttemptId) {
+        self.entries
+            .get_mut(epoch.as_str())
+            .expect("authored successor")
+            .report
+            .options
+            .policy
+            .maximum_analysis_age_ns += 1;
     }
 }
 
@@ -1292,23 +1308,20 @@ impl Engine {
                     None,
                     false,
                 )?;
-                let previous_media = prior
-                    .report
-                    .options
-                    .browser_media
-                    .as_ref()
-                    .expect("validated source");
                 let previous_analysis = prior
                     .report
                     .options
                     .browser_analysis
                     .as_ref()
                     .expect("validated analysis");
-                if options.browser_media.selection != previous_media.selection
-                    || options.browser_media.clock != previous_media.clock
-                    || options.browser_analysis.player != previous_analysis.player
-                    || options.browser_analysis.policy != previous_analysis.policy
-                    || options.browser_analysis.feed_id == previous_analysis.feed_id
+                let mut derived = prior.report.options.clone();
+                derived.browser_media = Some(options.browser_media.clone());
+                derived.browser_analysis = Some(options.browser_analysis.clone());
+                derived.lease_ms = options.lease_ms;
+                derived.continuation_mode = LiveContinuationMode::Immediate;
+                validate_browser_inference_semantic_successor(&prior.report.options, &derived)?;
+                let semantics = browser_inference_semantic_identity(&prior.report.options)?;
+                if options.browser_analysis.feed_id == previous_analysis.feed_id
                     || registry.entries.values().any(|e| {
                         e.report
                             .options
@@ -1317,9 +1330,7 @@ impl Engine {
                             .is_some_and(|a| a.feed_id == options.browser_analysis.feed_id)
                     })
                 {
-                    return Err(refused(
-                        "successor changes original source, player, lookahead or reused feed",
-                    ));
+                    return Err(refused("successor reuses a retained browser analysis feed"));
                 }
                 if registry
                     .entries
@@ -1340,12 +1351,6 @@ impl Engine {
                 let predecessor_cancel = prior.cancel.clone();
                 let created = Instant::now();
                 let native_clock = clock::NativeCaptureClock::new(created);
-                let mut derived = prior.report.options.clone();
-                derived.browser_media = Some(options.browser_media.clone());
-                derived.browser_analysis = Some(options.browser_analysis.clone());
-                derived.lease_ms = options.lease_ms;
-                derived.continuation_mode = LiveContinuationMode::Immediate;
-                derived.validate()?;
                 let media = self.pin_browser_media_locked(&db, request, &options.browser_media)?;
                 let timing = self.capture_browser_timing_locked(
                     &db,
@@ -1413,6 +1418,7 @@ impl Engine {
                     id: id!(ArtifactId),
                     preparation_request: request.request_id.clone(),
                     predecessor: predecessor_selection.clone(),
+                    semantics,
                     successor: NativeCaptureSelection {
                         cpu_manifest_sha256: cpu_manifest_hash(&info)?,
                         owner: actor.clone(),
