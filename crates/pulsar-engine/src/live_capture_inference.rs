@@ -136,6 +136,10 @@ pub(super) fn manifest(
     } else {
         manifest.validate()?;
     }
+    manifest.validate_browser_source(
+        &AttemptId::new(engine.engine_epoch.clone()).map_err(internal)?,
+        options,
+    )?;
     Ok(Some(manifest))
 }
 

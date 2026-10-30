@@ -10,8 +10,23 @@ File fallback currently uses `InferenceFallbackSelection`, a decoded-media
 observations and an original settled worker failure. Browser/live inference
 instead uses `LiveInferenceManifest`, a capture epoch, presentation clock,
 browser media/timing ownership and a native worker lifetime. The source policy
-currently has only a decoded-media kind. Copying a file selection into a live
-report would not establish live applicability or permission to switch.
+for file jobs retains its decoded-media kind and original canonical bytes.
+Browser source applicability now has a separate
+`BrowserInferenceFallbackSourcePolicy` type, with an explicit
+`browser_media_capture` namespace and a distinct canonical identity. The two
+policy types refuse cross-deserialization. Copying a file selection into a live
+report still cannot establish live applicability or permission to switch.
+
+The browser metadata matcher requires bound media and analysis declarations,
+source-media presentation time, exact boot/project/revision/source and
+presentation-clock correspondence, the selected profile/model path, the
+original declared capture lease and any explicit content allowlist. Live
+manifest construction, captured CPU admission rechecks and live CUDA startup
+consume this check. Ordinary capture modes retain their existing path.
+These checks do not establish acquisition, current native media/timing
+ownership or accepted equivalence. Semantic/view-policy projection and the
+held equivalence/environment/failure admission remain unfinished; no automatic
+backend-selection option is exposed by this namespace work.
 
 Current browser succession preserves the predecessor's exact profile and
 source semantics. Its shared-frame transfer proves a particular accepted
@@ -52,8 +67,10 @@ software scenario, not physical timing or latency qualification.
 
 The next implementation must cross these interfaces in order:
 
-1. Introduce an explicit browser/live source policy and semantic correspondence
-   check. The admitted source must come from retained `BrowserMediaBinding`,
+1. Complete the browser/live source and semantic correspondence interface. The
+   distinct browser source-policy namespace and manifest correspondence check
+   are implemented; semantic/view-policy projection and held source admission
+   still need actual consumers. The admitted source must come from retained `BrowserMediaBinding`,
    `BrowserAnalysisCaptureDeclaration` and current native timing/source
    ownership. Bind the project/revision, source placement/view, capture epoch,
    presentation mapping and original lease. File admission must continue to

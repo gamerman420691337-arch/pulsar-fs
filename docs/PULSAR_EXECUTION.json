@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "reconciled_on": "2026-10-29",
+  "reconciled_on": "2026-10-30",
   "timezone": "America/New_York",
   "full_roadmap": "incomplete",
-  "runner_state": "active",
+  "runner_state": "unknown",
   "authority": [
     {
       "path": "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
@@ -28,11 +28,11 @@
     "original_gate_ledger_sha256": "4632e9da03de2fac2e86c6d6464e70f8de337ef849efaf4562edf84a8a4d5b90"
   },
   "working_tree": {
-    "build_state": "verified",
-    "evidence": "EV-NATIVE-STAMP-REPAIR",
-    "scope": "Causal witness identifies a fresh successor pair accepted while predecessor was still joining; it waited~258ms and reached upper age265.42ms against the unchanged200ms bound, with matching generations. SDK bulk opening, early-send latch guard and browser callback capture now wait for actual predecessor join and settled delivery. Waiting callbacks are not captured/reused; the next callback provides G with its own timestamp. Real framed-client and browser logic regressions fail before and pass after. Bounded native diagnostics distinguish age, continuity, future capture and role using the unchanged predicate. Current component checks pass: Engine1926/0/117 ignored at four threads in disclosed user-runtime tmpfs, Clients703/0/15 ignored,165 browser logic tests,strict three-library lint,fresh App/Worker build,833 architecture checks and36 guards. Ten complete native tmpfs runs pass, alternating normal/controlled250ms producer wait; an eleventh refuses the original500ms pairing gap. SSD runs retain pairing-gap and240s timeout failures under observed severe I/O pressure. No limits or production defaults changed; no whole-path latency, SSD, rendered, model, physical or human qualification. All25 acceptance gates stay open.",
+    "build_state": "unverified",
+    "evidence": "EV-LIVE-SOURCE-POLICY",
+    "scope": "Distinct browser-media source policy and metadata correspondence guard are implemented at live manifest construction, captured CPU admission and CUDA startup. File policy bytes remain unchanged. Protocol 402 tests, current Engine/client compilation, strict three-library lint, formatting, architecture/source guards and dashboard tests pass. Current full client/Engine suites time out at 300 seconds each; native browser campaign times out at its 240-second deadline. This is a development checkpoint with incomplete consumer runtime verification, not automatic backend fallback or model/platform/device qualification.",
     "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Causal early-G ageing race repaired with red/green client and browser regressions. Scoped functional checks pass, including disclosed tmpfs runs. Whole-path timing remains PARTIAL: retained SSD gap/timeout and a tmpfs over500ms pairing-gap refusal are not cleared; no platform or product acceptance.",
+    "failure_summary": "Compilation, strict lint and 402 Protocol tests pass. Current full Engine/client suites and native browser campaign time out; consumer runtime verification remains incomplete.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -171,6 +171,10 @@
         "sha256": "d8b0186a7de4737a050c6e43129b926a5094755f331105b240c8e63fb486bc49"
       },
       {
+        "path": "crates/pulsar-engine/src/engine_live_cuda.rs",
+        "sha256": "455b55e8080e3c234ae5409133d7cd6a0b4f05b5c781d5280b20ac9e35d43d20"
+      },
+      {
         "path": "crates/pulsar-engine/src/handy_hsp_live.rs",
         "sha256": "70469f256edbb45720428dd59238826eae1c2b2d8c124d220095459e76675770"
       },
@@ -224,11 +228,11 @@
       },
       {
         "path": "crates/pulsar-engine/src/live_capture_cpu.rs",
-        "sha256": "97982b0ecb64d0cff1d896435ba28e38ab3366fa80f911ca78a2afe3c94afe71"
+        "sha256": "7f6dbb517f11bfd091d7d089358fa4bc255093cc707e699e18ed51d2caea1cce"
       },
       {
         "path": "crates/pulsar-engine/src/live_capture_inference.rs",
-        "sha256": "a22bb5a47a1b37af735feda234613238d5fd5c6ccd31b9e0cd0fe38eb58525c5"
+        "sha256": "9e58b38308237a9b42a261bb2d7cc7e7766e0cea0e26e1226bd63f35a6928f31"
       },
       {
         "path": "crates/pulsar-engine/src/live_capture_stamp.rs",
@@ -391,6 +395,10 @@
         "sha256": "830b1ff08338fd22568c79621fe2c0445944c43ae2032792bc58c821cee9279f"
       },
       {
+        "path": "crates/pulsar-protocol/src/browser_inference_source_tests.rs",
+        "sha256": "0e4546e9e00d2c74a5ac6421f9fcf78fdc37d27ecd64f5df981c2b65c4d15ac2"
+      },
+      {
         "path": "crates/pulsar-protocol/src/browser_media.rs",
         "sha256": "0777dffeedb2e9cf127e01bd3f720315c067bdda1e9f1a403efe0cd6b206a12d"
       },
@@ -405,6 +413,10 @@
       {
         "path": "crates/pulsar-protocol/src/inference_fallback_history.rs",
         "sha256": "92d17f1fa96a71c3645a4d43a5ebfeb2d2f93247f6a65215e34799eb2f0a488a"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/inference_fallback_selection.rs",
+        "sha256": "c93c46118dfbf009393a3458dd5ece2c0ab7cfda21100e5b1573bab949eb7f18"
       },
       {
         "path": "crates/pulsar-protocol/src/lib.rs",
@@ -448,7 +460,7 @@
       },
       {
         "path": "docs/PULSAR_LIVE_FALLBACK.md",
-        "sha256": "145523e934f64e921ac45e3215f1088cc517f577f8d35176466a97f401e31f16"
+        "sha256": "099d1b0212098480f457d6a12784b49b48d6be04792382f1d2ee180bb8f273d9"
       },
       {
         "path": "docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md",
@@ -481,9 +493,10 @@
       "EV-LIVE-PROFILE-CAPACITY",
       "EV-NATIVE-STAMP-CAUSE",
       "EV-NATIVE-STAMP-REPAIR",
-      "EV-NATIVE-STAMP-PLATFORM"
+      "EV-NATIVE-STAMP-PLATFORM",
+      "EV-LIVE-SOURCE-POLICY"
     ],
-    "scope": "Engine1926/0/117 ignored (four-thread tmpfs),Clients703/0/15 ignored,165 browser logic,strict three-library lint,fresh App/Worker build,833 architecture and36 guards pass. Ten normal/controlled-wait tmpfs native runs pass; over500ms gap and SSD timeout/counterevidence remain. Prior Protocol398/0 checkpoint retained. Causal join-before-G repair is functional evidence only; all25 gates remain open.",
+    "scope": "Current source: Protocol 402/0, Engine/client compile and strict three-library lint pass. The last complete Engine 1926/0/117 ignored and client 703/0/15 ignored runs belong to EV-NATIVE-STAMP-REPAIR; current SSD full suites and native-browser rerun time out. Previous rendered/native checkpoints and timing counterevidence remain scoped to their pinned subjects. All 25 gates remain open.",
     "metric_refs": {
       "engine_passed": {
         "evidence": "EV-NATIVE-STAMP-REPAIR",
@@ -514,7 +527,7 @@
         ]
       },
       "protocol_passed": {
-        "evidence": "EV-FALLBACK-GRAPH-INTERCHANGE",
+        "evidence": "EV-LIVE-SOURCE-POLICY",
         "pointer": [
           "checks",
           "protocol_passed"
@@ -1085,7 +1098,7 @@
         "M2-INTERCHANGE",
         "M6-INSTALL"
       ],
-      "scope": "Protocol, Engine and client library tests compile cleanly; 123 focused Engine tests plus 396 Protocol and 696 client tests verify conditional format-15 selection, snapshot-bound cpu_runtime_attempts capture across attempt states, current/ancestor clone correspondence and stripped/substituted/fallback refusals. CPU-ROUNDTRIP remains open. Independent integration reruns the format15 archival regression and builds clean default App/Worker executables from the exact committed source.",
+      "scope": "Protocol, Engine and client library tests compile cleanly; 123 focused Engine tests plus 396 Protocol and 696 client tests verify conditional format-15 selection, snapshot-bound cpu_runtime_attempts capture across attempt states, current/ancestor clone correspondence and stripped/substituted/fallback refusals. This archival checkpoint predates the separate verified CPU-ROUNDTRIP campaign. Independent integration reruns the format15 archival regression and builds clean default App/Worker executables from the exact committed source.",
       "evidence": [
         "EV-CPU-BUILD",
         "EV-CPU-ARCHIVE",
@@ -1361,6 +1374,18 @@
       "evidence": [
         "EV-NATIVE-STAMP-REPAIR"
       ]
+    },
+    {
+      "id": "SC-LIVE-SOURCE-NAMESPACE",
+      "title": "Separate browser source namespace and manifest metadata checks",
+      "parents": [
+        "M3-MODELS",
+        "M5-LIVE"
+      ],
+      "scope": "Browser/file policy hashes and deserialization are distinct; exact boot/project/revision/source/clock/profile/model-path/lease correspondence and content allowlist refusals pass four new Protocol tests. Guards are wired into actual Engine consumers and compile with strict lint. Native consumer verification remains incomplete after timed-out reruns; this does not implement automatic live fallback.",
+      "evidence": [
+        "EV-LIVE-SOURCE-POLICY"
+      ]
     }
   ],
   "queue": [
@@ -1555,7 +1580,7 @@
       "depends_on": [
         "CPU-ROUNDTRIP"
       ],
-      "exit": "Five-state file CPU fallback archival baseline remains scoped verified. Live selected-profile budgets and causal early-G ordering are repaired: first-party capture waits for actual predecessor join, without changing200ms freshness or500ms pairing. Whole-path storage/latency qualification remains partial with retained gap and timeout failures. Next implement explicit browser/live source namespace, current equivalence/environment proof and eligible settled-failure/original-lifetime resource admission through actual consumers. Follow docs/PULSAR_LIVE_FALLBACK.md; remaining archive faults and all parent gates stay open.",
+      "exit": "Browser source namespace and metadata correspondence checks are implemented; current compilation, strict lint and Protocol tests pass, but full Engine/client and native-browser reruns time out. First complete current consumer verification, then semantic/view projection, held source and current equivalence/environment proof, eligible settled-failure/original-lifetime resource admission, target execution and inert history. Preserve previous file CPU archival and join-before-G proofs, all timing counterevidence, remaining archive faults and all parent acceptance gates. Follow docs/PULSAR_LIVE_FALLBACK.md.",
       "evidence": [
         "EV-FALLBACK-HISTORY-SNAPSHOT",
         "EV-FALLBACK-ARCHIVE-CONTRACT",
@@ -1574,7 +1599,9 @@
         "EV-LIVE-PROFILE-CAPACITY",
         "EV-NATIVE-STAMP-CAUSE",
         "EV-NATIVE-STAMP-REPAIR",
-        "EV-NATIVE-STAMP-PLATFORM"
+        "EV-NATIVE-STAMP-PLATFORM",
+        "EV-LIVE-SOURCE-POLICY",
+        "EV-LIVE-SOURCE-TIMEOUTS"
       ]
     },
     {
@@ -5421,6 +5448,79 @@
             "ram_attempts"
           ],
           "equals": 11
+        }
+      ]
+    },
+    {
+      "id": "EV-LIVE-SOURCE-POLICY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/live-source-policy/verification.json",
+      "sha256": "245bef3359f6b5e3c55ac60f73d1c625d4f908e8d46e9bd6bafcddb41ec08df7",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Distinct browser-media source policy and metadata correspondence guard are implemented at live manifest construction, captured CPU admission and CUDA startup. File policy bytes remain unchanged. Protocol 402 tests, current Engine/client compilation, strict three-library lint, formatting, architecture/source guards and dashboard tests pass. Current full client/Engine suites time out at 300 seconds each; native browser campaign times out at its 240-second deadline. This is a development checkpoint with incomplete consumer runtime verification, not automatic backend fallback or model/platform/device qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "checks",
+            "protocol_passed"
+          ],
+          "equals": 402
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_clients_compile"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "strict_three_library_clippy"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-LIVE-SOURCE-TIMEOUTS",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-29/live-source-policy/counterevidence.json",
+      "sha256": "14bd7bdd5e00714a5a1dc06329fab1f9a91ce47ebe13b910a2ec2daf4e72a566",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Current full client and Engine runs each time out at 300 seconds; native browser campaign expires at 240 seconds and retires observed owned processes. Host I/O pressure is observed; individual stall causes are not established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "native_timed_out"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "native_processes_retired"
+          ],
+          "equals": true
         }
       ]
     }
