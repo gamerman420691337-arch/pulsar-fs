@@ -10,39 +10,10 @@ pub(crate) const MAX_STORAGE_VERSION: i64 = 41;
 const OUTER_VERSION: i64 = 40;
 
 /// Fast negative check before SQLite or daemon lock creation. This inspects
-/// only the main-file header; it never admits a schema or substitutes for the
-/// normal SQLite/WAL and complete marker validation that follows.
+/// the main header and checksum-valid committed WAL page one. It never admits a
+/// schema or substitutes for normal SQLite and complete marker validation.
 pub(crate) fn preflight_main_header(state: &std::path::Path) -> Result<()> {
-    use std::io::Read;
-    let path = state.join("projects.sqlite3");
-    let mut file = match crate::artifacts::open_regular(&path) {
-        Ok(file) => file,
-        Err(error)
-            if error
-                .downcast_ref::<std::io::Error>()
-                .is_some_and(|e| e.kind() == std::io::ErrorKind::NotFound) =>
-        {
-            return Ok(())
-        }
-        Err(error) => return Err(error),
-    };
-    if file.metadata()?.len() == 0 {
-        return Ok(());
-    }
-    // SQLite's 100-byte header uses a big-endian user_version at offset60:
-    // https://www.sqlite.org/fileformat.html#the_database_header
-    let mut header = [0u8; 100];
-    file.read_exact(&mut header)
-        .context("read existing project database header")?;
-    ensure!(
-        &header[..16] == b"SQLite format 3\0",
-        "invalid project database header; original was not modified"
-    );
-    let version = i64::from(u32::from_be_bytes(
-        header[60..64].try_into().expect("fixed header slice"),
-    ));
-    ensure!(version == 0 || (2..=MAX_STORAGE_VERSION).contains(&version), "project database schema requires an explicit recoverable migration; original was not modified");
-    Ok(())
+    crate::sqlite_reader_preflight::check(state, MAX_STORAGE_VERSION)
 }
 
 fn header(db: &Connection) -> Result<(i64, bool)> {
@@ -182,6 +153,45 @@ pub(crate) fn validate_metadata(db: &Connection) -> Result<()> {
 mod tests {
     use super::*;
 
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn daemon_refuses_future_committed_wal_before_lock_or_shared_memory_effects() {
+        let tmp = tempfile::tempdir().unwrap();
+        let state = tmp.path().join("state");
+        crate::artifacts::private_directory(&state).unwrap();
+        let db = Connection::open(state.join("projects.sqlite3")).unwrap();
+        db.execute_batch("PRAGMA journal_mode=WAL;PRAGMA wal_autocheckpoint=0;CREATE TABLE probe(x);PRAGMA user_version=25;PRAGMA wal_checkpoint(TRUNCATE)").unwrap();
+        db.pragma_update(None, "user_version", MAX_STORAGE_VERSION + 1)
+            .unwrap();
+        let files = [
+            "projects.sqlite3",
+            "projects.sqlite3-wal",
+            "projects.sqlite3-shm",
+        ];
+        let before: Vec<_> = files
+            .iter()
+            .map(|name| std::fs::read(state.join(name)).unwrap())
+            .collect();
+        assert!(!state.join("engine.lock").exists());
+        let error = crate::daemon::run(crate::EngineConfig::new(
+            state.clone(),
+            std::env::current_exe().unwrap(),
+        ))
+        .expect_err("unsupported committed WAL must refuse");
+        assert!(
+            !state.join("engine.lock").exists(),
+            "daemon lock created before refusal: {error:#}"
+        );
+        let after: Vec<_> = files
+            .iter()
+            .map(|name| std::fs::read(state.join(name)).unwrap())
+            .collect();
+        assert_eq!(
+            before, after,
+            "unsupported WAL refusal modified original bytes"
+        );
+    }
+
     #[test]
     fn main_header_fast_refusal_is_read_only_and_does_not_admit_a_schema() {
         let tmp = tempfile::tempdir().unwrap();
@@ -220,7 +230,7 @@ mod tests {
         let main = std::fs::read(&path).unwrap();
         assert_eq!(u32::from_be_bytes(main[60..64].try_into().unwrap()), 25);
         let wal = std::fs::read(state.join("projects.sqlite3-wal")).unwrap();
-        preflight_main_header(&state).unwrap();
+        assert!(preflight_main_header(&state).is_err());
         let error = crate::Engine::open(crate::EngineConfig::new(
             state.clone(),
             std::env::current_exe().unwrap(),
@@ -230,7 +240,7 @@ mod tests {
         assert!(
             error
                 .to_string()
-                .contains("unknown portable fallback graph reader version"),
+                .contains("project database schema requires an explicit recoverable migration"),
             "{error:#}"
         );
         assert_eq!(std::fs::read(&path).unwrap(), main);
