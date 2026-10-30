@@ -57,6 +57,7 @@ fn admission(
         .ok_or_else(|| changed("captured CPU original capture is retired"))?;
     let info = entry.report.inference.as_ref().expect("active inference");
     let options = &entry.report.options;
+    stream.validate_browser_source(&entry.report.engine_epoch, options)?;
     let selected = options
         .inference
         .as_ref()

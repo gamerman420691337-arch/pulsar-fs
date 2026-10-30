@@ -127,6 +127,106 @@ pub enum InferenceFallbackSourceKind {
     DecodedMedia,
 }
 
+/// Domain separation from decoded-file fallback policy. This value is declared
+/// applicability only, never a native browser source or an execution grant.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BrowserInferenceFallbackSourceNamespace {
+    BrowserMediaCapture,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BrowserInferenceFallbackSourcePolicy {
+    pub schema_version: u16,
+    pub namespace: BrowserInferenceFallbackSourceNamespace,
+    /// Exact content allowlist, independently of the current capture epoch.
+    /// None permits any explicitly bound browser-media source, not raw cameras
+    /// or arbitrary producer-declared RGB streams.
+    pub sources: Option<Vec<ArtifactIdentity>>,
+}
+impl BrowserInferenceFallbackSourcePolicy {
+    pub fn any_bound_media() -> Self {
+        Self {
+            schema_version: 1,
+            namespace: BrowserInferenceFallbackSourceNamespace::BrowserMediaCapture,
+            sources: None,
+        }
+    }
+    pub fn validate(&self) -> Result<(), ProtocolError> {
+        check(
+            self.schema_version == 1,
+            "unsupported browser fallback source policy version",
+        )?;
+        if let Some(sources) = &self.sources {
+            artifact_list(sources)?;
+        }
+        encoded(self).map(|_| ())
+    }
+    pub fn identity(&self) -> Result<ArtifactIdentity, ProtocolError> {
+        self.validate()?;
+        identity(self)
+    }
+    /// Metadata correspondence only. Engine still resolves original native
+    /// media/timing ownership, accepted evidence, cancellation and expiry.
+    pub fn matches_manifest(
+        &self,
+        engine_epoch: &AttemptId,
+        options: &LiveCaptureOptions,
+        manifest: &LiveInferenceManifest,
+    ) -> Result<bool, ProtocolError> {
+        self.validate()?;
+        options.validate()?;
+        manifest.validate_metadata()?;
+        let (Some(media), Some(_analysis), Some(inference)) = (
+            &options.browser_media,
+            &options.browser_analysis,
+            &options.inference,
+        ) else {
+            return Ok(false);
+        };
+        Ok(
+            options.source_time_basis == LiveSourceTimeBasis::SourceMediaPresentation
+                && options.encoded_source.is_none()
+                && media.engine_epoch == *engine_epoch
+                && media.project_id == manifest.identity.project
+                && media.revision == manifest.identity.revision
+                && media.selection.source_version == manifest.identity.source
+                && manifest.clock == options.clock(manifest.identity.epoch.clone())
+                && manifest.budget.wall_time_ms == u64::from(options.lease_ms)
+                && manifest.model.path == inference.model_path
+                && encoded(&manifest.profile)? == encoded(&inference.profile)?
+                && self
+                    .sources
+                    .as_ref()
+                    .is_none_or(|sources| sources.contains(&media.selection.source)),
+        )
+    }
+}
+
+impl LiveInferenceManifest {
+    /// Recheck the browser namespace using retained options and the original
+    /// boot identity. Absence of browser analysis keeps ordinary capture modes.
+    /// Success is not proof of source acquisition or permission to execute.
+    pub fn validate_browser_source(
+        &self,
+        engine_epoch: &AttemptId,
+        options: &LiveCaptureOptions,
+    ) -> Result<(), ProtocolError> {
+        if options.browser_analysis.is_some() {
+            check(
+                BrowserInferenceFallbackSourcePolicy::any_bound_media().matches_manifest(
+                    engine_epoch,
+                    options,
+                    self,
+                )?,
+                "browser inference source namespace, clock, profile or lifetime differs",
+            )?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum InferenceFallbackIndependentAudio {
@@ -993,3 +1093,7 @@ mod tests {
         assert!(validate_inference_fallback_successor(&original, &successor).is_err());
     }
 }
+
+#[cfg(test)]
+#[path = "browser_inference_source_tests.rs"]
+mod browser_source_tests;

@@ -46,6 +46,7 @@ impl Engine {
             }
         };
         options.validate()?;
+        stream.validate_browser_source(engine_epoch, options)?;
         let declaration = options
             .inference
             .as_ref()
