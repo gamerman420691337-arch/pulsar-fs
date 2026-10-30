@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "verified",
-    "evidence": "EV-LIVE-SEMANTICS-RUNTIME",
-    "scope": "Unchanged fe23e5e Engine test binary passes the original-semantic-retention regression both traced and untraced. The actual confined CPU browser campaign passes clean-input EOF and prepared-successor transfer, with five checked estimates, original freshness/lease bounds, both cleanup stages and full resource readmission. The native supervisor joins its child and retires all observed owned processes. This verifies the current source/view and native semantic-retention changes in their scoped software paths; authored neutral model/browser observations do not establish learned quality, rendered acquisition, whole-path timing or physical qualification. Earlier full-suite and native timeouts remain retained.",
+    "evidence": "EV-READER41-WAL-PREFLIGHT",
+    "scope": "Generic negative-only preflight reads the main header and checksum-valid committed WAL page one before daemon lock creation or SQLite access. Supported ceiling stays 41. Tests cover endian checksums, commit selection, invalid/torn tails, bounded page allocation, actual SQLite page sizes, changed/replaced files and aliases. Actual patched reader41 App refuses reader42 main/WAL state with no inventoried changes; current Engine42 reopens both. No live automatic fallback, portable campaign completion, concurrent-writer atomic snapshot, schema admission or model/platform/device/human qualification is established.",
     "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Current source/view and semantic-retention changes pass scoped Protocol, Engine-regression and confined CPU-browser checks. Broader full-suite, storage/timing, model, platform and physical acceptance remain open.",
+    "failure_summary": "Reader41 main/WAL preflight passes scoped parser, daemon, executable, build, lint and architecture checks. Full live fallback and all 25 parent acceptance gates remain open.",
     "source_stamp": [
       {
         "path": "CONTEXT.md",
@@ -220,7 +220,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/lib.rs",
-        "sha256": "926c70a9e7dd5f9f6be947710f58ee3a8f486fad351c38eb96c969bd80d966b5"
+        "sha256": "9fdb519d5672978487b41517b791bcb7ef74eb01bc2d724da53345891a304084"
       },
       {
         "path": "crates/pulsar-engine/src/live_capture_clock.rs",
@@ -324,7 +324,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/portable_fallback_reader.rs",
-        "sha256": "e1f47e878f3e7cdf70d848c27a271fb4dca4460e7c635ea05ad226ded5ea9aa4"
+        "sha256": "aff50913b9748a6ef97583591c4a290b6de39bd4f48a9225a935bfc2347587f6"
       },
       {
         "path": "crates/pulsar-engine/src/portable_wasm_db.rs",
@@ -357,6 +357,14 @@
       {
         "path": "crates/pulsar-engine/src/runtime_first_use.rs",
         "sha256": "230c647442575e1b4e1c661bb69cd5d2506f125fd138382b444cbd7cd000a9b8"
+      },
+      {
+        "path": "crates/pulsar-engine/src/sqlite_reader_preflight.rs",
+        "sha256": "0e9fb9dc8df9d82abacc430483c5549664eb2497aa03cc55328b44000d6db7ef"
+      },
+      {
+        "path": "crates/pulsar-engine/src/sqlite_reader_preflight_tests.rs",
+        "sha256": "a6d5903ac6cc57b567fee14d97a1de5d398b94664012d6153821b136d6114ca6"
       },
       {
         "path": "crates/pulsar-engine/src/worker/annotated_portable_tests.rs",
@@ -500,9 +508,10 @@
       "EV-NATIVE-STAMP-PLATFORM",
       "EV-LIVE-SOURCE-POLICY",
       "EV-LIVE-SEMANTICS",
-      "EV-LIVE-SEMANTICS-RUNTIME"
+      "EV-LIVE-SEMANTICS-RUNTIME",
+      "EV-READER41-WAL-PREFLIGHT"
     ],
-    "scope": "Current source: Protocol 406/0, Engine/client compilation, strict lint, two retained-semantics Engine regression runs and a two-case confined CPU-browser campaign pass. The last complete Engine 1926/0/117 ignored and client 703/0/15 ignored suites remain the separately pinned EV-NATIVE-STAMP-REPAIR checkpoint. Old full-suite/native timeouts and observed SSD latency remain unresolved qualification limits. All 25 acceptance gates stay open.",
+    "scope": "Current reader41 compatibility patch: 6 parser tests, 7 reader tests (1 ignored), two actual App refusal cases, strict Engine library/test lint, formatting, architecture and 36 source guards pass. Broader suite and native consumer results remain separately pinned checkpoints. Original reader41 WAL mutation and the invalid zero-test cache run remain retained; all 25 acceptance gates stay open.",
     "metric_refs": {
       "engine_passed": {
         "evidence": "EV-NATIVE-STAMP-REPAIR",
@@ -1394,6 +1403,18 @@
         "EV-LIVE-SEMANTICS",
         "EV-LIVE-SEMANTICS-RUNTIME"
       ]
+    },
+    {
+      "id": "SC-READER41-WAL-PREFLIGHT",
+      "title": "Refuse unsupported committed WAL versions before daemon or SQLite effects",
+      "parents": [
+        "M2-INTERCHANGE",
+        "M6-INSTALL"
+      ],
+      "scope": "Generic negative-only preflight reads the main header and checksum-valid committed WAL page one before daemon lock creation or SQLite access. Supported ceiling stays 41. Tests cover endian checksums, commit selection, invalid/torn tails, bounded page allocation, actual SQLite page sizes, changed/replaced files and aliases. Actual patched reader41 App refuses reader42 main/WAL state with no inventoried changes; current Engine42 reopens both. No live automatic fallback, portable campaign completion, concurrent-writer atomic snapshot, schema admission or model/platform/device/human qualification is established.",
+      "evidence": [
+        "EV-READER41-WAL-PREFLIGHT"
+      ]
     }
   ],
   "queue": [
@@ -1589,7 +1610,7 @@
       "depends_on": [
         "CPU-ROUNDTRIP"
       ],
-      "exit": "Source/view namespaces and original semantic retention now have current Protocol and actual Engine/native consumer evidence. Next implement explicit requested tier, current accepted directed equivalence and held environment/source proof, typed eligible native failure after full retirement, original-lifetime target admission and inert history. Retain prior full-suite/native timeouts, storage/timing qualification, archive fault obligations and all parent gates. Follow docs/PULSAR_LIVE_FALLBACK.md.",
+      "exit": "Reader41 generic main/WAL preflight now has exact patched-App refusal evidence; retain original executable failure. Continue the isolated initial live-admission implementation, typed eligible native failure after full worker/resource/delivery retirement, original-lifetime target execution, shared-client handling and inert recording/portable history. Preserve model/platform/timing/physical limitations. Follow docs/PULSAR_LIVE_FALLBACK.md.",
       "evidence": [
         "EV-FALLBACK-HISTORY-SNAPSHOT",
         "EV-FALLBACK-ARCHIVE-CONTRACT",
@@ -1613,7 +1634,9 @@
         "EV-LIVE-SOURCE-TIMEOUTS",
         "EV-LIVE-SEMANTICS",
         "EV-LIVE-SEMANTICS-TIMEOUTS",
-        "EV-LIVE-SEMANTICS-RUNTIME"
+        "EV-LIVE-SEMANTICS-RUNTIME",
+        "EV-READER41-WAL-COUNTER",
+        "EV-READER41-WAL-PREFLIGHT"
       ]
     },
     {
@@ -5704,6 +5727,88 @@
             "independent_probe_bytes"
           ],
           "equals": 32768
+        }
+      ]
+    },
+    {
+      "id": "EV-READER41-WAL-COUNTER",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/reader41-wal-counterevidence.json",
+      "sha256": "99432dc3ba7617c975432d3809e46a38f7ec8d279fcb7c228a857473fab6461e",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Original pinned reader41 App creates engine.lock and changes SHM before refusing reader42 in committed WAL. The immutable executable and failure remain retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "changed_paths"
+          ],
+          "equals": [
+            "engine.lock",
+            "projects.sqlite3-shm"
+          ]
+        },
+        {
+          "pointer": [
+            "no_mutation_gate_closed"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-READER41-WAL-PREFLIGHT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/wal-preflight/verification.json",
+      "sha256": "5189a340bbb2545a680c80754fe1fcca27b56ddbc1a2388534b37a74ec1ed70f",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Generic negative-only preflight reads the main header and checksum-valid committed WAL page one before daemon lock creation or SQLite access. Supported ceiling stays 41. Tests cover endian checksums, commit selection, invalid/torn tails, bounded page allocation, actual SQLite page sizes, changed/replaced files and aliases. Actual patched reader41 App refuses reader42 main/WAL state with no inventoried changes; current Engine42 reopens both. No live automatic fallback, portable campaign completion, concurrent-writer atomic snapshot, schema admission or model/platform/device/human qualification is established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "reader_ceiling"
+          ],
+          "equals": 41
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_cases_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_no_mutation"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "checks",
+            "current_reader_reopened_both"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
         }
       ]
     }

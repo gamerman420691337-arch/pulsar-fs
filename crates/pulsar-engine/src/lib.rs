@@ -71,6 +71,7 @@ mod native_mount_bytes;
 mod portable_cpu_archives;
 mod portable_fallback_graph_reader;
 mod portable_fallback_reader;
+mod sqlite_reader_preflight;
 mod task_group;
 pub use handy_credentials::HandyRouteIdentity;
 mod handy_continuous_timing;
