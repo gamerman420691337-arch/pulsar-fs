@@ -1360,7 +1360,7 @@
       "depends_on": [
         "CPU-ROUNDTRIP"
       ],
-      "exit": "Complete browser graph root/ancestor mutation, resource and fault campaigns and native/rendered target workflow under original limits. Reader42 refusal against owned reader43 main/WAL state passed; authored fixtures do not close parent gates. A historical test binary with a current-library closure failed once on timing binding and passed on repeat; investigate against a current-source pinned subject and preserve metadata-custody counterevidence.",
+      "exit": "Complete browser graph root/ancestor mutation, resource and fault campaigns and native/rendered target workflow under original limits. Reader42 refusal against owned reader43 main/WAL state passed; authored fixtures do not close parent gates. A historical test binary with a current-library closure failed once on timing binding and passed on repeat; investigate against a current-source pinned subject and preserve metadata-custody counterevidence. One authored current Engine/Protocol native EOF and successor-transfer run passed; repeated reliability and historical failure remain open.",
       "evidence": [
         "EV-FALLBACK-HISTORY-SNAPSHOT",
         "EV-FALLBACK-ARCHIVE-CONTRACT",
@@ -1426,7 +1426,8 @@
         "EV-NATIVE-BROWSER-RECORDING-ARCHIVE-FINAL",
         "EV-NATIVE-BROWSER-RECORDING-REPEAT",
         "EV-NATIVE-FRESHNESS-DIAGNOSTIC",
-        "EV-BROWSER-CURRENT-LIBRARY-MIXED"
+        "EV-BROWSER-CURRENT-LIBRARY-MIXED",
+        "EV-BROWSER-CURRENT-SOURCE-NATIVE"
       ]
     },
     {
@@ -8513,6 +8514,53 @@
             "current_source_qualified"
           ],
           "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-CURRENT-SOURCE-NATIVE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/current-source-browser-001/scoped-verification.json",
+      "sha256": "d57c5fcad9a8cb55168b21979be9a579e1fc3605f37bc9f883ac4fe5c864443b",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "One authored, confined current Engine/Protocol browser EOF and successor-transfer run passed; historical mixed result, rendered-browser and physical qualification remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historical_failure_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "repeated_reliability_established"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "cases_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "owned_processes_retired"
+          ],
+          "equals": true
         }
       ]
     }
