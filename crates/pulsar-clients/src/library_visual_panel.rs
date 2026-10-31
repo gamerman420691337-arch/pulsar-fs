@@ -242,7 +242,8 @@ mod tests {
         editor.use_model = true;
         editor.model = "relative.onnx".into();
         assert!(editor.capture().is_err());
-        editor.model = "/explicit/not-present.onnx".into();
+        let model_path = std::env::temp_dir().join("not-present.onnx");
+        editor.model = model_path.to_string_lossy().into_owned();
         assert!(editor.capture().is_ok());
         editor.class_count = 0;
         assert!(editor.capture().is_err());
@@ -263,7 +264,7 @@ mod tests {
         let (settings, model) = crate::library_generation::configure(&options).unwrap();
         assert_eq!(settings.analysis_width, 64);
         assert_eq!(settings.source_sample_stride, 2);
-        assert_eq!(model.unwrap(), PathBuf::from("/explicit/not-present.onnx"));
+        assert_eq!(model.unwrap(), model_path);
     }
     #[test]
     fn view_capture_checks_shared_numeric_and_half_sphere_geometry_without_files() {
