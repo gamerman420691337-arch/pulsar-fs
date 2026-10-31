@@ -30,9 +30,9 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
-    "scope": "Instrumented native run 009 passed, showing accepted and status observation ages; earlier freshness failures did not recur and remain unexplained. Simulated eligibility and sterile input only.",
+    "scope": "A current-source isolated rendered player completed a 420s sterile session with exit 0; this docs-only evidence update retains prior native and rendered failure counterevidence. Not a device or quality qualification.",
     "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Native runs 004\u2013005 failed combined freshness/status assertions without observation-age diagnostics; instrumented 009 passed and does not establish cause. All qualification gates remain open.",
+    "failure_summary": "Earlier 420s timing cleanup failure remains causally unresolved despite a later 420s player exit 0; freshness failures also remain open. All qualification gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -1178,7 +1178,8 @@
         "EV-LIVE-PROFILE-TIMING",
         "EV-NATIVE-STAMP-REPAIR",
         "EV-NATIVE-STAMP-PLATFORM",
-        "EV-NATIVE-FRESHNESS-DIAGNOSTIC"
+        "EV-NATIVE-FRESHNESS-DIAGNOSTIC",
+        "EV-RENDERED-420-REPEAT"
       ]
     },
     {
@@ -6874,6 +6875,53 @@
         {
           "pointer": [
             "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RENDERED-420-REPEAT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/rendered-timing-current-001/verification.json",
+      "sha256": "ff3c8d779b48b32ab27866368105423255dde84cd017b66334f3c2a7553e12c3",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Current-source isolated rendered browser repeated sterile playback during a bounded 420s player session, which exited 0 with empty stderr; workspace reports its engine and browser stopped. One-second age policy and 30s leases, no recording/export, no exact generation count or independent worker-custody proof. Earlier timing cleanup failure cause remains unknown; no physical or quality qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "player_runtime_seconds"
+          ],
+          "equals": 420
+        },
+        {
+          "pointer": [
+            "player_exit_code"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "previous_cleanup_failure_cause_resolved"
           ],
           "equals": false
         }
