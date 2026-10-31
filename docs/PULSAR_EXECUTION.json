@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-WINDOWS-HOST-FIXTURES",
-    "scope": "Host-native fixture paths passed 722 Linux client tests and a Windows GNU cross-check. Native Windows execution and full platform/device qualification remain open.",
+    "evidence": "EV-ASSISTANT-FIXTURE-INTERRUPTED",
+    "scope": "This dashboard records merged PR 22 and current CI evidence; the assistant worker fixture remains uncommitted and unverified in a separate checkout, and PR 24 transport repair is pending integration. Full platform and device qualification remain open.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "Full CI failed on macOS clients, Windows clients and Linux engine; fixes and root causes remain incomplete.",
+    "failure_summary": "Full CI failed on all platforms; the macOS socket failure is reproduced and its repair remains in PR 24. The separate assistant fixture is unverified.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -265,6 +265,14 @@
       {
         "path": "crates/pulsar-clients/src/library_visual_panel.rs",
         "sha256": "5c85ddb479649c5dc8d4306e018e6e3c2615d2e4bc6582756143c6e190212315"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_owner_policy.rs",
+        "sha256": "930ab5882ec6c261a5b7487a9592a4425097f4f8c479f17ed74bada3ae85299f"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_analysis_feed_tests.rs",
+        "sha256": "80cf6b080ab73dcd14bdc6bc506a715698f08eb564ff306267c594961764dc23"
       }
     ]
   },
@@ -1268,7 +1276,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines. A separate traced run opened timing but timed out on a probe and reported cleanup unconfirmed; an Engine fsync lasted 5.622 seconds without proven request or file correspondence. A separate file-aware trace identified slow worker-fence, staging and database fsyncs; the short rendered run exited cleanly and no fsync was tied to a timed-out request. A source-bound diagnostic render localized a further open timeout to the connected request/response call; whether write, response read, or Engine work blocked remains unknown. A separate socket trace recorded a complete send and three-second response-header read timeout, but its command was not identified; that run ended with capture cleanup unconfirmed and forced Engine termination. Resolve custody before private state cleanup. New transport diagnostics distinguish request-write from response-read failures, with no change to deadline or unknown-outcome semantics; they have not yet been exercised in a rendered failure. The current diagnostic rendered run localized timing-open timeout to response_read after local write, with no proof of Engine receipt or blocking stage. A scoped change removes timing-history requests from incidental live-capture sweeps, demonstrated by red/green contention and one short rendered pass; the earlier timeout cause, database waits and repeatability are not established. Timing-history also bypasses incidental transfer sweeping, with deterministic red/green and timing/transfer test coverage; its rendered attempt did not reach playback because private setup failed and the retry timed out. A separate sterile rendered retry on the two-sweep isolation observed 147 completed analyses and clean release, but does not establish repeatability or explain the earlier failures. One current sterile rendered run recorded 138 estimates, explicitly authored two gap fills, and downloaded a 140-action script matching its Engine receipt; synthetic edge fill reaches 60 seconds. No useful-model, repeatability, physical or human qualification follows. A post-change rendered run staged 210 estimates but had no second nonempty capture, so it did not exercise the duplicate boundary; player capture cleanup was unconfirmed and private state retained. A capture cleanup error-overwrite defect was reproduced and repaired with a two-original socket regression and one short rendered checkpoint; the historical cleanup failure is not attributed to that defect. Full on-demand CI on earlier stack commit 5e628672 failed on macOS clients and Linux engine; Windows was still running at observation. Diagnose and repair without weakening platform or confinement requirements. The same full CI subsequently completed with Windows client failures as well; correct host-specific fixtures and independently verify Windows, and retain Linux-only reference intake as an open platform capability. Host-specific path fixtures now use native temporary paths; 722 Linux client tests and Windows GNU test-code cross-check passed, but Windows execution remains unverified.",
+      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines. A separate traced run opened timing but timed out on a probe and reported cleanup unconfirmed; an Engine fsync lasted 5.622 seconds without proven request or file correspondence. A separate file-aware trace identified slow worker-fence, staging and database fsyncs; the short rendered run exited cleanly and no fsync was tied to a timed-out request. A source-bound diagnostic render localized a further open timeout to the connected request/response call; whether write, response read, or Engine work blocked remains unknown. A separate socket trace recorded a complete send and three-second response-header read timeout, but its command was not identified; that run ended with capture cleanup unconfirmed and forced Engine termination. Resolve custody before private state cleanup. New transport diagnostics distinguish request-write from response-read failures, with no change to deadline or unknown-outcome semantics; they have not yet been exercised in a rendered failure. The current diagnostic rendered run localized timing-open timeout to response_read after local write, with no proof of Engine receipt or blocking stage. A scoped change removes timing-history requests from incidental live-capture sweeps, demonstrated by red/green contention and one short rendered pass; the earlier timeout cause, database waits and repeatability are not established. Timing-history also bypasses incidental transfer sweeping, with deterministic red/green and timing/transfer test coverage; its rendered attempt did not reach playback because private setup failed and the retry timed out. A separate sterile rendered retry on the two-sweep isolation observed 147 completed analyses and clean release, but does not establish repeatability or explain the earlier failures. One current sterile rendered run recorded 138 estimates, explicitly authored two gap fills, and downloaded a 140-action script matching its Engine receipt; synthetic edge fill reaches 60 seconds. No useful-model, repeatability, physical or human qualification follows. A post-change rendered run staged 210 estimates but had no second nonempty capture, so it did not exercise the duplicate boundary; player capture cleanup was unconfirmed and private state retained. A capture cleanup error-overwrite defect was reproduced and repaired with a two-original socket regression and one short rendered checkpoint; the historical cleanup failure is not attributed to that defect. Full on-demand CI on earlier stack commit 5e628672 failed on macOS clients and Linux engine; Windows was still running at observation. Diagnose and repair without weakening platform or confinement requirements. The same full CI subsequently completed with Windows client failures as well; correct host-specific fixtures and independently verify Windows, and retain Linux-only reference intake as an open platform capability. Host-specific path fixtures now use native temporary paths; 722 Linux client tests and Windows GNU test-code cross-check passed, but Windows execution remains unverified. A separate assistant-policy test fixture uses an owned regular worker; compilation was interrupted under host pressure and tests did not run. Verify before attributing or committing. Full CI run 41214450893 was dispatched on 4817c72 to test host path fixtures natively; it excludes the uncommitted assistant fixture. Await its actual outcome. Bounded assistant fixture build then failed Wild linking; a non-incremental retry is running, with no test result at observation. The non-incremental bounded retry ended during compilation without a test result or a recorded cause; fixture remains unverified. Current full CI commit 4817c72 also failed 43 macOS client tests, including local transport EINVAL and Linux-only reference intake; causes remain open. Current full CI commit 4817c72 also failed 228 Linux Engine tests; 190 reported unavailable control-image identity, with confinement and symlink failures retained separately. Full CI Windows client failures fell from 16 to 8; four remaining share a Unix-style model path fixture and four require Linux-only reference intake. A fixture repair is unverified. The remaining Windows analysis host-path fixture now passes 19 focused Linux tests; native Windows execution remains unverified. Native Windows verification of the remaining analysis fixture is running in full CI on 01c94fc; it excludes the uncommitted assistant fixture. Eight macOS CI timing-open failures reported response_read transport I/O; local write preceded those failures, but OS cause and Engine receipt remain unknown. Test Darwin peer-close/socket-timeout EINVAL hypothesis with deterministic native reproduction before designing a deadline-preserving fix; no causal attribution yet. Native macOS peer-close/timeout experiment runs in diagnostic-only PR 23 and must not be merged; native outcome and application causality are pending. Native macOS isolated probe confirmed timeout reset returns EINVAL after peer close even with buffered reply; Linux succeeds. Add a transport-level reproduction and deadline-preserving fix before attributing CI failures. Pulsar DeadlineStream peer-close regression passes on Linux and is dispatched for native macOS on diagnostic PR 23; result and application causality remain pending. Native Pulsar DeadlineStream regression reproduces EINVAL on macOS after peer close and passes Linux; a bounded nonblocking read fallback is under test. Attribution of all CI failures remains open. A macOS-only nonblocking read fallback rechecks the deadline; two Linux focused tests pass and native macOS validation runs on diagnostic branch. It is not merged or qualified. PR 22 merged at 2d0d60c after three-platform fast CI; this does not establish full-suite success or qualification. Draft fallback passed two native macOS and Linux regression tests; expired-deadline and truncated-reply tests and normal integration remain in progress. Full Windows native rerun reduced client failures to four, all Linux-only reference intake; host-path fixture failures no longer appear. Platform qualification remains open. Normal PR 24 carries the deadline-stream fix and four fast-CI regressions; 419 Linux protocol tests pass, current native four-test result pending.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
@@ -1346,7 +1354,27 @@
         "EV-CAPTURE-FIRST-FAILURE-REPAIR",
         "EV-FULL-CI-20261031-PARTIAL",
         "EV-FULL-CI-20261031-TERMINAL",
-        "EV-WINDOWS-HOST-FIXTURES"
+        "EV-WINDOWS-HOST-FIXTURES",
+        "EV-ASSISTANT-FIXTURE-INTERRUPTED",
+        "EV-FULL-CI-CURRENT-DISPATCH",
+        "EV-ASSISTANT-FIXTURE-LINK-FAILURE",
+        "EV-ASSISTANT-FIXTURE-BOUNDED-INCOMPLETE",
+        "EV-CURRENT-FULL-CI-MACOS",
+        "EV-CURRENT-FULL-CI-LINUX",
+        "EV-CURRENT-FULL-CI-WINDOWS",
+        "EV-WINDOWS-ANALYSIS-FIXTURE",
+        "EV-WINDOWS-ANALYSIS-NATIVE-DISPATCH",
+        "EV-CURRENT-MACOS-RESPONSE-PHASE",
+        "EV-MACOS-CLOSED-SOCKET-HYPOTHESIS",
+        "EV-MACOS-SOCKET-NATIVE-PROBE",
+        "EV-MACOS-SOCKET-NATIVE-RESULT",
+        "EV-DEADLINE-PEER-CLOSE-NATIVE-DISPATCH",
+        "EV-DEADLINE-PEER-CLOSE-NATIVE-RED",
+        "EV-DEADLINE-MACOS-FALLBACK-DRAFT",
+        "EV-PR22-FAST-MERGE",
+        "EV-DEADLINE-MACOS-FALLBACK-NATIVE",
+        "EV-WINDOWS-ANALYSIS-NATIVE-RESULT",
+        "EV-DEADLINE-MACOS-NORMAL-PR"
       ]
     },
     {
@@ -12451,6 +12479,727 @@
             "windows_native_tests_run"
           ],
           "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-ASSISTANT-FIXTURE-INTERRUPTED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/assistant-owned-worker-fixture-interrupted-20261031.json",
+      "sha256": "2fed954eca06d39a3ec3ab8d5af59e7268976c9400fb6a627ab4762f76c1753d",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Unverified test fixture replaces a host system worker executable with an owned regular executable; compilation was stopped for severe host pressure before tests ran. CI failure cause remains unknown.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "UNVERIFIED"
+        },
+        {
+          "pointer": [
+            "test_executed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "ci_failure_cause_proven"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-FULL-CI-CURRENT-DISPATCH",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/current-full-ci-dispatch-20261031.json",
+      "sha256": "b62dd0d7f79e7dae094eccfc451dacfa0cfe136a10be92b8c92492c2a5e72c03",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Full CI dispatched at committed 4817c72 for native Windows verification and cross-platform failure diagnosis; no result at observation. The uncommitted assistant fixture is excluded.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "IN_PROGRESS"
+        },
+        {
+          "pointer": [
+            "windows_native_result_available"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "includes_uncommitted_assistant_fixture"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-ASSISTANT-FIXTURE-LINK-FAILURE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/assistant-fixture-link-failure-20261031.json",
+      "sha256": "ce1ba61e255a5c8a96b996d1e85bd6f6cc196f6e201af9c8c48e29d46df28a5e",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Bounded assistant fixture build failed at Wild linking with undefined symbols; no tests ran. A non-incremental bounded retry was in progress when recorded.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "test_executed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-ASSISTANT-FIXTURE-BOUNDED-INCOMPLETE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/assistant-fixture-no-incremental-ended-20261031.json",
+      "sha256": "080a7716290ca986fda196449cd4890e20e7c4cc58b6ad63bbbc2bdef0fbd2d0",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Non-incremental resource-bounded retry ended during compilation without test results or a recorded cause; fixture remains unverified.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "INCOMPLETE"
+        },
+        {
+          "pointer": [
+            "test_executed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-CURRENT-FULL-CI-MACOS",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/current-full-ci-macos-20261031.json",
+      "sha256": "260dfce8278d6bfe371960e0b6d9a980ca487b573293079d68ce2326d7a4beea",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Current commit 4817c72 full CI macOS client suite failed 43 tests including invalid-argument local transport and Linux-only reference intake. Causes and qualification remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "client_failed"
+          ],
+          "equals": 43
+        },
+        {
+          "pointer": [
+            "cause_proven"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-CURRENT-FULL-CI-LINUX",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/current-full-ci-linux-20261031.json",
+      "sha256": "06b745da50fc5429c805ea8479994304f39e714db7b514d880bf630c1ccca888",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Full CI on 4817c72 failed 228 Linux Engine tests, with 190 control-image identity failures and additional confinement and symlink failures; causes remain unproven.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "engine_failed"
+          ],
+          "equals": 228
+        },
+        {
+          "pointer": [
+            "cause_proven"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-CURRENT-FULL-CI-WINDOWS",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/current-full-ci-windows-20261031.json",
+      "sha256": "60ca013ce54da39899dfbbd142f15a73f7b04037152ec9dc9553246638f7c8bc",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Windows native client suite failed 8 tests on 4817c72, down from 16 on prior subject: four share a Unix path in a fixture and four require Linux-only reference intake.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "client_failed"
+          ],
+          "equals": 8
+        },
+        {
+          "pointer": [
+            "prior_windows_client_failed"
+          ],
+          "equals": 16
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-WINDOWS-ANALYSIS-FIXTURE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/windows-analysis-fixture-verification-20261031.json",
+      "sha256": "613a79061c27542d83d57d7fef381ed497d9fd3463de5a29c16066355219e0fb",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Remaining Windows analysis test fixture now uses a host-native absolute model path; 19 focused Linux tests pass. Windows native execution remains open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "linux_tests_passed"
+          ],
+          "equals": 19
+        },
+        {
+          "pointer": [
+            "windows_native_tests_run"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-WINDOWS-ANALYSIS-NATIVE-DISPATCH",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/windows-analysis-native-dispatch-20261031.json",
+      "sha256": "450047ddf75491a0abe80e1123c88270d18d46eac9437bbf3bc730cdcf5ba56e",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Full CI dispatched on 01c94fc to run the remaining Windows analysis fixture correction natively; no outcome yet. Uncommitted assistant fixture is excluded.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "IN_PROGRESS"
+        },
+        {
+          "pointer": [
+            "windows_native_result_available"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-CURRENT-MACOS-RESPONSE-PHASE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/current-full-ci-macos-phases-20261031.json",
+      "sha256": "b6b729e4494afd69da648bd92f2e54c8d8e1a5c108b57086661243bf2f7cf441",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Eight macOS full-suite timing-open reports classify the failure as response_read transport I/O after local write; kernel cause and Engine receipt remain unknown.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "timing_open_response_read_failure_lines"
+          ],
+          "equals": 8
+        },
+        {
+          "pointer": [
+            "cause_proven"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-MACOS-CLOSED-SOCKET-HYPOTHESIS",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/macos-closed-socket-hypothesis-20261031.json",
+      "sha256": "4efb9657cff9a2c38893e7ebf6b2e46a5bb2ad9691fc85ef6a36d61e47ece71f",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Source-backed hypothesis: Darwin may reject timeout reset after Unix peer disconnect, before buffered response is read. Requires deterministic native reproduction; CI cause remains unproven.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "HYPOTHESIS"
+        },
+        {
+          "pointer": [
+            "native_reproduction"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "cause_proven"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-MACOS-SOCKET-NATIVE-PROBE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/macos-socket-native-probe-dispatch-20261031.json",
+      "sha256": "07f2fc7f591c699fd11ffd8192ff6e0861af6043665834eb49819befad9c6d29",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Isolated native socket peer-close/timeout experiment dispatched on a diagnostic-only do-not-merge branch; local Linux probe succeeded, macOS outcome pending.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "IN_PROGRESS"
+        },
+        {
+          "pointer": [
+            "native_macos_result_available"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "diagnostic_only_do_not_merge"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "application_cause_proven"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-MACOS-SOCKET-NATIVE-RESULT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/macos-socket-native-probe-result-20261031.json",
+      "sha256": "960c08342234a478e2d539ffa09e5707e6fa161b42cdd7af0e34b82bb91fae1a",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Native isolated socket experiment reproduced macOS EINVAL when resetting receive timeout after peer close despite readable buffered response; Linux timeout reset succeeded. Pulsar-level causality and qualification remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "macos",
+            "timeout_errno"
+          ],
+          "equals": 22
+        },
+        {
+          "pointer": [
+            "macos",
+            "buffered_response_intact"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "linux",
+            "buffered_response_intact"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "application_cause_proven"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-DEADLINE-PEER-CLOSE-NATIVE-DISPATCH",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/deadline-stream-peer-close-dispatch-20261031.json",
+      "sha256": "a4d6547e3d7d13aeef03a09744a0a683b368b1addec5a0a38ec3f0051c30b0a8",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Pulsar DeadlineStream buffered-response-after-peer-close regression passed on Linux. Native macOS diagnostic run is pending on a do-not-merge branch.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "linux_tests_passed"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "macos_native_result_available"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "application_cause_proven"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-DEADLINE-PEER-CLOSE-NATIVE-RED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/deadline-stream-peer-close-native-red-20261031.json",
+      "sha256": "0e8f7c8fdf40dad9f26d31b51c242718b4ee42604145019928d71c04dc854cbd",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Pulsar DeadlineStream regression failed natively on macOS with EINVAL after peer close and passed on Linux; exact attribution of all macOS CI failures remains open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "macos_test_failed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "macos_errno"
+          ],
+          "equals": 22
+        },
+        {
+          "pointer": [
+            "linux_test_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-DEADLINE-MACOS-FALLBACK-DRAFT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/deadline-stream-fallback-draft-20261031.json",
+      "sha256": "8c6c1de6faec740a91634cff6cb9ef2c9ace34798c7208790b22764908db432d",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Draft macOS nonblocking read fallback on diagnostic do-not-merge branch; two Linux focused tests pass and native macOS verification is pending.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "linux_focused_tests_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "macos_native_result_available"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-PR22-FAST-MERGE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/pr22-fast-merge-20261031.json",
+      "sha256": "08b189cbb86c636ff432c7e930e4517ea1bab754ae351c94c76dd66f81434724",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "PR 22 merged after three-platform fast CI. Full suites and qualification remain open; merge does not include macOS transport repair or uncommitted assistant fixture.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "full_suite_passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-DEADLINE-MACOS-FALLBACK-NATIVE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/deadline-stream-fallback-native-green-20261031.json",
+      "sha256": "b0cb0e432a71bd9b1d359de05f472a85303339ef00c5cbef9006c2b330682a57",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Draft fallback passed two native macOS and Linux DeadlineStream regressions after a macOS red test; broader deadline, full-suite and qualification evidence remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "macos_tests_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "linux_tests_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "full_suite_passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-WINDOWS-ANALYSIS-NATIVE-RESULT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/current-windows-fixture-native-result-20261031.json",
+      "sha256": "4d7ec41a6af80af8d7b69a087eff43a6546e1ae30a48cc58fff10c21b69dc859",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Native Windows client suite improved from 8 failures to 4 on 01c94fc; remaining four report Linux-only reference intake. Full suite remains failed and Windows unqualified.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "client_failed"
+          ],
+          "equals": 4
+        },
+        {
+          "pointer": [
+            "remaining_linux_only_reference_failures"
+          ],
+          "equals": 4
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-DEADLINE-MACOS-NORMAL-PR",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/deadline-stream-normal-pr-20261031.json",
+      "sha256": "95b00ddac799993990cded9f2a0927bd7363f3335ae441a95f69e27017f71397",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Normal PR carries only transport repair and fast-CI regressions; 419 Linux protocol tests pass and two earlier macOS regressions pass. Current four-test macOS CI and qualification remain pending.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "linux_protocol_tests_passed"
+          ],
+          "equals": 419
+        },
+        {
+          "pointer": [
+            "linux_deadline_tests_passed"
+          ],
+          "equals": 4
+        },
+        {
+          "pointer": [
+            "macos_all_four_pending"
+          ],
+          "equals": true
         },
         {
           "pointer": [
