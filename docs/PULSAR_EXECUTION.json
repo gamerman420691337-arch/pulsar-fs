@@ -1364,7 +1364,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards. A separate read-only 100-scene page contained two distinct file IDs per scene and no exact lexical server-side sidecar collisions within a scene; local mapping, all remaining pages and publication semantics are unverified. A bounded non-atomic same-host metadata sample found 100 pairs refer to the same inode with one symlink path; this does not authorize symlink capture or settle file-selection policy.",
+      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards. A separate read-only 100-scene page contained two distinct file IDs per scene and no exact lexical server-side sidecar collisions within a scene; local mapping, all remaining pages and publication semantics are unverified. A bounded non-atomic same-host metadata sample found 100 pairs refer to the same inode with one symlink path; this does not authorize symlink capture or settle file-selection policy. A separate non-atomic metadata sample observed ancestor-directory symlinks with absolute targets; keep no-follow capture and recheck any alias identity without retaining paths.",
       "evidence": [
         "EV-STASH-INSTALLED-VERSION-PREFLIGHT",
         "EV-STASH-INSTALLED-DISCOVERY",
@@ -1372,7 +1372,8 @@
         "EV-STASH-INSTALLED-MULTIFILE-SAMPLE",
         "EV-STASH-INSTALLED-FILE-SHAPE",
         "EV-STASH-INSTALLED-FILE-SHAPE-CLARIFIED",
-        "EV-STASH-INSTALLED-ALIAS-SAMPLE"
+        "EV-STASH-INSTALLED-ALIAS-SAMPLE",
+        "EV-STASH-INSTALLED-ALIAS-SHAPE"
       ]
     },
     {
@@ -9937,6 +9938,89 @@
             "owned_processes_retired"
           ],
           "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-INSTALLED-ALIAS-SHAPE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-installed-alias-shape-001/verification.json",
+      "sha256": "daacbd930241d4302bd89200cb7affc90b0a9c13b2495082a0e2156eb0a55df3",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Read-only metadata inspection of one 100-scene GraphQL page found 100 encountered symlink paths, all with an ancestor-directory symlink and an absolute link target; their resolved paths differed from their lexical parent. This observation followed links only for metadata, is non-atomic, and does not authorize symlink capture, establish selection policy, prove actual mapping, or describe other pages. No path, target, scene ID, name or media bytes retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "OBSERVED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "sample_scenes"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "observed_ancestor_symlinks"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "observed_absolute_link_targets"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "resolved_outside_lexical_parent"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "atomic_snapshot"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "full_library_exhaustion_checked"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "media_bytes_read"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "library_content_retained"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_attempted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
         }
       ]
     }
