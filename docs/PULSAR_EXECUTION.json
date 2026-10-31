@@ -30,9 +30,9 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
-    "scope": "A current-source isolated rendered player completed a 420s sterile session with exit 0; this docs-only evidence update retains prior native and rendered failure counterevidence. Not a device or quality qualification.",
+    "scope": "Current-source rendered sterile recording, explicit gap-repair review and 401-action download matched the committed master; staged range was 0\u201360s and includes four synthesized actions. Scoped 420s cleanup repeat and original counterevidence retained; independent qualification remains open.",
     "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Earlier 420s timing cleanup failure remains causally unresolved despite a later 420s player exit 0; freshness failures also remain open. All qualification gates remain open.",
+    "failure_summary": "Earlier 420s timing cleanup failure and native freshness failures remain causally unresolved. Rendered export has explicit authored repairs and is unqualified. All 25 acceptance gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -1179,7 +1179,8 @@
         "EV-NATIVE-STAMP-REPAIR",
         "EV-NATIVE-STAMP-PLATFORM",
         "EV-NATIVE-FRESHNESS-DIAGNOSTIC",
-        "EV-RENDERED-420-REPEAT"
+        "EV-RENDERED-420-REPEAT",
+        "EV-RENDERED-CURRENT-RECORDING-EXPORT"
       ]
     },
     {
@@ -6922,6 +6923,53 @@
         {
           "pointer": [
             "previous_cleanup_failure_cause_resolved"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RENDERED-CURRENT-RECORDING-EXPORT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/rendered-recording-current-001/verification.json",
+      "sha256": "69987dc3f15c757fe9f4472f1fc438cb00b1b2812010f0cd4cb65c4a4a1fc3b2",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Current source rendered sterile playback recorded 397 inferred actions across continuation captures; candidate had 4 gaps, export was refused in observed UI, four explicitly authored gap repairs were reviewed and committed, and the 401-action downloaded funscript matches independently read committed master after prescribed quantization. Actual staged project range was 0\u201360 seconds despite intended 5\u201345; source is 40s. One-second age policy; no quality, device, real-media, independent worker-custody or release qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "quantized_master_matches_download"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "authored_repair_actions"
+          ],
+          "equals": 4
+        },
+        {
+          "pointer": [
+            "previous_timing_failure_cause_resolved"
           ],
           "equals": false
         }
