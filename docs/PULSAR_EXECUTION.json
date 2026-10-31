@@ -1670,9 +1670,10 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Decompose and verify all remaining M4/M6 gate criteria with exact assets, hardware, fault and relocation evidence; partial adapters and manifests do not close the matrix.",
+      "exit": "Verify the remaining M4/M6 modality and platform matrix against exact assets, hardware, fault and relocation evidence. Windows descriptor-bound reference intake remains unsupported and fails closed; PR 28 makes the tests reflect that boundary and passes fast CI on Linux, Windows and macOS. This does not qualify Windows reference support or close the full modality matrix.",
       "evidence": [
-        "EV-BASELINE-CI-FAILURE"
+        "EV-BASELINE-CI-FAILURE",
+        "EV-PR28-WINDOWS-REFERENCE-BOUNDARY-MERGED"
       ]
     },
     {
@@ -14628,6 +14629,53 @@
         {
           "pointer": [
             "model_device_or_media_qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-PR28-WINDOWS-REFERENCE-BOUNDARY-MERGED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/assistant-windows-reference-boundary-merged-20261031.json",
+      "sha256": "54dad0b4b96763134d23bf530f92171616f5a71d6a29ec3b10ac5b7c52d58449",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "PR 28 merged after fast CI passed on Linux, Windows and macOS. Windows reference-panel success fixtures now remain Linux-scoped, and a non-Linux fail-closed intake test compiles for Windows. Windows descriptor-bound reference intake remains unsupported and its qualification gate remains open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "merge_commit"
+          ],
+          "equals": "6ba16233fb64eb42f9c49b26ec96b83b6acbb220"
+        },
+        {
+          "pointer": [
+            "windows_descriptor_intake_supported"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "windows_intake_fails_closed_test_compiled"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "full_windows_reference_qualification"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "full_suite_passed"
           ],
           "equals": false
         }
