@@ -122,6 +122,11 @@ impl Engine {
             tx.commit().map_err(internal)?;
         }
         let devices = PinnedCudaDevices::open(&owner.policy().device).map_err(unavailable)?;
+        #[cfg(test)]
+        eprintln!(
+            "live CUDA startup phase=native_capture_begin elapsed_ms={}",
+            origin.elapsed().as_millis()
+        );
         let image = self.native_image_reuse.capture_with(
             &owner.policy().native_dependencies,
             &cancel,
@@ -144,6 +149,11 @@ impl Engine {
                 )
             },
         )?;
+        #[cfg(test)]
+        eprintln!(
+            "live CUDA startup phase=native_capture_complete elapsed_ms={}",
+            origin.elapsed().as_millis()
+        );
         let prepared = crate::live_staging::prepare(
             &self.config,
             &self.pool,
@@ -163,6 +173,11 @@ impl Engine {
             Some(self.worker_fence.clone()),
         )?
         .into_gpu()?;
+        #[cfg(test)]
+        eprintln!(
+            "live CUDA startup phase=worker_staging_complete elapsed_ms={}",
+            origin.elapsed().as_millis()
+        );
         stream.model.path = "/input/model".into();
         stream.runtime.path = image
             .captured()
@@ -231,6 +246,11 @@ impl Engine {
             &cancel,
         )
         .map_err(unavailable)?;
+        #[cfg(test)]
+        eprintln!(
+            "live CUDA startup phase=gpu_observation_complete elapsed_ms={}",
+            origin.elapsed().as_millis()
+        );
         let admitted = observed
             .admit(&self.pool, owner, &manifest)
             .map_err(unavailable)?;
@@ -254,6 +274,11 @@ impl Engine {
             prepared,
             scope,
             cancel,
+        );
+        #[cfg(test)]
+        eprintln!(
+            "live CUDA startup phase=worker_start_returned elapsed_ms={}",
+            origin.elapsed().as_millis()
         );
         match started {
             Ok(worker) => Ok(LiveCudaStartup::Ready(Box::new((manifest, worker)))),
