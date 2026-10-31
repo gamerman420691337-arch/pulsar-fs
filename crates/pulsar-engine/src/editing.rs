@@ -667,6 +667,7 @@ mod tests {
             file_id: "file".into(),
             expected_server_path: None,
             expected_source_version: None,
+            allow_multifile_selection: None,
             mappings: vec![StashRootMapping {
                 server_root: "/stash".into(),
                 local_root: f.dir.path().into(),
@@ -729,6 +730,105 @@ mod tests {
     }
     #[cfg(unix)]
     #[test]
+    fn stash_explicit_multifile_capture_binds_id_path_and_nofollow() {
+        use std::os::unix::fs::symlink;
+        let f = fixture();
+        let media = f.dir.path().join("source.mp4");
+        fs::write(&media, b"sterile explicitly selected bytes").unwrap();
+        symlink(f.dir.path(), f.dir.path().join("alias")).unwrap();
+        let body = serde_json::json!({"data":{"findScene":{
+            "id":"scene","title":"authored","interactive":false,
+            "files":[{"id":"file","path":"/stash/source.mp4"},{"id":"alias","path":"/stash/alias/source.mp4"}]
+        }}}).to_string();
+        let (connection, server) = crate::stash::tests::mock(vec![
+            (200, String::new(), body.clone()),
+            (200, String::new(), body.clone()),
+            (200, String::new(), body.clone()),
+            (200, String::new(), body.clone()),
+            (200, String::new(), body),
+        ]);
+        let command =
+            |file: &str, expected: Option<&str>, allow: Option<bool>| Command::StashImportSource {
+                connection: connection.clone(),
+                scene_id: "scene".into(),
+                file_id: file.into(),
+                expected_server_path: expected.map(str::to_owned),
+                expected_source_version: None,
+                allow_multifile_selection: allow,
+                mappings: vec![StashRootMapping {
+                    server_root: "/stash".into(),
+                    local_root: f.dir.path().into(),
+                }],
+                owner_proof: f.engine.stash_owner_token.clone(),
+            };
+        assert_eq!(
+            f.call(command("file", None, None), Some(0))
+                .unwrap_err()
+                .code,
+            ErrorCode::RequestConflict
+        );
+        assert_eq!(
+            f.call(
+                command("file", Some("/stash/other.mp4"), Some(true)),
+                Some(0)
+            )
+            .unwrap_err()
+            .code,
+            ErrorCode::RequestConflict
+        );
+        assert_eq!(
+            f.call(
+                command("alias", Some("/stash/alias/source.mp4"), Some(true)),
+                Some(0)
+            )
+            .unwrap_err()
+            .code,
+            ErrorCode::RequestConflict
+        );
+        let receipt = f
+            .call(
+                command("file", Some("/stash/source.mp4"), Some(true)),
+                Some(0),
+            )
+            .unwrap();
+        let ResponseBody::StashSourceCaptured(capture) = receipt else {
+            panic!("capture expected")
+        };
+        assert_eq!(capture.file_id, "file");
+        assert_eq!(capture.server_path, "/stash/source.mp4");
+        assert_eq!(capture.local_source, media);
+        assert!(!capture.script_destination.exists());
+        let snapshot = f
+            .engine
+            .config
+            .state_dir
+            .join("snapshots")
+            .join(&capture.identity.sha256);
+        assert_eq!(
+            fs::read(snapshot).unwrap(),
+            b"sterile explicitly selected bytes"
+        );
+        let publication = Command::StashExportScript {
+            connection,
+            source_version: capture.source_version,
+            scene_id: "scene".into(),
+            file_id: "file".into(),
+            candidate_id: id!(CandidateId),
+            job_id: id!(JobId),
+            source_time: false,
+            archived_origin: None,
+            owner_proof: f.engine.stash_owner_token.clone(),
+        };
+        assert_eq!(
+            f.call(publication, Some(0)).unwrap_err().code,
+            ErrorCode::RequestConflict
+        );
+        assert!(!capture.script_destination.exists());
+        assert_eq!(server.join().unwrap().len(), 5);
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn stash_publication_rejects_unrelated_master_and_stale_revision_before_effects() {
         let f = fixture();
         let media = f.dir.path().join("source.mp4");
@@ -746,6 +846,7 @@ mod tests {
                     file_id: "file".into(),
                     expected_server_path: None,
                     expected_source_version: None,
+                    allow_multifile_selection: None,
                     mappings: vec![StashRootMapping {
                         server_root: "/stash".into(),
                         local_root: f.dir.path().into(),

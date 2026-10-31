@@ -19,7 +19,7 @@
     },
     {
       "path": "docs/PULSAR_MAJOR_ROADMAP.md",
-      "role": "M1\u2013M8 scope and acceptance obligations"
+      "role": "M1–M8 scope and acceptance obligations"
     }
   ],
   "archive": {
@@ -29,8 +29,8 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-CPU-START-PHASE-PROBE",
-    "scope": "A bounded per-attempt test-only CPU startup phase probe passed its unit test, Clippy and one native browser campaign; worker_ready was observed on success. Historical Ready and transfer failures remain unexplained.",
+    "evidence": "EV-STASH-EXPLICIT-FINAL-SOURCE",
+    "scope": "Uncommitted explicit multifile capture draft passed strict library Clippy, source-bound focused tests, and the rebuilt binary passed an owned Stash v0.31.1 alias fixture. A preceding engine refused the opt-in field in an unauthenticated wire check. Automatic alias handling, multifile publication and user-library qualification remain open. Workspace all-target check was interrupted and remains unverified.",
     "active_work": "BROWSER-DEMO",
     "failure_summary": "Diagnostic source cleanup and Engine forced-stop counterevidence remain unresolved; new diagnostics do not retroactively establish cause. All qualification gates remain open.",
     "source_stamp": [
@@ -56,7 +56,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/authority.rs",
-        "sha256": "48534fd68b7a73a4917772f16b66d56a0dfabccaae8a037875dc64c32fa56f24"
+        "sha256": "6ee8900c9fe3d84d185a845f3646990dc9e0d4e20be8d8252cf78624cc6a9211"
       },
       {
         "path": "crates/pulsar-engine/src/browser_fallback_history.rs",
@@ -156,11 +156,11 @@
       },
       {
         "path": "crates/pulsar-clients/src/cli.rs",
-        "sha256": "e4ae4308b6c9d8c70d51e64c2f941bb9e117701673fcdf810bfa829f2280114b"
+        "sha256": "50376031ba4ca66088b48ccf9272082f830fa13ba9d8b73d82cfd69ea3349275"
       },
       {
         "path": "crates/pulsar-clients/src/lib.rs",
-        "sha256": "9dde8474d1fd57c9ff8d83b5022ef954150b71d794c155129a72a944cbebfe33"
+        "sha256": "1804a3d4b7483a6cfdcac912956dc953d649a6297507f02ce7eccc39eb14e2ad"
       },
       {
         "path": "crates/pulsar-clients/src/browser_live.html",
@@ -193,6 +193,30 @@
       {
         "path": "crates/pulsar-engine/src/live_captures.rs",
         "sha256": "8426c077c242e3b5dfa9cf4995c61a1e6d7c63c8c973c34e1a8e458a4f991e71"
+      },
+      {
+        "path": "crates/pulsar-clients/src/desktop.rs",
+        "sha256": "806a47aa52a5537919f7d15b0b4e065e002b36b3b56b3eb9f2f28d9a0f1209be"
+      },
+      {
+        "path": "crates/pulsar-engine/src/editing.rs",
+        "sha256": "f48824ec1b6bc03d690666d1edadf69f03d7d304218b0afbe7194914a0cc1047"
+      },
+      {
+        "path": "crates/pulsar-engine/src/stash_batches.rs",
+        "sha256": "538a6fda54f8db0aeb21f06c1c7d522dbd2524803380c9f6690337c4255aea60"
+      },
+      {
+        "path": "crates/pulsar-engine/src/stash_files.rs",
+        "sha256": "7c4bc719dfa626dc0ea9c8afa1b506e5cf7430f04fe8515ddb7d66d7fe2a79e8"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/lib.rs",
+        "sha256": "e175d3a510b6f1504e81e7eeb287393dc45c4ac323377f878abfba87398a5428"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/stash.rs",
+        "sha256": "655c704f44637ebbef203f5771322483c35620791af7fbe2f939d4a767e75875"
       }
     ]
   },
@@ -1364,7 +1388,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards. A separate read-only 100-scene page contained two distinct file IDs per scene and no exact lexical server-side sidecar collisions within a scene; local mapping, all remaining pages and publication semantics are unverified. A bounded non-atomic same-host metadata sample found 100 pairs refer to the same inode with one symlink path; this does not authorize symlink capture or settle file-selection policy. A separate non-atomic metadata sample observed ancestor-directory symlinks with absolute targets; keep no-follow capture and recheck any alias identity without retaining paths. Installed schema exposes Scene.interactive and Scene.paths.funscript, but schema introspection alone does not prove file-specific attachment for multifile scenes. Installed Scene schema exposes no primary-named field; schema alone does not establish file order or selected-file attachment. An isolated Stash v0.31.1 sterile two-alias fixture became interactive and exposed a scene funscript path after scanning one synthetic sidecar; file-specific attachment and actual-user publication remain unproven. An owned sterile Stash/Engine fixture confirmed that even an explicitly selected regular file is refused when the scene has two alias IDs; project state stayed unchanged. An uncommitted explicit multifile capture opt-in draft has partial protocol/path tests; integration build stopped under host I/O pressure, and old-reader, native and publication checks remain open. A retry of the draft Engine integration test was stopped under sustained I/O pressure; owned compiler/linker descendants were retired and the unverified patch retained.",
+      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards. A separate read-only 100-scene page contained two distinct file IDs per scene and no exact lexical server-side sidecar collisions within a scene; local mapping, all remaining pages and publication semantics are unverified. A bounded non-atomic same-host metadata sample found 100 pairs refer to the same inode with one symlink path; this does not authorize symlink capture or settle file-selection policy. A separate non-atomic metadata sample observed ancestor-directory symlinks with absolute targets; keep no-follow capture and recheck any alias identity without retaining paths. Installed schema exposes Scene.interactive and Scene.paths.funscript, but schema introspection alone does not prove file-specific attachment for multifile scenes. Installed Scene schema exposes no primary-named field; schema alone does not establish file order or selected-file attachment. An isolated Stash v0.31.1 sterile two-alias fixture became interactive and exposed a scene funscript path after scanning one synthetic sidecar; file-specific attachment and actual-user publication remain unproven. An owned sterile Stash/Engine fixture confirmed that even an explicitly selected regular file is refused when the scene has two alias IDs; project state stayed unchanged. An uncommitted explicit multifile capture opt-in draft has partial protocol/path tests; integration build stopped under host I/O pressure, and old-reader, native and publication checks remain open. A retry of the draft Engine integration test was stopped under sustained I/O pressure; owned compiler/linker descendants were retired and the unverified patch retained. Source-bound Engine mock integration now passes for explicit capture and rejection cases; client/old-reader/native checks and multifile publication remain open.",
       "evidence": [
         "EV-STASH-INSTALLED-VERSION-PREFLIGHT",
         "EV-STASH-INSTALLED-DISCOVERY",
@@ -1380,7 +1404,14 @@
         "EV-STASH-OWNED-ALIAS-FIXTURE",
         "EV-STASH-EXPLICIT-ALIAS-RED",
         "EV-STASH-EXPLICIT-CAPTURE-DRAFT",
-        "EV-STASH-EXPLICIT-CAPTURE-DRAFT-RETRY"
+        "EV-STASH-EXPLICIT-CAPTURE-DRAFT-RETRY",
+        "EV-STASH-EXPLICIT-CAPTURE-AUTHORITY",
+        "EV-STASH-EXPLICIT-SOURCE-TESTS",
+        "EV-STASH-OLD-ENGINE-WIRE",
+        "EV-STASH-NATIVE-BUILD",
+        "EV-STASH-EXPLICIT-NATIVE-FIXTURE",
+        "EV-STASH-EXPLICIT-FINAL-SOURCE",
+        "EV-STASH-WORKSPACE-CHECK-INTERRUPTED"
       ]
     },
     {
@@ -6941,7 +6972,7 @@
       "sha256": "0c2571489fc6bbdfb34bb5b16a0aacaeea4a19f0b142edb6bd62d1f1603245c3",
       "kind": "json",
       "outcome": "partial",
-      "scope": "Run 008 repeated the actual fallback recording and archive lifecycle on the prior source checkpoint, with simulated eligibility and sterile authored inputs. Passing run timings are retained in native-recording-freshness-observation-001.json; earlier 004\u2013005 failures remain unresolved. No device or qualification.",
+      "scope": "Run 008 repeated the actual fallback recording and archive lifecycle on the prior source checkpoint, with simulated eligibility and sterile authored inputs. Passing run timings are retained in native-recording-freshness-observation-001.json; earlier 004–005 failures remain unresolved. No device or qualification.",
       "freshness": "pinned_checkpoint",
       "assertions": [
         {
@@ -7046,7 +7077,7 @@
       "sha256": "69987dc3f15c757fe9f4472f1fc438cb00b1b2812010f0cd4cb65c4a4a1fc3b2",
       "kind": "json",
       "outcome": "partial",
-      "scope": "Current source rendered sterile playback recorded 397 inferred actions across continuation captures; candidate had 4 gaps, export was refused in observed UI, four explicitly authored gap repairs were reviewed and committed, and the 401-action downloaded funscript matches independently read committed master after prescribed quantization. Actual staged project range was 0\u201360 seconds despite intended 5\u201345; source is 40s. One-second age policy; no quality, device, real-media, independent worker-custody or release qualification.",
+      "scope": "Current source rendered sterile playback recorded 397 inferred actions across continuation captures; candidate had 4 gaps, export was refused in observed UI, four explicitly authored gap repairs were reviewed and committed, and the 401-action downloaded funscript matches independently read committed master after prescribed quantization. Actual staged project range was 0–60 seconds despite intended 5–45; source is 40s. One-second age policy; no quality, device, real-media, independent worker-custody or release qualification.",
       "freshness": "pinned_checkpoint",
       "assertions": [
         {
@@ -7140,7 +7171,7 @@
       "sha256": "7a6634b485a901f7c218a02913bfb1f48fafcf2edd575573bcb4c8f441c4c7aa",
       "kind": "json",
       "outcome": "partial",
-      "scope": "Rendered sterile 40s playback at 200ms policy recorded and inspected all 397 accepted samples across three continuation captures; all capture-to-analysis times <=200ms, max 112.858ms. Explicit 5\u201345s candidate preserved four gaps, refused export until four authored repairs were reviewed/committed, then 401-action download matched quantized master. Player/engine exited 0; workspace teardown force-stopped browser (SIGKILL). No full browser-to-device timing, independent worker custody, real-media/model/device/human or release qualification; earlier failures remain unresolved.",
+      "scope": "Rendered sterile 40s playback at 200ms policy recorded and inspected all 397 accepted samples across three continuation captures; all capture-to-analysis times <=200ms, max 112.858ms. Explicit 5–45s candidate preserved four gaps, refused export until four authored repairs were reviewed/committed, then 401-action download matched quantized master. Player/engine exited 0; workspace teardown force-stopped browser (SIGKILL). No full browser-to-device timing, independent worker custody, real-media/model/device/human or release qualification; earlier failures remain unresolved.",
       "freshness": "pinned_checkpoint",
       "assertions": [
         {
@@ -7424,7 +7455,7 @@
       "sha256": "3846531604789652aab3af8c417a5e1a7a317733ed1fb3263fc052f8412b0126",
       "kind": "json",
       "outcome": "fail",
-      "scope": "Rendered desktop and actual CLI shared synthetic undo/redo history across revisions 1\u20135 and the 17-action program matched, but workspace close-window operation was followed by winit X11 TranslateCoordinates panic and exit 101. Cause unresolved; no qualification.",
+      "scope": "Rendered desktop and actual CLI shared synthetic undo/redo history across revisions 1–5 and the 17-action program matched, but workspace close-window operation was followed by winit X11 TranslateCoordinates panic and exit 101. Cause unresolved; no qualification.",
       "freshness": "pinned_checkpoint",
       "assertions": [
         {
@@ -7547,7 +7578,7 @@
       "sha256": "4c8272b2825f11266e824301d0c431030706dbbcf4e3f2fe2a00fa00c068922f",
       "kind": "json",
       "outcome": "partial",
-      "scope": "Current-source rendered sterile bound-source playback and timeline interactions under 200ms policy produced five distinct stopped captures with 151,0,102,68,109 accepted estimates; all 430 retained estimates satisfy capture-to-analysis age and declared five-second source-to-project anchor correspondence. Final two recordings cover 1.2\u20137.9s and 29.1\u201339.9s; one intermediate capture is empty. Player, browser and Engine exited 0. Rapid retirement ordering and explicit-Play semantics are not established; no device, real-media or model qualification.",
+      "scope": "Current-source rendered sterile bound-source playback and timeline interactions under 200ms policy produced five distinct stopped captures with 151,0,102,68,109 accepted estimates; all 430 retained estimates satisfy capture-to-analysis age and declared five-second source-to-project anchor correspondence. Final two recordings cover 1.2–7.9s and 29.1–39.9s; one intermediate capture is empty. Player, browser and Engine exited 0. Rapid retirement ordering and explicit-Play semantics are not established; no device, real-media or model qualification.",
       "freshness": "pinned_checkpoint",
       "assertions": [
         {
@@ -10570,6 +10601,287 @@
         {
           "pointer": [
             "build_cache_open_handles_at_check"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-EXPLICIT-CAPTURE-AUTHORITY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-owned-explicit-alias-red-001/draft-verification-v4.json",
+      "sha256": "07c4bef4b02054bb2c8cd226599aacceaf0a3416b6b1c12b0ac003d96052a33e",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Uncommitted explicit selected-file capture draft passed one source-bound Engine mock-server integration test. The CLI test build was interrupted for sustained host I/O pressure; full client verification, actual preceding-reader behavior, owned real-Stash fixture with new binary, user alias policy, and multifile publication remain open. No user-library write or device action occurred.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "production_enabled"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "authority_mock_test_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "client_test_executed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "actual_old_reader_tested"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "live_stash_new_binary_tested"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_multifile_enabled"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-EXPLICIT-SOURCE-TESTS",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-owned-explicit-alias-red-001/source-bound-regression-tests-20261031.json",
+      "sha256": "9c741b0390726aae3fabe676fad0d9da6b8f80dcc50b9f9b45bcbd0f2cc6fecb",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Fresh source-bound Cargo tests passed for explicit multifile capture, refusal of publication while multifile, and CLI path-file requirement. Old-engine wire behavior, native real-Stash fixture, automatic alias handling and multifile publication remain unverified or unsupported.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "engine_capture_and_publication_refusal_test_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "client_cli_test_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-OLD-ENGINE-WIRE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-owned-explicit-alias-red-001/old-engine-wire-retry-20261031.json",
+      "sha256": "5d604359ca8bf9b5f031765fddc1c182eb9626b11fbfdc1019905ac38672b3a3",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "An isolated preceding engine returned unauthorized for a control request and closed the connection for an otherwise identical request carrying the new opt-in field. This is an unauthenticated wire refusal check, not an end-to-end Stash compatibility qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "frames_sent"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "opt_in_response"
+          ],
+          "equals": "closed"
+        },
+        {
+          "pointer": [
+            "scratch_removed"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-NATIVE-BUILD",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-owned-explicit-alias-red-001/native-build-identity-20261031.json",
+      "sha256": "dbbea422ea93692e51304daf401747f847ab802f0ad4fe4cc075067bf5f3d454",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Current uncommitted draft application built successfully; this build alone does not qualify the real-Stash fixture or physical device.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "real_stash_fixture_run"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-EXPLICIT-NATIVE-FIXTURE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-owned-explicit-alias-red-001/native-alias-fixture-verified-20261031.json",
+      "sha256": "3344c054b7ed3ed4d5151afab4aacd78efa43dadda37c0e6c1113e0c24cd8601",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Owned isolated Stash v0.31.1 and current Pulsar binary scanned one sterile video through regular and symlink alias paths. Explicit regular-file capture matched the sterile snapshot; default selection, changed path and symlink were refused. No script, user-library mutation or physical-device contact occurred. Automatic alias selection and multifile publication remain unqualified.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "fixture_only"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "captured_identity_and_snapshot_verified"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "default_refused"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "changed_path_refused"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "symlink_refused"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "no_script_created"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "user_stash_mutated"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "scratch_removed"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-EXPLICIT-FINAL-SOURCE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-owned-explicit-alias-red-001/final-source-validation-20261031.json",
+      "sha256": "e47c5ae688db251fe5ac54876f6d6cc320a0deb0505b168ea797d77504571728",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "After the client lint repair, strict Clippy and the CLI test passed, and the rebuilt binary passed the owned Stash v0.31.1 alias capture fixture. Broader user-library and multifile publication qualification remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "strict_clippy_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "client_test_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "final_binary_fixture_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-WORKSPACE-CHECK-INTERRUPTED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-owned-explicit-alias-red-001/final-workspace-check-interrupted-20261031.json",
+      "sha256": "8d747cf71deb95ebe6756597a3b87c3bddc4c45e06ddb339c19e842d66a3cdfe",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Workspace all-target check was terminated under sustained host I/O pressure; it did not finish and provides no pass result.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "INTERRUPTED"
+        },
+        {
+          "pointer": [
+            "workspace_check_passed"
           ],
           "equals": false
         }
