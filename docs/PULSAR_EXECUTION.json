@@ -29,8 +29,8 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-BROWSER-READY-PROBE",
-    "scope": "Test-only Ready timeout diagnostics capture start and poll duration maxima; two native runs passed without reproducing the timeout. Prior Ready, transfer and timing failures remain unexplained.",
+    "evidence": "EV-BROWSER-READY-DEADLINE-BOUNDARY",
+    "scope": "Test-only Ready handling now rejects Running at or after the original deadline; deterministic red/green passed. Native and Clippy reruns after this change are pending under heavy host I/O pressure; historical cause remains unknown.",
     "active_work": "BROWSER-DEMO",
     "failure_summary": "Diagnostic source cleanup and Engine forced-stop counterevidence remain unresolved; new diagnostics do not retroactively establish cause. All qualification gates remain open.",
     "source_stamp": [
@@ -44,7 +44,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
-        "sha256": "cca51167ae8002202203e7716e95e1664e6b2e0807dc9327c95afd4314f6f2a7"
+        "sha256": "4abe541b7aae0116b5414ae1c3d873bf27193656684ab9298eff3aa9aefca035"
       },
       {
         "path": "crates/pulsar-engine/src/browser_timing.rs",
@@ -1283,7 +1283,7 @@
       "state": "open",
       "owner": "Codex",
       "depends_on": [],
-      "exit": "Localize retained startup/Ready and archive-cache stalls with bounded phase probes; establish a causal repair and regression without erasing earlier failures. Unchanged-binary semantic regressions now pass, while syscall tracing and an independent 4KiB write probe show variable SSD sync latency up to 11.138 seconds. That observation does not isolate startup-only cost, identify a particular competing workload, or close the original timeout. Preserve durability and original live bounds. Historical pinned-campaign reproduction now refuses before execution because two recorded system-library identities changed; locate exact historical bytes or establish a separately pinned current subject, without claiming equivalence. A separately pinned current-library run passed five native cases; original stall remains unexplained. A current diagnostic native browser run failed before Ready at its original capture lease after two passes; exact startup stage remains unknown. Bounded test-only Ready polling timings are available, but two passing native runs did not exercise the timeout diagnostic.",
+      "exit": "Localize retained startup/Ready and archive-cache stalls with bounded phase probes; establish a causal repair and regression without erasing earlier failures. Unchanged-binary semantic regressions now pass, while syscall tracing and an independent 4KiB write probe show variable SSD sync latency up to 11.138 seconds. That observation does not isolate startup-only cost, identify a particular competing workload, or close the original timeout. Preserve durability and original live bounds. Historical pinned-campaign reproduction now refuses before execution because two recorded system-library identities changed; locate exact historical bytes or establish a separately pinned current subject, without claiming equivalence. A separately pinned current-library run passed five native cases; original stall remains unexplained. A current diagnostic native browser run failed before Ready at its original capture lease after two passes; exact startup stage remains unknown. Bounded test-only Ready polling timings are available, but two passing native runs did not exercise the timeout diagnostic. The native test harness no longer accepts Running observed at or after the original deadline; deterministic regression passed, native and Clippy reruns pending.",
       "evidence": [
         "EV-STARTUP",
         "EV-RUNTIME-CACHE-BUSY",
@@ -1302,7 +1302,8 @@
         "EV-STARTUP-CURRENT-LIBRARIES",
         "EV-STARTUP-CURRENT-LIBRARIES-REPEAT",
         "EV-BROWSER-READY-LEASE-FAILURE",
-        "EV-BROWSER-READY-PROBE"
+        "EV-BROWSER-READY-PROBE",
+        "EV-BROWSER-READY-DEADLINE-BOUNDARY"
       ]
     },
     {
@@ -8987,6 +8988,59 @@
             "owned_processes_retired"
           ],
           "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-READY-DEADLINE-BOUNDARY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/browser-ready-boundary-001/verification.json",
+      "sha256": "48c0c17a041ab2b5b06dc5453753b894278b51b3a8fbabeca652673053346d01",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Test-only Ready handling previously accepted Running at or after the original deadline; red/green deterministic boundary regression now refuses it. No production behavior changed and no new native campaign or Clippy run was started under heavy host I/O pressure.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "red_reproduced"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "boundary_test_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "native_after_fix_run"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "clippy_after_fix_run"
+          ],
+          "equals": false
         }
       ]
     }

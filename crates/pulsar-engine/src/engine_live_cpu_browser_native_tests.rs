@@ -658,6 +658,53 @@ mod captured_cpu_browser_native_tests {
         );
         Ok(())
     }
+    fn native_ready_within_original_lease(
+        state: LiveCaptureInferenceState,
+        observed_at: Instant,
+        deadline: Instant,
+    ) -> Result<bool> {
+        ensure!(
+            observed_at < deadline,
+            "Ready exceeded original capture lease"
+        );
+        Ok(state == LiveCaptureInferenceState::Running)
+    }
+
+    #[test]
+    fn browser_ready_rejects_running_at_or_after_original_deadline() {
+        let deadline = Instant::now();
+        assert!(native_ready_within_original_lease(
+            LiveCaptureInferenceState::Running,
+            deadline,
+            deadline
+        )
+        .is_err());
+        assert!(native_ready_within_original_lease(
+            LiveCaptureInferenceState::Running,
+            deadline + Duration::from_nanos(1),
+            deadline
+        )
+        .is_err());
+        assert!(native_ready_within_original_lease(
+            LiveCaptureInferenceState::Starting,
+            deadline,
+            deadline
+        )
+        .is_err());
+        assert!(native_ready_within_original_lease(
+            LiveCaptureInferenceState::Running,
+            deadline - Duration::from_nanos(1),
+            deadline
+        )
+        .unwrap());
+        assert!(!native_ready_within_original_lease(
+            LiveCaptureInferenceState::Starting,
+            deadline - Duration::from_nanos(1),
+            deadline
+        )
+        .unwrap());
+    }
+
     fn start(
         client: &Client<'_>,
         inputs: &Inputs,
@@ -695,15 +742,15 @@ mod captured_cpu_browser_native_tests {
                 "captured browser worker refused: {:?}",
                 info.error
             );
-            if info.state == LiveCaptureInferenceState::Running {
+            if native_ready_within_original_lease(info.state, Instant::now(), end).with_context(|| {
+                format!(
+                    "native Ready diagnostics: start_call_ns={}, polls={}, timing_observe_max_ns={}, capture_status_max_ns={}, last_state={:?}",
+                    start_call_elapsed.as_nanos(), poll_count, timing_observe_max.as_nanos(),
+                    capture_status_max.as_nanos(), info.state
+                )
+            })? {
                 return Ok((current, end));
             }
-            ensure!(
-                Instant::now() < end,
-                "Ready exceeded original capture lease: start_call_ns={}, polls={}, timing_observe_max_ns={}, capture_status_max_ns={}, last_state={:?}",
-                start_call_elapsed.as_nanos(), poll_count, timing_observe_max.as_nanos(),
-                capture_status_max.as_nanos(), info.state
-            );
             std::thread::park_timeout(Duration::from_millis(5));
         }
     }
