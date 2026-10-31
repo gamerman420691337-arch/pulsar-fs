@@ -29,8 +29,8 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-ABSOLUTE-CONNECT-VERIFIED",
-    "scope": "Uncommitted browser connection deadline hardening passed two focused tests, 721 client tests, 413 protocol tests and strict Clippy. A prior suite timeout is retained. No new rendered run or root-cause proof exists.",
+    "evidence": "EV-STERILE-RECORD-EXPORT-ABSOLUTE",
+    "scope": "A current private rendered sterile run recorded 138 provisional estimates, refused export with gaps, then explicitly authored gap fills and exported 140 actions matching the Engine receipt. This does not resolve earlier timeouts or establish useful-model, repeatability, physical-device or human acceptance.",
     "active_work": "BROWSER-DEMO",
     "failure_summary": "The broad client/protocol test run timed out in a filesystem-heavy test while the test thread was observed in journal wait. Earlier rendered timing and startup failures and all qualification gates remain open.",
     "source_stamp": [
@@ -1240,7 +1240,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines. A separate traced run opened timing but timed out on a probe and reported cleanup unconfirmed; an Engine fsync lasted 5.622 seconds without proven request or file correspondence. A separate file-aware trace identified slow worker-fence, staging and database fsyncs; the short rendered run exited cleanly and no fsync was tied to a timed-out request. A source-bound diagnostic render localized a further open timeout to the connected request/response call; whether write, response read, or Engine work blocked remains unknown. A separate socket trace recorded a complete send and three-second response-header read timeout, but its command was not identified; that run ended with capture cleanup unconfirmed and forced Engine termination. Resolve custody before private state cleanup. New transport diagnostics distinguish request-write from response-read failures, with no change to deadline or unknown-outcome semantics; they have not yet been exercised in a rendered failure. The current diagnostic rendered run localized timing-open timeout to response_read after local write, with no proof of Engine receipt or blocking stage. A scoped change removes timing-history requests from incidental live-capture sweeps, demonstrated by red/green contention and one short rendered pass; the earlier timeout cause, database waits and repeatability are not established. Timing-history also bypasses incidental transfer sweeping, with deterministic red/green and timing/transfer test coverage; its rendered attempt did not reach playback because private setup failed and the retry timed out. A separate sterile rendered retry on the two-sweep isolation observed 147 completed analyses and clean release, but does not establish repeatability or explain the earlier failures.",
+      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines. A separate traced run opened timing but timed out on a probe and reported cleanup unconfirmed; an Engine fsync lasted 5.622 seconds without proven request or file correspondence. A separate file-aware trace identified slow worker-fence, staging and database fsyncs; the short rendered run exited cleanly and no fsync was tied to a timed-out request. A source-bound diagnostic render localized a further open timeout to the connected request/response call; whether write, response read, or Engine work blocked remains unknown. A separate socket trace recorded a complete send and three-second response-header read timeout, but its command was not identified; that run ended with capture cleanup unconfirmed and forced Engine termination. Resolve custody before private state cleanup. New transport diagnostics distinguish request-write from response-read failures, with no change to deadline or unknown-outcome semantics; they have not yet been exercised in a rendered failure. The current diagnostic rendered run localized timing-open timeout to response_read after local write, with no proof of Engine receipt or blocking stage. A scoped change removes timing-history requests from incidental live-capture sweeps, demonstrated by red/green contention and one short rendered pass; the earlier timeout cause, database waits and repeatability are not established. Timing-history also bypasses incidental transfer sweeping, with deterministic red/green and timing/transfer test coverage; its rendered attempt did not reach playback because private setup failed and the retry timed out. A separate sterile rendered retry on the two-sweep isolation observed 147 completed analyses and clean release, but does not establish repeatability or explain the earlier failures. One current sterile rendered run recorded 138 estimates, explicitly authored two gap fills, and downloaded a 140-action script matching its Engine receipt; synthetic edge fill reaches 60 seconds. No useful-model, repeatability, physical or human qualification follows.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
@@ -1304,7 +1304,9 @@
         "EV-RECORDING-DEMO-STARTUP-WAIT",
         "EV-RECORDING-DEMO-STARTUP-WAIT-REPEAT",
         "EV-ABSOLUTE-CONNECT-DRAFT",
-        "EV-ABSOLUTE-CONNECT-VERIFIED"
+        "EV-ABSOLUTE-CONNECT-VERIFIED",
+        "EV-STERILE-RECORD-EXPORT-ABSOLUTE",
+        "EV-STERILE-RECORD-EXPORT-BYTES"
       ]
     },
     {
@@ -11835,6 +11837,88 @@
         {
           "pointer": [
             "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-RECORD-EXPORT-ABSOLUTE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-export-absolute-connect-001/verification.json",
+      "sha256": "84bc8efddb58f1e10bd5bc2b5348f5e1bbbec461c40074cedd6efe2de0c432b5",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Private rendered sterile fixture recorded 138 inferred estimates, staged and committed with two gaps, refused export before explicit authored gap fills, then downloaded 140 actions with hash matching the Engine export receipt. Synthetic fill reaches 60 seconds; no screenshot, useful-model, reliability, device or human qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "recorded_estimates"
+          ],
+          "equals": 138
+        },
+        {
+          "pointer": [
+            "export_refused_before_gap_resolution"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "authored_gap_repairs"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "download_actions"
+          ],
+          "equals": 140
+        },
+        {
+          "pointer": [
+            "engine_export_receipt_hash_matches"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-RECORD-EXPORT-BYTES",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-export-absolute-connect-001/diagnostic-stroke.funscript",
+      "sha256": "0ef873f7ff1c6693c6fb8cc6b9ac4640e679544df700feeabf8aca7321b4c8d8",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Synthetic diagnostic model output with two explicitly authored gap fills; not qualified motion, physical-device or human acceptance.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "version"
+          ],
+          "equals": "1.0"
+        },
+        {
+          "pointer": [
+            "inverted"
           ],
           "equals": false
         }
