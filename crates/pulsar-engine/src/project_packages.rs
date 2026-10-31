@@ -2537,17 +2537,18 @@ mod capture_review_tests {
                 params![foreign.as_str(),f.project.as_str()]).unwrap();
             lineage::created(&tx, &foreign).unwrap();
             {
-                let mut insert = tx
-                    .prepare("INSERT INTO legacy_motion_bytes VALUES('edit_states',?1,?2)")
-                    .unwrap();
-                for position in 0..MAX_CAPTURE_ROWS {
-                    insert
-                        .execute(params![
-                            format!("{foreign}:{position}"),
-                            "{\n \"tracks\": []\n}"
-                        ])
-                        .unwrap();
-                }
+                tx.execute(
+                    "WITH RECURSIVE positions(value) AS (
+                         VALUES(0)
+                         UNION ALL
+                         SELECT value + 1 FROM positions WHERE value + 1 < ?1
+                     )
+                     INSERT INTO legacy_motion_bytes
+                     SELECT 'edit_states', ?2 || ':' || value, '{\n \"tracks\": []\n}'
+                     FROM positions",
+                    params![MAX_CAPTURE_ROWS, foreign.as_str()],
+                )
+                .unwrap();
             }
             tx.commit().unwrap();
         }
