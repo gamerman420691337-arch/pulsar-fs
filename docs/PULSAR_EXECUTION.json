@@ -1220,7 +1220,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines.",
+      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines. A separate traced run opened timing but timed out on a probe and reported cleanup unconfirmed; an Engine fsync lasted 5.622 seconds without proven request or file correspondence.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
@@ -1268,7 +1268,8 @@
         "EV-SOURCE-CLEANUP-LATER-ATTEMPT",
         "EV-LOCAL-ENGINE-RETRY",
         "EV-SOURCE-CLEANUP-CURRENT-TESTS",
-        "EV-RENDERED-TIMING-OPEN-TIMEOUT"
+        "EV-RENDERED-TIMING-OPEN-TIMEOUT",
+        "EV-RENDERED-TIMING-TRACE"
       ]
     },
     {
@@ -11024,6 +11025,61 @@
             "engine_exit_code"
           ],
           "equals": 0
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RENDERED-TIMING-TRACE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-first-failure-001/rendered-timing-trace-20261031.json",
+      "sha256": "a57415310ef00547d156c1ab65007468ac2f8653ea5b3364dd74303fc12302b9",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Separate traced sterile browser run opened timing and displayed an unqualified observation, then probe timed out and cleanup was unconfirmed. A selected Engine fsync lasted 5.622186 seconds; its request and file are not identified, and strace can alter scheduling.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "timing_open_succeeded"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "first_failure",
+            "operation"
+          ],
+          "equals": "probe"
+        },
+        {
+          "pointer": [
+            "first_failure",
+            "category"
+          ],
+          "equals": "transport_timeout"
+        },
+        {
+          "pointer": [
+            "same_request_or_file_proven"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historical_cause_resolved"
+          ],
+          "equals": false
         },
         {
           "pointer": [
