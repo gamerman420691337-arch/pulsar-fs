@@ -7,7 +7,8 @@ fn timing_diagnostic_retains_sanitized_transport_phase() {
     for (phase, expected) in [
         (BrowserTransportPhase::Connect, "connect"),
         (BrowserTransportPhase::Deadline, "deadline"),
-        (BrowserTransportPhase::Call, "call"),
+        (BrowserTransportPhase::RequestWrite, "request_write"),
+        (BrowserTransportPhase::ResponseRead, "response_read"),
     ] {
         let error = anyhow::Error::from(std::io::Error::new(
             std::io::ErrorKind::TimedOut,

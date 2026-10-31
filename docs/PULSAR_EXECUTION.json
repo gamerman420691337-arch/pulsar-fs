@@ -29,8 +29,8 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-TIMING-TRANSPORT-PHASE",
-    "scope": "Uncommitted client diagnostic adds sanitized transport-phase classification; focused socket tests, full client tests, strict Clippy and a native build passed. Rendered timing open still timed out during the call; request/write versus response/read and Engine cause remain unresolved.",
+    "evidence": "EV-TIMING-READ-WRITE-PHASE",
+    "scope": "Uncommitted transport phase diagnostic distinguishes request write and response read; 413 protocol and 718 client tests and strict Clippy passed. Rendered verification and the underlying timing cause remain open.",
     "active_work": "BROWSER-DEMO",
     "failure_summary": "A separate rendered socket trace ended with capture cleanup unconfirmed and forced Engine termination; a socket response read timed out after request send but its command was not identified. Private state retained and worker custody unverified. All qualification gates remain open.",
     "source_stamp": [
@@ -220,7 +220,7 @@
       },
       {
         "path": "crates/pulsar-clients/src/session.rs",
-        "sha256": "094cc63b8bf0af25f9e1def8c4423d1745af21e0bb668921f94ac6ee88103816"
+        "sha256": "bd085cbff7f18bce6205c7bc2458545ca3d457d60385a87e447be63c23e894cd"
       },
       {
         "path": "crates/pulsar-clients/src/browser_player_timing.rs",
@@ -228,7 +228,11 @@
       },
       {
         "path": "crates/pulsar-clients/src/browser_player_timing_tests.rs",
-        "sha256": "929986e9623c63cd21abccd73b7a99c8e2de22498044d442459fa1355a50949e"
+        "sha256": "3e828ef55f55c98f95a1815f00d648122e8936725c2844d052ea2070b9feb109"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/transport.rs",
+        "sha256": "1a227326ab6511ba0c3e0fae99f0eb99074a09b113ef7a7e39e20497aa363dfb"
       }
     ]
   },
@@ -1232,7 +1236,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines. A separate traced run opened timing but timed out on a probe and reported cleanup unconfirmed; an Engine fsync lasted 5.622 seconds without proven request or file correspondence. A separate file-aware trace identified slow worker-fence, staging and database fsyncs; the short rendered run exited cleanly and no fsync was tied to a timed-out request. A source-bound diagnostic render localized a further open timeout to the connected request/response call; whether write, response read, or Engine work blocked remains unknown. A separate socket trace recorded a complete send and three-second response-header read timeout, but its command was not identified; that run ended with capture cleanup unconfirmed and forced Engine termination. Resolve custody before private state cleanup.",
+      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines. A separate traced run opened timing but timed out on a probe and reported cleanup unconfirmed; an Engine fsync lasted 5.622 seconds without proven request or file correspondence. A separate file-aware trace identified slow worker-fence, staging and database fsyncs; the short rendered run exited cleanly and no fsync was tied to a timed-out request. A source-bound diagnostic render localized a further open timeout to the connected request/response call; whether write, response read, or Engine work blocked remains unknown. A separate socket trace recorded a complete send and three-second response-header read timeout, but its command was not identified; that run ended with capture cleanup unconfirmed and forced Engine termination. Resolve custody before private state cleanup. New transport diagnostics distinguish request-write from response-read failures, with no change to deadline or unknown-outcome semantics; they have not yet been exercised in a rendered failure.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
@@ -1285,7 +1289,8 @@
         "EV-RENDERED-TIMING-FILE-TRACE",
         "EV-TIMING-TRANSPORT-PHASE",
         "EV-RENDERED-SOCKET-TRACE",
-        "EV-SOCKET-TRACE-RECOVERY"
+        "EV-SOCKET-TRACE-RECOVERY",
+        "EV-TIMING-READ-WRITE-PHASE"
       ]
     },
     {
@@ -11295,6 +11300,59 @@
         {
           "pointer": [
             "independent_historical_custody_proven"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-TIMING-READ-WRITE-PHASE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-first-failure-001/read-write-phase-verification-20261031.json",
+      "sha256": "b65a116336d057e70c340b6aa8d3100f984fc9b795a0f7c3b97ecd63683ff4b9",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Transport diagnostics now distinguish request-write and response-read failure while preserving the original call API, absolute deadlines, and poisoned connection behavior. Source-bound protocol and client tests and strict Clippy passed; rendered reproduction and root cause remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "client_tests_passed"
+          ],
+          "equals": 718
+        },
+        {
+          "pointer": [
+            "protocol_tests_passed"
+          ],
+          "equals": 413
+        },
+        {
+          "pointer": [
+            "write_failure_poison_test_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "response_read_timeout_test_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "rendered_new_diagnostic_tested"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
           ],
           "equals": false
         }
