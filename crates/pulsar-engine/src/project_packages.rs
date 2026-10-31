@@ -371,7 +371,7 @@ fn check_cpu_origin_objects(
 fn require_portable_cpu_objects(
     manifest: &PortableProjectManifest,
     objects: &BTreeMap<String, CapturedObject>,
-) -> PResult<()> {
+) -> PResult<BTreeMap<String, PortableProjectManifest>> {
     let mut index = crate::portable_cpu_archives::CpuArchiveIndex::default();
     let mut ancestors = BTreeMap::new();
     let mut ancestor_bytes = 0u64;
@@ -514,7 +514,7 @@ fn require_portable_cpu_objects(
         .map_err(|_| ProtocolError::invalid("invalid portable ancestor mode declaration"))?;
         check_cpu_origin_objects(&ancestor, objects)?;
     }
-    Ok(())
+    Ok(ancestors)
 }
 
 fn read_compact(
@@ -571,6 +571,94 @@ pub(super) fn capture_retained(
     capture_inner(engine, session, token, project, expected_revision, true)
 }
 
+struct PreparedBrowserRecording {
+    identity: ArtifactIdentity,
+    raw: Arc<[u8]>,
+    recording: super::portable_browser_history::Recording,
+    inherited: bool,
+}
+/// Authorize/catalogue first, read immutable snapshot bytes without DB authority,
+/// then recheck every tuple in the actual capture transaction. No registry bytes
+/// are read until that transaction also checks host-owner disclosure approval.
+fn prepare_browser_recordings(
+    engine: &Engine,
+    session: &SessionId,
+    token: &str,
+    project: &ProjectId,
+    expected_revision: RevisionId,
+) -> PResult<BTreeMap<SourceVersionId, PreparedBrowserRecording>> {
+    let (catalog, inherited) = {
+        let db = engine.db.lock().map_err(internal)?;
+        authenticate_capture(engine, &db, session, token, project, expected_revision)?;
+        let mut budget = SnapshotBudget::default();
+        let catalog = rows(&db, "SELECT version,sha256,bytes,path,evicted FROM main.sources WHERE project=?1 AND kind='live_recording' ORDER BY version", project, &mut budget, |r| Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,i64>(2)?,r.get::<_,String>(3)?,r.get::<_,bool>(4)?)))?;
+        let archives = rows(&db, "SELECT CASE WHEN typeof(manifest)='text' AND length(CAST(manifest AS BLOB)) BETWEEN 1 AND 16777216 THEN manifest ELSE NULL END FROM main.project_import_archives WHERE project=?1", project, &mut budget, |r|r.get::<_,String>(0))?;
+        let mut inherited = BTreeMap::new();
+        for raw in archives {
+            let manifest: PortableProjectManifest = decode(&raw)?;
+            manifest.validate()?;
+            for source in manifest.sources {
+                inherited.insert(source.source_version.clone(), source);
+            }
+        }
+        (catalog, inherited)
+    };
+    catalog
+        .iter()
+        .try_fold(0u64, |n, row| n.checked_add(u64::try_from(row.2).ok()?))
+        .filter(|n| *n <= 64 * 1024 * 1024)
+        .ok_or_else(|| {
+            ProtocolError::new(
+                ErrorCode::ResourceExhausted,
+                "recording snapshot preflight admission exceeded",
+            )
+        })?;
+    let mut prepared = BTreeMap::new();
+    for (version, hash, len, path, evicted) in catalog {
+        let identity = ArtifactIdentity {
+            artifact_id: ArtifactId::new(hash.clone()).map_err(internal)?,
+            sha256: hash.clone(),
+            byte_len: unsigned(len)?,
+        };
+        identity.validate()?;
+        let expected = engine.config.state_dir.join("snapshots").join(&hash);
+        if evicted || Path::new(&path) != expected {
+            return Err(ProtocolError::invalid(
+                "recording snapshot locator changed or was evicted",
+            ));
+        }
+        let object = CapturedObject {
+            descriptor: PackageObjectDescriptor {
+                sha256: hash,
+                byte_len: identity.byte_len,
+                roles: vec![PackageObjectRole::SourceSnapshot],
+            },
+            location: ObjectLocation::File(expected),
+        };
+        let raw = cpu_mode_bytes(&object, super::portable_browser_history::RECORDING_LIMIT)?;
+        let recording = super::portable_browser_history::Recording::parse(&raw)?;
+        let version = SourceVersionId::new(version).map_err(internal)?;
+        let inherited = inherited
+            .get(&version)
+            .is_some_and(|s| s.kind == SourceKind::LiveRecording && s.identity == identity);
+        if recording.project() != project && !inherited {
+            return Err(ProtocolError::invalid(
+                "recording snapshot lacks its original project namespace",
+            ));
+        }
+        prepared.insert(
+            version,
+            PreparedBrowserRecording {
+                identity,
+                raw: Arc::from(raw),
+                recording,
+                inherited,
+            },
+        );
+    }
+    Ok(prepared)
+}
+
 fn capture_inner(
     engine: &Engine,
     session: &SessionId,
@@ -585,6 +673,8 @@ fn capture_inner(
     } else {
         None
     };
+    let mut browser_recordings =
+        prepare_browser_recordings(engine, session, token, project, expected_revision)?;
     let mut retained_holds = None;
     let root = &engine.config.state_dir;
     let (
@@ -688,9 +778,30 @@ fn capture_inner(
             if evicted || Path::new(&path)!=expected_path {
                 return Err(missing(&descriptor,"snapshot evicted or trusted locator unavailable"));
             }
-            add_object(&mut objects,object_ref(&identity),PackageObjectRole::SourceSnapshot,ObjectLocation::File(expected_path))?;
-            sources.push(PackageSource {source_version:SourceVersionId::new(version).map_err(internal)?,
-                kind:decode(&encode(&kind)?)?,label,identity,pinned,evicted,stash_associations:vec![]});
+            let source_version=SourceVersionId::new(version).map_err(internal)?;
+            let kind:SourceKind=decode(&encode(&kind)?)?;
+            let mut source=PackageSource { browser_fallback_history:None, source_version:source_version.clone(),kind,label,identity,pinned,evicted,stash_associations:vec![] };
+            let location=if kind == SourceKind::LiveRecording {
+                let prepared=browser_recordings.remove(&source_version).ok_or_else(||ProtocolError::invalid("recording source appeared after snapshot preflight"))?;
+                if prepared.identity != source.identity {return Err(ProtocolError::invalid("recording source identity changed after preflight"));}
+                budget.bytes=budget.bytes.checked_add(prepared.raw.len().saturating_mul(2)).filter(|n|*n<=MAX_CAPTURE_METADATA).ok_or_else(||ProtocolError::new(ErrorCode::ResourceExhausted,"recording source metadata admission exceeded"))?;
+                if !prepared.inherited {
+                    for page in &prepared.recording.pages {crate::live_cpu_history::validate_recording_page(&tx,&prepared.recording.actor,page).map_err(internal)?;}
+                    if prepared.recording.selected() {require_fallback_disclosure_approval(&tx,session,project)?;}
+                    if let Some(raw)=super::portable_browser_history::capture(&tx,&source,&prepared.recording,MAX_CAPTURE_METADATA-budget.bytes)? {
+                        budget.bytes=budget.bytes.checked_add(raw.len()).filter(|n|*n<=MAX_CAPTURE_METADATA).ok_or_else(||ProtocolError::new(ErrorCode::ResourceExhausted,"browser history capture admission exceeded"))?;
+                        source.browser_fallback_history=Some(inline_object(&mut objects,raw,PackageObjectRole::BrowserInferenceFallbackHistory)?);
+                    }
+                }
+                ObjectLocation::Inline(prepared.raw)
+            } else {ObjectLocation::File(expected_path)};
+            add_object(&mut objects,object_ref(&source.identity),PackageObjectRole::SourceSnapshot,location)?;
+            sources.push(source);
+        }
+        if !browser_recordings.is_empty() {
+            return Err(ProtocolError::invalid(
+                "recording source set changed after preflight",
+            ));
         }
         // Original association receipts are compact inert provenance. Bound each
         // SQLite cell before String allocation, then bind every declaration to
@@ -1511,7 +1622,7 @@ fn capture_inner(
         })?;
     }
     crate::project_package_import_plan::require_portable_cpu_manifest(&manifest)?;
-    require_portable_cpu_objects(&manifest, &objects)?;
+    let browser_ancestors = require_portable_cpu_objects(&manifest, &objects)?;
     // Flat lineage may name executable dependencies without packaging them. Every
     // other declared identity must resolve to an explicitly required payload.
     for candidate in &manifest.candidates {
@@ -1549,6 +1660,25 @@ fn capture_inner(
     manifest.format_version = manifest.required_format_version();
     manifest.counts = manifest.record_counts()?;
     manifest.validate()?;
+    super::portable_browser_history::validate_graph(&manifest, &browser_ancestors, |reference| {
+        let object = objects
+            .get(&reference.sha256)
+            .filter(|o| o.descriptor.byte_len == reference.byte_len)
+            .ok_or_else(|| ProtocolError::invalid("browser graph object absent"))?;
+        cpu_mode_bytes(
+            object,
+            if object
+                .descriptor
+                .roles
+                .contains(&PackageObjectRole::BrowserInferenceFallbackHistory)
+            {
+                MAX_PACKAGE_FALLBACK_HISTORY_BYTES as u64
+            } else {
+                super::portable_browser_history::RECORDING_LIMIT
+            },
+        )
+    })?;
+
     let total = manifest
         .objects
         .iter()
@@ -1670,7 +1800,8 @@ fn merge_imported_capture(
         manifest.legacy_cells.extend(archived.legacy_cells);
         manifest.export_receipts.extend(archived.export_receipts);
         for original in &archived.sources {
-            if original.stash_associations.is_empty() {
+            if original.stash_associations.is_empty() && original.browser_fallback_history.is_none()
+            {
                 continue;
             }
             let local = manifest
@@ -1685,6 +1816,14 @@ fn merge_imported_capture(
                     "archival Stash source identity changed during re-export",
                 ));
             }
+            if local.browser_fallback_history.is_some()
+                && local.browser_fallback_history != original.browser_fallback_history
+            {
+                return Err(ProtocolError::invalid(
+                    "archived browser evidence changed during re-export",
+                ));
+            }
+            local.browser_fallback_history = original.browser_fallback_history.clone();
             for association in &original.stash_associations {
                 if !local.stash_associations.contains(association) {
                     local.stash_associations.push(association.clone());

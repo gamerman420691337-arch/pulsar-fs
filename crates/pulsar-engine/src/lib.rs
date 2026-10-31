@@ -70,6 +70,7 @@ mod live_cpu_mounts;
 #[cfg(target_os = "linux")]
 #[path = "cuda_mount_bytes.rs"]
 mod native_mount_bytes;
+mod portable_browser_history_reader;
 mod portable_cpu_archives;
 mod portable_fallback_graph_reader;
 mod portable_fallback_reader;

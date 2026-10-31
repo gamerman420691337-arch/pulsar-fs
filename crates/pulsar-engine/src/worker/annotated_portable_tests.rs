@@ -158,6 +158,7 @@ pub(super) fn verify_native_portable(
         candidates: vec![candidate],
         authored_lineage: vec![],
         sources: vec![PackageSource {
+            browser_fallback_history: None,
             source_version: request.source.source_version.clone(),
             kind: SourceKind::Media,
             label: "authored media".into(),

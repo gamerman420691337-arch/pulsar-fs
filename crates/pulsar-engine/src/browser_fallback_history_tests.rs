@@ -9,7 +9,7 @@ fn artifact(n: u8) -> ArtifactIdentity {
         byte_len: 100,
     }
 }
-fn report() -> LiveCaptureReport {
+pub(super) fn report() -> LiveCaptureReport {
     let mut report = crate::live_cpu_history::authored_capture_for_test();
     let identity = report.identity.clone();
     let media = BrowserMediaBinding {

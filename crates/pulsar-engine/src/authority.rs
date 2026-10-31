@@ -18,6 +18,8 @@ use std::sync::{
 };
 use uuid::Uuid;
 
+#[path = "portable_browser_history.rs"]
+pub(crate) mod portable_browser_history;
 #[path = "portable_fallback_payload.rs"]
 pub(crate) mod portable_fallback_payload;
 
@@ -511,6 +513,7 @@ impl Engine {
             crate::cpu_runtime_db::validate(&probe)?;
             inference_fallback_store::validate(&probe)?;
             crate::live_cpu_history::validate(&probe)?;
+            crate::portable_browser_history_reader::validate_metadata(&probe)?;
             crate::browser_fallback_reader::validate_metadata(&probe)?;
             crate::browser_fallback_history::validate(&probe)?;
             handy_registrations::validate(&probe)?;
@@ -701,6 +704,7 @@ impl Engine {
             crate::cpu_runtime_db::validate(&probe)?;
             inference_fallback_store::validate(&probe)?;
             crate::live_cpu_history::validate(&probe)?;
+            crate::portable_browser_history_reader::validate_metadata(&probe)?;
             crate::browser_fallback_reader::validate_metadata(&probe)?;
             crate::browser_fallback_history::validate(&probe)?;
             handy_registrations::validate(&probe)?;
@@ -767,6 +771,7 @@ impl Engine {
         crate::cpu_runtime_db::validate(&db)?;
         inference_fallback_store::validate(&db)?;
         crate::live_cpu_history::validate(&db)?;
+        crate::portable_browser_history_reader::validate_metadata(&db)?;
         crate::browser_fallback_reader::validate_metadata(&db)?;
         crate::browser_fallback_history::validate(&db)?;
         anyhow::ensure!(version == 0 || (2..=crate::portable_fallback_reader::MAX_STORAGE_VERSION).contains(&version), "project database schema requires an explicit recoverable migration; original was not modified");
