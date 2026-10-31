@@ -1,54 +1,16 @@
-name: Engine test image size probe
+name: Native deadline write probe
 on:
   workflow_dispatch:
 jobs:
-  image:
-    runs-on: ubuntu-latest
-    env:
-      CARGO_PROFILE_TEST_DEBUG: "1"
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: 01c94fcf8e5c000cda845c84f065d17f72c540dc
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg libasound2-dev libudev-dev pkg-config
-      - name: Measure exact test executable
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo test -p pulsar-engine --lib --no-run --locked --message-format=json > "$RUNNER_TEMP/pulsar-artifacts.jsonl"
-          python3 - "$RUNNER_TEMP/pulsar-artifacts.jsonl" <<'PY'
-          import hashlib, json, pathlib, sys
-          records = [json.loads(line) for line in pathlib.Path(sys.argv[1]).read_text().splitlines()]
-          paths = [pathlib.Path(r['executable']) for r in records if r.get('reason') == 'compiler-artifact' and r.get('target', {}).get('name') == 'pulsar_engine' and r.get('profile', {}).get('test') and r.get('executable')]
-          if len(paths) != 1:
-              raise SystemExit(f'expected one engine test executable, found {len(paths)}')
-          path = paths[0]
-          digest = hashlib.sha256()
-          with path.open('rb') as stream:
-              for block in iter(lambda: stream.read(1024 * 1024), b''):
-                  digest.update(block)
-          size = path.stat().st_size
-          print(f'engine_test_bytes={size}')
-          print(f'engine_test_sha256={digest.hexdigest()}')
-          print(f'exceeds_control_image_limit={size > 512 * 1024 * 1024}')
-          import subprocess
-          name = 'authority::tests::browser_playback_tests::browser_play_dossier_withdrawal_retires_cached_owner_and_cannot_be_replayed_live'
-          try:
-              result = subprocess.run([str(path), '--exact', name, '--nocapture'], text=True, capture_output=True, timeout=120)
-          except subprocess.TimeoutExpired:
-              print('target_test_status=timeout')
-              raise SystemExit(1)
-          output = result.stdout + result.stderr
-          print(f'target_test_exit={result.returncode}')
-          print(f'identity_unavailable={"loaded control image identity unavailable" in output}')
-          for line in output.splitlines():
-              if line.startswith('test result:'):
-                  print(line)
-          if name not in output or result.returncode != 0:
-              raise SystemExit('target test did not pass; see sanitized result above')
-          PY
+      - name: Exercise Pulsar closed-peer write
+        run: cargo test -p pulsar-protocol --lib deadline_stream_closed_peer_write_reports_broken_pipe --locked
