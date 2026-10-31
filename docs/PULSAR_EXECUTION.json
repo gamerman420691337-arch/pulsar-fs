@@ -29,8 +29,8 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-BROWSER-READY-DEADLINE-BOUNDARY",
-    "scope": "Test-only Ready handling now rejects Running at or after the original deadline; deterministic red/green passed. Native and Clippy reruns after this change are pending under heavy host I/O pressure; historical cause remains unknown.",
+    "evidence": "EV-BROWSER-READY-DEADLINE-CLIPPY",
+    "scope": "Test-only Ready handling rejects Running at or after the original deadline; deterministic red/green and Engine Clippy passed. Native rerun after this change remains pending; historical cause remains unknown.",
     "active_work": "BROWSER-DEMO",
     "failure_summary": "Diagnostic source cleanup and Engine forced-stop counterevidence remain unresolved; new diagnostics do not retroactively establish cause. All qualification gates remain open.",
     "source_stamp": [
@@ -1283,7 +1283,7 @@
       "state": "open",
       "owner": "Codex",
       "depends_on": [],
-      "exit": "Localize retained startup/Ready and archive-cache stalls with bounded phase probes; establish a causal repair and regression without erasing earlier failures. Unchanged-binary semantic regressions now pass, while syscall tracing and an independent 4KiB write probe show variable SSD sync latency up to 11.138 seconds. That observation does not isolate startup-only cost, identify a particular competing workload, or close the original timeout. Preserve durability and original live bounds. Historical pinned-campaign reproduction now refuses before execution because two recorded system-library identities changed; locate exact historical bytes or establish a separately pinned current subject, without claiming equivalence. A separately pinned current-library run passed five native cases; original stall remains unexplained. A current diagnostic native browser run failed before Ready at its original capture lease after two passes; exact startup stage remains unknown. Bounded test-only Ready polling timings are available, but two passing native runs did not exercise the timeout diagnostic. The native test harness no longer accepts Running observed at or after the original deadline; deterministic regression passed, native and Clippy reruns pending.",
+      "exit": "Localize retained startup/Ready and archive-cache stalls with bounded phase probes; establish a causal repair and regression without erasing earlier failures. Unchanged-binary semantic regressions now pass, while syscall tracing and an independent 4KiB write probe show variable SSD sync latency up to 11.138 seconds. That observation does not isolate startup-only cost, identify a particular competing workload, or close the original timeout. Preserve durability and original live bounds. Historical pinned-campaign reproduction now refuses before execution because two recorded system-library identities changed; locate exact historical bytes or establish a separately pinned current subject, without claiming equivalence. A separately pinned current-library run passed five native cases; original stall remains unexplained. A current diagnostic native browser run failed before Ready at its original capture lease after two passes; exact startup stage remains unknown. Bounded test-only Ready polling timings are available, but two passing native runs did not exercise the timeout diagnostic. The native test harness no longer accepts Running observed at or after the original deadline; deterministic regression and Clippy passed, native rerun pending.",
       "evidence": [
         "EV-STARTUP",
         "EV-RUNTIME-CACHE-BUSY",
@@ -1303,7 +1303,8 @@
         "EV-STARTUP-CURRENT-LIBRARIES-REPEAT",
         "EV-BROWSER-READY-LEASE-FAILURE",
         "EV-BROWSER-READY-PROBE",
-        "EV-BROWSER-READY-DEADLINE-BOUNDARY"
+        "EV-BROWSER-READY-DEADLINE-BOUNDARY",
+        "EV-BROWSER-READY-DEADLINE-CLIPPY"
       ]
     },
     {
@@ -9039,6 +9040,47 @@
         {
           "pointer": [
             "clippy_after_fix_run"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-READY-DEADLINE-CLIPPY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/browser-ready-boundary-001/clippy-verification.json",
+      "sha256": "e43884bf695f526fa4fd91102986f7428569350bbb775f518296c34ddae5d560",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Single-job Engine library and test Clippy passed for the Ready deadline harness fix. Native execution after the fix remains pending; the earlier failure is not resolved.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "clippy_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "native_after_fix_run"
           ],
           "equals": false
         }
