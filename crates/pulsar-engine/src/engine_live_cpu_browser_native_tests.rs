@@ -741,6 +741,39 @@ mod captured_cpu_browser_native_tests {
         );
         Ok(header)
     }
+    fn require_pair_correspondence(
+        gap_ns: u64,
+        source_matches: impl FnOnce() -> Result<bool>,
+    ) -> Result<()> {
+        ensure!(
+            gap_ns <= 500_000_000,
+            "original pair no longer within native correspondence bound: capture_tick_gap_ns={gap_ns}, max_gap_ns=500000000"
+        );
+        ensure!(
+            source_matches()?,
+            "original pair no longer within native correspondence bound: source_time_mismatch"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn browser_pair_correspondence_diagnostic_keeps_bound_and_short_circuit() {
+        let called = std::cell::Cell::new(false);
+        let gap_error = require_pair_correspondence(500_000_001, || {
+            called.set(true);
+            Ok(true)
+        })
+        .unwrap_err()
+        .to_string();
+        assert!(gap_error.contains("capture_tick_gap_ns=500000001"));
+        assert!(!called.get());
+        assert!(require_pair_correspondence(500_000_000, || Ok(true)).is_ok());
+        let source_error = require_pair_correspondence(500_000_000, || Ok(false))
+            .unwrap_err()
+            .to_string();
+        assert!(source_error.contains("source_time_mismatch"));
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn estimate(
         client: &Client<'_>,
@@ -759,18 +792,13 @@ mod captured_cpu_browser_native_tests {
             .0
             .checked_sub(old.capture_tick.0)
             .context("capture tick regressed")?;
-        ensure!(
-            gap <= 500_000_000,
-            "original pair no longer within native correspondence bound: capture_tick_gap_ns={gap}, max_gap_ns=500000000"
-        );
-        ensure!(
-            new.source_time
+        require_pair_correspondence(gap, || {
+            Ok(new.source_time
                 == SourceTimestamp::new(
                     i64::try_from(inputs.decoded.frames[new_index].source_time_us)?,
-                    1_000_000
-                )?,
-            "original pair no longer within native correspondence bound: source_time_mismatch"
-        );
+                    1_000_000,
+                )?)
+        })?;
         let expected = LiveInferenceInput {
             sequence,
             pair: RawFramePair {
