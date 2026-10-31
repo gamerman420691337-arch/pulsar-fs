@@ -14,7 +14,10 @@ use std::time::{Duration, Instant};
 pub(crate) enum BrowserTransportPhase {
     Connect,
     Deadline,
-    Call,
+    BeforeWrite,
+    RequestWrite,
+    ResponseRead,
+    ResponseIdentity,
 }
 impl std::fmt::Display for BrowserTransportPhase {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -217,9 +220,17 @@ impl SessionClient {
         transport
             .set_deadline(deadline)
             .context(BrowserTransportPhase::Deadline)?;
-        let response = transport
-            .call(&request)
-            .context(BrowserTransportPhase::Call)?;
+        let response = transport.call_with_phase(&request).map_err(|(phase, error)| {
+            let phase = match phase {
+                pulsar_protocol::LocalCallPhase::BeforeWrite => BrowserTransportPhase::BeforeWrite,
+                pulsar_protocol::LocalCallPhase::RequestWrite => BrowserTransportPhase::RequestWrite,
+                pulsar_protocol::LocalCallPhase::ResponseRead => BrowserTransportPhase::ResponseRead,
+                pulsar_protocol::LocalCallPhase::ResponseIdentity => {
+                    BrowserTransportPhase::ResponseIdentity
+                }
+            };
+            anyhow::Error::new(error).context(phase)
+        })?;
         if response.version != request.version || response.request_id != request.request_id {
             bail!(
                 "Browser guard response identity mismatch; outcome is unknown and was not replayed"
@@ -1271,6 +1282,33 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn browser_transport_write_failure_remains_poisoned_and_ambiguous() {
+        use std::net::Shutdown;
+        use std::os::unix::net::UnixListener;
+
+        let root = tempfile::tempdir().unwrap();
+        let endpoint = root.path().join("engine.sock");
+        let listener = UnixListener::bind(&endpoint).unwrap();
+        let (ready, wait) = std::sync::mpsc::channel();
+        let server = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            stream.shutdown(Shutdown::Read).unwrap();
+            ready.send(()).unwrap();
+            std::thread::sleep(Duration::from_millis(150));
+        });
+        let mut client = LocalClient::connect(&endpoint, Duration::from_secs(1)).unwrap();
+        wait.recv_timeout(Duration::from_secs(1)).unwrap();
+        let request = Request::new(new_request_id(), Command::Capabilities);
+        let (phase, _) = client.call_with_phase(&request).unwrap_err();
+        assert_eq!(phase, pulsar_protocol::LocalCallPhase::RequestWrite);
+        let (phase, error) = client.call_with_phase(&request).unwrap_err();
+        assert_eq!(phase, pulsar_protocol::LocalCallPhase::BeforeWrite);
+        assert!(matches!(error, pulsar_protocol::TransportError::ConnectionPoisoned));
+        server.join().unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn browser_control_distinguishes_deadline_connect_and_call_failures() {
         use std::os::unix::net::UnixListener;
 
@@ -1313,7 +1351,7 @@ mod tests {
         let error = invoke(Instant::now() + Duration::from_millis(50)).unwrap_err();
         assert_eq!(
             error.downcast_ref::<BrowserTransportPhase>(),
-            Some(&BrowserTransportPhase::Call)
+            Some(&BrowserTransportPhase::ResponseRead)
         );
         server.join().unwrap();
     }
