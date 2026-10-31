@@ -1364,7 +1364,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards. A separate read-only 100-scene page contained two distinct file IDs per scene and no exact lexical server-side sidecar collisions within a scene; local mapping, all remaining pages and publication semantics are unverified. A bounded non-atomic same-host metadata sample found 100 pairs refer to the same inode with one symlink path; this does not authorize symlink capture or settle file-selection policy. A separate non-atomic metadata sample observed ancestor-directory symlinks with absolute targets; keep no-follow capture and recheck any alias identity without retaining paths. Installed schema exposes Scene.interactive and Scene.paths.funscript, but schema introspection alone does not prove file-specific attachment for multifile scenes. Installed Scene schema exposes no primary-named field; schema alone does not establish file order or selected-file attachment. An isolated Stash v0.31.1 sterile two-alias fixture became interactive and exposed a scene funscript path after scanning one synthetic sidecar; file-specific attachment and actual-user publication remain unproven. An owned sterile Stash/Engine fixture confirmed that even an explicitly selected regular file is refused when the scene has two alias IDs; project state stayed unchanged.",
+      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards. A separate read-only 100-scene page contained two distinct file IDs per scene and no exact lexical server-side sidecar collisions within a scene; local mapping, all remaining pages and publication semantics are unverified. A bounded non-atomic same-host metadata sample found 100 pairs refer to the same inode with one symlink path; this does not authorize symlink capture or settle file-selection policy. A separate non-atomic metadata sample observed ancestor-directory symlinks with absolute targets; keep no-follow capture and recheck any alias identity without retaining paths. Installed schema exposes Scene.interactive and Scene.paths.funscript, but schema introspection alone does not prove file-specific attachment for multifile scenes. Installed Scene schema exposes no primary-named field; schema alone does not establish file order or selected-file attachment. An isolated Stash v0.31.1 sterile two-alias fixture became interactive and exposed a scene funscript path after scanning one synthetic sidecar; file-specific attachment and actual-user publication remain unproven. An owned sterile Stash/Engine fixture confirmed that even an explicitly selected regular file is refused when the scene has two alias IDs; project state stayed unchanged. An uncommitted explicit multifile capture opt-in draft has partial protocol/path tests; integration build stopped under host I/O pressure, and old-reader, native and publication checks remain open.",
       "evidence": [
         "EV-STASH-INSTALLED-VERSION-PREFLIGHT",
         "EV-STASH-INSTALLED-DISCOVERY",
@@ -1378,7 +1378,8 @@
         "EV-STASH-PRIMARY-SCHEMA",
         "EV-STASH-OWNED-FIXTURE-INCOMPLETE",
         "EV-STASH-OWNED-ALIAS-FIXTURE",
-        "EV-STASH-EXPLICIT-ALIAS-RED"
+        "EV-STASH-EXPLICIT-ALIAS-RED",
+        "EV-STASH-EXPLICIT-CAPTURE-DRAFT"
       ]
     },
     {
@@ -10452,6 +10453,59 @@
             "scratch_removed"
           ],
           "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-EXPLICIT-CAPTURE-DRAFT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-owned-explicit-alias-red-001/draft-verification.json",
+      "sha256": "8dd17905bbd6649873d018f91e249a588240498821b4e4861c3544c6ad052293",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Uncommitted explicit multifile capture opt-in draft requires a selected ID, expected server path and no-follow local source. Existing automatic planning and multifile publication stay fenced. Protocol opt-in/legacy-shaped decoder and path-level tests passed on earlier draft; the Engine integration build was interrupted under host I/O pressure. Full client build, actual preceding-reader behavior, end-to-end current binary, publication and user alias policy remain unverified.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "UNVERIFIED_DRAFT"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "production_enabled"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "end_to_end_green"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "actual_old_reader_tested"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "authority_test_executed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_multifile_enabled"
+          ],
+          "equals": false
         }
       ]
     }
