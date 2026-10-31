@@ -54,6 +54,13 @@ jobs:
           python3 -B scripts/execution_dashboard.py --check
           python3 -B scripts/test_execution_dashboard.py
 
+      - name: Probe native socket close behavior
+        if: github.event_name == 'workflow_dispatch' && runner.os != 'Windows'
+        shell: bash
+        run: |
+          rustc --edition=2021 scripts/macos_socket_probe.rs -o "$RUNNER_TEMP/pulsar-socket-probe"
+          "$RUNNER_TEMP/pulsar-socket-probe"
+
       - name: Check compilation
         run: cargo check --workspace --all-targets --locked --verbose
 
