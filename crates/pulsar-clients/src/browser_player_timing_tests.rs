@@ -403,6 +403,8 @@ impl Server {
                     }
                     Err(error) => panic!("synthetic socket accept: {error}"),
                 };
+                // A polled listener can yield a nonblocking stream on macOS.
+                socket.set_nonblocking(false).unwrap();
                 socket
                     .set_read_timeout(Some(Duration::from_secs(1)))
                     .unwrap();
