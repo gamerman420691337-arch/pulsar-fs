@@ -212,6 +212,8 @@ fn input_fixture() -> (Request, AnalysisFeed, LiveCaptureReport) {
         "../../pulsar-protocol/tests/fixtures/live-cpu-capture-report.json"
     ))
     .unwrap();
+    report.options.inference.as_mut().unwrap().model_path =
+        std::env::temp_dir().join("fixture-model.onnx");
     report.identity.epoch = AttemptId::new("capture").unwrap();
     let media = request.browser_media.as_ref().unwrap();
     report.identity.project = media.project_id.clone();

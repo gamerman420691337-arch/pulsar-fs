@@ -497,9 +497,11 @@ mod tests {
         assert!(is_default(&options(&[])));
         assert!(configure(&options(&["--model", "/detector.onnx"])).is_err());
         assert!(configure(&options(&["--preset", "maximum"])).is_err());
+        let detector = std::env::temp_dir().join("detector.onnx");
+        let detector_arg = detector.to_str().unwrap();
         let (settings, path) = configure(&options(&[
             "--model",
-            "/detector.onnx",
+            detector_arg,
             "--model-class-count",
             "1",
             "--width",
@@ -514,7 +516,7 @@ mod tests {
             "0.7",
         ]))
         .unwrap();
-        assert_eq!(path.unwrap(), PathBuf::from("/detector.onnx"));
+        assert_eq!(path.unwrap(), detector);
         assert_eq!(settings.source_sample_stride, 2);
         assert_eq!(settings.detector_score_threshold, Some(0.7));
         assert_eq!(
