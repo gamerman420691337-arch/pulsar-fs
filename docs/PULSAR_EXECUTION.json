@@ -30,9 +30,9 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
-    "scope": "Runs 006 and 007 passed supervised native fallback target recording and archive lifecycle using sterile input and simulated eligibility; 007 binds current source. Wider software and independent qualification remain open.",
+    "scope": "Instrumented native run 009 passed, showing accepted and status observation ages; earlier freshness failures did not recur and remain unexplained. Simulated eligibility and sterile input only.",
     "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Runs 006 and 007 passed scoped native recording archive lifecycle and cleanup; 004\u2013005 freshness failures and all earlier failures retained. Full acceptance and all 25 gates remain open.",
+    "failure_summary": "Native runs 004\u2013005 failed combined freshness/status assertions without observation-age diagnostics; instrumented 009 passed and does not establish cause. All qualification gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -44,7 +44,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
-        "sha256": "8786e3d3da1311f3a5cbd5647b598618346e89c6b031d41a1482a01780c7f193"
+        "sha256": "f850f048c5649b1bfdb85a40930302c73407e87044b932b00a6da414cbe0fb91"
       },
       {
         "path": "crates/pulsar-engine/src/browser_timing.rs",
@@ -1177,7 +1177,8 @@
         "EV-TRANSFER-REFUSAL",
         "EV-LIVE-PROFILE-TIMING",
         "EV-NATIVE-STAMP-REPAIR",
-        "EV-NATIVE-STAMP-PLATFORM"
+        "EV-NATIVE-STAMP-PLATFORM",
+        "EV-NATIVE-FRESHNESS-DIAGNOSTIC"
       ]
     },
     {
@@ -1353,7 +1354,9 @@
         "EV-NATIVE-BROWSER-RECORDING-FRESHNESS-FAIL",
         "EV-NATIVE-BROWSER-RECORDING-FRESHNESS-REPEAT",
         "EV-NATIVE-BROWSER-RECORDING-ARCHIVE",
-        "EV-NATIVE-BROWSER-RECORDING-ARCHIVE-FINAL"
+        "EV-NATIVE-BROWSER-RECORDING-ARCHIVE-FINAL",
+        "EV-NATIVE-BROWSER-RECORDING-REPEAT",
+        "EV-NATIVE-FRESHNESS-DIAGNOSTIC"
       ]
     },
     {
@@ -6813,6 +6816,64 @@
         {
           "pointer": [
             "complete_roadmap_coverage"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-RECORDING-REPEAT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-recording-008/check.json",
+      "sha256": "0c2571489fc6bbdfb34bb5b16a0aacaeea4a19f0b142edb6bd62d1f1603245c3",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Run 008 repeated the actual fallback recording and archive lifecycle on the prior source checkpoint, with simulated eligibility and sterile authored inputs. Passing run timings are retained in native-recording-freshness-observation-001.json; earlier 004\u2013005 failures remain unresolved. No device or qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-FRESHNESS-DIAGNOSTIC",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-recording-009/check.json",
+      "sha256": "85b52823cf66937e09a61c45855517027fb5f0f473bf15e99d68e7d17107bdaf",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Instrumented run 009 passed with captured-CPU estimate accepted at 97029629 ns and observed at 121444098 ns; earlier combined freshness failures did not recur and their cause remains unresolved. Sterile authored inputs and simulated eligibility only.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
           ],
           "equals": false
         }

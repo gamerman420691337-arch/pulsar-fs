@@ -805,9 +805,9 @@ mod captured_cpu_browser_native_tests {
                         && !latest.qualified
                         && latest.capture_tick == new.capture_tick
                         && latest.capture_to_analysis_ns <= MAX_AGE_NS,
-                    "original 200ms freshness or unqualified status differs: fresh={}, qualified={}, estimate_tick={:?}, frame_tick={:?}, capture_to_analysis_ns={}, limit_ns={}",
+                    "original 200ms freshness or unqualified status differs: fresh={}, qualified={}, estimate_tick={:?}, frame_tick={:?}, accepted_at={:?}, capture_to_analysis_ns={}, capture_age_ns={}, limit_ns={}",
                     latest.fresh, latest.qualified, latest.capture_tick, new.capture_tick,
-                    latest.capture_to_analysis_ns, MAX_AGE_NS
+                    latest.accepted_at, latest.capture_to_analysis_ns, latest.capture_age_ns, MAX_AGE_NS
                 );
                 captured_manifest(original)?.validate_estimated(&expected, &latest.result)?;
                 let LiveInferenceReply::CapturedCpuEstimated { position, .. } = &latest.result
