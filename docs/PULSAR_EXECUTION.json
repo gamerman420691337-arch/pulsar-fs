@@ -1450,7 +1450,8 @@
         "EV-RECORDING-DUPLICATE-BOUNDARY",
         "EV-RECORDING-BOUNDARY-DRAFT",
         "EV-RECORDING-BOUNDARY-CURRENT",
-        "EV-RECORDING-BOUNDARY-PORTABLE"
+        "EV-RECORDING-BOUNDARY-PORTABLE",
+        "EV-DELEGATED-HOST-NATIVE-ASSISTANT"
       ]
     },
     {
@@ -1688,7 +1689,8 @@
       ],
       "exit": "Measure useful offline assistant tasks through approved actual clients; verify partial-progress generation pause/response/resume and live coexistence under CPU/GPU contention with whole-application memory/latency observations.",
       "evidence": [
-        "EV-ASSISTANT-FIXTURE-FULL-CI-DISPATCH"
+        "EV-ASSISTANT-FIXTURE-FULL-CI-DISPATCH",
+        "EV-DELEGATED-HOST-NATIVE-ASSISTANT"
       ]
     },
     {
@@ -14573,6 +14575,59 @@
         {
           "pointer": [
             "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-DELEGATED-HOST-NATIVE-ASSISTANT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/delegated-host-native-assistant-20261031.json",
+      "sha256": "8392c653d16fcab616f32d67740d2cc0d6c31d93980c5f446324fcf83e80efd7",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "On the current assistant-fixture branch, a private delegated-cgroup host passed 18 native preparation tests (one ignored) and 38 assistant operation tests (six ignored). Hosted full-suite failures remain retained; this is not full-suite, model, media or device qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "preparation_passed"
+          ],
+          "equals": 18
+        },
+        {
+          "pointer": [
+            "preparation_ignored"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "assistant_passed"
+          ],
+          "equals": 38
+        },
+        {
+          "pointer": [
+            "assistant_ignored"
+          ],
+          "equals": 6
+        },
+        {
+          "pointer": [
+            "full_suite_passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "model_device_or_media_qualified"
           ],
           "equals": false
         }
