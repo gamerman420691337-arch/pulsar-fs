@@ -13,4 +13,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: Exercise Pulsar closed-peer write
-        run: cargo test -p pulsar-protocol --lib deadline_stream_closed_peer_write_reports_broken_pipe --locked
+        run: cargo test -p pulsar-protocol --lib deadline_stream_ --locked
