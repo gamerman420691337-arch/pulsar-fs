@@ -1360,7 +1360,7 @@
       "depends_on": [
         "CPU-ROUNDTRIP"
       ],
-      "exit": "Complete browser graph root/ancestor mutation, resource and fault campaigns and native/rendered target workflow under original limits. Reader42 refusal against owned reader43 main/WAL state passed; authored fixtures do not close parent gates. A historical test binary with a current-library closure failed once on timing binding and passed on repeat; investigate against a current-source pinned subject and preserve metadata-custody counterevidence. One authored current Engine/Protocol native EOF and successor-transfer run passed; repeated reliability and historical failure remain open.",
+      "exit": "Complete browser graph root/ancestor mutation, resource and fault campaigns and native/rendered target workflow under original limits. Reader42 refusal against owned reader43 main/WAL state passed; authored fixtures do not close parent gates. A historical test binary with a current-library closure failed once on timing binding and passed on repeat; investigate against a current-source pinned subject and preserve metadata-custody counterevidence. One authored current Engine/Protocol native EOF and successor-transfer run passed; repeated reliability and historical failure remain open. Current Engine/Protocol native browser repeat: two of four failed, one at timing binding and one at predecessor lease; retain both and localize before reliability claims.",
       "evidence": [
         "EV-FALLBACK-HISTORY-SNAPSHOT",
         "EV-FALLBACK-ARCHIVE-CONTRACT",
@@ -1427,7 +1427,8 @@
         "EV-NATIVE-BROWSER-RECORDING-REPEAT",
         "EV-NATIVE-FRESHNESS-DIAGNOSTIC",
         "EV-BROWSER-CURRENT-LIBRARY-MIXED",
-        "EV-BROWSER-CURRENT-SOURCE-NATIVE"
+        "EV-BROWSER-CURRENT-SOURCE-NATIVE",
+        "EV-BROWSER-CURRENT-SOURCE-INTERMITTENT"
       ]
     },
     {
@@ -8555,6 +8556,65 @@
             "cases_passed"
           ],
           "equals": 2
+        },
+        {
+          "pointer": [
+            "owned_processes_retired"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-CURRENT-SOURCE-INTERMITTENT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/current-source-browser-004/comparison.json",
+      "sha256": "3cffbf819565a0731b404e0d9ac81636127d45f9809547e3f14defc6313ff3f1",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Four sequential authored native browser campaigns on the same current Engine/Protocol test binary, worker, selected source snapshot and separately pinned library closure. Two passed; one failed timing binding during clean input and one exceeded predecessor lease during successor preparation. This is not rendered browser, real media, or physical timing qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_INTERMITTENT"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "root_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "total_runs"
+          ],
+          "equals": 4
+        },
+        {
+          "pointer": [
+            "passed_runs"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "failed_runs"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "same_error_all_failures"
+          ],
+          "equals": false
         },
         {
           "pointer": [
