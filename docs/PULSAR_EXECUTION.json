@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-RECORDING-DEMO-STARTUP-WAIT",
-    "scope": "Recording/export verification did not start: the private Engine stayed live without observed readiness across two bounded windows and was seen in journal and dirty-page waits under elevated I/O pressure. It shut down normally; these observations do not establish startup cause or qualification.",
+    "evidence": "EV-RECORDING-DEMO-STARTUP-WAIT-REPEAT",
+    "scope": "Two separate private recording attempts did not reach playback; Engine readiness was not observed and filesystem journal wait was sampled during elevated I/O pressure. The second Engine exited 1 after termination during startup. Cause and qualification remain open.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "Private recording demo did not reach playback; Engine readiness was not observed and filesystem wait channels were sampled under high I/O pressure. Earlier timing failures and all qualification gates remain open.",
+    "failure_summary": "Repeated private recording attempts did not reach playback because Engine readiness was not observed; journal wait was sampled during elevated I/O pressure. The latest Engine exited 1 when terminated during startup. Earlier timing failures and all qualification gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -1301,7 +1301,8 @@
         "EV-TIMING-LIVE-SWEEP-ISOLATION",
         "EV-TIMING-TRANSFER-SWEEP-ISOLATION",
         "EV-TIMING-TRANSFER-SWEEP-RENDERED",
-        "EV-RECORDING-DEMO-STARTUP-WAIT"
+        "EV-RECORDING-DEMO-STARTUP-WAIT",
+        "EV-RECORDING-DEMO-STARTUP-WAIT-REPEAT"
       ]
     },
     {
@@ -1380,7 +1381,8 @@
         "EV-CPU-START-PHASE-INTERRUPTED",
         "EV-CPU-START-PHASE-PROBE",
         "EV-CPU-START-PHASE-PROBE-REPEAT",
-        "EV-RECORDING-DEMO-STARTUP-WAIT"
+        "EV-RECORDING-DEMO-STARTUP-WAIT",
+        "EV-RECORDING-DEMO-STARTUP-WAIT-REPEAT"
       ]
     },
     {
@@ -11692,6 +11694,47 @@
             "engine_exit_code"
           ],
           "equals": 0
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RECORDING-DEMO-STARTUP-WAIT-REPEAT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-first-failure-001/recording-demo-startup-wait-repeat-20261031.json",
+      "sha256": "111ec73bb55fef11af746f5847a1ebf0819620ab2080b36f61c5fd96e68c1e0e",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Separate private recording attempt again did not observe Engine readiness and sampled a journal wait under elevated I/O pressure. Engine termination during startup exited 1 with shutdown message; no browser or recording was started. No cause or qualification established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "startup_socket_observed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "recording_started"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "engine_exit_code"
+          ],
+          "equals": 1
         },
         {
           "pointer": [
