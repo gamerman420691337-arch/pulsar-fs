@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-RECORDING-DUPLICATE-BOUNDARY",
-    "scope": "Two retained sterile inference records expose an exact duplicate continuation boundary that the current assembler refuses. Their matching input identities and scalar position need a provenance-preserving, fail-closed design and regression; no silent deduplication is assumed.",
+    "evidence": "EV-RECORDING-BOUNDARY-CURRENT",
+    "scope": "Uncommitted source-bound CPU duplicate boundary handling passes the retained sterile records, 4,096-sample limit, negative guards, 415 protocol tests and Clippy. Two Engine portable checks were interrupted, and rendered post-change behavior remains unverified.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "Private rendered staging refused two retained epochs with an identical 22-second boundary point; player also reported timing cleanup unconfirmed. No candidate/export was created. Earlier timeouts and all qualification gates remain open.",
+    "failure_summary": "Engine portable-history check was interrupted twice for host I/O pressure. Earlier rendered timing failures, post-change Engine/rendered verification and all qualification gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -237,6 +237,14 @@
       {
         "path": "crates/pulsar-engine/src/engine_browser_timing_tests.rs",
         "sha256": "0058485927d12555c0d862c65684b02142d26048937c1e6688b12a5c7340e5cf"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/live_recording_assembly.rs",
+        "sha256": "fa4011507cf9a4bde161baa29f2500f1b6f8b8b1eb413c24f36c390f68d886fb"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/recording_boundary_native.rs",
+        "sha256": "4432eb827532eddcd415e706eeb6072c12d2948e174ddffaf7853e8f31405c3a"
       }
     ]
   },
@@ -1309,7 +1317,9 @@
         "EV-STERILE-RECORD-EXPORT-BYTES",
         "EV-RECORDING-DUPLICATE-BOUNDARY",
         "EV-RECORDING-DUPLICATE-INPUT-1",
-        "EV-RECORDING-DUPLICATE-INPUT-2"
+        "EV-RECORDING-DUPLICATE-INPUT-2",
+        "EV-RECORDING-BOUNDARY-DRAFT",
+        "EV-RECORDING-BOUNDARY-CURRENT"
       ]
     },
     {
@@ -1350,7 +1360,9 @@
         "EV-SEEK-GUARD-RENDERED-FINAL",
         "EV-SEEK-GUARD-RENDERED-CURRENT",
         "EV-SEEK-GUARD-RENDERED-LATEST",
-        "EV-RECORDING-DUPLICATE-BOUNDARY"
+        "EV-RECORDING-DUPLICATE-BOUNDARY",
+        "EV-RECORDING-BOUNDARY-DRAFT",
+        "EV-RECORDING-BOUNDARY-CURRENT"
       ]
     },
     {
@@ -12024,6 +12036,106 @@
             "schema"
           ],
           "equals": 1
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RECORDING-BOUNDARY-DRAFT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/boundary-draft-verification-20261031.json",
+      "sha256": "e74f57755d05b3ef933d098d09b6772e572c47d47ce71bf28d9ae5efa5e0dc5a",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Draft handles an exact, source-bound CPU duplicate at an epoch boundary without joining the seam; prior-revision regression and retained sterile pages passed, with unbound/mismatched/CUDA duplicates refused. Final sample-count guard remains untested; Engine portable check was interrupted and rendered post-change verification is open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "baseline_test_failed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "prior_revision_retained_records_test_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "final_sample_count_guard_tested"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "engine_portable_check_completed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RECORDING-BOUNDARY-CURRENT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/boundary-current-verification-20261031.json",
+      "sha256": "2a1c0fbce3c4cce1bbdbacce3aedeeee137993b6f3a2c744643f5c637b9b79ac",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Current duplicate-boundary draft passed the exact retained sterile pages, 4,096-sample bound, negative guards, 415 protocol tests and strict Clippy. The Engine portable-history check was interrupted twice and no rendered post-change verification was run.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "accepted_sample_limit_test_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "retained_records_test_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "protocol_tests_passed"
+          ],
+          "equals": 415
+        },
+        {
+          "pointer": [
+            "engine_portable_check_completed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "rendered_post_change_tested"
+          ],
+          "equals": false
         },
         {
           "pointer": [
