@@ -29,8 +29,8 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-BROWSER-READY-PROBED-FAILURE",
-    "scope": "Post-fix native Ready failed before transfer: Start call was 61.7ms and last state remained Starting after 5508 polls at the original deadline. No causal phase is established; retained timing and correspondence failures remain open.",
+    "evidence": "EV-CPU-START-PHASE-PROBE",
+    "scope": "A bounded per-attempt test-only CPU startup phase probe passed its unit test, Clippy and one native browser campaign; worker_ready was observed on success. Historical Ready and transfer failures remain unexplained.",
     "active_work": "BROWSER-DEMO",
     "failure_summary": "Diagnostic source cleanup and Engine forced-stop counterevidence remain unresolved; new diagnostics do not retroactively establish cause. All qualification gates remain open.",
     "source_stamp": [
@@ -44,7 +44,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
-        "sha256": "4abe541b7aae0116b5414ae1c3d873bf27193656684ab9298eff3aa9aefca035"
+        "sha256": "f751dc323dd57bf30e0abb1efa66d0a2dbd8a20713686b5675a096e436ab0dd9"
       },
       {
         "path": "crates/pulsar-engine/src/browser_timing.rs",
@@ -56,7 +56,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/authority.rs",
-        "sha256": "e9d288db54cfa45c236b6d01ec067d50a0e6d8a27760464a05b213c4fbe099f2"
+        "sha256": "48534fd68b7a73a4917772f16b66d56a0dfabccaae8a037875dc64c32fa56f24"
       },
       {
         "path": "crates/pulsar-engine/src/browser_fallback_history.rs",
@@ -181,6 +181,18 @@
       {
         "path": "crates/pulsar-clients/src/browser_source_media_tests.rs",
         "sha256": "0612d0df99741a56092196411716591f4623e2bf3b5668365a1f5494cad39fe0"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_cpu.rs",
+        "sha256": "725720da196cba7280473126d9d08ac128364403b5bc229bcbde9245c0dbdbe9"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_inference.rs",
+        "sha256": "766b3240eec5ed37034354eecbd356aaa69ebd664960878d5955133883ce4c68"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_captures.rs",
+        "sha256": "8426c077c242e3b5dfa9cf4995c61a1e6d7c63c8c973c34e1a8e458a4f991e71"
       }
     ]
   },
@@ -1283,7 +1295,7 @@
       "state": "open",
       "owner": "Codex",
       "depends_on": [],
-      "exit": "Localize retained startup/Ready and archive-cache stalls with bounded phase probes; establish a causal repair and regression without erasing earlier failures. Unchanged-binary semantic regressions now pass, while syscall tracing and an independent 4KiB write probe show variable SSD sync latency up to 11.138 seconds. That observation does not isolate startup-only cost, identify a particular competing workload, or close the original timeout. Preserve durability and original live bounds. Historical pinned-campaign reproduction now refuses before execution because two recorded system-library identities changed; locate exact historical bytes or establish a separately pinned current subject, without claiming equivalence. A separately pinned current-library run passed five native cases; original stall remains unexplained. A current diagnostic native browser run failed before Ready at its original capture lease after two passes; exact startup stage remains unknown. Bounded test-only Ready polling timings are available, but two passing native runs did not exercise the timeout diagnostic. The native test harness no longer accepts Running observed at or after the original deadline; deterministic regression and Clippy passed, native rerun pending. Post-fix native Ready failure: Start returned in 61.7ms; after 5508 polls the last state was Starting at the unchanged deadline. Preparation stage and cause remain unknown. A bounded per-attempt test-only phase probe is unverified in a retained branch and patch; its build was deliberately stopped under host I/O pressure and must be tested before use.",
+      "exit": "Localize retained startup/Ready and archive-cache stalls with bounded phase probes; establish a causal repair and regression without erasing earlier failures. Unchanged-binary semantic regressions now pass, while syscall tracing and an independent 4KiB write probe show variable SSD sync latency up to 11.138 seconds. That observation does not isolate startup-only cost, identify a particular competing workload, or close the original timeout. Preserve durability and original live bounds. Historical pinned-campaign reproduction now refuses before execution because two recorded system-library identities changed; locate exact historical bytes or establish a separately pinned current subject, without claiming equivalence. A separately pinned current-library run passed five native cases; original stall remains unexplained. A current diagnostic native browser run failed before Ready at its original capture lease after two passes; exact startup stage remains unknown. Bounded test-only Ready polling timings are available, but two passing native runs did not exercise the timeout diagnostic. The native test harness no longer accepts Running observed at or after the original deadline; deterministic regression and Clippy passed, native rerun pending. Post-fix native Ready failure: Start returned in 61.7ms; after 5508 polls the last state was Starting at the unchanged deadline. Preparation stage and cause remain unknown. A bounded per-attempt test-only phase probe is unverified in a retained branch and patch; its build was deliberately stopped under host I/O pressure and must be tested before use. A bounded per-attempt test-only phase probe passed unit/Clippy and observed worker_ready in one passing native run; no failed startup phase was captured.",
       "evidence": [
         "EV-STARTUP",
         "EV-RUNTIME-CACHE-BUSY",
@@ -1306,7 +1318,8 @@
         "EV-BROWSER-READY-DEADLINE-BOUNDARY",
         "EV-BROWSER-READY-DEADLINE-CLIPPY",
         "EV-BROWSER-READY-PROBED-FAILURE",
-        "EV-CPU-START-PHASE-INTERRUPTED"
+        "EV-CPU-START-PHASE-INTERRUPTED",
+        "EV-CPU-START-PHASE-PROBE"
       ]
     },
     {
@@ -9799,6 +9812,77 @@
             "full_library_exhaustion_checked"
           ],
           "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-CPU-START-PHASE-PROBE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/cpu-start-phase-native-002/scoped-verification.json",
+      "sha256": "f7a75f6e9742fb796972c699bdf3786f7252867c93af890313e59d7918059c2a",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Bounded per-attempt test-only CPU phase marker passed isolation/capacity unit test and strict Engine Clippy; one authored native browser campaign passed with worker_ready observed. The failure interval was not captured, and no historical, rendered-media, physical or release qualification follows. Prior interrupted build, module visibility compile error and initial Clippy failure retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "failure_interval_captured"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "unit_test_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "clippy_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "native_cases_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "native_success_phase"
+          ],
+          "equals": "worker_ready"
+        },
+        {
+          "pointer": [
+            "owned_processes_retired"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "test_only"
+          ],
+          "equals": true
         }
       ]
     }

@@ -261,6 +261,8 @@ pub struct Engine {
     worker_fence: Arc<crate::worker_fence::WorkerFence>,
     #[cfg(target_os = "linux")]
     native_image_reuse: crate::native_capture::LiveNativeImageReuse,
+    #[cfg(all(test, target_os = "linux"))]
+    cpu_startup_test_phases: live_captures::CpuStartupTestPhases,
     #[cfg(target_os = "linux")]
     native_retention_slots: Arc<std::sync::atomic::AtomicUsize>,
     #[cfg(target_os = "linux")]
@@ -908,6 +910,8 @@ impl Engine {
             worker_fence,
             #[cfg(target_os = "linux")]
             native_image_reuse: crate::native_capture::LiveNativeImageReuse::default(),
+            #[cfg(all(test, target_os = "linux"))]
+            cpu_startup_test_phases: live_captures::CpuStartupTestPhases::default(),
             #[cfg(target_os = "linux")]
             native_retention_slots: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
             #[cfg(target_os = "linux")]
