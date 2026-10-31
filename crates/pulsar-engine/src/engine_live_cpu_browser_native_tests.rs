@@ -666,6 +666,7 @@ mod captured_cpu_browser_native_tests {
     ) -> Result<(LiveCaptureReport, Instant)> {
         player.observe(client)?;
         let end = Instant::now() + Duration::from_millis(u64::from(LEASE_MS));
+        let start_call_began = Instant::now();
         let initial = capture(client.call(
             Some(1),
             Command::StartLiveCapture {
@@ -673,9 +674,20 @@ mod captured_cpu_browser_native_tests {
                 options: options(inputs, media, player)?,
             },
         )?)?;
+        let start_call_elapsed = start_call_began.elapsed();
+        let mut poll_count = 0u64;
+        let mut timing_observe_max = Duration::ZERO;
+        let mut capture_status_max = Duration::ZERO;
         loop {
-            player.observe(client)?;
-            let current = client.capture(&initial.identity.epoch)?;
+            poll_count = poll_count.saturating_add(1);
+            let began = Instant::now();
+            let observed = player.observe(client);
+            timing_observe_max = timing_observe_max.max(began.elapsed());
+            observed.context("native Ready timing observation")?;
+            let began = Instant::now();
+            let status = client.capture(&initial.identity.epoch);
+            capture_status_max = capture_status_max.max(began.elapsed());
+            let current = status.context("native Ready capture status")?;
             assert_scope(client.engine, &initial, &current)?;
             let info = current.inference.as_ref().unwrap();
             ensure!(
@@ -688,7 +700,9 @@ mod captured_cpu_browser_native_tests {
             }
             ensure!(
                 Instant::now() < end,
-                "Ready exceeded original capture lease"
+                "Ready exceeded original capture lease: start_call_ns={}, polls={}, timing_observe_max_ns={}, capture_status_max_ns={}, last_state={:?}",
+                start_call_elapsed.as_nanos(), poll_count, timing_observe_max.as_nanos(),
+                capture_status_max.as_nanos(), info.state
             );
             std::thread::park_timeout(Duration::from_millis(5));
         }
