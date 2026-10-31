@@ -1,16 +1,14 @@
-name: Native deadline write probe
+name: Native package import diagnostic
 on:
   workflow_dispatch:
 jobs:
-  probe:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+  import:
+    runs-on: macos-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Exercise Pulsar closed-peer write
-        run: cargo test -p pulsar-protocol --lib deadline_stream_ --locked
+      - name: Install macOS dependencies
+        run: brew install ffmpeg
+      - name: Exercise package import socket tests
+        run: cargo test -p pulsar-clients --lib project_package_import::socket_tests --locked -- --test-threads=1
