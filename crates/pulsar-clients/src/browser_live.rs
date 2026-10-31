@@ -3657,7 +3657,9 @@ impl Preview {
             };
             match cancelled {
                 Ok(()) => self.analysis_successor = None,
-                Err(error) => failure = Some(error),
+                Err(error) => {
+                    failure.get_or_insert(error);
+                }
             }
         }
         self.analysis_commit = None;
@@ -3681,8 +3683,13 @@ impl Preview {
                 {
                     self.pending = None
                 }
-                Ok(_) => failure = Some(anyhow::anyhow!("pending capture stop not acknowledged")),
-                Err(e) => failure = Some(e),
+                Ok(_) => {
+                    failure
+                        .get_or_insert_with(|| anyhow::anyhow!("pending capture stop not acknowledged"));
+                }
+                Err(e) => {
+                    failure.get_or_insert(e);
+                }
             }
         }
         if let Some(expected) = self.report.clone() {
@@ -3698,12 +3705,12 @@ impl Preview {
                     self.report = None;
                 }
                 Ok(_) => {
-                    failure = Some(anyhow::anyhow!(
-                        "capture stop acknowledgement scope or state differs"
-                    ))
+                    failure.get_or_insert_with(|| {
+                        anyhow::anyhow!("capture stop acknowledgement scope or state differs")
+                    });
                 }
                 Err(e) => {
-                    failure = Some(e);
+                    failure.get_or_insert(e);
                 }
             }
         }
@@ -4487,6 +4494,105 @@ pub(crate) fn run_controlled(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn capture_cleanup_preserves_first_failure_and_attempts_both_originals() {
+        use std::os::unix::net::UnixListener;
+
+        let root = tempfile::tempdir().unwrap();
+        let endpoint = root.path().join("engine.sock");
+        let listener = UnixListener::bind(&endpoint).unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let server = std::thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(4);
+            let mut epochs = Vec::new();
+            while epochs.len() < 2 && Instant::now() < deadline {
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        stream.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
+                        let request: pulsar_protocol::Request =
+                            pulsar_protocol::read_message(&mut stream).unwrap();
+                        let Command::StopLiveCapture { epoch } = &request.command else {
+                            panic!("unexpected cleanup command")
+                        };
+                        epochs.push(epoch.clone());
+                        let message = if epochs.len() == 1 {
+                            "first pending stop failed"
+                        } else {
+                            "second active stop failed"
+                        };
+                        pulsar_protocol::write_message(
+                            &mut stream,
+                            &pulsar_protocol::Response::failure(
+                                request.request_id,
+                                ProtocolError::new(ErrorCode::Unavailable, message),
+                            ),
+                        )
+                        .unwrap();
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(5));
+                    }
+                    Err(error) => panic!("listener failed: {error}"),
+                }
+            }
+            epochs
+        });
+        let original: LiveCaptureReport = serde_json::from_str(include_str!(
+            "../../pulsar-protocol/tests/fixtures/live-cpu-capture-report.json"
+        ))
+        .unwrap();
+        let mut pending = original.clone();
+        pending.identity.epoch = AttemptId::new("pending-capture").unwrap();
+        let mut client = SessionClient::from_credentials(
+            &endpoint,
+            SessionId::new("cleanup-session").unwrap(),
+            "synthetic-token".into(),
+        )
+        .unwrap();
+        client.set_operation_deadline(Some(Instant::now() + Duration::from_secs(3)));
+        let mut preview = Preview {
+            client,
+            project: original.identity.project.clone(),
+            revision: original.identity.revision,
+            options: original.options.clone(),
+            report: Some(original.clone()),
+            analysis_feed: None,
+            analysis_successor: None,
+            analysis_commit: None,
+            analysis_last_transfer: None,
+            analysis_cancelled: false,
+            bulk: None,
+            sequence: 0,
+            last_time: None,
+            blocked: false,
+            playback_epoch: None,
+            pending: Some(Pending {
+                report: pending.clone(),
+                bulk: None,
+                sequence: 0,
+                eligible_after: Instant::now(),
+            }),
+            eligible_after: Instant::now(),
+            handoffs: 0,
+            transition_drops: 0,
+            recording_maximum: None,
+            recordings: vec![],
+            retired_recordings: vec![],
+            candidate: None,
+            export: None,
+            gap: None,
+        };
+        let error = preview.stop().unwrap_err().to_string();
+        let epochs = server.join().unwrap();
+        assert_eq!(epochs, vec![pending.identity.epoch, original.identity.epoch]);
+        assert!(preview.blocked && preview.pending.is_some() && preview.report.is_some());
+        preview.pending = None;
+        preview.report = None;
+        assert!(error.contains("first pending stop failed"), "{error}");
+    }
+
     #[test]
     fn recording_candidate_recovery_restores_no_review_or_commit_authority() {
         let project = ProjectId::new("candidate-project").unwrap();
