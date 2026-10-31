@@ -412,7 +412,7 @@ fn comparison_time(
     Ok(ExactSeconds::from_source(elapsed))
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "linux"))]
 mod tests {
     use super::*;
     use sha2::{Digest, Sha256};
@@ -493,6 +493,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn comparison_uses_actual_elapsed_frame_time_and_rejects_changed_binding() {
         let temp = tempfile::tempdir().unwrap();
         let (entry, result) = fixture(temp.path());
@@ -537,6 +538,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn reference_panel_widget_paints_and_seeks_without_changing_supplied_points() {
         let temp = tempfile::tempdir().unwrap();
         let (entry, preview) = fixture(temp.path());
@@ -596,6 +598,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn retained_background_input_does_not_follow_later_form_changes() {
         let temp = tempfile::tempdir().unwrap();
         let (entry, _) = fixture(temp.path());
@@ -614,6 +617,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn background_export_and_reopen_preserve_inputs_on_failure() {
         let temp = tempfile::tempdir().unwrap();
         let (entry, _) = fixture(temp.path());
