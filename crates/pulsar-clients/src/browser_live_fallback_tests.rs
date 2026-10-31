@@ -184,6 +184,8 @@ fn recording(target: &LiveCaptureReport, id: RequestId) -> LiveRecordingPage {
 fn accept(listener: &UnixListener) -> Option<UnixStream> {
     match listener.accept() {
         Ok((s, _)) => {
+            // Accepted sockets may inherit the listener's nonblocking flag on BSD.
+            s.set_nonblocking(false).unwrap();
             s.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
             s.set_write_timeout(Some(Duration::from_secs(2))).unwrap();
             Some(s)
