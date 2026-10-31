@@ -65,6 +65,10 @@ project, current revision and configured options. The default server lifetime is
 300 seconds; `--duration-seconds` accepts 1–600. These arguments do not configure a
 device connection. On Unix, SIGINT/SIGTERM request normal cleanup and joined exit;
 the desktop keeps its own cancellation path. Cleanup failures remain explicit errors.
+An unconfirmed source release reports its original preparation and selection IDs
+plus an allowlisted stage, category, and optional protocol code. It excludes raw
+transport error text, which may contain private paths or credentials. A diagnostic
+does not confirm release or authorize a replacement operation.
 
 ## What the clock declaration means
 

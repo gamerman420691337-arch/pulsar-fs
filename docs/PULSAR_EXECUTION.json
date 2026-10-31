@@ -30,9 +30,9 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
-    "scope": "Seek guard blocks browser automatic replay and waits for original capture stop and local player-release acknowledgements. Exact current source passed 181 mock tests, 82 focused Rust tests and one rendered sterile seek/resume scenario at 200ms; repeat reliability and independent qualification remain open.",
+    "scope": "Source cleanup failure now records only allowlisted stage, category and protocol code; focused red/green tests and browser-live tests passed. Historical cleanup cause remains unknown; wider verification pending.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "Original rendered seek autoplay, first guard cleanup failure and diagnostic Engine force-kill retained. One current-source rendered scenario passed; earlier cleanup cause and all qualification gates remain unresolved.",
+    "failure_summary": "Diagnostic source cleanup and Engine forced-stop counterevidence remain unresolved; new diagnostics do not retroactively establish cause. All qualification gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -173,6 +173,14 @@
       {
         "path": ".github/workflows/ci.yml",
         "sha256": "d30a0f7cddbe6aad318292d1a8d2ab247673c1dff8e24b608398d1eba0af248f"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_source_media.rs",
+        "sha256": "5b144292477057533ba5452f6303eb9b58196451293d39ecbbbe1678f2ed43b4"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_source_media_tests.rs",
+        "sha256": "2b4a335895e650ce75a281931725af54f6d48e230c8a8b11ddbf6ac805abab91"
       }
     ]
   },
@@ -1213,7 +1221,9 @@
         "EV-SEEK-GUARD-RENDERED-FINAL",
         "EV-SEEK-GUARD-MOCK-181",
         "EV-SEEK-GUARD-RENDERED-CURRENT",
-        "EV-SEEK-GUARD-RENDERED-LATEST"
+        "EV-SEEK-GUARD-RENDERED-LATEST",
+        "EV-SOURCE-CLEANUP-DIAGNOSTIC-RED",
+        "EV-SOURCE-CLEANUP-DIAGNOSTIC-GREEN"
       ]
     },
     {
@@ -7951,6 +7961,64 @@
         {
           "pointer": [
             "prior_cleanup_failure_resolved"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-SOURCE-CLEANUP-DIAGNOSTIC-RED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-diagnostic-001/red.json",
+      "sha256": "a783c494f8354d8b9b4a876c1ae0871b891c2d9c501372707fbabdfc49870124",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Baseline in-process source cleanup test showed missing transport category for a missing Engine socket.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-SOURCE-CLEANUP-DIAGNOSTIC-GREEN",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-diagnostic-001/green.json",
+      "sha256": "3a3d9809e89d6949fd4f64c17b05e082e97e1bc512ff36c1ea2c1402fe2b1b22",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Focused in-process source cleanup tests passed bounded redacted stage/category/code diagnostics while preserving original failure identity; historic cleanup cause remains unknown.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "tests"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
           ],
           "equals": false
         }
