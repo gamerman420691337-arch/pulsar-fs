@@ -69,6 +69,55 @@ fn source_cleanup_preserves_first_failed_original_when_multiple_releases_fail() 
     assert_eq!(media.shutdown().unwrap_err().to_string(), failure);
 }
 
+#[cfg(unix)]
+#[test]
+fn source_cleanup_attempts_later_release_after_first_failure() {
+    use std::os::unix::net::UnixListener;
+    let directory = tempfile::tempdir().unwrap();
+    let socket = directory.path().join("releases.sock");
+    let listener = UnixListener::bind(&socket).unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let server = std::thread::spawn(move || {
+        let deadline = Instant::now() + Duration::from_secs(8);
+        let mut accepted = 0;
+        while accepted < 2 && Instant::now() < deadline {
+            match listener.accept() {
+                Ok((stream, _)) => {
+                    accepted += 1;
+                    drop(stream);
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                Err(error) => panic!("listener failed: {error}"),
+            }
+        }
+        accepted
+    });
+    let client = SessionClient::from_credentials(
+        &socket,
+        SessionId::new("source-test-actor").unwrap(),
+        "synthetic-authentication".into(),
+    )
+    .unwrap();
+    let b = binding();
+    let mut media =
+        MediaController::new(&client, b.project_id.clone(), b.revision, 30, None).unwrap();
+    let prepared = || Prepared {
+        intent: intent(&b, Arc::new(AtomicBool::new(false))),
+        report: None,
+        ready: None,
+        pending: 0,
+        release_pending: false,
+        cleanup_attempted: false,
+        error: None,
+    };
+    media.prepared = Some(prepared());
+    media.retired.push(prepared());
+    assert!(media.shutdown().is_err());
+    assert_eq!(server.join().unwrap(), 2);
+}
+
 #[test]
 fn source_cleanup_diagnostics_classify_without_disclosing_error_text() {
     let cases = [
