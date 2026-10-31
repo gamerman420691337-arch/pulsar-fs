@@ -416,7 +416,7 @@ pub(crate) fn validate_recording_page(
     actor: &SessionId,
     page: &LiveRecordingPage,
 ) -> Result<()> {
-    page.validate()?;
+    crate::browser_fallback_history::validate_recording_page(db, actor, page)?;
     let original = load_base(db, &page.identity.epoch)?;
     let Some((origin, report)) = original else {
         ensure!(
@@ -436,6 +436,7 @@ pub(crate) fn validate_recording_page(
             && page.model_pack == report.options.model_pack
             && page.browser_media == report.options.browser_media
             && page.source_time_basis == report.options.source_time_basis
+            && page.fallback.is_some() == report.options.inference_fallback.is_some()
             && page
                 .cpu_manifest
                 .as_deref()
@@ -574,6 +575,16 @@ pub(crate) fn validate(db: &Connection) -> Result<()> {
 #[cfg(test)]
 #[path = "live_cpu_history_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+pub(crate) fn authored_capture_for_test() -> LiveCaptureReport {
+    tests::report()
+}
+
+#[cfg(test)]
+pub(crate) fn authored_recording_page_for_test(report: &LiveCaptureReport) -> LiveRecordingPage {
+    tests::page(report)
+}
 
 #[cfg(test)]
 #[path = "live_cpu_hsp_history_tests.rs"]

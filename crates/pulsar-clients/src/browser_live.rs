@@ -12,6 +12,8 @@ use std::{
 
 const BODY_LIMIT: usize = LIVE_FRAME_BYTES + 1024;
 const PAGE: &str = include_str!("browser_live.html");
+#[path = "browser_live_fallback.rs"]
+mod fallback;
 #[path = "browser_player_http.rs"]
 mod player_http;
 #[path = "browser_source_media.rs"]
@@ -3109,20 +3111,16 @@ impl Preview {
                 !page.active && !page.discarded,
                 "stop the capture before saving retained recording"
             );
-            let signature = serde_json::to_vec(&(
-                &page.model_pack,
-                &page.source_time_basis,
-                &page.engine_epoch,
-                &page.identity,
-                &page.clock,
-                &page.profile,
-                &page.inference_attempt,
-                &page.recording_request_id,
-                page.maximum_samples,
-                page.total_samples,
-                page.exhausted,
-                &page.retirement,
-            ))?;
+            // Preserve all declaration fields, including fallback and captured
+            // runtime provenance, while allowing only the page cursor to move.
+            let mut header = serde_json::to_value(&page)?;
+            let fields = header
+                .as_object_mut()
+                .context("recording page header absent")?;
+            for key in ["after", "next", "samples"] {
+                fields.remove(key);
+            }
+            let signature = serde_json::to_vec(&header)?;
             if let Some(expected) = &first {
                 ensure!(*expected == signature, "recording changed during readback");
             } else {
@@ -3670,23 +3668,39 @@ impl Preview {
         if let Some(pending) = self.pending.as_mut() {
             pending.bulk = None;
         }
-        if let Some(pending) = &self.pending {
+        if let Some(expected) = self.pending.as_ref().map(|p| p.report.clone()) {
             let result = self.command(Command::StopLiveCapture {
-                epoch: pending.report.identity.epoch.clone(),
+                epoch: expected.identity.epoch.clone(),
             });
             match result {
-                Ok(r) if !r.active => self.pending = None,
+                Ok(r)
+                    if !r.active
+                        && r.identity == expected.identity
+                        && r.engine_epoch == expected.engine_epoch
+                        && r.clock == expected.clock =>
+                {
+                    self.pending = None
+                }
                 Ok(_) => failure = Some(anyhow::anyhow!("pending capture stop not acknowledged")),
                 Err(e) => failure = Some(e),
             }
         }
-        if let Some(r) = &self.report {
-            let epoch = r.identity.epoch.clone();
+        if let Some(expected) = self.report.clone() {
+            let epoch = expected.identity.epoch.clone();
             let result = self.command(Command::StopLiveCapture { epoch });
             match result {
-                Ok(r) => {
-                    ensure!(!r.active, "capture stop not acknowledged");
+                Ok(r)
+                    if !r.active
+                        && r.identity == expected.identity
+                        && r.engine_epoch == expected.engine_epoch
+                        && r.clock == expected.clock =>
+                {
                     self.report = None;
+                }
+                Ok(_) => {
+                    failure = Some(anyhow::anyhow!(
+                        "capture stop acknowledgement scope or state differs"
+                    ))
                 }
                 Err(e) => {
                     failure = Some(e);
@@ -3744,6 +3758,14 @@ impl Preview {
         let mut value =
             serde_json::to_value(self.report.as_ref().context("capture report absent")?)?;
         value["browser"] = serde_json::json!({"playback_epoch":self.playback_epoch,"handoffs":self.handoffs,"transition_drops":self.transition_drops,"pending_epoch":self.pending.as_ref().map(|p| &p.report.identity.epoch)});
+        if let Some(notice) = fallback::notice(self) {
+            value["browser"]["analysis_fallback"] = notice;
+            if value["browser"].get("analysis_feed").is_none() {
+                if let Some(feed) = &self.analysis_feed {
+                    value["browser"]["analysis_feed"] = serde_json::to_value(&feed.binding)?;
+                }
+            }
+        }
         if let Some(snapshot) = self.active_analysis_feed()? {
             value["browser"]["analysis_feed"] = serde_json::to_value(snapshot.binding)?;
             value["browser"]["measured_analysis_lead_us"] =
@@ -4145,8 +4167,18 @@ impl Preview {
             self.report = Some(report.clone());
             self.sequence = 0;
             self.last_time = None;
-            self.begin_recording(&report, report.identity.epoch.clone())?;
-            self.bulk = Some(self.client.open_live_bulk(&report)?);
+            if report.active && report.options.inference_fallback.is_none() {
+                self.begin_recording(&report, report.identity.epoch.clone())?;
+                self.bulk = Some(self.client.open_live_bulk(&report)?);
+            } else if !report.active {
+                ensure!(
+                    report
+                        .inference
+                        .as_ref()
+                        .is_some_and(|i| i.fallback_transition.is_some()),
+                    "capture retired before its original Start was confirmed"
+                );
+            }
             self.eligible_after = Instant::now();
             self.playback_epoch = Some(report.identity.epoch.clone());
             self.handoffs = 0;
@@ -4158,6 +4190,17 @@ impl Preview {
             .as_ref()
             .context("start playback capture first")?;
         if request.path == "/frame" {
+            if self
+                .report
+                .as_ref()
+                .is_some_and(|r| r.options.inference_fallback.is_some())
+            {
+                let prior = self.report.clone().expect("current capture");
+                self.report = Some(self.capture_status(&prior)?);
+                if fallback::reconcile(self)? {
+                    return fallback::discarded_view(self);
+                }
+            }
             ensure!(
                 self.analysis_successor
                     .as_ref()
@@ -4197,7 +4240,23 @@ impl Preview {
                 "one 64x64 RGB frame required"
             );
             let time = SourceTimestamp::new(frame.media_us, 1_000_000)?;
-            let uploaded = self.upload_frame(time, pixels, received)?;
+            let uploaded = match self.upload_frame(time, pixels, received) {
+                Ok(uploaded) => uploaded,
+                Err(error)
+                    if self
+                        .report
+                        .as_ref()
+                        .is_some_and(|r| r.options.inference_fallback.is_some()) =>
+                {
+                    let prior = self.report.clone().expect("original capture");
+                    self.report = Some(self.capture_status(&prior)?);
+                    if fallback::reconcile(self)? {
+                        return fallback::discarded_view(self);
+                    }
+                    return Err(error);
+                }
+                Err(error) => return Err(error),
+            };
             self.last_time = Some(frame.media_us);
             if let Some(feed) = &mut self.analysis_feed {
                 feed.last_upload = Some(AnalysisUploadReceipt {
@@ -4243,6 +4302,7 @@ impl Preview {
             return self.view();
         }
         self.report = Some(report);
+        fallback::reconcile(self)?;
         self.view()
     }
 }

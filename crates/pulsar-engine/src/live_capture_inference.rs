@@ -147,6 +147,8 @@ pub(super) fn initial_report(
     manifest: &LiveInferenceManifest,
 ) -> PResult<LiveCaptureInferenceReport> {
     Ok(LiveCaptureInferenceReport {
+        fallback_transition: None,
+        fallback: None,
         cpu_manifest: None,
         cuda_manifest_sha256: None,
         cuda_evidence: None,
@@ -370,7 +372,7 @@ pub(super) fn spawn(
     ))
 }
 
-fn active<'a>(
+pub(super) fn active<'a>(
     registry: &'a mut Registry,
     epoch: &AttemptId,
     attempt: &AttemptId,
@@ -650,6 +652,7 @@ impl Engine {
         let Some(entry) = active(&mut registry, epoch, attempt) else {
             return Ok(false);
         };
+        fallback::require_evidence(&db, entry)?;
         if finishing(entry) {
             return Ok(false);
         }
@@ -806,6 +809,7 @@ impl Engine {
         let Some(entry) = active(&mut registry, epoch, attempt) else {
             return Ok(false);
         };
+        fallback::require_evidence(&db, entry)?;
         if entry
             .report
             .inference

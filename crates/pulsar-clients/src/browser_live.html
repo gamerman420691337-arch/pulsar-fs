@@ -385,7 +385,7 @@ function lookaheadSelection(){
 function currentAnalysis(state){return !!state&&analysisReader===state&&!state.retired&&armed&&state.generation===generation&&playerAttempt===state.attempt&&preparedMedia===state.media;}
 function stopAnalysis(){
  const state=analysisReader;analysisReader=null;futureEstimates=[];lastFutureEstimate=null;if(futureTimer!==null)clearTimeout(futureTimer);futureTimer=null;
- if(state){state.retired=true;stopContinuation(state);for(const key of ['timer','closeTimer','settlementTimer','drainTimer'])if(state[key]!==null&&state[key]!==undefined)clearTimeout(state[key]);if(state.callback!==null&&typeof analysisVideo.cancelVideoFrameCallback==='function')analysisVideo.cancelVideoFrameCallback(state.callback);for(const [event,listener] of state.listeners)analysisVideo.removeEventListener(event,listener);state.listeners=[];}
+ if(state){state.retired=true;stopContinuation(state);for(const key of ['timer','closeTimer','settlementTimer','drainTimer','fallbackTimer'])if(state[key]!==null&&state[key]!==undefined)clearTimeout(state[key]);if(state.callback!==null&&typeof analysisVideo.cancelVideoFrameCallback==='function')analysisVideo.cancelVideoFrameCallback(state.callback);for(const [event,listener] of state.listeners)analysisVideo.removeEventListener(event,listener);state.listeners=[];}
  analysisVideo.pause();analysisVideo.removeAttribute('src');analysisVideo.load();analysisVideo.hidden=true;analysisEstimate.textContent='';
  lookaheadStatus.textContent='Lookahead is inactive; explicit Play creates a new analysis feed.';
 }
@@ -416,6 +416,35 @@ function checkAnalysisFeed(report,state,scope){
  for(const key of ['target_lead_us','minimum_lead_us','maximum_lead_us'])if(feed.policy?.[key]!==state.selection.policy[key])throw Error('Native lookahead policy changed.');
  if(state.feed&&(state.feed.feed_id!==feed.feed_id||state.feed.capture_epoch!==feed.capture_epoch))throw Error('Capture continuation requires a new explicit analysis feed.');
  state.feed=feed;return feed;
+}
+function receiveAnalysisFallback(report,state,scope){
+ const notice=report.browser?.analysis_fallback;if(!notice)return false;
+ if(notice.phase==='refused')throw Error(notice.error?.message||'Engine refused the original fallback.');
+ if(notice.phase==='ready'&&state.feed?.capture_epoch===report.identity?.epoch){
+  if(!state.fallbackWaiting&&report.browser?.analysis_frame_discarded!==true)return false;
+  if(performance.now()>=state.captureDeadline)throw Error('Original capture deadline expired during startup.');
+  clearMotion();futureEstimates=[];lastFutureEstimate=null;state.lastSubmitted=null;state.lastAck=null;state.fallbackWaiting=false;if(state.fallbackTimer!==null&&state.fallbackTimer!==undefined)clearTimeout(state.fallbackTimer);state.fallbackTimer=null;return true;
+ }
+ if(notice.phase!=='waiting'&&notice.phase!=='ready')throw Error('Unknown fallback status.');
+ if(!Number.isFinite(state.captureDeadline)||performance.now()>=state.captureDeadline)throw Error('Original capture deadline expired during fallback.');
+ clearMotion();futureEstimates=[];lastFutureEstimate=null;state.lastSubmitted=null;state.lastAck=null;
+ if(futureTimer!==null)clearTimeout(futureTimer);futureTimer=null;
+ if(notice.phase==='waiting'){
+  if(!state.feed)checkAnalysisFeed(report,state,scope);
+  if(report.identity?.epoch!==state.feed.capture_epoch)throw Error('Fallback wait changed the original feed.');
+  state.fallbackWaiting=true;analysisEstimate.textContent='Waiting for declared inference; old estimates cleared.';
+  if(state.fallbackTimer===null||state.fallbackTimer===undefined)state.fallbackTimer=setTimeout(async()=>{
+   state.fallbackTimer=null;if(!currentAnalysis(state)||!currentPlayer(scope))return;
+   try{const next=await post('/status',new Uint8Array(),scope);if(currentAnalysis(state)&&currentPlayer(scope))receiveAnalysisFallback(next,state,scope);}catch(e){failAnalysis(state,e.message);}
+  },100);
+  return true;
+ }
+ const old=state.feed,history=report.inference?.fallback?.history,feed=report.browser?.analysis_feed;
+ if(!old||!report.active||report.inference?.state!=='running'||notice.target_epoch!==report.identity?.epoch||!Array.isArray(history)||!history.some(step=>step.failure?.manifest?.stream?.identity?.epoch===old.capture_epoch)||feed?.feed_id===old.feed_id)throw Error('Fallback target lacks the original failure or fresh running feed.');
+ state.feed=null;checkAnalysisFeed(report,state,scope);epoch=report.identity.epoch;state.fallbackWaiting=false;
+ if(state.fallbackTimer!==null&&state.fallbackTimer!==undefined)clearTimeout(state.fallbackTimer);state.fallbackTimer=null;
+ analysisEstimate.textContent='Declared fallback selected: '+notice.provider+'. Waiting for fresh frames.';
+ return true;
 }
 function sameAnalysisSubmission(left,right){
  if(!left||!right||left.media_us!==right.media_us||!left.observation||!right.observation)return false;
@@ -644,7 +673,7 @@ async function submitAnalysisFrame(reader,media_us,capturedAt,state,analysis){
  try{
   ctx.drawImage(reader,0,0,64,64);const rgba=ctx.getImageData(0,0,64,64).data,rgb=new Uint8Array(12288);for(let i=0,j=0;i<rgba.length;i+=4){rgb[j++]=rgba[i];rgb[j++]=rgba[i+1];rgb[j++]=rgba[i+2];}
   const scope=await attempt.promise;if(!scope||observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;
-  if(!epoch){const start={media_us,recording_maximum:recordingMaximum,source_time_basis:scope.time_basis,...(state?{analysis:state.selection}:{})};const report=await post('/start',new TextEncoder().encode(JSON.stringify(start)),scope);if(observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;if(state){checkAnalysisFeed(report,state,scope);const lease=report.options?.lease_ms;if(!Number.isInteger(lease)||lease<1||lease>30000)throw Error('Original capture lease is invalid.');state.captureDeadline=capturedAt+lease;}epoch=report.identity.epoch;}
+  if(!epoch){const start={media_us,recording_maximum:recordingMaximum,source_time_basis:scope.time_basis,...(state?{analysis:state.selection}:{})};const report=await post('/start',new TextEncoder().encode(JSON.stringify(start)),scope);if(observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;if(state){checkAnalysisFeed(report,state,scope);const lease=report.options?.lease_ms;if(!Number.isInteger(lease)||lease<1||lease>30000)throw Error('Original capture lease is invalid.');state.captureDeadline=capturedAt+lease;epoch=report.identity.epoch;if(receiveAnalysisFallback(report,state,scope))return;}epoch=report.identity.epoch;}
   if(observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;
   const c=state?.continuation,next=!!c&&c.phase==='pair'&&!c.pairSent,feed=next?c.feed:state?.feed;
   const extra=state?{analysis:{feed_id:feed.feed_id,role:'lookahead',generation:feed.generation,...analysis}}:{};
@@ -652,12 +681,12 @@ async function submitAnalysisFrame(reader,media_us,capturedAt,state,analysis){
   const submission=state?{submitted:{media_us,observation:{...extra.analysis}},capturedAt}:null;if(state&&!next)state.lastSubmitted=submission;if(next){c.pairSent=true;c.phase='joining';if(scope.timing){c.heldTiming=scope.timing;c.heldTiming.handoffHeld=true;}}
   const sent=performance.now(),report=await post(next?'/analysis/successor-frame':'/frame',body,scope);if(observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;
   if(next){const successor=checkSuccessor(report,state,c);if(!sameAnalysisSubmission(successor.last_upload,submission.submitted))throw Error('Successor G acknowledgment differs from original callback.');c.pairAck=submission;if(c.committedReport)receiveContinuation(c.committedReport,state,c);else if(currentContinuation(state,c)&&c.timer===null)continuationLater(state,c,()=>inspectContinuation(state,c));}
-  else if(state){checkAnalysisFeed(report,state,scope);if(!sameAnalysisSubmission(report.browser?.analysis_last_upload,submission.submitted))throw Error('Native frame acknowledgement differs from its original browser observation.');state.lastAck=submission;showAnalysis(report,performance.now()-sent,media_us,capturedAt,state);if(c?.phase==='boundary')await reserveContinuationBoundary(state,c);else maybePrepareContinuation(report,state);}else show(report,performance.now()-sent,media_us,capturedAt);
+  else if(state){if(receiveAnalysisFallback(report,state,scope))return;checkAnalysisFeed(report,state,scope);if(!sameAnalysisSubmission(report.browser?.analysis_last_upload,submission.submitted))throw Error('Native frame acknowledgement differs from its original browser observation.');state.lastAck=submission;showAnalysis(report,performance.now()-sent,media_us,capturedAt,state);if(c?.phase==='boundary')await reserveContinuationBoundary(state,c);else maybePrepareContinuation(report,state);}else show(report,performance.now()-sent,media_us,capturedAt);
  }catch(e){if(observed===generation){pauseVideo();clear('Analysis stopped: '+e.message);}}finally{busy=false;}
 }
 function scheduleAnalysis(state){if(currentAnalysis(state))state.callback=analysisVideo.requestVideoFrameCallback((now,metadata)=>{state.callback=null;return analysisFrame(state,now,metadata);});}
 async function analysisFrame(state,now,metadata){
- if(!currentAnalysis(state)||!state.ready||state.inputPhase!=='open')return;scheduleAnalysis(state);if(analysisVideo.paused||analysisVideo.seeking)return;
+ if(!currentAnalysis(state)||!state.ready||state.inputPhase!=='open')return;scheduleAnalysis(state);if(state.fallbackWaiting||analysisVideo.paused||analysisVideo.seeking)return;
  const capturedAt=performance.now(),media_us=Math.round(metadata.mediaTime*1e6),presented_frames=metadata.presentedFrames,tick=browserMicros(capturedAt);
  try{
   if(!Number.isSafeInteger(media_us)||media_us<0||!Number.isSafeInteger(presented_frames)||presented_frames<1||presented_frames<=state.lastFrames||(state.lastTime!==null&&media_us<=state.lastTime))throw Error('Analysis frame timestamp or counter did not advance.');

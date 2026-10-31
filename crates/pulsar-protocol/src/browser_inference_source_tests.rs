@@ -356,3 +356,397 @@ fn browser_semantic_projection_refuses_unbound_or_unsupported_inputs() {
     changed.exact_project_anchor = None;
     assert!(browser_inference_semantic_identity(&changed).is_err());
 }
+
+fn fallback_selection() -> BrowserInferenceFallbackSelection {
+    BrowserInferenceFallbackSelection {
+        schema_version: 1,
+        tier: InferenceEquivalenceTier::Default,
+        axis: Axis::Stroke,
+        equivalents: vec![InferenceFallbackReference {
+            dossier_id: ArtifactId::new("1".repeat(64)).unwrap(),
+            expected_revision: 1,
+            expected_report_sha256: "2".repeat(64),
+        }],
+        maximum_fallbacks: 1,
+        source_policy: BrowserInferenceFallbackSourcePolicy::any_bound_media(),
+        view_policy: BrowserInferenceFallbackViewPolicy {
+            schema_version: 1,
+            namespace: BrowserInferenceFallbackSourceNamespace::BrowserMediaCapture,
+            applicability: InferenceFallbackViewApplicability::PreserveRequestedSemantics,
+        },
+    }
+}
+
+#[test]
+fn browser_fallback_selection_requires_explicit_tier_axis_and_bounded_original_references() {
+    let selection = fallback_selection();
+    selection.validate().unwrap();
+    assert!(selection
+        .identity()
+        .unwrap()
+        .artifact_id
+        .as_str()
+        .starts_with(BROWSER_INFERENCE_FALLBACK_SELECTION_ID_PREFIX));
+    for missing in ["tier", "axis"] {
+        let mut value = serde_json::to_value(&selection).unwrap();
+        value.as_object_mut().unwrap().remove(missing);
+        assert!(serde_json::from_value::<BrowserInferenceFallbackSelection>(value).is_err());
+    }
+    assert!(serde_json::from_value::<InferenceFallbackSelection>(
+        serde_json::to_value(&selection).unwrap()
+    )
+    .is_err());
+    for mutation in 0..5 {
+        let mut changed = selection.clone();
+        match mutation {
+            0 => changed.axis = Axis::Sway,
+            1 => changed.maximum_fallbacks = 0,
+            2 => changed.equivalents.push(changed.equivalents[0].clone()),
+            3 => changed.equivalents[0].expected_revision = 0,
+            _ => changed.schema_version = 2,
+        }
+        assert!(changed.validate().is_err(), "{mutation}");
+    }
+}
+
+#[test]
+fn browser_fallback_intent_is_omitted_when_absent_and_exact_view_has_no_self_reference() {
+    let (_, mut options, _) = fixture();
+    assert!(serde_json::to_value(&options)
+        .unwrap()
+        .get("inference_fallback")
+        .is_none());
+    let plain = browser_inference_semantic_identity(&options).unwrap();
+    options.inference_fallback = Some(fallback_selection());
+    let basis = browser_inference_semantic_identity(&options).unwrap();
+    assert_ne!(plain, basis);
+    options
+        .inference_fallback
+        .as_mut()
+        .unwrap()
+        .view_policy
+        .applicability = InferenceFallbackViewApplicability::ExactSettings {
+        sha256: vec![basis.sha256.clone()],
+    };
+    assert_eq!(
+        browser_inference_semantic_identity(&options).unwrap(),
+        basis
+    );
+    assert!(options
+        .inference_fallback
+        .as_ref()
+        .unwrap()
+        .view_policy
+        .matches_capture(&options)
+        .unwrap());
+    options.inference_fallback.as_mut().unwrap().tier = InferenceEquivalenceTier::Fast;
+    assert_ne!(
+        browser_inference_semantic_identity(&options).unwrap(),
+        basis
+    );
+    assert!(!options
+        .inference_fallback
+        .as_ref()
+        .unwrap()
+        .view_policy
+        .matches_capture(&options)
+        .unwrap());
+    options.inference = None;
+    assert!(options.validate().is_err());
+    options.model_pack = Some(ModelPackChoice {
+        manifest_sha256: "f".repeat(64),
+        selection_revision: 1,
+    });
+    options.validate().unwrap(); // Native pack resolution must supply the actual profile.
+    assert!(browser_inference_semantic_identity(&options).is_err());
+}
+
+#[test]
+fn browser_fallback_admission_report_binds_intent_runtime_and_original_semantics() {
+    let (epoch, mut options, mut stream) = fixture();
+    options.inference_fallback = Some(fallback_selection());
+    let mut capture: LiveCaptureReport = serde_json::from_str(include_str!(
+        "../tests/fixtures/live-cpu-capture-report.json"
+    ))
+    .unwrap();
+    capture.engine_epoch = epoch;
+    capture.identity = stream.identity.clone();
+    capture.clock = options.clock(stream.identity.epoch.clone());
+    capture.options = options;
+    capture.received_frames = 0;
+    capture.last_frame = None;
+    capture.queue = None;
+    capture.server_elapsed = Some(LiveClockTick(0));
+    let artifact = |n: usize| {
+        let sha256 = format!("{n:064x}");
+        ArtifactIdentity {
+            artifact_id: ArtifactId::new(sha256.clone()).unwrap(),
+            sha256,
+            byte_len: 10,
+        }
+    };
+    let image = CpuRuntimeImage {
+        schema_version: 1,
+        owner_policy: artifact(99),
+        libraries: CPU_RUNTIME_REQUIRED_ALIASES
+            .iter()
+            .enumerate()
+            .map(|(i, name)| CapturedNativeLibrary {
+                identity: if *name == "libonnxruntime.so.1" {
+                    stream.profile.runtime.clone()
+                } else {
+                    artifact(i + 10)
+                },
+                names: vec![(*name).into()],
+            })
+            .collect(),
+    };
+    stream.clock = capture.clock.clone();
+    stream.model.path = LIVE_CPU_MODEL_PATH.into();
+    stream.runtime.path = LIVE_CPU_RUNTIME_PATH.into();
+    let info = capture.inference.as_mut().unwrap();
+    info.cpu_manifest = Some(Box::new(
+        LiveCpuInferenceManifest::new(stream.clone(), image).unwrap(),
+    ));
+    info.state = LiveCaptureInferenceState::Starting;
+    info.completed = 0;
+    info.accepted = 0;
+    info.stale = 0;
+    info.latest = None;
+    let selection = capture.options.inference_fallback.as_ref().unwrap();
+    info.fallback = Some(BrowserInferenceFallbackAdmission {
+        history: Vec::new(),
+        schema_version: 1,
+        selection: selection.identity().unwrap(),
+        reference: selection.equivalents[0].clone(),
+        semantic_identity: browser_inference_semantic_identity(&capture.options).unwrap(),
+        observed_environment: InferenceEquivalenceEnvironment {
+            engine: artifact(101),
+            worker: stream.worker.clone(),
+            os: "linux".into(),
+            architecture: "x86_64".into(),
+            platform_build: artifact(102),
+            hardware: artifact(103),
+            dependencies: vec![stream.profile.runtime.clone()],
+        },
+        admitted_at_unix_ms: 100,
+        expires_at_unix_ms: 200,
+        ordinal: 0,
+        predecessor: None,
+    });
+    capture.validate().unwrap();
+    for mutation in 0..6 {
+        let mut changed = capture.clone();
+        match mutation {
+            0 => changed.inference.as_mut().unwrap().fallback = None,
+            1 => changed.options.inference_fallback = None,
+            2 => {
+                changed
+                    .inference
+                    .as_mut()
+                    .unwrap()
+                    .fallback
+                    .as_mut()
+                    .unwrap()
+                    .reference
+                    .expected_revision += 1
+            }
+            3 => changed.options.policy.maximum_analysis_age_ns += 1,
+            4 => {
+                changed
+                    .inference
+                    .as_mut()
+                    .unwrap()
+                    .fallback
+                    .as_mut()
+                    .unwrap()
+                    .observed_environment
+                    .dependencies = vec![artifact(104)]
+            }
+            _ => changed.inference.as_mut().unwrap().cpu_manifest = None,
+        }
+        assert!(changed.validate().is_err(), "{mutation}");
+    }
+    assert!(
+        !serde_json::to_value(&capture).unwrap()["inference"]["fallback"]
+            .as_object()
+            .unwrap()
+            .contains_key("history")
+    );
+    let mut failed = crate::live_cuda::authored_live_cuda_manifest();
+    let old_model = failed.stream.model.identity.clone();
+    let model = capture
+        .options
+        .inference
+        .as_ref()
+        .unwrap()
+        .profile
+        .model
+        .clone();
+    failed.stream.model.identity = model.clone();
+    failed.stream.profile.model = model.clone();
+    failed.dependencies.retain(|id| *id != old_model);
+    if !failed.dependencies.contains(&model) {
+        failed.dependencies.push(model);
+    }
+    failed.stream.identity = capture.identity.clone();
+    failed.stream.identity.epoch = AttemptId::new("failed-original-epoch").unwrap();
+    failed.stream.attempt_id = AttemptId::new("failed-original-attempt").unwrap();
+    failed.stream.clock = capture.clock.clone();
+    failed.stream.clock.epoch = failed.stream.identity.epoch.clone();
+    failed.validate().unwrap();
+    let failure = BrowserInferenceFallbackFailure {
+        observation: InferenceProviderUnavailable {
+            schema_version: 1,
+            provider: InferenceProvider::Cuda,
+            profile_sha256: identity(&failed.stream.profile).unwrap().sha256,
+            check: InferenceProviderAvailabilityCheck::NotListedByRuntime,
+        },
+        manifest: Box::new(failed),
+    };
+    let profile = capture.options.inference.as_ref().unwrap().profile.clone();
+    let admission = capture
+        .inference
+        .as_mut()
+        .unwrap()
+        .fallback
+        .as_mut()
+        .unwrap();
+    admission.ordinal = 1;
+    admission.predecessor = Some(failure.manifest.stream.identity.clone());
+    admission.history.push(BrowserInferenceFallbackStep {
+        failure: failure.clone(),
+        reference: admission.reference.clone(),
+        next_profile_sha256: identity(&profile).unwrap().sha256,
+    });
+    capture.validate().unwrap();
+    let encoded = serde_json::to_vec(&capture).unwrap();
+    serde_json::from_slice::<LiveCaptureReport>(&encoded)
+        .unwrap()
+        .validate()
+        .unwrap();
+    for mutation in 0..8 {
+        let mut changed = capture.clone();
+        let current_epoch = changed.identity.epoch.clone();
+        let info = changed.inference.as_mut().unwrap();
+        let admission = info.fallback.as_mut().unwrap();
+        match mutation {
+            0 => admission.history.clear(),
+            1 => admission.history[0].failure.manifest.stream.attempt_id = info.attempt_id.clone(),
+            2 => {
+                admission.history[0].failure.manifest.stream.identity.epoch = current_epoch.clone();
+                admission.history[0].failure.manifest.stream.clock.epoch = current_epoch;
+            }
+            3 => admission.history[0].next_profile_sha256 = "0".repeat(64),
+            4 => admission.history[0].reference.expected_revision += 1,
+            5 => admission.history[0].failure.observation.provider = InferenceProvider::Cpu,
+            6 => admission.ordinal = 0,
+            _ => admission.predecessor = None,
+        }
+        assert!(changed.validate().is_err(), "history mutation {mutation}");
+    }
+    let mut original = capture.clone();
+    original.identity = failure.manifest.stream.identity.clone();
+    original.clock = failure.manifest.stream.clock.clone();
+    original.options.lease_ms = u32::try_from(failure.manifest.stream.budget.wall_time_ms).unwrap();
+    original.options.inference.as_mut().unwrap().profile = failure.manifest.stream.profile.clone();
+    original.active = false;
+    original.admitted_pixel_bytes = 0;
+    original.retirement = Some(LiveCaptureRetirement::WorkerFailed);
+    let info = original.inference.as_mut().unwrap();
+    info.cpu_manifest = None;
+    info.attempt_id = failure.manifest.stream.attempt_id.clone();
+    info.profile_sha256 = failure.observation.profile_sha256.clone();
+    info.state = LiveCaptureInferenceState::Failed;
+    info.error = Some(ProtocolError::new(
+        ErrorCode::Unavailable,
+        "authored provider absence",
+    ));
+    let admission = info.fallback.as_mut().unwrap();
+    admission.history.clear();
+    admission.ordinal = 0;
+    admission.predecessor = None;
+    admission.observed_environment.dependencies =
+        vec![failure.manifest.stream.profile.runtime.clone()];
+    info.fallback_transition = Some(BrowserInferenceFallbackTransition {
+        failure,
+        phase: BrowserInferenceFallbackPhase::Preparing,
+        next_epoch: None,
+        error: None,
+    });
+    original.validate().unwrap();
+    let mut started = original.clone();
+    let transition = started
+        .inference
+        .as_mut()
+        .unwrap()
+        .fallback_transition
+        .as_mut()
+        .unwrap();
+    transition.phase = BrowserInferenceFallbackPhase::Started;
+    assert!(started.validate().is_err());
+    started
+        .inference
+        .as_mut()
+        .unwrap()
+        .fallback_transition
+        .as_mut()
+        .unwrap()
+        .next_epoch = Some(capture.identity.epoch.clone());
+    started.validate().unwrap();
+    started.options.browser_analysis.as_mut().unwrap().feed_id =
+        ArtifactId::new("failed-feed").unwrap();
+    validate_browser_fallback_target(&started, &capture).unwrap();
+    for field in ["feed", "attempt", "selection", "history"] {
+        let mut changed = capture.clone();
+        match field {
+            "feed" => {
+                changed.options.browser_analysis.as_mut().unwrap().feed_id =
+                    ArtifactId::new("failed-feed").unwrap()
+            }
+            "attempt" => {
+                changed.inference.as_mut().unwrap().attempt_id =
+                    started.inference.as_ref().unwrap().attempt_id.clone()
+            }
+            "selection" => {
+                changed.options.inference_fallback.as_mut().unwrap().tier =
+                    InferenceEquivalenceTier::Fast
+            }
+            _ => changed
+                .inference
+                .as_mut()
+                .unwrap()
+                .fallback
+                .as_mut()
+                .unwrap()
+                .history
+                .clear(),
+        }
+        assert!(
+            validate_browser_fallback_target(&started, &changed).is_err(),
+            "{field}"
+        );
+    }
+    let mut refused = original;
+    refused
+        .inference
+        .as_mut()
+        .unwrap()
+        .fallback_transition
+        .as_mut()
+        .unwrap()
+        .phase = BrowserInferenceFallbackPhase::Refused;
+    assert!(refused.validate().is_err());
+    refused
+        .inference
+        .as_mut()
+        .unwrap()
+        .fallback_transition
+        .as_mut()
+        .unwrap()
+        .error = Some(ProtocolError::new(
+        ErrorCode::Cancelled,
+        "original root stopped",
+    ));
+    refused.validate().unwrap();
+}

@@ -202,7 +202,8 @@ mod captured_cpu_browser_native_tests {
                     .unwrap_or_else(|_| "4".into())
                     .parse()?,
                 producer_join_wait_ms: std::env::var("PULSAR_CAPTURED_CPU_BROWSER_JOIN_WAIT_MS")
-                    .unwrap_or_else(|_| "0".into()).parse()?,
+                    .unwrap_or_else(|_| "0".into())
+                    .parse()?,
             })
         }
         fn verify_unchanged(&self) -> Result<()> {
@@ -265,6 +266,9 @@ mod captured_cpu_browser_native_tests {
     struct Client<'a> {
         engine: &'a Arc<Engine>,
         actor: SessionId,
+        // Test-local paired credential, retained in memory so an independent
+        // timing observer authenticates exactly like the first-party client.
+        auth_token: String,
         project: ProjectId,
     }
     impl<'a> Client<'a> {
@@ -285,12 +289,17 @@ mod captured_cpu_browser_native_tests {
             };
             Ok(Self {
                 engine,
+                auth_token: TOKENS
+                    .with(|tokens| tokens.borrow().get(actor.as_str()).cloned())
+                    .context("paired fixture credential absent")?,
                 actor,
                 project: project.project_id.clone(),
             })
         }
         fn intent(&self, revision: Option<u64>, command: Command) -> Request {
-            request(&self.actor, Some(&self.project), revision, command)
+            let mut value = request(&self.actor, Some(&self.project), revision, command);
+            value.auth_token = Some(self.auth_token.clone());
+            value
         }
         fn call(&self, revision: Option<u64>, command: Command) -> Result<ResponseBody> {
             Ok(self.engine.handle(self.intent(revision, command)).result?)
@@ -1023,9 +1032,14 @@ mod captured_cpu_browser_native_tests {
                 Instant::now() < end,
                 "successor preparation exceeded original predecessor lease"
             );
-            let ResponseBody::BrowserAnalysisSuccessor(value) =
+            let response = if original.options.inference_fallback.is_some() {
+                with_timing_observers(client, &mut [&mut *player, &mut child_player], || {
+                    Ok(client.engine.handle(intent.clone()).result?)
+                })?
+            } else {
                 client.engine.handle(intent.clone()).result?
-            else {
+            };
+            let ResponseBody::BrowserAnalysisSuccessor(value) = response else {
                 bail!("successor preparation absent")
             };
             value.validate()?;
@@ -1210,7 +1224,10 @@ mod captured_cpu_browser_native_tests {
         );
         // Wait for the actual predecessor join before capturing G. Otherwise
         // G can be accepted fresh and age out while A's custody is retiring.
-        ensure!(inputs.producer_join_wait_ms <= 350, "controlled producer pause exceeds test bound");
+        ensure!(
+            inputs.producer_join_wait_ms <= 350,
+            "controlled producer pause exceeds test bound"
+        );
         let wait_started = Instant::now();
         let mut join_state = None;
         loop {
@@ -1222,13 +1239,23 @@ mod captured_cpu_browser_native_tests {
                 transfer_phase(phases, "predecessor_join_observed", Some(&status))?;
                 join_state = Some(state);
             }
-            ensure!(status.phase != BrowserAnalysisTransferPhase::Aborted
-                && status.error.is_none() && Instant::now() < end,
-                "predecessor join did not settle before original lease: {status:?}");
-            ensure!(!status.successor_pair_accepted, "successor pair exists before G capture");
+            ensure!(
+                status.phase != BrowserAnalysisTransferPhase::Aborted
+                    && status.error.is_none()
+                    && Instant::now() < end,
+                "predecessor join did not settle before original lease: {status:?}"
+            );
+            ensure!(
+                !status.successor_pair_accepted,
+                "successor pair exists before G capture"
+            );
             if status.predecessor_worker_joined
-                && wait_started.elapsed() >= Duration::from_millis(inputs.producer_join_wait_ms) {
-                ensure!(status.predecessor_delivery_settled, "join precedes settled delivery");
+                && wait_started.elapsed() >= Duration::from_millis(inputs.producer_join_wait_ms)
+            {
+                ensure!(
+                    status.predecessor_delivery_settled,
+                    "join precedes settled delivery"
+                );
                 break;
             }
             std::thread::park_timeout(Duration::from_millis(2));
@@ -1500,12 +1527,26 @@ mod captured_cpu_browser_native_tests {
             let client = Client::new(engine.as_ref().unwrap())?;
             let media = prepare_media(&client, inputs)?;
             let original = client.snapshot()?;
+            #[cfg(target_arch = "x86_64")]
+            let fallback = if mode == "browser_fallback_admission" {
+                Some(browser_fallback_fixture(&client, inputs, &media)?)
+            } else {
+                None
+            };
             let mut player = AuthoredPlayer::open(&client, &media)?;
             let mut value = match mode {
                 "clean_input_eof" => clean_eof(&client, inputs, &media, &mut player)?,
                 "prepared_successor_transfer" => {
                     successor_transfer(&client, inputs, &media, &mut player)?
                 }
+                #[cfg(target_arch = "x86_64")]
+                "browser_fallback_admission" => browser_fallback_admission(
+                    &client,
+                    inputs,
+                    &media,
+                    &mut player,
+                    fallback.as_ref().expect("selected fixture"),
+                )?,
                 _ => bail!("unknown browser campaign case"),
             };
             let after = client.snapshot()?;
@@ -1528,6 +1569,7 @@ mod captured_cpu_browser_native_tests {
         let expected_timing_entries = match mode {
             "clean_input_eof" => 1,
             "prepared_successor_transfer" => 2,
+            "browser_fallback_admission" => 2,
             _ => 0,
         };
         let worker_custody = engine
@@ -1621,6 +1663,7 @@ mod captured_cpu_browser_native_tests {
         file.sync_all()?;
         Ok(())
     }
+    include!("engine_live_browser_fallback_native_tests.rs");
     #[test]
     #[ignore = "requires explicitly pinned sterile40s decoded fixture, current captured CPU worker/closure, delegated cgroups and owned host-parent supervisor; run exactly and serially"]
     fn native_captured_cpu_browser_input_seals_and_transfers_successor() {

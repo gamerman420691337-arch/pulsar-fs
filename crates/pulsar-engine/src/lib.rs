@@ -30,6 +30,8 @@ pub use runtime_install::{
 };
 mod authority;
 pub mod benchmark;
+mod browser_fallback_history;
+mod browser_fallback_reader;
 mod bulk;
 mod cgroup;
 mod confinement;

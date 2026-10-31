@@ -174,6 +174,11 @@ impl BrowserTimingRead {
     }
 }
 impl BrowserTimingPin {
+    pub(super) fn same_owner(&self, other: &Self) -> bool {
+        self.binding == other.binding
+            && Arc::ptr_eq(&self.registry, &other.registry)
+            && Arc::ptr_eq(&self.lifetime, &other.lifetime)
+    }
     #[cfg(test)]
     pub(super) fn hold_registry_for_test(&self) -> std::sync::MutexGuard<'_, Registry> {
         self.registry.lock().unwrap()

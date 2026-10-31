@@ -255,6 +255,7 @@ impl NativeCaptureTransferGuard<'_> {
         predecessor.runtime = None;
         predecessor.browser_media = None;
         predecessor.browser_analysis_pin = None;
+        predecessor.fallback = None;
         predecessor.native_accepted = None;
         predecessor.report.active = false;
         predecessor.report.retirement = Some(LiveCaptureRetirement::Superseded);
@@ -766,6 +767,8 @@ impl Registry {
                 .as_ref()
                 .map(|(_, timing)| timing.clone())
                 .or_else(|| prior.browser_analysis_pin.clone()),
+            fallback: None,
+            fallback_lifetime: None,
         };
         self.entries.insert(identity.epoch.to_string(), entry);
         self.successors.insert(
@@ -1188,6 +1191,7 @@ impl Engine {
         actor: &SessionId,
         fingerprint: &str,
     ) -> PResult<ResponseBody> {
+        let prepared_fallback = fallback::prepare(self, request, actor, fingerprint)?;
         let mut db = self.db.lock().map_err(internal)?;
         self.authorize(&db, request, actor)?;
         check_request_identity(&db, actor.as_str(), request, fingerprint)?;
@@ -1335,7 +1339,7 @@ impl Engine {
                 if registry
                     .entries
                     .values()
-                    .filter(|e| e.runtime.is_some())
+                    .filter(|e| e.runtime.is_some() || e.pending_fallback())
                     .count()
                     >= MAX_ACTIVE
                 {
@@ -1394,7 +1398,7 @@ impl Engine {
                 if native_clock.latest_native()?.latest_ns >= until {
                     return Err(refused("successor expired during admission"));
                 }
-                let capture = LiveCaptureReport {
+                let mut capture = LiveCaptureReport {
                     input_close: None,
                     continuation: None,
                     age_basis: LiveCaptureAgeBasis::ProducerDeclared,
@@ -1435,6 +1439,28 @@ impl Engine {
                     cancel_requested: AtomicBool::new(false),
                     worker_retirement,
                 }));
+                let tx = db.transaction().map_err(internal)?;
+                match (&derived.inference_fallback, &prepared_fallback) {
+                    (None, None) => {}
+                    (Some(_), Some(prepared)) => {
+                        capture
+                            .inference
+                            .as_mut()
+                            .expect("declared inference")
+                            .fallback = Some(prepared.declare(
+                            &tx,
+                            fallback::Publication {
+                                request,
+                                actor,
+                                options: &derived,
+                                stream: &manifest,
+                                media: &media,
+                                timing: &timing,
+                            },
+                        )?);
+                    }
+                    _ => return Err(refused("successor fallback preparation differs")),
+                }
                 let value = BrowserAnalysisSuccessorReport {
                     original_request_id: request.request_id.clone(),
                     predecessor: predecessor_selection.identity,
@@ -1444,12 +1470,18 @@ impl Engine {
                 };
                 value.validate()?;
                 let body = ResponseBody::BrowserAnalysisSuccessor(Box::new(value));
-                let tx = db.transaction().map_err(internal)?;
                 self.arm_worker_fence(&tx)?;
                 self.arm_staging_fence(&tx)?;
                 remember(&tx, actor.as_str(), request, fingerprint, &body)?;
                 tx.commit().map_err(internal)?;
                 let id = native.0.id.clone();
+                if let Some(prepared) = &prepared_fallback {
+                    prepared.lifetime().register(&cancel);
+                }
+                let lease_end = created + Duration::from_millis(u64::from(derived.lease_ms));
+                let lease_end = prepared_fallback
+                    .as_ref()
+                    .map_or(lease_end, |p| p.end_cap(lease_end));
                 registry.entries.insert(
                     identity.epoch.to_string(),
                     Entry {
@@ -1469,6 +1501,8 @@ impl Engine {
                         recording: None,
                         browser_media: Some(media),
                         browser_analysis_pin: Some(timing),
+                        fallback_lifetime: prepared_fallback.as_ref().map(|p| p.lifetime()),
+                        fallback: prepared_fallback,
                     },
                 );
                 registry.successors.insert(
@@ -1504,7 +1538,7 @@ impl Engine {
                         cancel,
                         inference::CpuLaunchLifetime {
                             origin: created,
-                            lease_end: created + Duration::from_millis(u64::from(derived.lease_ms)),
+                            lease_end,
                             retirement: Some(retirement_guard),
                         },
                     )

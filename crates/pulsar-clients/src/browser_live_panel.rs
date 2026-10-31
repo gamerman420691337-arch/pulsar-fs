@@ -81,6 +81,7 @@ impl LiveForm {
             .and_then(|v| i64::try_from(v).ok())
             .ok_or_else(|| anyhow::anyhow!("Project offset exceeds checked nanoseconds"))?;
         let options = LiveCaptureOptions {
+            inference_fallback: None,
             browser_analysis: None,
             browser_media: None,
             model_pack: self.pack.clone(),

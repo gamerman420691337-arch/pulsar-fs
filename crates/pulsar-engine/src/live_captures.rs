@@ -39,6 +39,8 @@ fn browser_timing_read_error(
         super::browser_timing::BrowserTimingClaimFailure::Refused(error) => error,
     }
 }
+#[path = "live_capture_fallback.rs"]
+pub(super) mod fallback;
 #[path = "live_capture_pack.rs"]
 mod pack;
 #[path = "live_recording.rs"]
@@ -60,6 +62,8 @@ struct Entry {
     recording: Option<recording::Recording>,
     browser_media: Option<super::browser_media::SourceMediaPin>,
     browser_analysis_pin: Option<super::browser_timing::BrowserTimingPin>,
+    fallback: Option<Arc<fallback::Prepared>>,
+    fallback_lifetime: Option<Arc<fallback::Lifetime>>,
 }
 impl Drop for Entry {
     fn drop(&mut self) {
@@ -68,6 +72,17 @@ impl Drop for Entry {
     }
 }
 impl Entry {
+    fn pending_fallback(&self) -> bool {
+        self.report
+            .inference
+            .as_ref()
+            .and_then(|i| i.fallback_transition.as_ref())
+            .is_some_and(|t| t.phase == BrowserInferenceFallbackPhase::Preparing)
+            && self
+                .fallback_lifetime
+                .as_ref()
+                .is_some_and(|l| l.check().is_ok())
+    }
     fn retire_native_delivery(&self) {
         if let Some(delivery) = &self.native_delivery {
             delivery.retire();
@@ -427,6 +442,23 @@ pub(super) struct Registry {
     read_order_test: Mutex<Option<Arc<read_order_test::CaptureReadPause>>>,
 }
 impl Registry {
+    /// Authored cancellation wiring only, not a native failure or target proof.
+    #[cfg(test)]
+    pub(in crate::authority) fn fallback_worker_flags_for_test(
+        &mut self,
+        epoch: &AttemptId,
+    ) -> (Arc<AtomicBool>, Arc<AtomicBool>) {
+        let entry = self
+            .entries
+            .get_mut(epoch.as_str())
+            .expect("authored capture");
+        let lifetime = fallback::Lifetime::new(Instant::now() + Duration::from_secs(30));
+        let target = Arc::new(AtomicBool::new(false));
+        lifetime.register(&entry.cancel);
+        lifetime.register(&target);
+        entry.fallback_lifetime = Some(lifetime);
+        (entry.cancel.clone(), target)
+    }
     /// The caller already owns current actor/project authority. This operation
     /// only inspects the original native capture; it never reacquires the DB,
     /// changes a lease, subscribes a consumer or replays its latest sample.
@@ -930,6 +962,14 @@ fn start_sweeper(engine: &Arc<Engine>) -> PResult<()> {
     Ok(())
 }
 fn tick(entry: &Entry) -> PResult<LiveClockTick> {
+    if entry.report.active {
+        if let Some(prepared) = &entry.fallback {
+            prepared.check_lifetime()?;
+        }
+        if let Some(lifetime) = &entry.fallback_lifetime {
+            lifetime.check()?;
+        }
+    }
     entry.native_clock.tick(entry.created).inspect_err(|_| {
         entry.cancel.store(true, Ordering::Release);
         entry.retire_native_delivery();
@@ -945,7 +985,7 @@ fn finishing(entry: &Entry) -> bool {
 }
 fn retire(entry: &mut Entry, reason: LiveCaptureRetirement) -> PResult<()> {
     entry.cancel.store(true, Ordering::Release);
-    let (now, reason) = match tick(entry) {
+    let (now, reason) = match entry.native_clock.tick(entry.created) {
         Ok(now) => (now, reason),
         Err(_) => (
             entry.native_clock.retirement_tick(),
@@ -955,10 +995,19 @@ fn retire(entry: &mut Entry, reason: LiveCaptureRetirement) -> PResult<()> {
     retire_at(entry, reason, now)
 }
 fn retire_at(entry: &mut Entry, reason: LiveCaptureRetirement, now: LiveClockTick) -> PResult<()> {
+    if !matches!(
+        reason,
+        LiveCaptureRetirement::WorkerFailed | LiveCaptureRetirement::Superseded
+    ) {
+        if let Some(lifetime) = &entry.fallback_lifetime {
+            lifetime.cancel();
+        }
+    }
     entry.cancel.store(true, Ordering::Release);
     entry.retire_native_delivery();
     entry.browser_media = None;
     entry.browser_analysis_pin = None;
+    entry.fallback = None;
     entry.native_accepted = None;
     if let Some(input) = &mut entry.report.input_close {
         if input.phase != LiveCaptureInputPhase::Sealed {
@@ -1236,6 +1285,8 @@ impl Registry {
             recording: None,
             browser_media: prior.browser_media.clone(),
             browser_analysis_pin: None,
+            fallback: None,
+            fallback_lifetime: None,
         };
         self.entries.insert(epoch.to_string(), entry);
         (epoch, attempt)
@@ -1250,6 +1301,10 @@ impl Registry {
         let mut info = inference::initial_report(manifest).unwrap();
         info.state = LiveCaptureInferenceState::Running;
         entry.report.inference = Some(info);
+    }
+    #[cfg(all(test, target_arch = "x86_64"))]
+    pub(in crate::authority) fn retained_count_for_test(&self) -> usize {
+        self.entries.len()
     }
     #[cfg(test)]
     pub(super) fn cuda_for_test(&mut self, epoch: &AttemptId) -> String {
@@ -1337,6 +1392,8 @@ impl Registry {
                 recording: None,
                 browser_media: None,
                 browser_analysis_pin: None,
+                fallback: None,
+                fallback_lifetime: None,
             },
         );
     }
@@ -1438,6 +1495,25 @@ impl Registry {
         entry.native_clock.advance_for_test(31_000_000_000);
     }
     pub(in crate::authority) fn sweep(&mut self, db: &Connection) -> PResult<()> {
+        for entry in self.entries.values_mut().filter(|e| e.runtime.is_none()) {
+            let error = entry
+                .fallback_lifetime
+                .as_ref()
+                .and_then(|l| l.check().err());
+            if let (Some(error), Some(transition)) = (
+                error,
+                entry
+                    .report
+                    .inference
+                    .as_mut()
+                    .and_then(|i| i.fallback_transition.as_mut()),
+            ) {
+                if transition.phase == BrowserInferenceFallbackPhase::Preparing {
+                    transition.phase = BrowserInferenceFallbackPhase::Refused;
+                    transition.error = Some(error);
+                }
+            }
+        }
         let transfer_joined: std::collections::HashSet<_> = self
             .entries
             .values()
@@ -1450,7 +1526,18 @@ impl Registry {
             .filter(|entry| entry.runtime.is_some())
         {
             if tick(entry).is_err() {
-                retire(entry, LiveCaptureRetirement::AuthorityLost)?;
+                let reason = entry
+                    .fallback
+                    .as_ref()
+                    .and_then(|p| p.retirement_reason())
+                    .or_else(|| {
+                        entry
+                            .fallback_lifetime
+                            .as_ref()
+                            .and_then(|l| l.retirement_reason())
+                    })
+                    .unwrap_or(LiveCaptureRetirement::AuthorityLost);
+                retire(entry, reason)?;
                 continue;
             }
             if let Some(delivery) = &entry.native_delivery {
@@ -1511,6 +1598,12 @@ impl Registry {
                 >= Duration::from_millis(u64::from(entry.report.options.lease_ms))
             {
                 retire(entry, LiveCaptureRetirement::Expired)?;
+                continue;
+            }
+            if entry.report.options.inference_fallback.is_some()
+                && fallback::require_evidence(db, entry).is_err()
+            {
+                retire(entry, LiveCaptureRetirement::AuthorityLost)?;
                 continue;
             }
             let current: Option<i64> = db
@@ -1583,7 +1676,19 @@ impl Registry {
             let oldest = self
                 .entries
                 .iter()
-                .filter(|(_, entry)| entry.runtime.is_none())
+                .filter(|(_, entry)| {
+                    entry.runtime.is_none()
+                        && !entry.pending_fallback()
+                        && !entry.fallback_lifetime.as_ref().is_some_and(|lifetime| {
+                            self.entries.values().any(|other| {
+                                (other.runtime.is_some() || other.pending_fallback())
+                                    && other
+                                        .fallback_lifetime
+                                        .as_ref()
+                                        .is_some_and(|l| Arc::ptr_eq(lifetime, l))
+                            })
+                        })
+                })
                 .min_by_key(|(_, entry)| entry.created)
                 .map(|(id, _)| id.clone());
             if let Some(id) = oldest {
@@ -1609,6 +1714,24 @@ impl Engine {
         session: &SessionId,
         fingerprint: &str,
     ) -> PResult<ResponseBody> {
+        self.live_capture_command_prepared(request, session, fingerprint, None)
+    }
+    fn live_capture_command_prepared(
+        self: &Arc<Self>,
+        request: &Request,
+        session: &SessionId,
+        fingerprint: &str,
+        target: Option<Arc<fallback::Prepared>>,
+    ) -> PResult<ResponseBody> {
+        let target_parent = target
+            .as_ref()
+            .map(|p| p.target_parent().cloned())
+            .transpose()?;
+        if target.is_some() && !matches!(request.command, Command::StartLiveCapture { .. }) {
+            return Err(ProtocolError::invalid(
+                "automatic fallback requires a fresh capture epoch",
+            ));
+        }
         if successor::is_command(&request.command) {
             return self.browser_analysis_successor_command(request, session, fingerprint);
         }
@@ -1628,16 +1751,48 @@ impl Engine {
         let _pack_gate = admission
             .then(|| self.artifact_gate.lock().map_err(internal))
             .transpose()?;
-        let resolved = if admission {
+        let resolved = if target.is_some() {
+            if let Command::StartLiveCapture { options, .. } = &request.command {
+                pack::verify_target(self, options)?;
+            }
+            None
+        } else if admission {
             Some(pack::resolve(self, request, session, fingerprint)?)
         } else {
             None
         };
         let request = resolved.as_ref().unwrap_or(request);
+        let prepared_fallback = match target {
+            Some(prepared) => {
+                prepared.recheck_io()?;
+                Some(prepared)
+            }
+            None => fallback::prepare(self, request, session, fingerprint)?,
+        };
         let mut db = self.db.lock().map_err(internal)?;
         self.authorize(&db, request, session)?;
         let mut registry = self.live_captures.lock().map_err(internal)?;
         registry.sweep(&db)?;
+        if let Some(parent) = &target_parent {
+            let old = registry
+                .entries
+                .get(parent.epoch.as_str())
+                .ok_or_else(|| ProtocolError::invalid("automatic fallback parent absent"))?;
+            let prepared = prepared_fallback.as_ref().expect("private target");
+            if old.owner != *session
+                || old.report.identity != *parent
+                || !old.pending_fallback()
+                || old
+                    .fallback_lifetime
+                    .as_ref()
+                    .is_none_or(|l| !Arc::ptr_eq(l, &prepared.lifetime()))
+            {
+                return Err(ProtocolError::new(
+                    ErrorCode::Cancelled,
+                    "original fallback preparation retired or changed",
+                ));
+            }
+        }
         if matches!(request.command, Command::LiveCaptureLimits) {
             check_revision(&db, request)?;
             return Ok(ResponseBody::LiveCaptureLimits(LiveCaptureLimits {
@@ -1872,12 +2027,20 @@ impl Engine {
             if registry
                 .entries
                 .values()
-                .filter(|entry| entry.runtime.is_some())
+                .filter(|entry| {
+                    (entry.runtime.is_some() || entry.pending_fallback())
+                        && target_parent
+                            .as_ref()
+                            .is_none_or(|parent| parent != &entry.report.identity)
+                })
                 .count()
                 >= MAX_ACTIVE
                 && (predecessor.is_none() || prepared)
                 || registry.entries.values().any(|entry| {
-                    entry.runtime.is_some()
+                    (entry.runtime.is_some() || entry.pending_fallback())
+                        && target_parent
+                            .as_ref()
+                            .is_none_or(|parent| parent != &entry.report.identity)
                         && Some(&entry.report.identity.epoch) != predecessor
                         && entry.owner == *session
                         && entry.report.identity.project == *project(request).expect("validated")
@@ -1932,7 +2095,7 @@ impl Engine {
                 Some(clock.clone()),
                 LiveClockTick(0),
             )?;
-            let report = LiveCaptureReport {
+            let mut report = LiveCaptureReport {
                 input_close: None,
                 continuation,
                 age_basis: if options.encoded_source.is_some() {
@@ -1964,23 +2127,6 @@ impl Engine {
                 inference: info,
                 queue: None,
             };
-            report.validate()?;
-            let origin = if options
-                .inference
-                .as_ref()
-                .is_some_and(|i| i.profile.provider == InferenceProvider::Cuda)
-            {
-                Some(
-                    crate::live_cuda_capture_db::LiveCudaOrigin::new(
-                        session,
-                        &report,
-                        &request.request_id,
-                    )
-                    .map_err(unavailable)?,
-                )
-            } else {
-                None
-            };
             // All admission work above is fallible without retiring the predecessor.
             // The receipt commits before either epoch is published or cancelled.
             if let Some(epoch) = predecessor {
@@ -1997,7 +2143,6 @@ impl Engine {
                     ));
                 }
             }
-            let body = ResponseBody::LiveCapture((report.clone()).into());
             if browser_media.as_ref().is_some_and(|pin| !pin.current()) {
                 return Err(ProtocolError::new(
                     ErrorCode::DependencyMismatch,
@@ -2029,6 +2174,56 @@ impl Engine {
                 }
             }
             let tx = db.transaction().map_err(internal)?;
+            match (&options.inference_fallback, &prepared_fallback) {
+                (None, None) => {}
+                (Some(_), Some(prepared)) => {
+                    let admission = prepared.declare(
+                        &tx,
+                        fallback::Publication {
+                            request,
+                            actor: session,
+                            options,
+                            stream: manifest.as_ref().ok_or_else(|| {
+                                ProtocolError::invalid("browser fallback manifest absent")
+                            })?,
+                            media: browser_media.as_ref().ok_or_else(|| {
+                                ProtocolError::invalid("browser fallback source custody absent")
+                            })?,
+                            timing: browser_analysis_pin.as_ref().ok_or_else(|| {
+                                ProtocolError::invalid("browser fallback timing custody absent")
+                            })?,
+                        },
+                    )?;
+                    report
+                        .inference
+                        .as_mut()
+                        .expect("declared fallback inference")
+                        .fallback = Some(admission);
+                }
+                _ => {
+                    return Err(ProtocolError::invalid(
+                        "browser fallback preparation differs from capture intent",
+                    ))
+                }
+            }
+            report.validate()?;
+            let origin = if options
+                .inference
+                .as_ref()
+                .is_some_and(|i| i.profile.provider == InferenceProvider::Cuda)
+            {
+                Some(
+                    crate::live_cuda_capture_db::LiveCudaOrigin::new(
+                        session,
+                        &report,
+                        &request.request_id,
+                    )
+                    .map_err(unavailable)?,
+                )
+            } else {
+                None
+            };
+            let body = ResponseBody::LiveCapture((report.clone()).into());
             if manifest.is_some() || options.encoded_source.is_some() {
                 self.arm_worker_fence(&tx)?;
                 if options.inference.is_some() {
@@ -2048,8 +2243,14 @@ impl Engine {
             }
             let capture_epoch = report.identity.epoch.clone();
             let cancel = Arc::new(AtomicBool::new(false));
+            if let Some(prepared) = &prepared_fallback {
+                prepared.lifetime().register(&cancel);
+            }
             let created = Instant::now();
             let lease_end = created + Duration::from_millis(u64::from(options.lease_ms));
+            let lease_end = prepared_fallback
+                .as_ref()
+                .map_or(lease_end, |p| p.end_cap(lease_end));
             registry.entries.insert(
                 report.identity.epoch.to_string(),
                 Entry {
@@ -2069,8 +2270,25 @@ impl Engine {
                     recording: None,
                     browser_media,
                     browser_analysis_pin,
+                    fallback_lifetime: prepared_fallback.as_ref().map(|p| p.lifetime()),
+                    fallback: prepared_fallback,
                 },
             );
+            if let Some(parent) = &target_parent {
+                let transition = registry
+                    .entries
+                    .get_mut(parent.epoch.as_str())
+                    .expect("held parent")
+                    .report
+                    .inference
+                    .as_mut()
+                    .expect("failure report")
+                    .fallback_transition
+                    .as_mut()
+                    .expect("pending transition");
+                transition.phase = BrowserInferenceFallbackPhase::Started;
+                transition.next_epoch = Some(capture_epoch.clone());
+            }
             if let Some(manifest) = manifest {
                 let mut intent = request.clone();
                 if let Command::ContinueLiveCaptureAt {
@@ -2306,6 +2524,9 @@ impl Engine {
             ));
         }
         if matches!(request.command, Command::StopLiveCapture { .. }) {
+            if let Some(lifetime) = &entry.fallback_lifetime {
+                lifetime.cancel();
+            }
             if let Some(body) = replay(&db, session.as_str(), request, fingerprint)? {
                 return Ok(body);
             }

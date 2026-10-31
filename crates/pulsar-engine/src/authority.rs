@@ -511,6 +511,8 @@ impl Engine {
             crate::cpu_runtime_db::validate(&probe)?;
             inference_fallback_store::validate(&probe)?;
             crate::live_cpu_history::validate(&probe)?;
+            crate::browser_fallback_reader::validate_metadata(&probe)?;
+            crate::browser_fallback_history::validate(&probe)?;
             handy_registrations::validate(&probe)?;
             handy_qualification::validate(&probe)?;
             handy_browser_start_qualification::validate(&probe)?;
@@ -699,6 +701,8 @@ impl Engine {
             crate::cpu_runtime_db::validate(&probe)?;
             inference_fallback_store::validate(&probe)?;
             crate::live_cpu_history::validate(&probe)?;
+            crate::browser_fallback_reader::validate_metadata(&probe)?;
+            crate::browser_fallback_history::validate(&probe)?;
             handy_registrations::validate(&probe)?;
             handy_qualification::validate(&probe)?;
             handy_browser_start_qualification::validate(&probe)?;
@@ -763,6 +767,8 @@ impl Engine {
         crate::cpu_runtime_db::validate(&db)?;
         inference_fallback_store::validate(&db)?;
         crate::live_cpu_history::validate(&db)?;
+        crate::browser_fallback_reader::validate_metadata(&db)?;
+        crate::browser_fallback_history::validate(&db)?;
         anyhow::ensure!(version == 0 || (2..=crate::portable_fallback_reader::MAX_STORAGE_VERSION).contains(&version), "project database schema requires an explicit recoverable migration; original was not modified");
         library_batches::validate_reader(&db, &config)?;
         crate::native_preparation_db::validate(&db)?;
@@ -6414,6 +6420,9 @@ fn remember(
     body: &ResponseBody,
 ) -> PResult<()> {
     claim_request_identity(tx, session, request, fingerprint)?;
+    crate::browser_fallback_reader::remember(tx, body).map_err(internal)?;
+    crate::browser_fallback_history::remember(tx, session, request, fingerprint, body)
+        .map_err(internal)?;
     crate::live_cpu_history::remember(tx, session, request, fingerprint, body).map_err(internal)?;
     tx.execute(
         "INSERT INTO requests VALUES(?1,?2,?3,?4)",
@@ -6907,6 +6916,7 @@ pub(crate) mod tests {
     use super::*;
     include!("live_recording_candidate_tests.rs");
     include!("engine_live_capture_clock_tests.rs");
+    include!("engine_live_fallback_target_tests.rs");
     include!("engine_live_capture_delivery_tests.rs");
     #[cfg(target_os = "linux")]
     include!("annotated_engine_generation_tests.rs");
@@ -8937,6 +8947,7 @@ pub(crate) mod tests {
     }
     fn capture_options() -> LiveCaptureOptions {
         LiveCaptureOptions {
+            inference_fallback: None,
             browser_analysis: None,
             browser_media: None,
             model_pack: None,

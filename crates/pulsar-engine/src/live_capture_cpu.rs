@@ -49,6 +49,8 @@ fn admission(
     lease_end: Instant,
     previous: Option<&Admission>,
 ) -> PResult<Admission> {
+    let observed_fallback =
+        fallback::recheck_io(engine, &stream.identity.epoch, &stream.attempt_id)?;
     let db = engine.db.lock().map_err(internal)?;
     engine.require_worker_fence(&db)?;
     let mut registry = engine.live_captures.lock().map_err(internal)?;
@@ -58,17 +60,29 @@ fn admission(
     let info = entry.report.inference.as_ref().expect("active inference");
     let options = &entry.report.options;
     stream.validate_browser_source(&entry.report.engine_epoch, options)?;
+    fallback::require_bound(&db, entry, stream, observed_fallback.as_ref())?;
     let selected = options
         .inference
         .as_ref()
         .ok_or_else(|| changed("captured CPU inference declaration is absent"))?;
+    // Match the actual held admission, including its original fallback cap.
+    // An arbitrary earlier or later caller deadline is still refused.
+    let expected_end = entry
+        .created
+        .checked_add(Duration::from_millis(u64::from(options.lease_ms)))
+        .map(|end| {
+            entry
+                .fallback
+                .as_ref()
+                .map_or(end, |held| held.end_cap(end))
+        });
     if finishing(entry)
         || info.state != LiveCaptureInferenceState::Starting
         || entry.report.engine_epoch.as_str() != engine.engine_epoch
         || entry.report.identity != stream.identity
         || entry.report.clock != stream.clock
         || entry.created != origin
-        || origin.checked_add(Duration::from_millis(u64::from(options.lease_ms))) != Some(lease_end)
+        || expected_end != Some(lease_end)
         || !Arc::ptr_eq(&entry.cancel, cancel)
         || cancel.load(Ordering::Acquire)
         || Instant::now() >= lease_end

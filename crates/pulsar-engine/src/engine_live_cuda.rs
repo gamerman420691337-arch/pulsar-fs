@@ -7,6 +7,11 @@ use crate::{
 };
 use std::time::{Duration, Instant};
 
+pub(super) enum LiveCudaStartup {
+    Ready(Box<(LiveCudaInferenceManifest, LiveCudaWorker)>),
+    ProviderUnavailable(Box<crate::live_cuda_stream::SettledLiveCudaProviderFailure>),
+}
+
 impl Engine {
     pub(super) fn start_live_cuda(
         &self,
@@ -16,7 +21,7 @@ impl Engine {
         cancel: Arc<AtomicBool>,
         origin: Instant,
         lease_end: Instant,
-    ) -> PResult<(LiveCudaInferenceManifest, LiveCudaWorker)> {
+    ) -> PResult<LiveCudaStartup> {
         if !cfg!(feature = "cuda") {
             return Err(ProtocolError::unsupported(
                 "live CUDA requires a CUDA-enabled build",
@@ -95,6 +100,12 @@ impl Engine {
                 "live CUDA startup cancelled",
             ));
         }
+        let fallback_stream = if options.inference_fallback.is_some() {
+            live_captures::fallback::verify_dispatch(self, &stream)?;
+            Some(stream.clone())
+        } else {
+            None
+        };
         {
             let mut db = self.db.lock().map_err(internal)?;
             let tx = db.transaction().map_err(internal)?;
@@ -233,15 +244,28 @@ impl Engine {
             check_revision(&db, request)?;
             self.require_worker_fence(&db)?;
         }
-        let worker = LiveCudaWorker::start(
+        if let Some(original) = &fallback_stream {
+            live_captures::fallback::verify_dispatch(self, original)?;
+        }
+        let started = LiveCudaWorker::start(
             &self.config,
             manifest.clone(),
             admitted,
             prepared,
             scope,
             cancel,
-        )
-        .map_err(unavailable)?;
-        Ok((manifest, worker))
+        );
+        match started {
+            Ok(worker) => Ok(LiveCudaStartup::Ready(Box::new((manifest, worker)))),
+            Err(error) => {
+                match error.downcast::<crate::live_cuda_stream::SettledLiveCudaProviderFailure>() {
+                    Ok(settled) => {
+                        settled.matches_manifest(&manifest).map_err(unavailable)?;
+                        Ok(LiveCudaStartup::ProviderUnavailable(Box::new(settled)))
+                    }
+                    Err(error) => Err(unavailable(error)),
+                }
+            }
+        }
     }
 }
