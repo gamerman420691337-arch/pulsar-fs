@@ -32,7 +32,7 @@
     "evidence": "EV-STASH-WORKSPACE-RETRY-PASS",
     "scope": "The explicit multifile capture branch passed strict library Clippy, workspace all-targets check, focused tests, the protocol suite, and an owned Stash v0.31.1 alias fixture. A preceding engine refused the opt-in field in an unauthenticated wire check. Automatic alias handling, multifile publication and user-library qualification remain open.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "Diagnostic source cleanup and Engine forced-stop counterevidence remain unresolved; new diagnostics do not retroactively establish cause. All qualification gates remain open.",
+    "failure_summary": "Rendered sterile browser attempt reproduced timing open exchange transport_timeout and player cleanup unconfirmed; source release later reported released. Historical cause and original deadline reliability remain unresolved; all qualification gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -1220,7 +1220,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence.",
+      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
@@ -1267,7 +1267,8 @@
         "EV-SOURCE-CLEANUP-FIRST-FAILURE",
         "EV-SOURCE-CLEANUP-LATER-ATTEMPT",
         "EV-LOCAL-ENGINE-RETRY",
-        "EV-SOURCE-CLEANUP-CURRENT-TESTS"
+        "EV-SOURCE-CLEANUP-CURRENT-TESTS",
+        "EV-RENDERED-TIMING-OPEN-TIMEOUT"
       ]
     },
     {
@@ -10978,6 +10979,55 @@
         {
           "pointer": [
             "historical_failure_resolved"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RENDERED-TIMING-OPEN-TIMEOUT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-first-failure-001/rendered-timing-open-timeout-20261031.json",
+      "sha256": "5e049d005ea0eb98601c30f432e59248dd1b01366a65f6b990e429e063d1cbcc",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Current private rendered sterile browser attempt produced an open exchange transport timeout, then timing cleanup unconfirmed on player shutdown. Original source release initially unconfirmed and later inspection reported released; Engine exited normally. Host I/O was elevated after failure, without established causation.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "first_failure",
+            "category"
+          ],
+          "equals": "transport_timeout"
+        },
+        {
+          "pointer": [
+            "first_failure",
+            "operation"
+          ],
+          "equals": "open"
+        },
+        {
+          "pointer": [
+            "player_exit_code"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "engine_exit_code"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "qualified"
           ],
           "equals": false
         }
