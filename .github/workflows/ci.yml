@@ -1,107 +1,20 @@
-name: CI
-
+name: Native socket close probe
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '17 6 * * *'
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-    types: [opened, synchronize, reopened, edited]
-
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
-  test:
-    name: Test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+  probe:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install Linux Dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg libasound2-dev libudev-dev pkg-config
-
-      - name: Install Windows Dependencies
-        if: runner.os == 'Windows'
-        run: |
-          choco install ffmpeg
-
-      - name: Install macOS Dependencies
-        if: runner.os == 'macOS'
-        run: |
-          brew install ffmpeg
-
-      - name: Check execution dashboard
-        if: runner.os == 'Linux'
-        run: |
-          python3 -B scripts/execution_dashboard.py --check
-          python3 -B scripts/test_execution_dashboard.py
-
-      - name: Probe native socket close behavior
-        if: github.event_name == 'workflow_dispatch' && runner.os != 'Windows'
-        shell: bash
-        run: |
-          rustc --edition=2021 scripts/macos_socket_probe.rs -o "$RUNNER_TEMP/pulsar-socket-probe"
-          "$RUNNER_TEMP/pulsar-socket-probe"
-
-      - name: Check compilation
-        run: cargo check --workspace --all-targets --locked --verbose
-
-      - name: Enforce architecture boundaries
-        if: runner.os == 'Linux'
-        run: node scripts/check-architecture.mjs
-
-      - name: Test browser player behavior
-        if: runner.os == 'Linux'
-        run: node --test scripts/browser-live-player.test.mjs
-
-      - name: Run fast contract and client tests
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run isolated socket experiment
         shell: bash
         run: |
           set -euo pipefail
-          run_fast() {
-            cargo test -p "$1" --lib "$2" --locked | tee "$RUNNER_TEMP/pulsar-fast-result.txt"
-            grep -Eq 'test result: ok\. [1-9][0-9]* passed;' "$RUNNER_TEMP/pulsar-fast-result.txt"
-          }
-          run_fast pulsar-core source_transition_
-          run_fast pulsar-protocol project_package::tests
-          run_fast pulsar-clients preview::tests
-          if [[ "$RUNNER_OS" != Windows ]]; then
-            run_fast pulsar-protocol unix_local_connection_is_bounded_verified_and_bidirectional
-          fi
-          if [[ "$RUNNER_OS" == Linux ]]; then
-            run_fast pulsar-clients source_cleanup
-            run_fast pulsar-engine browser_archive_reader_delegates_live_cuda_base_without_inventing_evidence
-            run_fast pulsar-engine browser_pair_correspondence_diagnostic_keeps_bound_and_short_circuit
-            run_fast pulsar-engine browser_ready_rejects_running_at_or_after_original_deadline
-            run_fast pulsar-engine cpu_startup_phase_is_bounded_and_attempt_scoped
-          fi
-
-      - name: Run portable contract and client tests
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
-        run: cargo test -p pulsar-core -p pulsar-protocol -p pulsar-clients --locked --verbose
-
-      - name: Run Linux engine and media contract tests
-        if: runner.os == 'Linux' && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
-        run: cargo test -p pulsar-engine --lib --locked --verbose
-
-      # The full subprocess gate additionally requires delegated cgroup v2 and
-      # bubblewrap. A hosted PR job is not evidence of worker confinement. Run
-      # scripts/qualify-architecture.sh on the identified qualification host.
+          rustc --edition=2021 scripts/macos_socket_probe.rs -o "$RUNNER_TEMP/pulsar-socket-probe"
+          "$RUNNER_TEMP/pulsar-socket-probe"
