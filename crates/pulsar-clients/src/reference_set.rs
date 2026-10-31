@@ -61,24 +61,24 @@ pub(crate) fn export_new(
     platform::export_new(destination, authorization, entries)
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
 mod platform {
     use super::*;
     use anyhow::bail;
     #[derive(Clone, Debug)]
     pub(super) struct EntryBinding;
     pub(super) fn load_entry(_: &Path, _: ReferenceEntryInput) -> Result<ReferenceEntry> {
-        bail!("Descriptor-bound reference intake is currently implemented only on Linux")
+        bail!("Descriptor-bound reference intake is currently implemented only on Linux and macOS")
     }
     pub(super) fn load_set(_: &Path) -> Result<(String, Vec<ReferenceEntry>)> {
-        bail!("Descriptor-bound reference intake is currently implemented only on Linux")
+        bail!("Descriptor-bound reference intake is currently implemented only on Linux and macOS")
     }
     pub(super) fn export_new(_: &Path, _: &str, _: &[ReferenceEntry]) -> Result<PathBuf> {
         bail!("Atomic no-replace reference publication is unavailable on this platform")
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 mod platform {
     use super::*;
     use anyhow::{bail, ensure, Context};
@@ -99,6 +99,13 @@ mod platform {
         path::Component,
         time::{Duration, Instant},
     };
+
+    fn stat_device_id(stat: &rustix::fs::Stat) -> u64 {
+        #[cfg(target_os = "linux")]
+        { stat.st_dev }
+        #[cfg(target_os = "macos")]
+        { stat.st_dev as u64 }
+    }
 
     const JSON_LIMIT: u64 = 8 * 1024 * 1024;
     const VIEW_LIMIT: u64 = 4096;
@@ -1063,7 +1070,7 @@ mod platform {
             let named = statat(&self.parent.file, name, AtFlags::SYMLINK_NOFOLLOW)?;
             let held = self.directory.metadata()?;
             ensure!(
-                held.dev() == named.st_dev && held.ino() == named.st_ino,
+                held.dev() == stat_device_id(&named) && held.ino() == named.st_ino,
                 "Reference publication directory was replaced or renamed"
             );
             ensure!(
@@ -1137,7 +1144,7 @@ mod platform {
                     metadata.is_file()
                         && metadata.nlink() == 1
                         && metadata.mode() & 0o077 == 0
-                        && metadata.dev() == named.st_dev
+                        && metadata.dev() == stat_device_id(&named)
                         && metadata.ino() == named.st_ino
                         && Fingerprint::new(&metadata) == member.fingerprint,
                     "Reference staging member changed after writing"
@@ -1215,7 +1222,7 @@ mod platform {
                     member.file.metadata(),
                 ) {
                     if Fingerprint::new(&held) == member.fingerprint
-                        && named.st_dev == held.dev()
+                        && stat_device_id(&named) == held.dev()
                         && named.st_ino == held.ino()
                     {
                         let _ = rustix::fs::unlinkat(
