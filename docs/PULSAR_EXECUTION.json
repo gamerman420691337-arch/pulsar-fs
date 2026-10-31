@@ -29,8 +29,8 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-STASH-EXPLICIT-FINAL-SOURCE",
-    "scope": "Uncommitted explicit multifile capture draft passed strict library Clippy, source-bound focused tests, and the rebuilt binary passed an owned Stash v0.31.1 alias fixture. A preceding engine refused the opt-in field in an unauthenticated wire check. Automatic alias handling, multifile publication and user-library qualification remain open. Workspace all-target check was interrupted and remains unverified.",
+    "evidence": "EV-STASH-WORKSPACE-RETRY-PASS",
+    "scope": "The explicit multifile capture branch passed strict library Clippy, workspace all-targets check, focused tests, the protocol suite, and an owned Stash v0.31.1 alias fixture. A preceding engine refused the opt-in field in an unauthenticated wire check. Automatic alias handling, multifile publication and user-library qualification remain open.",
     "active_work": "BROWSER-DEMO",
     "failure_summary": "Diagnostic source cleanup and Engine forced-stop counterevidence remain unresolved; new diagnostics do not retroactively establish cause. All qualification gates remain open.",
     "source_stamp": [
@@ -1411,7 +1411,8 @@
         "EV-STASH-NATIVE-BUILD",
         "EV-STASH-EXPLICIT-NATIVE-FIXTURE",
         "EV-STASH-EXPLICIT-FINAL-SOURCE",
-        "EV-STASH-WORKSPACE-CHECK-INTERRUPTED"
+        "EV-STASH-WORKSPACE-CHECK-INTERRUPTED",
+        "EV-STASH-WORKSPACE-RETRY-PASS"
       ]
     },
     {
@@ -10882,6 +10883,59 @@
         {
           "pointer": [
             "workspace_check_passed"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-WORKSPACE-RETRY-PASS",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-owned-explicit-alias-red-001/broader-validation-20261031.json",
+      "sha256": "117e94710f07d1806ee606570fbef18cdb9057f7b116aa672f7132d8a8fb5846",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "After the retained interrupted attempt, the same source passed workspace all-targets check, 413 protocol tests, four Stash file tests and four client Stash tests. This is software evidence, not user-library or release qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "workspace_all_targets_check_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "protocol_passed"
+          ],
+          "equals": 413
+        },
+        {
+          "pointer": [
+            "stash_files_passed"
+          ],
+          "equals": 4
+        },
+        {
+          "pointer": [
+            "stash_clients_passed"
+          ],
+          "equals": 4
+        },
+        {
+          "pointer": [
+            "failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "qualified"
           ],
           "equals": false
         }
