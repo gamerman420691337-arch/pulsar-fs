@@ -30,9 +30,9 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
-    "scope": "Current-source rendered sterile recording, explicit gap-repair review and 401-action download matched the committed master; staged range was 0\u201360s and includes four synthesized actions. Scoped 420s cleanup repeat and original counterevidence retained; independent qualification remains open.",
+    "scope": "Current-source rendered sterile recording under 200ms policy showed three captures; one inspected 153-sample capture met the capture-to-analysis bound. Other captures and end-to-end device timing remain unqualified.",
     "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Earlier 420s timing cleanup failure and native freshness failures remain causally unresolved. Rendered export has explicit authored repairs and is unqualified. All 25 acceptance gates remain open.",
+    "failure_summary": "Earlier 420s cleanup and native freshness failures remain unresolved; new 200ms observation covers one retained capture only. All 25 acceptance gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -1180,7 +1180,8 @@
         "EV-NATIVE-STAMP-PLATFORM",
         "EV-NATIVE-FRESHNESS-DIAGNOSTIC",
         "EV-RENDERED-420-REPEAT",
-        "EV-RENDERED-CURRENT-RECORDING-EXPORT"
+        "EV-RENDERED-CURRENT-RECORDING-EXPORT",
+        "EV-RENDERED-200MS-RECORDING"
       ]
     },
     {
@@ -6966,6 +6967,53 @@
             "authored_repair_actions"
           ],
           "equals": 4
+        },
+        {
+          "pointer": [
+            "previous_timing_failure_cause_resolved"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RENDERED-200MS-RECORDING",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/rendered-200ms-current-001/verification.json",
+      "sha256": "ab3a071f77c7fd200b88a4d2db6501253250aa1e5a9866f661f6c6148b7064b3",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Rendered sterile 40s playback with continuation and 200ms maximum analysis age reported 153,151,93 accepted estimates across three stopped captures. The first capture alone was downloaded and all 153 retained samples were within the 200ms capture-to-analysis limit (max 68.403ms); other captures were not individually examined. Normal player exit and workspace shutdown observed. No browser-to-device, real-media, model-quality, independent custody or release qualification; earlier timing failures remain unresolved.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "inspected_samples"
+          ],
+          "equals": 153
+        },
+        {
+          "pointer": [
+            "inspected_all_within_200ms"
+          ],
+          "equals": true
         },
         {
           "pointer": [
