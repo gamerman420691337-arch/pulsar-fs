@@ -1291,36 +1291,69 @@ mod captured_cpu_browser_native_tests {
         );
         let wait_started = Instant::now();
         let mut join_state = None;
-        loop {
-            player.observe(client)?;
-            child_player.observe(client)?;
-            let status = transfer_status(client, &transfer.request_id)?;
-            let state = (status.phase, status.predecessor_worker_joined);
-            if join_state != Some(state) {
-                transfer_phase(phases, "predecessor_join_observed", Some(&status))?;
-                join_state = Some(state);
-            }
-            ensure!(
-                status.phase != BrowserAnalysisTransferPhase::Aborted
-                    && status.error.is_none()
-                    && Instant::now() < end,
-                "predecessor join did not settle before original lease: {status:?}"
-            );
-            ensure!(
-                !status.successor_pair_accepted,
-                "successor pair exists before G capture"
-            );
-            if status.predecessor_worker_joined
-                && wait_started.elapsed() >= Duration::from_millis(inputs.producer_join_wait_ms)
-            {
+        let mut poll_count = 0u64;
+        let mut parent_observe_max = Duration::ZERO;
+        let mut child_observe_max = Duration::ZERO;
+        let mut transfer_status_max = Duration::ZERO;
+        let mut inter_poll_max = Duration::ZERO;
+        let mut previous_poll_end = None;
+        let join_result = (|| -> Result<()> {
+            loop {
+                let started = Instant::now();
+                if let Some(previous) = previous_poll_end {
+                    inter_poll_max = inter_poll_max.max(started.duration_since(previous));
+                }
+                poll_count = poll_count.saturating_add(1);
+                let result = player.observe(client);
+                parent_observe_max = parent_observe_max.max(started.elapsed());
+                result.context("native join predecessor timing observation")?;
+                let started = Instant::now();
+                let result = child_player.observe(client);
+                child_observe_max = child_observe_max.max(started.elapsed());
+                result.context("native join successor timing observation")?;
+                let started = Instant::now();
+                let result = transfer_status(client, &transfer.request_id);
+                transfer_status_max = transfer_status_max.max(started.elapsed());
+                let status = result.context("native join transfer status")?;
+                let state = (status.phase, status.predecessor_worker_joined);
+                if join_state != Some(state) {
+                    transfer_phase(phases, "predecessor_join_observed", Some(&status))?;
+                    join_state = Some(state);
+                }
                 ensure!(
-                    status.predecessor_delivery_settled,
-                    "join precedes settled delivery"
+                    status.phase != BrowserAnalysisTransferPhase::Aborted
+                        && status.error.is_none()
+                        && Instant::now() < end,
+                    "predecessor join did not settle before original lease: {status:?}"
                 );
-                break;
+                ensure!(
+                    !status.successor_pair_accepted,
+                    "successor pair exists before G capture"
+                );
+                if status.predecessor_worker_joined
+                    && wait_started.elapsed() >= Duration::from_millis(inputs.producer_join_wait_ms)
+                {
+                    ensure!(
+                        status.predecessor_delivery_settled,
+                        "join precedes settled delivery"
+                    );
+                    break;
+                }
+                previous_poll_end = Some(Instant::now());
+                std::thread::park_timeout(Duration::from_millis(2));
             }
-            std::thread::park_timeout(Duration::from_millis(2));
-        }
+            Ok(())
+        })();
+        ensure!(phases.len() < 32, "bounded native phase trace exhausted");
+        phases.push(
+            json!({"phase":"join_poll_diagnostics", "boottime_ns":crate::handy_clock::boottime_ns().ok(), "poll_count":poll_count,
+            "predecessor_observe_max_ns":parent_observe_max.as_nanos(),
+            "successor_observe_max_ns":child_observe_max.as_nanos(),
+            "transfer_status_max_ns":transfer_status_max.as_nanos(),
+            "inter_poll_gap_max_ns":inter_poll_max.as_nanos(),
+            "inter_poll_gap_includes_requested_2ms_park":true}),
+        );
+        join_result?;
         // Only frame1 may enter while transfer is pending. Do not resend F.
         transfer_phase(phases, "successor_upload_started", None)?;
         let next = upload(client, inputs, &child, &mut child_player, base + 2, 1, end)?;
