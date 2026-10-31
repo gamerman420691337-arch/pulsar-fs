@@ -306,6 +306,43 @@ mod endpoint_tests {
 
     #[cfg(unix)]
     #[test]
+    fn deadline_stream_expired_deadline_refuses_buffered_reply() {
+        use std::os::unix::net::UnixStream;
+        let (client, mut server) = UnixStream::pair().unwrap();
+        server.write_all(b"reply").unwrap();
+        drop(server);
+        let mut stream = LocalStream::UdSocket(client.into());
+        let mut bounded = DeadlineStream::new(&mut stream, Instant::now());
+        let error = bounded.read(&mut [0; 5]).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn deadline_stream_truncated_closed_reply_is_eof() {
+        use std::os::unix::net::UnixStream;
+        let (client, mut server) = UnixStream::pair().unwrap();
+        server.write_all(b"rep").unwrap();
+        drop(server);
+        let mut stream = LocalStream::UdSocket(client.into());
+        let mut bounded = DeadlineStream::new(&mut stream, Instant::now() + Duration::from_secs(2));
+        let mut response = [0; 5];
+        assert_eq!(bounded.read_exact(&mut response).unwrap_err().kind(), io::ErrorKind::UnexpectedEof);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn deadline_stream_closed_peer_write_reports_broken_pipe() {
+        use std::os::unix::net::UnixStream;
+        let (client, server) = UnixStream::pair().unwrap();
+        drop(server);
+        let mut stream = LocalStream::UdSocket(client.into());
+        let mut bounded = DeadlineStream::new(&mut stream, Instant::now() + Duration::from_secs(2));
+        assert_eq!(bounded.write(b"chunk").unwrap_err().kind(), io::ErrorKind::BrokenPipe);
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn unix_local_connection_is_bounded_verified_and_bidirectional() {
         use std::os::unix::net::UnixListener;
         struct Directory(std::path::PathBuf);
