@@ -704,21 +704,23 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let model = root.path().join("model");
         std::fs::write(&model, b"x").unwrap();
-        let bytes = std::fs::metadata("/usr/bin/true").unwrap().len();
+        let runtime = root.path().join("runtime");
+        std::fs::write(&runtime, b"owned runtime fixture").unwrap();
+        std::fs::set_permissions(&runtime, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let bytes = std::fs::metadata(&runtime).unwrap().len();
         let artifact = |len| ArtifactIdentity {
             artifact_id: ArtifactId::new("fixture").unwrap(),
             sha256: "a".repeat(64),
             byte_len: len,
         };
-        let config =
-            crate::EngineConfig::new(root.path().join("state"), PathBuf::from("/usr/bin/true"));
+        let config = crate::EngineConfig::new(root.path().join("state"), runtime.clone());
         let mut policy = Policy {
             projector: None,
             schema_version: 1,
             approve_inference: true,
             worker_sha256: "a".repeat(64),
             worker_bytes: bytes,
-            runtime_path: PathBuf::from("/usr/bin/true"),
+            runtime_path: runtime,
             runtime: artifact(bytes),
             model_path: model,
             model: artifact(1),
@@ -726,7 +728,7 @@ mod tests {
             wall_time_ms: 1000,
             worker_memory_bytes: 512 * 1024 * 1024,
         };
-        assert!(policy.validate(&config).is_ok());
+        policy.validate(&config).expect("owned policy fixture is valid");
         policy.approve_inference = false;
         assert!(policy.validate(&config).is_err());
         policy.approve_inference = true;
@@ -768,7 +770,10 @@ mod tests {
         };
         let path = root.join("assistant.json");
         write_policy(&path, &policy);
-        let config = crate::EngineConfig::new(root.join("state"), "/usr/bin/true".into());
+        let worker = root.join("fixture-worker");
+        std::fs::write(&worker, b"fixture worker; not executed").unwrap();
+        std::fs::set_permissions(&worker, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let config = crate::EngineConfig::new(root.join("state"), worker);
         (path, policy, config)
     }
     fn write_policy(path: &Path, policy: &Policy) {

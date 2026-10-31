@@ -15,6 +15,29 @@ pub(crate) enum ReferenceViewInput {
     File(PathBuf),
 }
 
+#[cfg(all(test, not(target_os = "linux")))]
+mod unsupported_platform_tests {
+    use super::*;
+
+    #[test]
+    fn descriptor_bound_reference_intake_fails_closed() {
+        let directory = tempfile::tempdir().unwrap();
+        let error = load_entry(
+            directory.path(),
+            ReferenceEntryInput {
+                id: "unsupported-platform".into(),
+                group: "fixture".into(),
+                video: "source.mp4".into(),
+                reference: "source.funscript".into(),
+                view: ReferenceViewInput::File(directory.path().join("view.json")),
+                offset_ms: 0,
+            },
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("implemented only on Linux"));
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct ReferenceEntryInput {
     pub id: String,
