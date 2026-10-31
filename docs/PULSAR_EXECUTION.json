@@ -29,8 +29,8 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-SOURCE-CLEANUP-RENDERED",
-    "scope": "One diagnostic-build sterile browser run stopped on seek, resumed explicitly, reported source release and exited cleanly; 712 client tests passed (15 ignored). Historical cleanup cause and independent worker custody remain unproven.",
+    "evidence": "EV-SOURCE-CLEANUP-FIRST-FAILURE",
+    "scope": "Multiple failed source releases preserve the first failure while cleanup continues; focused red/green and 713 client tests passed (15 ignored). Historic cleanup cause and custody remain unproven.",
     "active_work": "BROWSER-DEMO",
     "failure_summary": "Diagnostic source cleanup and Engine forced-stop counterevidence remain unresolved; new diagnostics do not retroactively establish cause. All qualification gates remain open.",
     "source_stamp": [
@@ -176,11 +176,11 @@
       },
       {
         "path": "crates/pulsar-clients/src/browser_source_media.rs",
-        "sha256": "5b144292477057533ba5452f6303eb9b58196451293d39ecbbbe1678f2ed43b4"
+        "sha256": "76f873f070964f8b62033a3380e3a5dd12843c3c367aa39d43d3d46c687a53bf"
       },
       {
         "path": "crates/pulsar-clients/src/browser_source_media_tests.rs",
-        "sha256": "2b4a335895e650ce75a281931725af54f6d48e230c8a8b11ddbf6ac805abab91"
+        "sha256": "0624f09338b0d7e587e10a3bc7ff4b90e273fe732b4a8c1ef77462b91b033f6b"
       }
     ]
   },
@@ -1227,7 +1227,8 @@
         "EV-SOURCE-CLEANUP-CLIENT-SUITE",
         "EV-SOURCE-CLEANUP-RENDERED",
         "EV-SOURCE-CLEANUP-CUSTODY-OBSERVATION",
-        "EV-LOCAL-ENGINE-COMPILE-TIMEOUT"
+        "EV-LOCAL-ENGINE-COMPILE-TIMEOUT",
+        "EV-SOURCE-CLEANUP-FIRST-FAILURE"
       ]
     },
     {
@@ -8183,6 +8184,53 @@
             "qualified"
           ],
           "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-SOURCE-CLEANUP-FIRST-FAILURE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-first-failure-001/verification.json",
+      "sha256": "74350710e202d87b529e8e0153ed78e1629419b91b2d8445c500e3902b849cf2",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Red/green multiple-release diagnostic regression and full client library suite; does not resolve the historical cleanup cause or establish device qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "prior_historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "red_reproduced"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "focused_tests_passed"
+          ],
+          "equals": 3
+        },
+        {
+          "pointer": [
+            "full_tests_passed"
+          ],
+          "equals": 713
+        },
+        {
+          "pointer": [
+            "full_tests_ignored"
+          ],
+          "equals": 15
         }
       ]
     }

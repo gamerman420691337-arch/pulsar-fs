@@ -1103,7 +1103,7 @@ impl MediaController {
                 && !p.intent.released.load(Ordering::Acquire)
             {
                 if let Err(error) = call_original(&self.cleanup, &p.intent, OpKind::Release) {
-                    failure = Some(format!(
+                    failure.get_or_insert_with(|| format!(
                         "source cleanup unconfirmed; original preparation {} selection {}; diagnostic {}",
                         p.intent.request_id, p.intent.selection_id, source_cleanup_diagnostic(&error)
                     ));
