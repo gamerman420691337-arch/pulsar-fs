@@ -1744,14 +1744,18 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
             eprintln!("Stash publication request {request_id}; retain this ID and exact arguments if the acknowledgement is lost.");
             print_response(client.execute_with_id(request_id,Command::StashExportScript {connection:StashConnection {endpoint:url,credential_env:api_key_env},source_version:SourceVersionId::new(source_version)?,scene_id:scene,file_id:file,candidate_id:CandidateId::new(candidate)?,job_id:JobId::new(job)?,owner_proof:proof,source_time,archived_origin},Some(project),Some(revision))?)
         }
-        Commands::Stash { command:cli::StashCommands::CaptureSource {project,scene,file,mappings,url,api_key_env,revision,expected_source_version} } => {
+        Commands::Stash { command:cli::StashCommands::CaptureSource {project,scene,file,mappings,url,api_key_env,revision,expected_source_version,allow_multifile_selection,expected_server_path_file} } => {
+            let expected_server_path = expected_server_path_file.map(|path| -> anyhow::Result<String> {
+                let bytes = inference::read_bounded_profile(&path).context("read expected Stash path")?;
+                serde_json::from_slice(&bytes).context("expected Stash path must be a JSON string")
+            }).transpose()?;
             let bytes=inference::read_bounded_profile(&mappings).context("read bounded Stash mappings")?;
             let mappings:Vec<StashRootMapping>=serde_json::from_slice(&bytes)?;
             let proof=project_package::read_local_owner_proof(bootstrap.parent().context("missing private engine directory")?,"stash-owner.token")?;
             let mut client=SessionClient::connect(endpoint,bootstrap)?;
             let project=ProjectId::new(project)?;
             let revision=match revision {Some(value)=>RevisionId::new(value),None=>get_snapshot(&mut client,&project)?.revision};
-            print_response(client.execute(Command::StashImportSource {connection:StashConnection {endpoint:url,credential_env:api_key_env},scene_id:scene,file_id:file,expected_server_path:None,expected_source_version:expected_source_version.map(SourceVersionId::new).transpose()?,mappings,owner_proof:proof},Some(project),Some(revision))?)
+            print_response(client.execute(Command::StashImportSource {connection:StashConnection {endpoint:url,credential_env:api_key_env},scene_id:scene,file_id:file,expected_server_path,expected_source_version:expected_source_version.map(SourceVersionId::new).transpose()?,allow_multifile_selection:allow_multifile_selection.then_some(true),mappings,owner_proof:proof},Some(project),Some(revision))?)
         }
         Commands::Stash { command:cli::StashCommands::PlanMissing {limit,url,api_key_env,mappings} } => {
             let bytes=inference::read_bounded_profile(&mappings).context("read bounded Stash mappings")?;
