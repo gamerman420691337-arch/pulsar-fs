@@ -1,22 +1,37 @@
-name: Native socket close probe
+name: Engine test image size probe
 on:
   workflow_dispatch:
 jobs:
-  probe:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+  image:
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: 01c94fcf8e5c000cda845c84f065d17f72c540dc
       - uses: dtolnay/rust-toolchain@stable
-      - name: Run isolated socket experiment
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libasound2-dev libudev-dev pkg-config
+      - name: Measure exact test executable
         shell: bash
         run: |
           set -euo pipefail
-          rustc --edition=2021 scripts/macos_socket_probe.rs -o "$RUNNER_TEMP/pulsar-socket-probe"
-          "$RUNNER_TEMP/pulsar-socket-probe"
-      - name: Exercise Pulsar deadline stream
-        run: cargo test -p pulsar-protocol --lib deadline_stream_ --locked
+          cargo test -p pulsar-engine --lib --no-run --locked --message-format=json > "$RUNNER_TEMP/pulsar-artifacts.jsonl"
+          python3 - "$RUNNER_TEMP/pulsar-artifacts.jsonl" <<'PY'
+          import hashlib, json, pathlib, sys
+          records = [json.loads(line) for line in pathlib.Path(sys.argv[1]).read_text().splitlines()]
+          paths = [pathlib.Path(r['executable']) for r in records if r.get('reason') == 'compiler-artifact' and r.get('target', {}).get('name') == 'pulsar_engine' and r.get('profile', {}).get('test') and r.get('executable')]
+          if len(paths) != 1:
+              raise SystemExit(f'expected one engine test executable, found {len(paths)}')
+          path = paths[0]
+          digest = hashlib.sha256()
+          with path.open('rb') as stream:
+              for block in iter(lambda: stream.read(1024 * 1024), b''):
+                  digest.update(block)
+          size = path.stat().st_size
+          print(f'engine_test_bytes={size}')
+          print(f'engine_test_sha256={digest.hexdigest()}')
+          print(f'exceeds_control_image_limit={size > 512 * 1024 * 1024}')
+          PY
