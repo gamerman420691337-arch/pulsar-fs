@@ -1364,7 +1364,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards. A separate read-only 100-scene page contained two distinct file IDs per scene and no exact lexical server-side sidecar collisions within a scene; local mapping, all remaining pages and publication semantics are unverified. A bounded non-atomic same-host metadata sample found 100 pairs refer to the same inode with one symlink path; this does not authorize symlink capture or settle file-selection policy. A separate non-atomic metadata sample observed ancestor-directory symlinks with absolute targets; keep no-follow capture and recheck any alias identity without retaining paths. Installed schema exposes Scene.interactive and Scene.paths.funscript, but schema introspection alone does not prove file-specific attachment for multifile scenes.",
+      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards. A separate read-only 100-scene page contained two distinct file IDs per scene and no exact lexical server-side sidecar collisions within a scene; local mapping, all remaining pages and publication semantics are unverified. A bounded non-atomic same-host metadata sample found 100 pairs refer to the same inode with one symlink path; this does not authorize symlink capture or settle file-selection policy. A separate non-atomic metadata sample observed ancestor-directory symlinks with absolute targets; keep no-follow capture and recheck any alias identity without retaining paths. Installed schema exposes Scene.interactive and Scene.paths.funscript, but schema introspection alone does not prove file-specific attachment for multifile scenes. Installed Scene schema exposes no primary-named field; schema alone does not establish file order or selected-file attachment.",
       "evidence": [
         "EV-STASH-INSTALLED-VERSION-PREFLIGHT",
         "EV-STASH-INSTALLED-DISCOVERY",
@@ -1374,7 +1374,8 @@
         "EV-STASH-INSTALLED-FILE-SHAPE-CLARIFIED",
         "EV-STASH-INSTALLED-ALIAS-SAMPLE",
         "EV-STASH-INSTALLED-ALIAS-SHAPE",
-        "EV-STASH-INSTALLED-SCHEMA"
+        "EV-STASH-INSTALLED-SCHEMA",
+        "EV-STASH-PRIMARY-SCHEMA"
       ]
     },
     {
@@ -10076,6 +10077,53 @@
         {
           "pointer": [
             "file_specific_attachment_proven"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "library_content_retained"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_attempted"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-PRIMARY-SCHEMA",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-installed-primary-schema-001/verification.json",
+      "sha256": "a1507c430c8a2026f7c341ac57a4ac8ae4cd0783d724ae9074a44dca4f276b48",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Installed Stash Scene type exposes no field whose name contains primary. This schema check does not prove file ordering, identify the selected file, or establish how scripts attach. No scene data or credentials retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "OBSERVED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "scene_primary_field_count"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "file_order_primary_proven"
           ],
           "equals": false
         },
