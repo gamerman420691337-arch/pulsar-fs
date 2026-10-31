@@ -162,10 +162,10 @@ fn transaction_checkpoints_and_lock<J: Serialize + DeserializeOwned, T>(
         held: true,
     };
     let lock_matches = || -> Result<()> {
-        let held = lock.metadata()?;
+        let held = rustix::fs::fstat(&lock)?;
         let named = statat(&dir, &lock_name, AtFlags::SYMLINK_NOFOLLOW)?;
         ensure!(
-            held.ino() == named.st_ino && held.dev() == named.st_dev,
+            held.st_ino == named.st_ino && held.st_dev == named.st_dev,
             "Recovery lock identity changed"
         );
         Ok(())

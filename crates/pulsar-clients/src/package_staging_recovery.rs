@@ -98,9 +98,9 @@ fn private_regular(file: &File, limit: u64) -> Result<()> {
 }
 fn named_matches(parent: &File, name: &OsStr, file: &File) -> Result<()> {
     let named = statat(parent, name, AtFlags::SYMLINK_NOFOLLOW)?;
-    let held = file.metadata()?;
+    let held = rustix::fs::fstat(file)?;
     ensure!(
-        named.st_dev == held.dev() && named.st_ino == held.ino(),
+        named.st_dev == held.st_dev && named.st_ino == held.st_ino,
         "Download recovery member was replaced"
     );
     Ok(())
