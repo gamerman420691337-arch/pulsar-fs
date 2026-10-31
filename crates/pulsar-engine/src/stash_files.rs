@@ -107,6 +107,38 @@ fn inspect(scene: &StashScene, mappings: &[StashRootMapping]) -> StashFilePlan {
     result
 }
 
+// Explicit selection is separate from automatic planning. Multiple records with
+// the same ID remain ambiguous, and the selected path still uses no-follow IO.
+fn inspect_selected(
+    scene: &StashScene,
+    file_id: &str,
+    mappings: &[StashRootMapping],
+) -> StashFilePlan {
+    if scene.interactive {
+        return inspect(scene, mappings);
+    }
+    let mut seen = std::collections::HashSet::new();
+    if scene.files.iter().any(|file| !seen.insert(&file.id)) {
+        let mut ambiguous = scene.clone();
+        ambiguous.files.clear();
+        return inspect(&ambiguous, mappings);
+    }
+    let mut matching = scene.files.iter().filter(|file| file.id == file_id);
+    let Some(file) = matching.next() else {
+        let mut ambiguous = scene.clone();
+        ambiguous.files.clear();
+        return inspect(&ambiguous, mappings);
+    };
+    if matching.next().is_some() {
+        let mut ambiguous = scene.clone();
+        ambiguous.files.clear();
+        return inspect(&ambiguous, mappings);
+    }
+    let mut selected = scene.clone();
+    selected.files = vec![file.clone()];
+    inspect(&selected, mappings)
+}
+
 /// Walk from the filesystem root with directory descriptors. O_NOFOLLOW is
 /// applied to every component, not just the final source. Existing dangling
 /// symlinks and special entries at the destination also block generation.
@@ -219,6 +251,7 @@ fn open_parent(path: &Path) -> Result<std::fs::File, StashFileStatus> {
 #[cfg(unix)]
 pub(crate) fn capture(
     scene: &StashScene,
+    explicit_file_id: Option<&str>,
     mappings: &[StashRootMapping],
     snapshots: &Path,
     max_bytes: u64,
@@ -232,7 +265,10 @@ pub(crate) fn capture(
     for mapping in mappings {
         mapping.validate()?;
     }
-    let plan = inspect(scene, mappings);
+    let plan = match explicit_file_id {
+        Some(file_id) => inspect_selected(scene, file_id, mappings),
+        None => inspect(scene, mappings),
+    };
     if plan.status != StashFileStatus::ReadyForSnapshot {
         return Err(ProtocolError::new(
             ErrorCode::RequestConflict,
@@ -331,6 +367,61 @@ mod tests {
             StashFileStatus::AlreadyInteractive
         );
     }
+    #[test]
+    fn explicit_multifile_selection_requires_one_id_and_preserves_no_follow() {
+        let temp = tempfile::tempdir().unwrap();
+        let real = temp.path().join("real");
+        fs::create_dir(&real).unwrap();
+        fs::write(real.join("video.mp4"), b"sterile fixture").unwrap();
+        symlink(&real, temp.path().join("alias")).unwrap();
+        let mapping = root(temp.path());
+        let mut source = scene("/server/media/real/video.mp4");
+        source.files.push(StashVideoFile {
+            id: "alias".into(),
+            path: "/server/media/alias/video.mp4".into(),
+        });
+        assert_eq!(
+            inspect(&source, std::slice::from_ref(&mapping)).status,
+            StashFileStatus::AmbiguousFiles
+        );
+        let selected = inspect_selected(&source, "file", std::slice::from_ref(&mapping));
+        assert_eq!(selected.status, StashFileStatus::ReadyForSnapshot);
+        assert_eq!(selected.file_id.as_deref(), Some("file"));
+        fs::write(real.join("video.funscript"), b"existing").unwrap();
+        assert_eq!(
+            inspect_selected(&source, "file", std::slice::from_ref(&mapping)).status,
+            StashFileStatus::ExistingScript
+        );
+        fs::remove_file(real.join("video.funscript")).unwrap();
+        assert_eq!(
+            inspect_selected(
+                &scene("/server/media/real/video.mp4"),
+                "missing",
+                std::slice::from_ref(&mapping)
+            )
+            .status,
+            StashFileStatus::AmbiguousFiles
+        );
+        assert_eq!(
+            inspect_selected(&source, "alias", std::slice::from_ref(&mapping)).status,
+            StashFileStatus::UnsafePath
+        );
+        assert_eq!(
+            inspect_selected(&source, "missing", std::slice::from_ref(&mapping)).status,
+            StashFileStatus::AmbiguousFiles
+        );
+        source.files.push(source.files[0].clone());
+        assert_eq!(
+            inspect_selected(&source, "file", std::slice::from_ref(&mapping)).status,
+            StashFileStatus::AmbiguousFiles
+        );
+        source.interactive = true;
+        assert_eq!(
+            inspect_selected(&source, "file", &[mapping]).status,
+            StashFileStatus::AlreadyInteractive
+        );
+    }
+
     #[test]
     fn stale_interactive_false_cannot_bypass_existing_or_unsafe_host_entries() {
         let temp = tempfile::tempdir().unwrap();

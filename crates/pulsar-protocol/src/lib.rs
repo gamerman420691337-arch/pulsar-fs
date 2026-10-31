@@ -1155,10 +1155,18 @@ impl Request {
                 scene_id,
                 file_id,
                 expected_server_path,
+                allow_multifile_selection,
                 mappings,
                 owner_proof,
                 ..
             } => {
+                if *allow_multifile_selection == Some(false)
+                    || (allow_multifile_selection.is_some() && expected_server_path.is_none())
+                {
+                    return Err(ProtocolError::invalid(
+                        "explicit multifile selection requires true and an expected server path",
+                    ));
+                }
                 if let Some(path) = expected_server_path {
                     bounded_text(path, 8192, "expected Stash server path")?;
                 }
@@ -2795,6 +2803,9 @@ pub enum Command {
         expected_server_path: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         expected_source_version: Option<SourceVersionId>,
+        /// Explicitly select a file from a multifile scene; never automatic.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        allow_multifile_selection: Option<bool>,
         mappings: Vec<StashRootMapping>,
         owner_proof: String,
     },
