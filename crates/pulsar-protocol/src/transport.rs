@@ -268,6 +268,20 @@ mod endpoint_tests {
     use super::*;
     #[cfg(unix)]
     #[test]
+    fn deadline_stream_reads_buffered_reply_after_peer_closes() {
+        use std::os::unix::net::UnixStream;
+        let (client, mut server) = UnixStream::pair().unwrap();
+        server.write_all(b"reply").unwrap();
+        drop(server);
+        let mut stream = LocalStream::UdSocket(client.into());
+        let mut bounded = DeadlineStream::new(&mut stream, Instant::now() + Duration::from_secs(2));
+        let mut response = [0; 5];
+        bounded.read_exact(&mut response).unwrap();
+        assert_eq!(&response, b"reply");
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn unix_local_connection_is_bounded_verified_and_bidirectional() {
         use std::os::unix::net::UnixListener;
         struct Directory(std::path::PathBuf);
