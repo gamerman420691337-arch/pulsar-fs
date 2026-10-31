@@ -345,7 +345,8 @@ mod captured_cpu_browser_native_tests {
                 engine_epoch: limits.engine_epoch.clone(),
                 options,
             },
-        )? else {
+        )?
+        else {
             bail!("native image preparation start missing")
         };
         let operation = started.report.intent.operation_id.clone();
@@ -356,7 +357,8 @@ mod captured_cpu_browser_native_tests {
                 Command::NativeImagePreparationStatus {
                     operation_id: operation.clone(),
                 },
-            )? else {
+            )?
+            else {
                 bail!("native image preparation status missing")
             };
             status.report.validate()?;
@@ -365,7 +367,8 @@ mod captured_cpu_browser_native_tests {
             }
             ensure!(
                 !status.report.state.is_terminal() && Instant::now() < deadline,
-                "native image preparation failed or timed out: {:?}", status.report
+                "native image preparation failed or timed out: {:?}",
+                status.report
             );
             std::thread::park_timeout(Duration::from_millis(25));
         }
@@ -639,7 +642,8 @@ mod captured_cpu_browser_native_tests {
                         .context("CPU owner absent")?
                         .image()?
                         .identity()?
-                && actual.stream.budget.wall_time_ms == u64::from(LEASE_MS)
+                && actual.stream.budget.wall_time_ms == u64::from(original.options.lease_ms)
+                && original.options.lease_ms <= LEASE_MS
                 && current.options.policy.maximum_analysis_age_ns == MAX_AGE_NS,
             "original captured image/worker/budget differs"
         );
@@ -801,7 +805,9 @@ mod captured_cpu_browser_native_tests {
                         && !latest.qualified
                         && latest.capture_tick == new.capture_tick
                         && latest.capture_to_analysis_ns <= MAX_AGE_NS,
-                    "original 200ms freshness or unqualified status differs"
+                    "original 200ms freshness or unqualified status differs: fresh={}, qualified={}, estimate_tick={:?}, frame_tick={:?}, capture_to_analysis_ns={}, limit_ns={}",
+                    latest.fresh, latest.qualified, latest.capture_tick, new.capture_tick,
+                    latest.capture_to_analysis_ns, MAX_AGE_NS
                 );
                 captured_manifest(original)?.validate_estimated(&expected, &latest.result)?;
                 let LiveInferenceReply::CapturedCpuEstimated { position, .. } = &latest.result
@@ -1576,9 +1582,13 @@ mod captured_cpu_browser_native_tests {
         let fixture_directory = directory.path().to_path_buf();
         let mut engine: Option<Arc<Engine>> = None;
         let mut cuda_timing_entries = 0;
+        #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+        let mut release_preparation: Option<Request> = None;
+        #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+        let mut discard_recording: Option<Request> = None;
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<Value> {
             #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
-            let cuda = if mode == "browser_cuda_handover" {
+            let cuda = if matches!(mode, "browser_cuda_handover" | "browser_cuda_recording") {
                 Some(CudaHandoverInputs::load(inputs)?)
             } else {
                 None
@@ -1596,22 +1606,36 @@ mod captured_cpu_browser_native_tests {
             let client = Client::new(engine.as_ref().unwrap())?;
             place_media(&client, inputs)?;
             #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
-            let preparation = if mode == "browser_cuda_handover" {
+            let preparation = if matches!(mode, "browser_cuda_handover" | "browser_cuda_recording")
+            {
                 Some(prepare_native_image(&client)?)
             } else {
                 None
             };
+            #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+            if let Some(prepared) = &preparation {
+                release_preparation = Some(client.intent(
+                    Some(1),
+                    Command::ReleaseNativeImagePreparation {
+                        operation_id: prepared.report.intent.operation_id.clone(),
+                    },
+                ));
+            }
             let media = prepare_media(&client)?;
             let original = client.snapshot()?;
             #[cfg(target_arch = "x86_64")]
             let fallback = if mode == "browser_fallback_admission" {
                 Some(browser_fallback_fixture(&client, inputs, &media)?)
-            } else if mode == "browser_cuda_handover" {
+            } else if matches!(mode, "browser_cuda_handover" | "browser_cuda_recording") {
                 #[cfg(feature = "cuda")]
                 {
                     let profiles = cuda.as_ref().context("CUDA profiles absent")?;
                     Some(browser_fallback_fixture_for_profiles(
-                        &client, inputs, &media, &profiles.from, &profiles.to,
+                        &client,
+                        inputs,
+                        &media,
+                        &profiles.from,
+                        &profiles.to,
                     )?)
                 }
                 #[cfg(not(feature = "cuda"))]
@@ -1628,19 +1652,22 @@ mod captured_cpu_browser_native_tests {
                     Command::NativeImagePreparationStatus {
                         operation_id: prepared.report.intent.operation_id.clone(),
                     },
-                )? else {
+                )?
+                else {
                     bail!("native image pre-capture status missing")
                 };
                 ensure!(
-                    status.report.state == NativeImagePreparationState::Retained && status.available,
-                    "native image unavailable before live timing: {:?}", status.report
+                    status.report.state == NativeImagePreparationState::Retained
+                        && status.available,
+                    "native image unavailable before live timing: {:?}",
+                    status.report
                 );
                 Some(*status)
             } else {
                 None
             };
             let mut player = AuthoredPlayer::open(&client, &media)?;
-            if mode == "browser_cuda_handover" {
+            if matches!(mode, "browser_cuda_handover" | "browser_cuda_recording") {
                 cuda_timing_entries = 1;
             }
             let mut value = match mode {
@@ -1657,13 +1684,15 @@ mod captured_cpu_browser_native_tests {
                     fallback.as_ref().expect("selected fixture"),
                 )?,
                 #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
-                "browser_cuda_handover" => browser_cuda_handover(
+                "browser_cuda_handover" | "browser_cuda_recording" => browser_cuda_handover(
                     &client,
                     inputs,
                     &media,
                     &mut player,
                     fallback.as_ref().expect("selected fixture"),
                     cuda.as_ref().expect("CUDA profiles"),
+                    mode == "browser_cuda_recording",
+                    &mut discard_recording,
                 )?,
                 _ => bail!("unknown browser campaign case"),
             };
@@ -1676,9 +1705,7 @@ mod captured_cpu_browser_native_tests {
             value["committed_motion_unchanged"] = json!(true);
             #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
             if let Some(preparation) = preparation {
-                let operation_id = preparation.report.intent.operation_id.clone();
                 value["native_image_preparation"] = json!(preparation);
-                client.call(Some(1), Command::ReleaseNativeImagePreparation { operation_id })?;
             }
             #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
             if let Some(cuda) = &cuda {
@@ -1686,6 +1713,30 @@ mod captured_cpu_browser_native_tests {
             }
             Ok(value)
         }));
+        #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+        let recording_discard_error = discard_recording.and_then(|request| {
+            engine
+                .as_ref()
+                .expect("recording requires engine")
+                .handle(request)
+                .result
+                .err()
+                .map(|error| format!("{error:#}"))
+        });
+        #[cfg(not(all(target_arch = "x86_64", feature = "cuda")))]
+        let recording_discard_error: Option<String> = None;
+        #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+        let preparation_release_error = release_preparation.and_then(|request| {
+            engine
+                .as_ref()
+                .expect("preparation requires engine")
+                .handle(request)
+                .result
+                .err()
+                .map(|error| format!("{error:#}"))
+        });
+        #[cfg(not(all(target_arch = "x86_64", feature = "cuda")))]
+        let preparation_release_error: Option<String> = None;
         let shutdown = engine
             .as_ref()
             .map(|engine| engine.finish_shutdown())
@@ -1698,7 +1749,7 @@ mod captured_cpu_browser_native_tests {
             "clean_input_eof" => 1,
             "prepared_successor_transfer" => 2,
             "browser_fallback_admission" => 2,
-            "browser_cuda_handover" => cuda_timing_entries,
+            "browser_cuda_handover" | "browser_cuda_recording" => cuda_timing_entries,
             _ => 0,
         };
         let worker_custody = engine
@@ -1734,7 +1785,11 @@ mod captured_cpu_browser_native_tests {
             })
             .transpose();
         // Owner destruction must not hide a failed pre-drop worker/byte proof.
-        let joined = shutdown.is_ok() && worker_custody.is_ok() && all_resources.is_ok();
+        let joined = recording_discard_error.is_none()
+            && preparation_release_error.is_none()
+            && shutdown.is_ok()
+            && worker_custody.is_ok()
+            && all_resources.is_ok();
         let custody_after_engine_drop = pool_observer.as_ref().map(|(pool, maximum, engine)| {
             json!({"atomic_snapshot":false,"observation":"after_original_engine_owner_drop",
                 "engine_strong_count":engine.strong_count(),"pool":custody_pool_diagnostic(pool,*maximum),
@@ -1770,6 +1825,8 @@ mod captured_cpu_browser_native_tests {
         value["private_state_removed"] = json!(removed);
         value["retained_scratch"] = json!(retained);
         value["shutdown_error"] = json!(shutdown.err().map(|error| format!("{error:#}")));
+        value["preparation_release_error"] = json!(preparation_release_error);
+        value["recording_discard_error"] = json!(recording_discard_error);
         value["worker_custody_error"] =
             json!(worker_custody.err().map(|error| format!("{error:#}")));
         value["metadata_custody_error"] =
