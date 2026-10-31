@@ -30,9 +30,9 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
-    "scope": "Current-source rendered sterile recording/export under 200ms policy inspected all 397 accepted samples, retained four gaps until explicit authored repair, and matched the 401-action download to the committed master. Browser required SIGKILL at workspace teardown; no independent qualification.",
-    "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Earlier 420s cleanup and native freshness failures remain unresolved. Latest player and engine exited 0, but the browser was force-stopped during teardown. All 25 acceptance gates remain open.",
+    "scope": "CLI undo, redo and candidate rebase passed actual isolated synthetic campaigns including restart/replay and owner-authorized protection undo/redo. Reduced-authority and rendered-desktop scenarios remain open.",
+    "active_work": "CLIENT-CORRECTNESS",
+    "failure_summary": "Earlier timing failures and all qualification gates remain open; CLI protection scenario exercised owner authority only.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -153,6 +153,14 @@
       {
         "path": "docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md",
         "sha256": "6583cf7250eb1fb9d121d7e04a9bc539f0bdf66b178ab6836262843695f2440b"
+      },
+      {
+        "path": "crates/pulsar-clients/src/cli.rs",
+        "sha256": "e4ae4308b6c9d8c70d51e64c2f941bb9e117701673fcdf810bfa829f2280114b"
+      },
+      {
+        "path": "crates/pulsar-clients/src/lib.rs",
+        "sha256": "9dde8474d1fd57c9ff8d83b5022ef954150b71d794c155129a72a944cbebfe33"
       }
     ]
   },
@@ -1209,7 +1217,10 @@
         "EV-CUDA-FIXTURE-PORTABILITY",
         "EV-CUDA-FIXTURE-CHECKS",
         "EV-HSP-READINESS",
-        "EV-FALLBACK-PACKAGE-BARRIER"
+        "EV-FALLBACK-PACKAGE-BARRIER",
+        "EV-CLI-HISTORY-NATIVE",
+        "EV-CLI-HISTORY-RESTART",
+        "EV-CLI-HISTORY-PROTECTION"
       ]
     },
     {
@@ -7074,6 +7085,147 @@
             "previous_timing_failure_cause_resolved"
           ],
           "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-CLI-HISTORY-NATIVE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cli-history/result-001.json",
+      "sha256": "f3cb7357c3b6e3212335d456f75c043d7f2b03aa24a29c677a2075b78dccf432",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Current isolated actual CLI/SessionClient/Engine synthetic pattern campaign verified stale candidate refusal, explicit rebase, undo exact request replay without double application, redo restoration and stale undo refusal. Engine exited 0. This does not cover protected-region changes, CLI restart replay, desktop rendering, real media, device or qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "stale_candidate_refused"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "undo_replayed_once"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "redo_restored_program"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "stale_undo_refused"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-CLI-HISTORY-RESTART",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cli-history/result-002.json",
+      "sha256": "58e48498ab2acaca729097761919ed7ab07b597f9c8b22f70ffef09c6982d7c1",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Actual isolated synthetic CLI/SessionClient/Engine repeat verified stale candidate refusal, rebase, undo/redo, retained final program after Engine restart, exact old undo replay without mutation and refusal of changed arguments under the same request ID. Engine exited 0. Protected-region behavior, rendered desktop, real media and all device/human/release qualifications remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "restart_preserved_final"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "post_restart_exact_replay_no_mutation"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "changed_request_refused"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-CLI-HISTORY-PROTECTION",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cli-history/result-003.json",
+      "sha256": "e3e289e5c0b4d85675fdb0a19bc0c2cb6ee0f71104499b0f709a6ee2a45c7483",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Synthetic actual CLI/Engine campaign additionally used owner ManageProtection authority to set one Stroke region, undo that policy change and redo it, verifying exact protection restoration at revision 6. Exact replay/restart checks also passed. No reduced-authority, rendered desktop, real-media, device or human qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "protection_undo_redo_restored"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "protected_final_revision"
+          ],
+          "equals": 6
         }
       ]
     }
