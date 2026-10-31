@@ -61,24 +61,24 @@ pub(crate) fn export_new(
     platform::export_new(destination, authorization, entries)
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
 mod platform {
     use super::*;
     use anyhow::bail;
     #[derive(Clone, Debug)]
     pub(super) struct EntryBinding;
     pub(super) fn load_entry(_: &Path, _: ReferenceEntryInput) -> Result<ReferenceEntry> {
-        bail!("Descriptor-bound reference intake is currently implemented only on Linux")
+        bail!("Descriptor-bound reference intake is currently implemented only on Linux and macOS")
     }
     pub(super) fn load_set(_: &Path) -> Result<(String, Vec<ReferenceEntry>)> {
-        bail!("Descriptor-bound reference intake is currently implemented only on Linux")
+        bail!("Descriptor-bound reference intake is currently implemented only on Linux and macOS")
     }
     pub(super) fn export_new(_: &Path, _: &str, _: &[ReferenceEntry]) -> Result<PathBuf> {
         bail!("Atomic no-replace reference publication is unavailable on this platform")
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 mod platform {
     use super::*;
     use anyhow::{bail, ensure, Context};
@@ -99,6 +99,13 @@ mod platform {
         path::Component,
         time::{Duration, Instant},
     };
+
+    fn stat_device_id(stat: &rustix::fs::Stat) -> u64 {
+        #[cfg(target_os = "linux")]
+        { stat.st_dev }
+        #[cfg(target_os = "macos")]
+        { stat.st_dev as u64 }
+    }
 
     const JSON_LIMIT: u64 = 8 * 1024 * 1024;
     const VIEW_LIMIT: u64 = 4096;
@@ -204,11 +211,17 @@ mod platform {
 
     struct Directory {
         path: PathBuf,
+        declared_path: PathBuf,
         file: File,
     }
     impl Directory {
         fn open(path: &Path, live_root: bool) -> Result<Self> {
             no_parent(path)?;
+            let declared_path = if path.is_absolute() {
+                path.to_path_buf()
+            } else {
+                std::env::current_dir()?.join(path)
+            };
             let path = path.canonicalize().context("Resolve reference directory")?;
             no_parent(&path)?;
             if live_root {
@@ -219,7 +232,7 @@ mod platform {
                 OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
                 Mode::empty(),
             )?);
-            let result = Self { path, file };
+            let result = Self { path, declared_path, file };
             result.check_name()?;
             Ok(result)
         }
@@ -229,12 +242,16 @@ mod platform {
         }
         fn check_name(&self) -> Result<()> {
             let current = fs::symlink_metadata(&self.path)?;
+            let declared = fs::metadata(&self.declared_path)?;
             let held = self.file.metadata()?;
             ensure!(
                 current.is_dir()
                     && !current.file_type().is_symlink()
                     && current.dev() == held.dev()
-                    && current.ino() == held.ino(),
+                    && current.ino() == held.ino()
+                    && declared.is_dir()
+                    && declared.dev() == held.dev()
+                    && declared.ino() == held.ino(),
                 "Reference directory was replaced or renamed"
             );
             Ok(())
@@ -243,6 +260,7 @@ mod platform {
             no_parent(path)?;
             let relative = if path.is_absolute() {
                 path.strip_prefix(&self.path)
+                    .or_else(|_| path.strip_prefix(&self.declared_path))
                     .context("Input path escapes the declared reference root")?
             } else {
                 path
@@ -1063,7 +1081,7 @@ mod platform {
             let named = statat(&self.parent.file, name, AtFlags::SYMLINK_NOFOLLOW)?;
             let held = self.directory.metadata()?;
             ensure!(
-                held.dev() == named.st_dev && held.ino() == named.st_ino,
+                held.dev() == stat_device_id(&named) && held.ino() == named.st_ino,
                 "Reference publication directory was replaced or renamed"
             );
             ensure!(
@@ -1137,7 +1155,7 @@ mod platform {
                     metadata.is_file()
                         && metadata.nlink() == 1
                         && metadata.mode() & 0o077 == 0
-                        && metadata.dev() == named.st_dev
+                        && metadata.dev() == stat_device_id(&named)
                         && metadata.ino() == named.st_ino
                         && Fingerprint::new(&metadata) == member.fingerprint,
                     "Reference staging member changed after writing"
@@ -1215,7 +1233,7 @@ mod platform {
                     member.file.metadata(),
                 ) {
                     if Fingerprint::new(&held) == member.fingerprint
-                        && named.st_dev == held.dev()
+                        && stat_device_id(&named) == held.dev()
                         && named.st_ino == held.ino()
                     {
                         let _ = rustix::fs::unlinkat(
@@ -1352,6 +1370,21 @@ mod platform {
             ] {
                 assert!(parse_reference(raw.as_bytes()).is_err(), "{raw}");
             }
+        }
+
+        #[test]
+        fn declared_root_alias_accepts_contained_absolute_path_and_detects_replacement() {
+            let fixture = Fixture::new();
+            let alias = fixture.directory.path().join("root-alias");
+            std::os::unix::fs::symlink(fixture.directory.path(), &alias).unwrap();
+            let declared = alias.join("Live-Reference");
+            let root = Directory::open(&declared, true).unwrap();
+            assert_eq!(root.relative(&declared.join("source.bin")).unwrap(), PathBuf::from("source.bin"));
+            let replacement = fixture.directory.path().join("replacement");
+            fs::create_dir_all(replacement.join("Live-Reference")).unwrap();
+            fs::remove_file(&alias).unwrap();
+            std::os::unix::fs::symlink(&replacement, &alias).unwrap();
+            assert!(root.check_name().is_err());
         }
 
         #[test]
