@@ -1284,7 +1284,8 @@
         "EV-RENDERED-TIMING-TRACE",
         "EV-RENDERED-TIMING-FILE-TRACE",
         "EV-TIMING-TRANSPORT-PHASE",
-        "EV-RENDERED-SOCKET-TRACE"
+        "EV-RENDERED-SOCKET-TRACE",
+        "EV-SOCKET-TRACE-RECOVERY"
       ]
     },
     {
@@ -11253,6 +11254,47 @@
         {
           "pointer": [
             "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-SOCKET-TRACE-RECOVERY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-first-failure-001/socket-trace-recovery-20261031.json",
+      "sha256": "18de2c911038c21cc146333f025af854ce98ed44608b9109a95290c60cd4c27c",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Owned test Engine restarted after forced termination, accepted its local socket and exited normally. The recovered fence roster has no groups, retired records or creation records, and lsof reported no open state handles; independent historic worker custody remains unproven and scratch retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "recovery_engine_socket_accepted"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "recovery_engine_exit_code"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "creation_records"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "independent_historical_custody_proven"
           ],
           "equals": false
         }
