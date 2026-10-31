@@ -1350,14 +1350,15 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards. A separate read-only 100-scene page contained two distinct file IDs per scene and no exact lexical server-side sidecar collisions within a scene; local mapping, all remaining pages and publication semantics are unverified.",
+      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards. A separate read-only 100-scene page contained two distinct file IDs per scene and no exact lexical server-side sidecar collisions within a scene; local mapping, all remaining pages and publication semantics are unverified. A bounded non-atomic same-host metadata sample found 100 pairs refer to the same inode with one symlink path; this does not authorize symlink capture or settle file-selection policy.",
       "evidence": [
         "EV-STASH-INSTALLED-VERSION-PREFLIGHT",
         "EV-STASH-INSTALLED-DISCOVERY",
         "EV-STASH-INSTALLED-AMBIGUOUS-PLAN",
         "EV-STASH-INSTALLED-MULTIFILE-SAMPLE",
         "EV-STASH-INSTALLED-FILE-SHAPE",
-        "EV-STASH-INSTALLED-FILE-SHAPE-CLARIFIED"
+        "EV-STASH-INSTALLED-FILE-SHAPE-CLARIFIED",
+        "EV-STASH-INSTALLED-ALIAS-SAMPLE"
       ]
     },
     {
@@ -9707,6 +9708,95 @@
         {
           "pointer": [
             "publication_attempted"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-INSTALLED-ALIAS-SAMPLE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-installed-alias-sample-001/verification.json",
+      "sha256": "e8b4ded33941013b040eedff0e917f4fcfaa5daeb460728f625d0bb8f386e843",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "One bounded read-only Stash GraphQL page and non-atomic filesystem metadata observation: each of 100 two-ID scenes had one no-symlink path and one path with a symlink component, both resolving to the same regular-file device and inode in the observed Stash and local mount namespace. This does not authorize following symlinks for capture, choose a Stash file, prove a durable mapping, establish all pages, or qualify publication. No names, IDs, paths or media bytes retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "OBSERVED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "sample_scenes"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "same_inode_one_symlink_path"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "same_mount_namespace"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "atomic_snapshot"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "symlinks_followed_for_metadata_only"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "media_bytes_read"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "library_content_retained"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_attempted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "actual_path_mapping_verified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "full_library_exhaustion_checked"
           ],
           "equals": false
         }
