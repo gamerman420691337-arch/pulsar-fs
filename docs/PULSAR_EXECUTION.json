@@ -29,8 +29,8 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
-    "scope": "Source cleanup failure now records only allowlisted stage, category and protocol code; focused red/green tests and browser-live tests passed. Historical cleanup cause remains unknown; wider verification pending.",
+    "evidence": "EV-SOURCE-CLEANUP-CLIENT-SUITE",
+    "scope": "Source cleanup diagnostics passed focused red/green tests and the full client library suite (712 passed, 15 ignored). Historical cleanup cause remains unknown; platform CI and native reproduction remain pending.",
     "active_work": "BROWSER-DEMO",
     "failure_summary": "Diagnostic source cleanup and Engine forced-stop counterevidence remain unresolved; new diagnostics do not retroactively establish cause. All qualification gates remain open.",
     "source_stamp": [
@@ -8015,6 +8015,47 @@
             "tests"
           ],
           "equals": 2
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-SOURCE-CLEANUP-CLIENT-SUITE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-diagnostic-001/client-suite-verification.json",
+      "sha256": "f164e274b35599312fdcb1f0900b8b4f9ccf26d1e55f3fd731dc158041c34fd8",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Client library suite on the diagnostic source: 712 passed, 15 ignored; this does not resolve the historical cleanup failure or qualify a device.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "passed_tests"
+          ],
+          "equals": 712
+        },
+        {
+          "pointer": [
+            "ignored_tests"
+          ],
+          "equals": 15
         },
         {
           "pointer": [
