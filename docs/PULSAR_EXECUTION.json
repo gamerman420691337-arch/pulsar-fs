@@ -1226,7 +1226,8 @@
         "EV-SOURCE-CLEANUP-DIAGNOSTIC-GREEN",
         "EV-SOURCE-CLEANUP-CLIENT-SUITE",
         "EV-SOURCE-CLEANUP-RENDERED",
-        "EV-SOURCE-CLEANUP-CUSTODY-OBSERVATION"
+        "EV-SOURCE-CLEANUP-CUSTODY-OBSERVATION",
+        "EV-LOCAL-ENGINE-COMPILE-TIMEOUT"
       ]
     },
     {
@@ -8151,6 +8152,35 @@
         {
           "pointer": [
             "historical_custody_verified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-LOCAL-ENGINE-COMPILE-TIMEOUT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-rendered-001/local-engine-compile-timeout.json",
+      "sha256": "1ad74a98b0a9c5500e032564d9980aaacb30744f2a20c8a46c99853905008c01",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Local focused Engine test did not run; compilation exceeded the command timeout. This is not a test result.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "test_executed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "exit_code"
+          ],
+          "equals": 124
+        },
+        {
+          "pointer": [
+            "qualified"
           ],
           "equals": false
         }
