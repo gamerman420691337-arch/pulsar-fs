@@ -29,8 +29,8 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-SOURCE-CLEANUP-RENDERED",
-    "scope": "One diagnostic-build sterile browser run stopped on seek, resumed explicitly, reported source release and exited cleanly; 712 client tests passed (15 ignored). Historical cleanup cause and independent worker custody remain unproven.",
+    "evidence": "EV-SOURCE-CLEANUP-LATER-ATTEMPT",
+    "scope": "The first failed source release remains reported and a local-socket test confirms the later release is attempted; 714 client tests passed (15 ignored). Historic cleanup cause and custody remain unproven.",
     "active_work": "BROWSER-DEMO",
     "failure_summary": "Diagnostic source cleanup and Engine forced-stop counterevidence remain unresolved; new diagnostics do not retroactively establish cause. All qualification gates remain open.",
     "source_stamp": [
@@ -176,11 +176,11 @@
       },
       {
         "path": "crates/pulsar-clients/src/browser_source_media.rs",
-        "sha256": "5b144292477057533ba5452f6303eb9b58196451293d39ecbbbe1678f2ed43b4"
+        "sha256": "76f873f070964f8b62033a3380e3a5dd12843c3c367aa39d43d3d46c687a53bf"
       },
       {
         "path": "crates/pulsar-clients/src/browser_source_media_tests.rs",
-        "sha256": "2b4a335895e650ce75a281931725af54f6d48e230c8a8b11ddbf6ac805abab91"
+        "sha256": "0612d0df99741a56092196411716591f4623e2bf3b5668365a1f5494cad39fe0"
       }
     ]
   },
@@ -1227,7 +1227,10 @@
         "EV-SOURCE-CLEANUP-CLIENT-SUITE",
         "EV-SOURCE-CLEANUP-RENDERED",
         "EV-SOURCE-CLEANUP-CUSTODY-OBSERVATION",
-        "EV-LOCAL-ENGINE-COMPILE-TIMEOUT"
+        "EV-LOCAL-ENGINE-COMPILE-TIMEOUT",
+        "EV-SOURCE-CLEANUP-FIRST-FAILURE",
+        "EV-SOURCE-CLEANUP-LATER-ATTEMPT",
+        "EV-LOCAL-ENGINE-RETRY"
       ]
     },
     {
@@ -1280,7 +1283,7 @@
       "state": "open",
       "owner": "Codex",
       "depends_on": [],
-      "exit": "Localize retained startup/Ready and archive-cache stalls with bounded phase probes; establish a causal repair and regression without erasing earlier failures. Unchanged-binary semantic regressions now pass, while syscall tracing and an independent 4KiB write probe show variable SSD sync latency up to 11.138 seconds. That observation does not isolate startup-only cost, identify a particular competing workload, or close the original timeout. Preserve durability and original live bounds.",
+      "exit": "Localize retained startup/Ready and archive-cache stalls with bounded phase probes; establish a causal repair and regression without erasing earlier failures. Unchanged-binary semantic regressions now pass, while syscall tracing and an independent 4KiB write probe show variable SSD sync latency up to 11.138 seconds. That observation does not isolate startup-only cost, identify a particular competing workload, or close the original timeout. Preserve durability and original live bounds. Historical pinned-campaign reproduction now refuses before execution because two recorded system-library identities changed; locate exact historical bytes or establish a separately pinned current subject, without claiming equivalence. A separately pinned current-library run passed five native cases; original stall remains unexplained.",
       "evidence": [
         "EV-STARTUP",
         "EV-RUNTIME-CACHE-BUSY",
@@ -1293,7 +1296,10 @@
         "EV-FALLBACK-GRAPH-INTERCHANGE",
         "EV-STARTUP-IO-OBSERVATION",
         "EV-LIVE-RECORDING-FALLBACK",
-        "EV-LIVE-FALLBACK-SNAPSHOT"
+        "EV-LIVE-FALLBACK-SNAPSHOT",
+        "EV-STARTUP-PINNED-REPRO-REFUSAL",
+        "EV-STARTUP-REFUSAL-CORRECTED",
+        "EV-STARTUP-CURRENT-LIBRARIES"
       ]
     },
     {
@@ -8183,6 +8189,252 @@
             "qualified"
           ],
           "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-SOURCE-CLEANUP-FIRST-FAILURE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-first-failure-001/verification.json",
+      "sha256": "74350710e202d87b529e8e0153ed78e1629419b91b2d8445c500e3902b849cf2",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Red/green multiple-release diagnostic regression and full client library suite; does not resolve the historical cleanup cause or establish device qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "prior_historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "red_reproduced"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "focused_tests_passed"
+          ],
+          "equals": 3
+        },
+        {
+          "pointer": [
+            "full_tests_passed"
+          ],
+          "equals": 713
+        },
+        {
+          "pointer": [
+            "full_tests_ignored"
+          ],
+          "equals": 15
+        }
+      ]
+    },
+    {
+      "id": "EV-SOURCE-CLEANUP-LATER-ATTEMPT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-first-failure-001/attempt-verification.json",
+      "sha256": "3a273b2b1a53a53bf433f9cf46d1e9eeb7de2d3f81f88ede5aaf04973f1e874a",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Local-socket multiple-release test and full client suite, without historical or physical qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "second_release_attempt_verified"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "full_tests_passed"
+          ],
+          "equals": 714
+        },
+        {
+          "pointer": [
+            "full_tests_ignored"
+          ],
+          "equals": 15
+        }
+      ]
+    },
+    {
+      "id": "EV-LOCAL-ENGINE-RETRY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-rendered-001/local-engine-retry.json",
+      "sha256": "4e7b7d984936b48c1ba531d88e3d083381dc80e292ebf992cb6e692835f0d6e3",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "One focused Engine archive-reader test passed after the earlier local compilation timeout; both results remain retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "tests_passed"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "earlier_timeout_retained"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-STARTUP-PINNED-REPRO-REFUSAL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/repro-20261031-preflight/verification.json",
+      "sha256": "15981e729c9330ff56f59369583cd3f3f495b307d16def39bab6e31b9f620294",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Historical pinned native campaign stopped before test execution because original closure library bytes were unavailable at their recorded paths. This does not diagnose the startup stall.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "REFUSED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "startup_test_executed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "exit_code"
+          ],
+          "equals": 1
+        }
+      ]
+    },
+    {
+      "id": "EV-STARTUP-REFUSAL-CORRECTED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/repro-20261031-preflight/corrected-verification.json",
+      "sha256": "0c641bc5f13266fe9bbdd9c02771bbe627afd7f549b1d6e14ac8c95d2d3e6a19",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Corrected source-snapshot directory; historical pinned closure still refused because library bytes changed.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "REFUSED"
+        },
+        {
+          "pointer": [
+            "startup_test_executed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STARTUP-CURRENT-LIBRARIES",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/current-library-native-001/scoped-verification.json",
+      "sha256": "f9261729be8f56f206e090c91d3550741e53157b3513dc4e03c7723fd3610d03",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "One pinned current-library native startup campaign passed five cases; different library subject does not establish historical cause or acceptance.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "same_historical_library_subject"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "cases_passed"
+          ],
+          "equals": 5
+        },
+        {
+          "pointer": [
+            "total_cases"
+          ],
+          "equals": 5
+        },
+        {
+          "pointer": [
+            "owned_processes_retired"
+          ],
+          "equals": true
         }
       ]
     }
