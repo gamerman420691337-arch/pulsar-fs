@@ -290,12 +290,11 @@ mod tests {
         };
         let result = decode_frame_inner(&frame, || {
             std::fs::remove_file(&path).unwrap();
-            rustix::fs::mkfifoat(
-                rustix::fs::CWD,
-                &path,
-                rustix::fs::Mode::RUSR | rustix::fs::Mode::WUSR,
-            )
-            .unwrap();
+            assert!(std::process::Command::new("/usr/bin/mkfifo")
+                .arg(&path)
+                .status()
+                .unwrap()
+                .success());
         });
         assert!(
             result.is_err(),
