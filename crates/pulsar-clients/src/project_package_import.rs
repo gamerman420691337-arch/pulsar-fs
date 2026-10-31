@@ -1035,6 +1035,9 @@ mod socket_tests {
         loop {
             match listener.accept() {
                 Ok((stream, _)) => {
+                    // Accepted socket mode is platform-dependent; timed fixture I/O
+                    // must use blocking mode even when the listener polls.
+                    stream.set_nonblocking(false).unwrap();
                     stream
                         .set_read_timeout(Some(Duration::from_secs(2)))
                         .unwrap();
