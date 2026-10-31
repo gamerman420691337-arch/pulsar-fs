@@ -367,6 +367,28 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
             let mut client=SessionClient::connect(endpoint,bootstrap)?;
             print_response(client.execute_with_id(RequestId::new(request_id.unwrap_or_else(||uuid::Uuid::new_v4().to_string()))?,Command::CommitCandidate {candidate_id:CandidateId::new(candidate)?},Some(ProjectId::new(project)?),Some(RevisionId::new(revision)))?)
         },
+        Commands::Undo {project,revision,request_id} => {
+            let id = request_id.map(RequestId::new).transpose()?.unwrap_or_else(session::new_request_id);
+            let project = ProjectId::new(project)?;
+            eprintln!("History request ID: {id}");
+            let mut client = SessionClient::connect(endpoint,bootstrap)?;
+            print_response(client.execute_with_id(id,Command::Undo,Some(project),Some(RevisionId::new(revision)))?)
+        },
+        Commands::Redo {project,revision,request_id} => {
+            let id = request_id.map(RequestId::new).transpose()?.unwrap_or_else(session::new_request_id);
+            let project = ProjectId::new(project)?;
+            eprintln!("History request ID: {id}");
+            let mut client = SessionClient::connect(endpoint,bootstrap)?;
+            print_response(client.execute_with_id(id,Command::Redo,Some(project),Some(RevisionId::new(revision)))?)
+        },
+        Commands::RebaseCandidate {project,candidate,revision,request_id} => {
+            let id = request_id.map(RequestId::new).transpose()?.unwrap_or_else(session::new_request_id);
+            let project = ProjectId::new(project)?;
+            let candidate_id = CandidateId::new(candidate)?;
+            eprintln!("Rebase request ID: {id}");
+            let mut client = SessionClient::connect(endpoint,bootstrap)?;
+            print_response(client.execute_with_id(id,Command::RebaseCandidate {candidate_id},Some(project),Some(RevisionId::new(revision)))?)
+        },
         Commands::Protection {command:cli::ProtectionCommands::Status {project}} => {
             let mut client=SessionClient::connect(endpoint,bootstrap)?;modality::review(&mut client,&project,None,None)
         },
