@@ -148,11 +148,11 @@ impl<'a> DeadlineStream<'a> {
 impl Read for DeadlineStream<'_> {
     fn read(&mut self, bytes: &mut [u8]) -> io::Result<usize> {
         let remaining = self.remaining()?;
+        #[cfg(target_os = "macos")]
         if let Err(error) = self.stream.set_recv_timeout(Some(remaining)) {
             // Darwin rejects socket options after a Unix peer disconnects, even
             // when response bytes remain buffered. Never fall back to a blocking
             // read: the original deadline must remain an upper bound.
-            #[cfg(target_os = "macos")]
             if error.kind() == io::ErrorKind::InvalidInput {
                 self.stream.set_nonblocking(true)?;
                 let result = self.remaining().and_then(|_| self.stream.read(bytes));
@@ -161,17 +161,19 @@ impl Read for DeadlineStream<'_> {
             }
             return Err(error);
         }
+        #[cfg(not(target_os = "macos"))]
+        self.stream.set_recv_timeout(Some(remaining))?;
         self.stream.read(bytes)
     }
 }
 impl Write for DeadlineStream<'_> {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
         let remaining = self.remaining()?;
+        #[cfg(target_os = "macos")]
         if let Err(error) = self.stream.set_send_timeout(Some(remaining)) {
             // A disconnected Darwin Unix socket rejects timeout changes. A
             // nonblocking attempt exposes the real write result without
             // extending the original deadline or silently replaying bytes.
-            #[cfg(target_os = "macos")]
             if error.kind() == io::ErrorKind::InvalidInput {
                 self.stream.set_nonblocking(true)?;
                 let result = self.remaining().and_then(|_| self.stream.write(bytes));
@@ -180,6 +182,8 @@ impl Write for DeadlineStream<'_> {
             }
             return Err(error);
         }
+        #[cfg(not(target_os = "macos"))]
+        self.stream.set_send_timeout(Some(remaining))?;
         self.stream.write(bytes)
     }
     fn flush(&mut self) -> io::Result<()> {
