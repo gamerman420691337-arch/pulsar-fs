@@ -768,7 +768,10 @@ mod tests {
         };
         let path = root.join("assistant.json");
         write_policy(&path, &policy);
-        let config = crate::EngineConfig::new(root.join("state"), "/usr/bin/true".into());
+        let worker = root.join("fixture-worker");
+        std::fs::write(&worker, b"fixture worker; not executed").unwrap();
+        std::fs::set_permissions(&worker, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let config = crate::EngineConfig::new(root.join("state"), worker);
         (path, policy, config)
     }
     fn write_policy(path: &Path, policy: &Policy) {
