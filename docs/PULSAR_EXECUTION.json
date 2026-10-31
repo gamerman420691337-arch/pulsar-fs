@@ -1348,10 +1348,11 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained.",
+      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping.",
       "evidence": [
         "EV-STASH-INSTALLED-VERSION-PREFLIGHT",
-        "EV-STASH-INSTALLED-DISCOVERY"
+        "EV-STASH-INSTALLED-DISCOVERY",
+        "EV-STASH-INSTALLED-AMBIGUOUS-PLAN"
       ]
     },
     {
@@ -9240,6 +9241,115 @@
             "previous_engine_failure_retained"
           ],
           "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-INSTALLED-AMBIGUOUS-PLAN",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-installed-plan-001/verification.json",
+      "sha256": "7f4ef2066a386e3f3307a87935d9a3b9f6e49d5131524d4beb083fb2ccdfe952",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "One read-only installed-Stash planning request with a synthetic nonmatching mapping. The returned scene had ambiguous files, so the planner refused to select a source or destination. The actual mapping, unmatched-path behavior, full library, publication and device timing remain unverified.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "requested_limit"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "discovered_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "file_plan_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "response_kind"
+          ],
+          "equals": "stash_plan"
+        },
+        {
+          "pointer": [
+            "planning_only"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "statuses"
+          ],
+          "equals": [
+            "ambiguous_files"
+          ]
+        },
+        {
+          "pointer": [
+            "any_local_or_destination"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "library_content_retained"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_attempted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "engine_exit"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "cli_exit"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "scratch_removed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "actual_path_mapping_verified"
+          ],
+          "equals": false
         }
       ]
     }
