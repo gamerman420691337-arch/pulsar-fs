@@ -30,9 +30,9 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
-    "scope": "Current-source rendered sterile recording/export under 200ms policy inspected all 397 accepted samples, retained four gaps until explicit authored repair, and matched the 401-action download to the committed master. Browser required SIGKILL at workspace teardown; no independent qualification.",
-    "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Earlier 420s cleanup and native freshness failures remain unresolved. Latest player and engine exited 0, but the browser was force-stopped during teardown. All 25 acceptance gates remain open.",
+    "scope": "CLI/desktop shared history passed scoped tests; controlled comparisons reproduce X11 panic when close-window destroys the X11 window, while graceful close passes. Original multi-action close cause and platform qualification remain unproven.",
+    "active_work": "CLIENT-CORRECTNESS",
+    "failure_summary": "Desktop close-tool exit 101 retained; controlled comparisons support destructive windowclose as cause in empty-desktop cases, without proving the original session identical. Earlier timing failures and all qualification gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -56,7 +56,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/authority.rs",
-        "sha256": "9ee454e94d02f654e6ee4c8b1bf5901a1dc37f3bb6622b88e7ecfde5593747ab"
+        "sha256": "e9d288db54cfa45c236b6d01ec067d50a0e6d8a27760464a05b213c4fbe099f2"
       },
       {
         "path": "crates/pulsar-engine/src/browser_fallback_history.rs",
@@ -153,6 +153,14 @@
       {
         "path": "docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md",
         "sha256": "6583cf7250eb1fb9d121d7e04a9bc539f0bdf66b178ab6836262843695f2440b"
+      },
+      {
+        "path": "crates/pulsar-clients/src/cli.rs",
+        "sha256": "e4ae4308b6c9d8c70d51e64c2f941bb9e117701673fcdf810bfa829f2280114b"
+      },
+      {
+        "path": "crates/pulsar-clients/src/lib.rs",
+        "sha256": "9dde8474d1fd57c9ff8d83b5022ef954150b71d794c155129a72a944cbebfe33"
       }
     ]
   },
@@ -1209,7 +1217,15 @@
         "EV-CUDA-FIXTURE-PORTABILITY",
         "EV-CUDA-FIXTURE-CHECKS",
         "EV-HSP-READINESS",
-        "EV-FALLBACK-PACKAGE-BARRIER"
+        "EV-FALLBACK-PACKAGE-BARRIER",
+        "EV-CLI-HISTORY-NATIVE",
+        "EV-CLI-HISTORY-RESTART",
+        "EV-CLI-HISTORY-PROTECTION",
+        "EV-HISTORY-REDUCED-AUTHORITY",
+        "EV-CLI-HISTORY-RESTRICTED-NATIVE",
+        "EV-DESKTOP-HISTORY-CLOSE-FAIL",
+        "EV-DESKTOP-TITLEBAR-CLOSE-COMPARISON",
+        "EV-DESKTOP-CLOSE-MECHANISM"
       ]
     },
     {
@@ -7072,6 +7088,360 @@
         {
           "pointer": [
             "previous_timing_failure_cause_resolved"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-CLI-HISTORY-NATIVE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cli-history/result-001.json",
+      "sha256": "f3cb7357c3b6e3212335d456f75c043d7f2b03aa24a29c677a2075b78dccf432",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Current isolated actual CLI/SessionClient/Engine synthetic pattern campaign verified stale candidate refusal, explicit rebase, undo exact request replay without double application, redo restoration and stale undo refusal. Engine exited 0. This does not cover protected-region changes, CLI restart replay, desktop rendering, real media, device or qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "stale_candidate_refused"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "undo_replayed_once"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "redo_restored_program"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "stale_undo_refused"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-CLI-HISTORY-RESTART",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cli-history/result-002.json",
+      "sha256": "58e48498ab2acaca729097761919ed7ab07b597f9c8b22f70ffef09c6982d7c1",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Actual isolated synthetic CLI/SessionClient/Engine repeat verified stale candidate refusal, rebase, undo/redo, retained final program after Engine restart, exact old undo replay without mutation and refusal of changed arguments under the same request ID. Engine exited 0. Protected-region behavior, rendered desktop, real media and all device/human/release qualifications remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "restart_preserved_final"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "post_restart_exact_replay_no_mutation"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "changed_request_refused"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-CLI-HISTORY-PROTECTION",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cli-history/result-003.json",
+      "sha256": "e3e289e5c0b4d85675fdb0a19bc0c2cb6ee0f71104499b0f709a6ee2a45c7483",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Synthetic actual CLI/Engine campaign additionally used owner ManageProtection authority to set one Stroke region, undo that policy change and redo it, verifying exact protection restoration at revision 6. Exact replay/restart checks also passed. No reduced-authority, rendered desktop, real-media, device or human qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "protection_undo_redo_restored"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "protected_final_revision"
+          ],
+          "equals": 6
+        }
+      ]
+    },
+    {
+      "id": "EV-HISTORY-REDUCED-AUTHORITY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cli-history/reduced-authority-001.json",
+      "sha256": "87dbf8bc62d12bab563fb7441e162ba2a4905b4dd532553ac9a9adbe4de68bc1",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Exact Engine in-process test verifies Read+Edit editor lacking ManageProtection is refused protected undo and policy-restoring redo, with no snapshot mutation after refused redo; owner redo succeeds. This does not exercise a reduced-authority CLI process, physical device, or qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-CLI-HISTORY-RESTRICTED-NATIVE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cli-history/result-004.json",
+      "sha256": "ae5482d425fb6965441ad4a79efffe9c7444795a3b101aae19d998d960d2ca5c",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Separate actual CLI process on two isolated synthetic projects was reduced to Read+Edit using actual Engine Pair/Grant/Revoke APIs; protected undo and redo each returned Forbidden without changing project or protection state. Helper credentials stayed in memory, and owned Engine exited 0. No rendered desktop, real-media, device or independent qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "observations",
+            "undo",
+            "refused"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "observations",
+            "undo",
+            "unchanged"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "observations",
+            "redo",
+            "refused"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "observations",
+            "redo",
+            "unchanged"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-DESKTOP-HISTORY-CLOSE-FAIL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cli-history/desktop-history-001/verification.json",
+      "sha256": "3846531604789652aab3af8c417a5e1a7a317733ed1fb3263fc052f8412b0126",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Rendered desktop and actual CLI shared synthetic undo/redo history across revisions 1\u20135 and the 17-action program matched, but workspace close-window operation was followed by winit X11 TranslateCoordinates panic and exit 101. Cause unresolved; no qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "history_actions_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "desktop_exit_code"
+          ],
+          "equals": 101
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-DESKTOP-TITLEBAR-CLOSE-COMPARISON",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cli-history/desktop-close-comparison-001/verification.json",
+      "sha256": "f7288151a38a15e971064ae10c14d38f36aae5f3ed6848b1752dcb6f1fe665b5",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "A normal title-bar close exited 0 on the same app with an empty desktop and after opening a synthetic revision-5 project. The preceding failure used different UI interactions and close path; comparison does not prove cause or close platform qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "project_desktop_exit_code"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "original_close_failure_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-DESKTOP-CLOSE-MECHANISM",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cli-history/desktop-close-loop-001/verification.json",
+      "sha256": "fc4ad7d3467c51c37e140cb8b5a55bb99c786cd47c0c8f9b7b8d47c6086d4d7a",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Controlled empty-desktop comparisons on pinned app: workspace close-window and direct xdotool windowclose each reproduced X11 panic 2/2, while title-bar and xdotool windowquit each exited 0 in 2/2. The local xdotool manual identifies windowclose as destructive; workspace binary contains windowclose invocation text. This supports close mechanism as cause for controlled cases, but does not prove the original multi-action session identical or close platform qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "workspace_close_failed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "windowclose_failed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "windowquit_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "original_session_cause_proven"
           ],
           "equals": false
         }

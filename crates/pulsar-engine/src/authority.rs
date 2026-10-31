@@ -12054,6 +12054,25 @@ pub(crate) mod tests {
                 .unwrap();
             assert_eq!(protected, "[]");
         }
+        let before = f
+            .engine
+            .handle(request(&editor, Some(&f.project), None, Command::GetSnapshot))
+            .result
+            .unwrap();
+        assert_eq!(
+            f.engine
+                .handle(request(&editor, Some(&f.project), Some(3), Command::Redo))
+                .result
+                .unwrap_err()
+                .code,
+            ErrorCode::Forbidden
+        );
+        let after = f
+            .engine
+            .handle(request(&editor, Some(&f.project), None, Command::GetSnapshot))
+            .result
+            .unwrap();
+        assert_eq!(encode(&before).unwrap(), encode(&after).unwrap());
         f.engine
             .handle(request(
                 &f.session,
