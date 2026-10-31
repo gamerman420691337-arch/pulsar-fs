@@ -1343,14 +1343,15 @@
       "parents": [
         "M2-INTERCHANGE"
       ],
-      "state": "awaiting_external",
+      "state": "in_progress",
       "owner": "Operator + Codex",
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established.",
+      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained.",
       "evidence": [
-        "EV-STASH-INSTALLED-VERSION-PREFLIGHT"
+        "EV-STASH-INSTALLED-VERSION-PREFLIGHT",
+        "EV-STASH-INSTALLED-DISCOVERY"
       ]
     },
     {
@@ -9144,6 +9145,101 @@
             "cause_known"
           ],
           "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-INSTALLED-DISCOVERY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-installed-discovery-002/verification.json",
+      "sha256": "48df3a494cb73af48d73c88df9eb158f82fc5360e3cefe0ce15fca3dbf141e20",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Two independent owned local Pulsar Engine and CLI read-only Stash list-missing requests with limit one, no API key supplied. Second response was stash_discovery and returned one scene. Scene details, paths and credentials were not retained; pagination, authenticated access, source mapping, publication and device qualification are not established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "stash_version"
+          ],
+          "equals": "v0.31.1"
+        },
+        {
+          "pointer": [
+            "attempts_succeeded"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "second_response_kind"
+          ],
+          "equals": "stash_discovery"
+        },
+        {
+          "pointer": [
+            "second_scene_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "api_key_supplied"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "library_content_retained"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_attempted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "second_engine_exit"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "second_cli_exit"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "second_scratch_removed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "previous_engine_failure_retained"
+          ],
+          "equals": true
         }
       ]
     }
