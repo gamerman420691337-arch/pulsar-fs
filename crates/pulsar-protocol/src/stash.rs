@@ -682,3 +682,75 @@ mod tier_name_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod explicit_multifile_request_tests {
+    use super::*;
+
+    fn request(allow: Option<bool>, expected: Option<&str>) -> Request {
+        Request::new(
+            RequestId::new("explicit-stash-source").unwrap(),
+            Command::StashImportSource {
+                connection: StashConnection {
+                    endpoint: "http://127.0.0.1:9999/graphql".into(),
+                    credential_env: None,
+                },
+                scene_id: "scene".into(),
+                file_id: "file".into(),
+                expected_server_path: expected.map(str::to_owned),
+                expected_source_version: None,
+                allow_multifile_selection: allow,
+                mappings: vec![StashRootMapping {
+                    server_root: "/server".into(),
+                    local_root: crate::test_host_path("/local").into(),
+                }],
+                owner_proof: "owner".into(),
+            },
+        )
+        .in_project(ProjectId::new("project").unwrap(), Some(RevisionId::new(0)))
+        .with_session(SessionId::new("session").unwrap())
+        .with_auth_token("synthetic-token".into())
+    }
+
+    #[allow(dead_code)]
+    #[derive(serde::Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct LegacyImportArguments {
+        connection: serde_json::Value,
+        scene_id: String,
+        file_id: String,
+        #[serde(default)]
+        expected_server_path: Option<String>,
+        #[serde(default)]
+        expected_source_version: Option<serde_json::Value>,
+        mappings: Vec<serde_json::Value>,
+        owner_proof: String,
+    }
+
+    #[test]
+    fn explicit_multifile_wire_is_opt_in_and_requires_expected_path() {
+        let legacy = request(None, None);
+        legacy.validate().unwrap();
+        let value = serde_json::to_value(&legacy.command).unwrap();
+        assert!(value["arguments"]
+            .get("allow_multifile_selection")
+            .is_none());
+        assert!(
+            serde_json::from_value::<LegacyImportArguments>(value["arguments"].clone()).is_ok()
+        );
+        let encoded = serde_json::to_vec(&legacy).unwrap();
+        let decoded: Request = serde_json::from_slice(&encoded).unwrap();
+        assert_eq!(serde_json::to_vec(&decoded).unwrap(), encoded);
+        assert!(request(Some(true), None).validate().is_err());
+        assert!(request(Some(false), Some("/server/video.mp4"))
+            .validate()
+            .is_err());
+        let explicit = request(Some(true), Some("/server/video.mp4"));
+        explicit.validate().unwrap();
+        let value = serde_json::to_value(&explicit.command).unwrap();
+        assert_eq!(value["arguments"]["allow_multifile_selection"], true);
+        assert!(
+            serde_json::from_value::<LegacyImportArguments>(value["arguments"].clone()).is_err()
+        );
+    }
+}

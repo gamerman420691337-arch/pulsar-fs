@@ -2002,6 +2002,12 @@ pub enum StashCommands {
         /// Rebind an existing project source only if freshly captured bytes match.
         #[arg(long)]
         expected_source_version: Option<String>,
+        /// Explicitly capture a selected file in a multifile scene; publication remains fenced.
+        #[arg(long, requires = "expected_server_path_file")]
+        allow_multifile_selection: bool,
+        /// JSON string containing the exact server path shown during selection.
+        #[arg(long)]
+        expected_server_path_file: Option<PathBuf>,
         #[arg(long)]
         mappings: PathBuf,
         #[arg(long, default_value = "http://localhost:9999/graphql")]
@@ -3295,6 +3301,56 @@ mod tests {
                 .is_err()
         );
     }
+    #[test]
+    fn stash_multifile_capture_requires_explicit_path_file() {
+        let base = [
+            "pulsar",
+            "stash",
+            "capture-source",
+            "project",
+            "scene",
+            "file",
+            "--mappings",
+            "mapping.json",
+        ];
+        assert!(Cli::try_parse_from(base).is_ok());
+        let without_path = [
+            "pulsar",
+            "stash",
+            "capture-source",
+            "project",
+            "scene",
+            "file",
+            "--mappings",
+            "mapping.json",
+            "--allow-multifile-selection",
+        ];
+        assert!(Cli::try_parse_from(without_path).is_err());
+        let explicit = [
+            "pulsar",
+            "stash",
+            "capture-source",
+            "project",
+            "scene",
+            "file",
+            "--mappings",
+            "mapping.json",
+            "--allow-multifile-selection",
+            "--expected-server-path-file",
+            "path.json",
+        ];
+        assert!(matches!(
+            Cli::try_parse_from(explicit).unwrap().command,
+            Some(Commands::Stash {
+                command: StashCommands::CaptureSource {
+                    allow_multifile_selection: true,
+                    expected_server_path_file: Some(_),
+                    ..
+                }
+            })
+        ));
+    }
+
     #[test]
     fn legacy_aliases_remain_parseable() {
         assert!(matches!(

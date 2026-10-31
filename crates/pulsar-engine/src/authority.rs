@@ -1951,6 +1951,7 @@ impl Engine {
                 file_id,
                 expected_server_path,
                 expected_source_version,
+                allow_multifile_selection,
                 mappings,
                 ..
             } => {
@@ -1961,6 +1962,7 @@ impl Engine {
                         scene_id,
                         file_id,
                         expected_server_path,
+                        allow_multifile_selection,
                         mappings,
                     );
                     return Err(ProtocolError::unsupported(
@@ -1970,19 +1972,22 @@ impl Engine {
                 #[cfg(unix)]
                 {
                     let scene = crate::stash::scene(connection, scene_id)?;
-                    if scene.files.len() != 1
-                        || scene.files[0].id != *file_id
-                        || expected_server_path
-                            .as_ref()
-                            .is_some_and(|path| path != &scene.files[0].path)
-                    {
-                        return Err(ProtocolError::new(
-                            ErrorCode::RequestConflict,
-                            "Stash selected file is ambiguous or changed",
-                        ));
-                    }
+                    let mut matching = scene.files.iter().filter(|file| file.id == *file_id);
+                    let selected = matching.next().filter(|_| matching.next().is_none());
+                    let explicit = *allow_multifile_selection == Some(true)
+                        && expected_server_path.is_some();
+                    let selected = selected.filter(|file| {
+                        (scene.files.len() == 1 || explicit)
+                            && expected_server_path.as_ref().is_none_or(|path| path == &file.path)
+                    }).ok_or_else(|| ProtocolError::new(
+                        ErrorCode::RequestConflict,
+                        "Stash selected file is ambiguous or changed",
+                    ))?;
+                    let selected_id = selected.id.clone();
+                    let selected_path = selected.path.clone();
                     let (snapshot, hash, bytes, plan) = crate::stash_files::capture(
                         &scene,
+                        explicit.then_some(file_id.as_str()),
                         mappings,
                         &self.config.state_dir.join("snapshots"),
                         self.config.max_snapshot_bytes,
@@ -2006,8 +2011,8 @@ impl Engine {
                         source_version,
                         identity,
                         scene_id: scene.id,
-                        file_id: scene.files[0].id.clone(),
-                        server_path: scene.files[0].path.clone(),
+                        file_id: selected_id,
+                        server_path: selected_path,
                         local_source: original.clone(),
                         script_destination: plan.script_destination.expect("captured destination"),
                     };

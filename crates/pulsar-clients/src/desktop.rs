@@ -4921,6 +4921,7 @@ impl PulsarDesktop {
                     } else {
                         None
                     },
+                    allow_multifile_selection: None,
                     mappings,
                     owner_proof,
                 })
