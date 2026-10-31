@@ -1,4 +1,4 @@
-name: Native package import diagnostic
+name: Native timing fixture diagnostic
 on:
   workflow_dispatch:
 jobs:
@@ -10,5 +10,5 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Install macOS dependencies
         run: brew install ffmpeg
-      - name: Exercise package import socket tests
-        run: cargo test -p pulsar-clients --lib project_package_import::socket_tests --locked -- --test-threads=1
+      - name: Exercise timing fixture tests
+        run: cargo test -p pulsar-clients --lib browser_player_control::timing::tests --locked -- --test-threads=1
