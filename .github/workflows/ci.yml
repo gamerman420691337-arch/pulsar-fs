@@ -19,4 +19,4 @@ jobs:
           rustc --edition=2021 scripts/macos_socket_probe.rs -o "$RUNNER_TEMP/pulsar-socket-probe"
           "$RUNNER_TEMP/pulsar-socket-probe"
       - name: Exercise Pulsar deadline stream
-        run: cargo test -p pulsar-protocol --lib deadline_stream_reads_buffered_reply_after_peer_closes --locked
+        run: cargo test -p pulsar-protocol --lib deadline_stream_ --locked
