@@ -1348,8 +1348,10 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped.",
-      "evidence": []
+      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established.",
+      "evidence": [
+        "EV-STASH-INSTALLED-VERSION-PREFLIGHT"
+      ]
     },
     {
       "id": "LIVE-FALLBACK-HISTORY",
@@ -9081,6 +9083,65 @@
         {
           "pointer": [
             "native_after_fix_run"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-INSTALLED-VERSION-PREFLIGHT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-installed-discovery-001/verification.json",
+      "sha256": "54a3236b725d2b8c050625863d6c217935b28587b937175c5cc6e68d4bdaa88d",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Live local Stash version endpoint only; isolated Pulsar Engine readiness failed before discovery. No library metadata, credentials, publication or device actions retained or attempted.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "stash_version"
+          ],
+          "equals": "v0.31.1"
+        },
+        {
+          "pointer": [
+            "version_query_http_status"
+          ],
+          "equals": 200
+        },
+        {
+          "pointer": [
+            "pulsar_discovery_sent"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "library_content_retained"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_attempted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "cause_known"
           ],
           "equals": false
         }
