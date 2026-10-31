@@ -30,9 +30,9 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
-    "scope": "CLI history/rebase passed synthetic native replay, restart and authority checks; rendered desktop and CLI shared undo/redo program history, but desktop close-tool exit failed. A separate title-bar comparison exited 0; cause remains unresolved.",
+    "scope": "CLI/desktop shared history passed scoped tests; controlled comparisons reproduce X11 panic when close-window destroys the X11 window, while graceful close passes. Original multi-action close cause and platform qualification remain unproven.",
     "active_work": "CLIENT-CORRECTNESS",
-    "failure_summary": "Rendered desktop close-tool test exited 101 with X11 panic; title-bar comparison exited 0 but does not resolve cause. Earlier timing failures and all 25 qualification gates remain open.",
+    "failure_summary": "Desktop close-tool exit 101 retained; controlled comparisons support destructive windowclose as cause in empty-desktop cases, without proving the original session identical. Earlier timing failures and all qualification gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -1224,7 +1224,8 @@
         "EV-HISTORY-REDUCED-AUTHORITY",
         "EV-CLI-HISTORY-RESTRICTED-NATIVE",
         "EV-DESKTOP-HISTORY-CLOSE-FAIL",
-        "EV-DESKTOP-TITLEBAR-CLOSE-COMPARISON"
+        "EV-DESKTOP-TITLEBAR-CLOSE-COMPARISON",
+        "EV-DESKTOP-CLOSE-MECHANISM"
       ]
     },
     {
@@ -7388,6 +7389,59 @@
         {
           "pointer": [
             "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-DESKTOP-CLOSE-MECHANISM",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cli-history/desktop-close-loop-001/verification.json",
+      "sha256": "fc4ad7d3467c51c37e140cb8b5a55bb99c786cd47c0c8f9b7b8d47c6086d4d7a",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Controlled empty-desktop comparisons on pinned app: workspace close-window and direct xdotool windowclose each reproduced X11 panic 2/2, while title-bar and xdotool windowquit each exited 0 in 2/2. The local xdotool manual identifies windowclose as destructive; workspace binary contains windowclose invocation text. This supports close mechanism as cause for controlled cases, but does not prove the original multi-action session identical or close platform qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "workspace_close_failed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "windowclose_failed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "windowquit_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "original_session_cause_proven"
           ],
           "equals": false
         }
