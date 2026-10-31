@@ -1350,12 +1350,13 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards.",
+      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards. A separate read-only 100-scene page contained two distinct file IDs per scene and no exact lexical server-side sidecar collisions within a scene; local mapping, all remaining pages and publication semantics are unverified.",
       "evidence": [
         "EV-STASH-INSTALLED-VERSION-PREFLIGHT",
         "EV-STASH-INSTALLED-DISCOVERY",
         "EV-STASH-INSTALLED-AMBIGUOUS-PLAN",
-        "EV-STASH-INSTALLED-MULTIFILE-SAMPLE"
+        "EV-STASH-INSTALLED-MULTIFILE-SAMPLE",
+        "EV-STASH-INSTALLED-FILE-SHAPE"
       ]
     },
     {
@@ -9549,6 +9550,85 @@
             "exit_code"
           ],
           "equals": 143
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-INSTALLED-FILE-SHAPE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-installed-file-shape-001/verification.json",
+      "sha256": "4221fc7dbdc0e2b6bfcbf7258ca2394bb7b1ddf441ff20fc1776214b9ff419f7",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "One bounded read-only GraphQL page of 100 noninteractive scenes: each had two distinct file IDs. A lexical comparison of server-path sidecar names found no exact collisions within each scene. This does not check mapped local paths, filesystem case folding, existing files, other pages, publication semantics or qualification. No scene identities, names or paths were retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "OBSERVED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "sample_scenes"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "file_count_histogram"
+          ],
+          "equals": {
+            "2": 100
+          }
+        },
+        {
+          "pointer": [
+            "scenes_with_duplicate_file_ids"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "scenes_with_exact_server_sidecar_collisions"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "full_library_exhausted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "actual_local_mapping_verified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "media_bytes_read"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "library_content_retained"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_attempted"
+          ],
+          "equals": false
         }
       ]
     }
