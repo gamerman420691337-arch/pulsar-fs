@@ -176,6 +176,7 @@ fn browser_fallback_fixture_for_profiles(
 }
 
 #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+#[allow(clippy::too_many_arguments)]
 fn browser_cuda_handover(
     client: &Client<'_>,
     inputs: &Inputs,
@@ -183,6 +184,8 @@ fn browser_cuda_handover(
     player: &mut AuthoredPlayer,
     selected: &BrowserInferenceFallbackSelection,
     profiles: &CudaHandoverInputs,
+    record_target: bool,
+    discard_recording: &mut Option<Request>,
 ) -> Result<Value> {
     player.observe(client)?;
     let mut initial_options = options(inputs, media, player)?;
@@ -318,6 +321,46 @@ fn browser_cuda_handover(
         target.options.lease_ms <= initial_options.lease_ms,
         "target extended original lease"
     );
+    let recording = if record_target {
+        let request = client.intent(
+            Some(1),
+            Command::StartLiveRecording {
+                epoch: target.identity.epoch.clone(),
+                maximum_samples: 4,
+            },
+        );
+        let ResponseBody::LiveRecordingPage(page) = client.engine.handle(request.clone()).result?
+        else {
+            bail!("target recording start missing")
+        };
+        *discard_recording = Some(client.intent(
+            Some(1),
+            Command::DiscardLiveRecording {
+                epoch: target.identity.epoch.clone(),
+                recording_request_id: request.request_id.clone(),
+            },
+        ));
+        ensure!(
+            page.fallback.is_some() && page.total_samples == 0,
+            "target recording omitted fallback history"
+        );
+        let base = player.frame_base()?;
+        let first = upload(client, inputs, &target, player, base, 0, deadline)?;
+        let second = upload(client, inputs, &target, player, base + 1, 1, deadline)?;
+        let point = estimate(
+            client,
+            inputs,
+            &target,
+            player,
+            (&first, base),
+            (&second, base + 1),
+            1,
+            deadline,
+        )?;
+        Some((request.request_id, point))
+    } else {
+        None
+    };
     capture(client.call(
         Some(1),
         Command::StopLiveCapture {
@@ -339,9 +382,154 @@ fn browser_cuda_handover(
         stopped.retirement == Some(LiveCaptureRetirement::Stopped),
         "target did not retire from root stop"
     );
-    Ok(
-        json!({"case":"browser_cuda_handover","passed":true,"simulated_eligibility":true,"actual_provider_absence":true,"actual_target_ready":true,"root_stop_retired_target":true,"physical_device":false,"qualified":false,"failure":failure,"original":original,"target":target,"stopped":stopped}),
-    )
+    let mut value = json!({"case":if record_target {"browser_cuda_recording"} else {"browser_cuda_handover"},"passed":true,"simulated_eligibility":true,"actual_provider_absence":true,"actual_target_ready":true,"root_stop_retired_target":true,"physical_device":false,"qualified":false,"failure":failure,"original":original,"target":target,"stopped":stopped});
+    if let Some((recording_request_id, point)) = recording {
+        let ResponseBody::LiveRecordingPage(page) = client.call(
+            Some(1),
+            Command::LiveRecordingPage {
+                epoch: target.identity.epoch.clone(),
+                after: 0,
+                limit: 64,
+            },
+        )?
+        else {
+            bail!("target recording page missing")
+        };
+        page.validate()?;
+        ensure!(
+            !page.active
+                && page.recording_request_id == recording_request_id
+                && page.total_samples == 1
+                && page.samples.len() == 1
+                && page.fallback.is_some(),
+            "actual target recording lost fallback provenance"
+        );
+        ensure!(
+            matches!(
+                page.samples[0].result,
+                LiveInferenceReply::CapturedCpuEstimated { .. }
+            ),
+            "target recording is not captured CPU evidence"
+        );
+        let LiveInferenceReply::CapturedCpuEstimated { input, .. } = &page.samples[0].result else {
+            unreachable!()
+        };
+        let at = page
+            .clock
+            .project_at_source(input.pair.current_time)?
+            .quantize_nanoseconds()?
+            .time
+            .as_nanos();
+        let range = TimeRange::new(
+            ProjectTime::from_nanos(at.saturating_sub(100_000_000).max(0)),
+            ProjectTime::from_nanos(
+                at.checked_add(100_000_000)
+                    .context("recording range overflow")?,
+            ),
+        )?;
+        let ResponseBody::Candidate(candidate) = client.call(
+            Some(1),
+            Command::StageLiveRecording {
+                options: LiveRecordingStageOptions {
+                    engine_epoch: target.engine_epoch.clone(),
+                    recordings: vec![LiveRecordingSelection {
+                        epoch: target.identity.epoch.clone(),
+                        recording_request_id: recording_request_id.clone(),
+                    }],
+                    range,
+                    maximum_interpolation_ns: 100_000_000,
+                },
+            },
+        )?
+        else {
+            bail!("native target recording candidate absent")
+        };
+        ensure!(
+            candidate
+                .review
+                .iter()
+                .any(|item| item.reason.as_str() == "live_recording_unqualified"),
+            "native recording omitted unqualified review"
+        );
+        let snapshot = client.snapshot()?;
+        let source = snapshot
+            .sources
+            .iter()
+            .find(|s| s.kind == SourceKind::LiveRecording)
+            .context("native recording source absent")?;
+        client.call(
+            Some(1),
+            Command::AllowProjectPackaging {
+                owner_proof: client.engine.package_owner_token.clone(),
+            },
+        )?;
+        let ResponseBody::PackageExport(started) =
+            client.call(Some(1), Command::StartProjectExport)?
+        else {
+            bail!("native recording export absent")
+        };
+        let export_deadline = Instant::now() + Duration::from_secs(60);
+        let descriptor = loop {
+            let ResponseBody::PackageExport(status) = client.call(
+                None,
+                Command::ProjectPackageStatus {
+                    operation_id: started.operation_id.clone(),
+                },
+            )?
+            else {
+                bail!("native recording export status absent")
+            };
+            if status.state == PackageExportOperationState::Ready {
+                break status.artifact.context("native export artifact absent")?;
+            }
+            ensure!(
+                !matches!(
+                    status.state,
+                    PackageExportOperationState::Failed
+                        | PackageExportOperationState::Cancelled
+                        | PackageExportOperationState::Interrupted
+                ) && Instant::now() < export_deadline,
+                "native recording export failed or timed out: {status:?}"
+            );
+            std::thread::park_timeout(Duration::from_millis(10));
+        };
+        let bytes = fs::read(
+            client
+                .engine
+                .config
+                .state_dir
+                .join("project-packages")
+                .join(&descriptor.sha256),
+        )?;
+        ensure!(
+            bytes.len() as u64 == descriptor.byte_len
+                && format!("{:x}", Sha256::digest(&bytes)) == descriptor.sha256,
+            "native recording package identity differs"
+        );
+        let decoded = crate::project_package_format::read_package(
+            &mut std::io::Cursor::new(&bytes),
+            |_| Ok(std::io::sink()),
+            crate::project_package_format::PackageCodecLimits::default(),
+        )?;
+        let packaged = decoded
+            .manifest
+            .sources
+            .iter()
+            .find(|s| s.source_version == source.source_version)
+            .context("native recording missing from package")?;
+        let payload = packaged
+            .browser_fallback_history
+            .clone()
+            .context("native recording history missing from package")?;
+        crate::authority::project_package_imports::exercise_native_browser_portable_lifecycle(
+            &bytes, &payload,
+        );
+        value["portable_archive_lifecycle_passed"] = json!(true);
+        value["native_recording_package_sha256"] = json!(descriptor.sha256);
+        value["target_recording"] = json!(page);
+        value["target_estimate"] = json!(point);
+    }
+    Ok(value)
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -719,5 +907,23 @@ fn native_browser_cuda_provider_absence_starts_captured_cpu_target() {
         .expect("borrowed handover subjects unchanged");
     let receipt = json!({"schema_version":1,"scope":"Actual worker provider absence and captured CPU target with simulated equivalence eligibility and authored browser timing; no measured equivalence or physical qualification", "passed":result["passed"],"simulated_eligibility":true,"physical_device":false,"qualified":false,"subjects":inputs.subjects(),"cuda_policy":cuda.policy,"from_profile":cuda.from_file,"to_profile":cuda.to_file,"cases":[result]});
     save(&output.join("browser-cuda-handover.json"), &receipt).expect("retain scoped receipt");
+    assert_eq!(receipt["passed"], true, "{}", receipt["cases"][0]["error"]);
+}
+
+#[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+#[test]
+#[ignore = "requires pinned native CUDA/CPU subjects, sterile browser inputs and owned supervisor"]
+fn native_browser_cuda_fallback_records_captured_cpu_target() {
+    let output = path_env("PULSAR_CAPTURED_CPU_BROWSER_OUTPUT").expect("owned output");
+    let inputs = Inputs::load().expect("pinned browser inputs");
+    let cuda = CudaHandoverInputs::load(&inputs).expect("pinned handover inputs");
+    let result = campaign_case(&inputs, "browser_cuda_recording");
+    inputs
+        .verify_unchanged()
+        .expect("borrowed browser subjects unchanged");
+    cuda.verify_unchanged()
+        .expect("borrowed handover subjects unchanged");
+    let receipt = json!({"schema_version":1,"scope":"Actual captured CPU fallback target recording with simulated eligibility and authored browser timing; no qualification", "passed":result["passed"],"simulated_eligibility":true,"physical_device":false,"qualified":false,"subjects":inputs.subjects(),"cuda_policy":cuda.policy,"from_profile":cuda.from_file,"to_profile":cuda.to_file,"cases":[result]});
+    save(&output.join("browser-cuda-recording.json"), &receipt).expect("retain scoped receipt");
     assert_eq!(receipt["passed"], true, "{}", receipt["cases"][0]["error"]);
 }
