@@ -1,5 +1,26 @@
 //! Real local IPC with synthetic timing receipts; no media/device qualification.
 use super::*;
+
+#[test]
+fn timing_diagnostic_retains_sanitized_transport_phase() {
+    use crate::session::BrowserTransportPhase;
+    for (phase, expected) in [
+        (BrowserTransportPhase::Connect, "connect"),
+        (BrowserTransportPhase::Deadline, "deadline"),
+        (BrowserTransportPhase::Call, "call"),
+    ] {
+        let error = anyhow::Error::from(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            "private path and token",
+        ))
+        .context(phase)
+        .context(FailureStage::Exchange);
+        let encoded = serde_json::to_value(FailureDiagnostic::from_error("open", &error)).unwrap();
+        assert_eq!(encoded["category"], "transport_timeout");
+        assert_eq!(encoded["transport_phase"], expected);
+        assert!(!encoded.to_string().contains("private path and token"));
+    }
+}
 use std::os::unix::net::UnixListener;
 
 const NATIVE: u64 = (1_u64 << 53) + 17;

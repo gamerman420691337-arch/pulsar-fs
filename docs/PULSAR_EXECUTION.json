@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-STASH-WORKSPACE-RETRY-PASS",
-    "scope": "The explicit multifile capture branch passed strict library Clippy, workspace all-targets check, focused tests, the protocol suite, and an owned Stash v0.31.1 alias fixture. A preceding engine refused the opt-in field in an unauthenticated wire check. Automatic alias handling, multifile publication and user-library qualification remain open.",
+    "evidence": "EV-TIMING-TRANSPORT-PHASE",
+    "scope": "Uncommitted client diagnostic adds sanitized transport-phase classification; focused socket tests, full client tests, strict Clippy and a native build passed. Rendered timing open still timed out during the call; request/write versus response/read and Engine cause remain unresolved.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "Rendered sterile browser attempt reproduced timing open exchange transport_timeout and player cleanup unconfirmed; source release later reported released. Historical cause and original deadline reliability remain unresolved; all qualification gates remain open.",
+    "failure_summary": "Rendered timing open timed out during the connected request/response call; cleanup remained unconfirmed. Earlier failures retained; all qualification gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -217,6 +217,18 @@
       {
         "path": "crates/pulsar-protocol/src/stash.rs",
         "sha256": "655c704f44637ebbef203f5771322483c35620791af7fbe2f939d4a767e75875"
+      },
+      {
+        "path": "crates/pulsar-clients/src/session.rs",
+        "sha256": "094cc63b8bf0af25f9e1def8c4423d1745af21e0bb668921f94ac6ee88103816"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_timing.rs",
+        "sha256": "9b0e15c9912292bef4a805ae0d97f1e5a1ccc30679e26fce1b4b776e7650b3e5"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_timing_tests.rs",
+        "sha256": "929986e9623c63cd21abccd73b7a99c8e2de22498044d442459fa1355a50949e"
       }
     ]
   },
@@ -1220,7 +1232,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines. A separate traced run opened timing but timed out on a probe and reported cleanup unconfirmed; an Engine fsync lasted 5.622 seconds without proven request or file correspondence. A separate file-aware trace identified slow worker-fence, staging and database fsyncs; the short rendered run exited cleanly and no fsync was tied to a timed-out request.",
+      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines. A separate traced run opened timing but timed out on a probe and reported cleanup unconfirmed; an Engine fsync lasted 5.622 seconds without proven request or file correspondence. A separate file-aware trace identified slow worker-fence, staging and database fsyncs; the short rendered run exited cleanly and no fsync was tied to a timed-out request. A source-bound diagnostic render localized a further open timeout to the connected request/response call; whether write, response read, or Engine work blocked remains unknown.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
@@ -1270,7 +1282,8 @@
         "EV-SOURCE-CLEANUP-CURRENT-TESTS",
         "EV-RENDERED-TIMING-OPEN-TIMEOUT",
         "EV-RENDERED-TIMING-TRACE",
-        "EV-RENDERED-TIMING-FILE-TRACE"
+        "EV-RENDERED-TIMING-FILE-TRACE",
+        "EV-TIMING-TRANSPORT-PHASE"
       ]
     },
     {
@@ -11122,6 +11135,60 @@
             "same_request_proven"
           ],
           "equals": false
+        },
+        {
+          "pointer": [
+            "historical_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-TIMING-TRANSPORT-PHASE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-first-failure-001/transport-phase-rendered-20261031.json",
+      "sha256": "1b05f67cf090b2f00d03d225dcb18f7eb63c910c65f23315bc80b9600239e13b",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Current uncommitted diagnostic distinguishes deadline, connect and request/response call without exposing error text. Focused socket tests, 717 client tests, strict Clippy and a native build passed. A private rendered attempt failed with timing open transport_timeout in call; write versus read and Engine cause remain unknown.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "client_tests_passed"
+          ],
+          "equals": 717
+        },
+        {
+          "pointer": [
+            "clippy_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "first_failure",
+            "transport_phase"
+          ],
+          "equals": "call"
+        },
+        {
+          "pointer": [
+            "timing_cleanup_unconfirmed"
+          ],
+          "equals": true
         },
         {
           "pointer": [
