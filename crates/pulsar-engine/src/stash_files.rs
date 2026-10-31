@@ -564,8 +564,13 @@ impl Publication {
             return Err(std::io::Error::last_os_error());
         }
         let stat = unsafe { stat.assume_init() };
-        stat.f_bavail
-            .checked_mul(stat.f_frsize)
+        // statvfs field widths differ across Unix targets; widen before multiplication.
+        #[allow(clippy::unnecessary_cast)]
+        let available_blocks = stat.f_bavail as u64;
+        #[allow(clippy::unnecessary_cast)]
+        let fragment_size = stat.f_frsize as u64;
+        available_blocks
+            .checked_mul(fragment_size)
             .ok_or_else(|| io_failure("Stash free-space observation overflow"))
     }
     pub(crate) fn publish(&self, bytes: &[u8]) -> std::io::Result<()> {

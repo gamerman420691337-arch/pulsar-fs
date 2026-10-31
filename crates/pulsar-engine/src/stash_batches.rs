@@ -1812,7 +1812,7 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM jobs", [], |r| r.get(0))
             .unwrap();
         assert_eq!(jobs, 0);
-        #[cfg(unix)]
+        #[cfg(target_os = "linux")]
         assert!(!engine.worker_fence.has_pending_worker_custody().unwrap());
     }
 
