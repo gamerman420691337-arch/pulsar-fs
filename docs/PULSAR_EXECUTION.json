@@ -29,234 +29,110 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-LIVE-FALLBACK-SNAPSHOT",
-    "scope": "Whole workspace all-target compilation and formatting pass after preserving an absent fallback field in a root integration fixture. Exact unchanged client sources retain709 passing tests and six framed handover cases. Broad CUDA Engine suite reports two Handy guard failures and reaches its600s bound without a final summary; observed filesystem journal waits do not prove the failure cause. This is an incomplete development snapshot, not a successful full-suite or native/rendered/device qualification result.",
+    "evidence": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
+    "scope": "Format17 browser recording graph and reader43 are implemented. Public Engine export, import, restart, re-export and second clone passed with authored admission/equivalence fixtures, including stripped root and ancestor refusals; the reader delegation regression passed. Earlier component evidence remains scoped to its source. Native, preceding-App, real-media, device and human qualification remain open.",
     "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Development snapshot: workspace all-target compilation and formatting pass. Broad Engine run reports two Handy guard failures and a600s timeout without a final summary; journal waits are observed, cause remains unproven. Client709 and six framed scenarios pass on unchanged source. Native/rendered browser fallback and portable graph remain unverified; all25 acceptance gates stay open.",
+    "failure_summary": "Diagnostic authored archive lifecycle and six archive/reader regressions passed; prior intermittent import timeout remains unexplained. All 25 acceptance gates stay open.",
     "source_stamp": [
       {
-        "path": "crates/pulsar-clients/src/browser_analysis_feed_tests.rs",
-        "sha256": "ca0f64f5eef2ded544770147a9bcb538ff63f68927effcbda2be8106a193c6a0"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_captured_cpu_tests.rs",
-        "sha256": "aff6471cfc3d1769f659d473e057a593211c725c93304f47d617db094ea878e5"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_live.html",
-        "sha256": "eb8607031bbeb4e3a31826545fbaf5fc5f86d38e5b9ab1afea20c258e015dd53"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_live.rs",
-        "sha256": "aafca31ceed90d0196352f25b691a0197c9682b08dc65073087535a5fcfb7fd1"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_live_fallback.rs",
-        "sha256": "a5dfdf56912e89530c5bb82dbb27b322d0ba5d61dbfc68b5f1f5f0a49326e4ed"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_live_fallback_tests.rs",
-        "sha256": "77fe991d8f07739c93a62e15a6d3678bea60fd1abd5e77eea861a62cfbf490b1"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_live_panel.rs",
-        "sha256": "36732a56894f7f5a41058d7aac6fb9ba2421761ac205406a521213631ea250f8"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_source_media_tests.rs",
-        "sha256": "b716eb672f5802368d9a6f2aaaa49de4ab9a7a4fba332855ca36ad20029df844"
-      },
-      {
         "path": "crates/pulsar-engine/src/authority.rs",
-        "sha256": "bb30c8c6c31cfe7c721f5b77e6ed2b5710888e19b98f581bf010d01188da0e36"
+        "sha256": "b93bdb78cb3fb6a10737f54f9e9cbd3441b73390ee0d13d1e2a2cef2781a287d"
       },
       {
         "path": "crates/pulsar-engine/src/browser_fallback_history.rs",
-        "sha256": "f6426c6c7b2fc29124b319bf184bcd88a35320a2ffd1484806b272fb8302c359"
+        "sha256": "e8b47af5b1f0fc3c381b22b36b750944a72d499279b88d956ba94f7a94ce34e2"
       },
       {
         "path": "crates/pulsar-engine/src/browser_fallback_history_tests.rs",
-        "sha256": "509f8647e86b2cd614922c64691c344c0b137b7fffdd1ee2e4e1f0d3c315def3"
+        "sha256": "edaacfa29c37043c7e4b01410ddc7d9753e4271e4423078e2908bd2b5e92079d"
       },
       {
         "path": "crates/pulsar-engine/src/browser_fallback_reader.rs",
-        "sha256": "28cbd220775b9387266aa037c8f9aeadd9205ed04dca88507cb48a3898efd9b5"
+        "sha256": "942b63006545a4e851c43994e4d0dfe54de13f06de4eb27fb3d71dff084dbc02"
       },
       {
-        "path": "crates/pulsar-engine/src/browser_fallback_reader_native_tests.rs",
-        "sha256": "a4493c2ab4ffacf9f1e8a38f76fc3e97becc2d82fbcf3e36b85051661df9ed1b"
-      },
-      {
-        "path": "crates/pulsar-engine/src/browser_media.rs",
-        "sha256": "4c1e6d1413e36efed5390654ec270f94a800fef9844b9bbb742a1dbf72ad3392"
-      },
-      {
-        "path": "crates/pulsar-engine/src/browser_timing.rs",
-        "sha256": "c7de0e7130e5f06454516589c427fc7453e6393fa840da59f9683ad9473c9e7f"
-      },
-      {
-        "path": "crates/pulsar-engine/src/engine_cuda_generation_tests.rs",
-        "sha256": "a540dbbd6a307f3cb745b050c4408259587b48f353cb454c13215413e85e47e5"
-      },
-      {
-        "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
-        "sha256": "07419edb41561e6badb6585ca39703f7eb0263495b0fd3cf143825c02d567315"
-      },
-      {
-        "path": "crates/pulsar-engine/src/engine_live_browser_fallback_native_tests.rs",
-        "sha256": "f78191b74216b5bcd73a3126c3744e221231f49a7c1342972807dae2c896dee5"
-      },
-      {
-        "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
-        "sha256": "2743077b656d43e07a1dc101403a6dbe851343a595974f600246d5bc6dc9fd95"
-      },
-      {
-        "path": "crates/pulsar-engine/src/engine_live_cuda.rs",
-        "sha256": "0542f4627a31c20eedddf9ebaad920c1ce733c0b9ba883d03a3d2a08348df885"
-      },
-      {
-        "path": "crates/pulsar-engine/src/engine_live_fallback_target_tests.rs",
-        "sha256": "2aec953b7a83267b3bdc8ac97a4efd3d778e117b0b2363e1834d3fe994a8e904"
-      },
-      {
-        "path": "crates/pulsar-engine/src/inference_environment_control.rs",
-        "sha256": "29b923bdf0bcc1f956e4333dd40b793163ddcdcd6a141d44d9b44147701685d1"
-      },
-      {
-        "path": "crates/pulsar-engine/src/inference_fallback_execution.rs",
-        "sha256": "ea96db172c68ebee595d954b5aad683ccd2047d09aef40ad628436863eea9297"
+        "path": "crates/pulsar-engine/src/inference_equivalence_resolver_store_tests.rs",
+        "sha256": "fb6846351cdc7f22a848b681650a00019ceca5452239f266547abd2374b13321"
       },
       {
         "path": "crates/pulsar-engine/src/lib.rs",
-        "sha256": "4acce132dbbb84d664a4947d18e0fc8802f5e37dcb7f99610a6d31536c2615cb"
-      },
-      {
-        "path": "crates/pulsar-engine/src/live_capture_cpu.rs",
-        "sha256": "734b65bc7f039c1ec4c73d0397008851e6947311e7fb1c13d62dd2a4a61bdae0"
-      },
-      {
-        "path": "crates/pulsar-engine/src/live_capture_cuda.rs",
-        "sha256": "3d3ed4a7fc8208fd3d66c26c143e44aa4cb48b358890be4b638b9912f7c87ac0"
-      },
-      {
-        "path": "crates/pulsar-engine/src/live_capture_fallback.rs",
-        "sha256": "b0c32e4fa24e1cd8e74886362bb6f7244313ef04329da07cdfc2fb9ce4ea6efd"
-      },
-      {
-        "path": "crates/pulsar-engine/src/live_capture_fallback_target.rs",
-        "sha256": "ff7957e4a83bb6362b8684852d3c648d1e400419efdec46f0eb7aecae5815399"
-      },
-      {
-        "path": "crates/pulsar-engine/src/live_capture_inference.rs",
-        "sha256": "294fea56e41c935c1ad37560ec00df412f86ff22a00218304e449e8037c5dd33"
-      },
-      {
-        "path": "crates/pulsar-engine/src/live_capture_pack.rs",
-        "sha256": "b433caa786ef4be0e388eea580db98c42932f91910f66a4e992166dc4a8d49ba"
-      },
-      {
-        "path": "crates/pulsar-engine/src/live_capture_successor.rs",
-        "sha256": "ed123b2c54621a263474ededcb4283b19e8c7c9d29714be94196003decb3fe54"
-      },
-      {
-        "path": "crates/pulsar-engine/src/live_captures.rs",
-        "sha256": "69ecc3017a22d799cbb50fab26e37ad1efb1936b06fe271dd05ab9f47076d779"
-      },
-      {
-        "path": "crates/pulsar-engine/src/live_cpu_history.rs",
-        "sha256": "979931f20766439c8eb197866d8ff67ee776a2d9e90bc2587ed516862e44eba7"
-      },
-      {
-        "path": "crates/pulsar-engine/src/live_cpu_history_tests.rs",
-        "sha256": "9ab3d5a7963b4c6a19121f38987d9fe03ce7ef694ee4ddaaf56464e157eefcaa"
-      },
-      {
-        "path": "crates/pulsar-engine/src/live_cuda_capture_db.rs",
-        "sha256": "0f74498d34b88399daf782e492d21e7760fb1c25b67a03d40a5cad4d54c09be1"
+        "sha256": "914d0c784f4bdc453bf5efb2e9cc1f7b71e6607572862bceb57cb9c59c9288fc"
       },
       {
         "path": "crates/pulsar-engine/src/live_cuda_evidence_db.rs",
-        "sha256": "18d4557ee749237bbc9af3b1e91837a0ff4221f2820e039a03c4d9b3eb76ed62"
+        "sha256": "05c5412b59754863a0ae1a481ea25c2fc4e832e3ac36baee293b1f67badd67e9"
       },
       {
-        "path": "crates/pulsar-engine/src/live_cuda_failure_tests.rs",
-        "sha256": "987cd1b059081f4af12fc76450d6ecc1ef5fb2482392ad0b4d1f6f14938f403f"
+        "path": "crates/pulsar-engine/src/portable_browser_history.rs",
+        "sha256": "b3e63eafa06469376337d4898d83ac07fe66f89f56ca554c9c50ac1913171c98"
       },
       {
-        "path": "crates/pulsar-engine/src/live_cuda_stream.rs",
-        "sha256": "3d1a75f0cb6e5b6b920537794d15575116f072df033a305acdfc571159f9359d"
+        "path": "crates/pulsar-engine/src/portable_browser_history_reader.rs",
+        "sha256": "34aef1c4482211350889bc16bd9656a31811069d98d024bbeee4feb52c59b9ce"
       },
       {
-        "path": "crates/pulsar-engine/src/live_recording.rs",
-        "sha256": "4e1f57707458a232d158871f8307a6d4cd04e843be72f78c788a4ad8b09f06cd"
+        "path": "crates/pulsar-engine/src/portable_browser_history_reader_native_tests.rs",
+        "sha256": "30b57d4f4b36f489f081ee74200f72757642623d2ff11740259c8b2a671be579"
       },
       {
-        "path": "crates/pulsar-engine/src/portable_fallback_graph_reader.rs",
-        "sha256": "b378850d97921bae20e5cd48199d66f93c9c35c8b395e8e08a37a8108b9bc0b6"
+        "path": "crates/pulsar-engine/src/portable_browser_history_tests.rs",
+        "sha256": "d58266c1b8ea145e8ff65cd7e593384ae98df02128b24a4b0f55f6a8d411d94c"
       },
       {
         "path": "crates/pulsar-engine/src/portable_fallback_reader.rs",
-        "sha256": "25a41997e7d0ddc8dee2d3fb7def0d8ce6ce6c566ea235078e655539dad7799f"
+        "sha256": "69213148c66f322afc1a2ca9ff35153d9ddca71b8d2946c2229dbdb4d5017dd3"
       },
       {
-        "path": "crates/pulsar-engine/src/worker/live_cuda_stream.rs",
-        "sha256": "156f9fdf9b4f2d8b8c8b69059898d0ad2356841f03950b5f7019e75ce460c673"
+        "path": "crates/pulsar-engine/src/project_package_browser_history_tests.rs",
+        "sha256": "654f2536b6437a1a41afba759d73c5f3a12403c8a3b74eeacf0e00d11b5c6fa1"
       },
       {
-        "path": "crates/pulsar-engine/src/worker/provider_failure.rs",
-        "sha256": "f167e7593c0f430231d161744ec78612b96a20d7ea50809bd67b0f7ff146e63f"
+        "path": "crates/pulsar-engine/src/project_package_exports.rs",
+        "sha256": "7844f6ebcecd8c93480a48a37c94243e20d4ebca723cabea99d06c25863032f3"
       },
       {
-        "path": "crates/pulsar-protocol/src/browser_inference_fallback.rs",
-        "sha256": "60fad509dec9384aed3606ea4199431e1d3a3a1db321f8f046bb7974ae1eac14"
+        "path": "crates/pulsar-engine/src/project_package_import_plan.rs",
+        "sha256": "1e1f962b9d22fecb5d3ff227ea31530da657d97691fa56a6de4635d049ee683c"
       },
       {
-        "path": "crates/pulsar-protocol/src/browser_inference_semantics.rs",
-        "sha256": "64e0455cace8b4bac651cfff50e7fbabc8bb97fd00f9a8d05698bc9792fc0f93"
+        "path": "crates/pulsar-engine/src/project_package_import_storage.rs",
+        "sha256": "7bb876ca0559432feb5c7db220da4ce09f1dc67c1491c34d0d6d0ab69054477e"
       },
       {
-        "path": "crates/pulsar-protocol/src/browser_inference_source_tests.rs",
-        "sha256": "7d4cbc5fc2a28bfe60db6379ef097c0fa11c4224f3bb0d1f67ed30861285d312"
+        "path": "crates/pulsar-engine/src/project_package_imports.rs",
+        "sha256": "7e91058bdec40d3646bd2b1c413d4d896cd92ff027d1804cbff4f0417d1c74d3"
       },
       {
-        "path": "crates/pulsar-protocol/src/inference_fallback_selection.rs",
-        "sha256": "6ba1af4f645e8e3f075acf06eeb80679559cd9bd7a04742286092d6d666608d5"
+        "path": "crates/pulsar-engine/src/project_packages.rs",
+        "sha256": "e6438ca7e0e97145f2545a6810552d2ce4c4d27007031e0f0d8e35646c757809"
       },
       {
-        "path": "crates/pulsar-protocol/src/live_capture.rs",
-        "sha256": "d3353b6f245121ee67bd5b6e127e166319e0435a8360589f6edbe32f34fa5bbd"
+        "path": "crates/pulsar-engine/src/worker/annotated_portable_tests.rs",
+        "sha256": "c688ffb422a7ab3faa3f94bd5561ee2740bdc1c722df760c2123278a266d9a87"
       },
       {
-        "path": "crates/pulsar-protocol/src/live_clock_observation.rs",
-        "sha256": "ab001c06440ded26cc44e5abe5f7a0822038657d84c184f5d2d97f54eeae78fb"
+        "path": "crates/pulsar-protocol/src/project_package.rs",
+        "sha256": "27e329ca85c5ed876c83ca7d9e171527847786e5d01bcc5736604fb1540668c8"
       },
       {
-        "path": "crates/pulsar-protocol/src/live_cuda.rs",
-        "sha256": "c0645eb5872c094f0e16cada3997f350fb6dfb1ab1ed6a12c083e61092ffb904"
+        "path": "crates/pulsar-protocol/src/project_package_format.rs",
+        "sha256": "b2cc02fd752201b5e37ee735986cad11c08b73351968d2e3e5a3a8b55c1eed9d"
       },
       {
-        "path": "crates/pulsar-protocol/src/live_encoded.rs",
-        "sha256": "9c537bc9535f5666d29af38e27a18d5eaa1e65df77f2879f0150bee825158ba3"
+        "path": "crates/pulsar-protocol/src/project_package_import_operations.rs",
+        "sha256": "dafbc3f3e3d9f8697ac45592582760e3ba913d0dbbcb2446ea3c19e29059c9fb"
       },
       {
-        "path": "crates/pulsar-protocol/src/live_recording_assembly.rs",
-        "sha256": "6011f65facee5911b528525abf97e7a392e8e921e3e0854c772178bb7d30e796"
-      },
-      {
-        "path": "crates/pulsar-protocol/tests/live_bulk_transport.rs",
-        "sha256": "06967f7f9ac87927acf841f5403db7430a899187df9538d053ed1122dcada9f4"
+        "path": "crates/pulsar-protocol/src/project_package_operations.rs",
+        "sha256": "640c0aa596f6727a562d88c48fd581bbf08eb1ac31297d06b06f937b8972c1f3"
       },
       {
         "path": "docs/PULSAR_LIVE_FALLBACK.md",
-        "sha256": "5db3b9d73b5018bd8d4a79d4c142da045eec75ef3bf34536a1225968434dde1d"
+        "sha256": "db7637cb290afe2b6a536de3643b18a2417111ab4547e0c344cec4295d973c89"
       },
       {
-        "path": "scripts/browser-live-player.test.mjs",
-        "sha256": "0c15bcd71948397e0c6f22a2ab2ec6f080a0de64f5ece9aabfc0988aa2a825a7"
-      },
-      {
-        "path": "tests/native_preparation_process.rs",
-        "sha256": "2556ba5137792d86ac28c0b48d8422043db3f1554069c4e25fe8ca488391399e"
+        "path": "docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md",
+        "sha256": "6583cf7250eb1fb9d121d7e04a9bc539f0bdf66b178ab6836262843695f2440b"
       }
     ]
   },
@@ -1394,7 +1270,7 @@
       "depends_on": [
         "CPU-ROUNDTRIP"
       ],
-      "exit": "Engine coordination, recording provenance and first-party handover have component and framed-client evidence. Next close actual native/rendered target workflow and full portable browser equivalence/evidence graph across export/clones/restart/re-export, including withdrawal/source/cancellation/publication faults at original limits. Preserve recording-native001-004 failures and all parent acceptance gates.",
+      "exit": "Complete browser graph root/ancestor mutation, resource and fault campaigns and native/rendered target workflow under original limits. Reader42 refusal against owned reader43 main/WAL state passed; authored fixtures do not close parent gates.",
       "evidence": [
         "EV-FALLBACK-HISTORY-SNAPSHOT",
         "EV-FALLBACK-ARCHIVE-CONTRACT",
@@ -1427,7 +1303,15 @@
         "EV-LIVE-RECORDING-FALLBACK",
         "EV-BROWSER-FALLBACK-HANDOVER",
         "EV-BROWSER-FALLBACK-FRAMED",
-        "EV-LIVE-FALLBACK-SNAPSHOT"
+        "EV-LIVE-FALLBACK-SNAPSHOT",
+        "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
+        "EV-BROWSER-PUBLIC-ROUNDTRIP",
+        "EV-BROWSER-PUBLIC-TIMEOUT",
+        "EV-BROWSER-PUBLIC-REPEAT",
+        "EV-READER43-NATIVE-REFUSAL",
+        "EV-BROWSER-PUBLIC-DIAGNOSTIC",
+        "EV-BROWSER-ARCHIVE-REGRESSION",
+        "EV-BROWSER-WORKSPACE-CHECK"
       ]
     },
     {
@@ -6014,6 +5898,237 @@
             "authority::tests::handy_player_guard_heartbeat_release_and_expiry_stop_bypass_held_main_database",
             "authority::tests::handy_player_guard_nonce_replay_stale_scope_and_credentials_cannot_extend_or_retire"
           ]
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-archive/verification.json",
+      "sha256": "89eb6d42b0dcc39c963253ce55a2d9faf69dee79bc886dfba5420a1352de241b",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Format17 browser recording evidence graph and conditional reader43 are wired into capture, export/import and ancestor correspondence. Five authored archive/reader cases pass, including two real codec round trips and pure clone projections, media/placement/runtime-image/original acknowledgement/evidence mutations and bounds. Fourteen existing capture regressions pass with2 native cases ignored; Protocol411 units+129 integration tests, strict lint, all-target workspace check and static gates pass. No public Engine export/reopen/second-clone or preceding App/native/browser/device qualification is claimed.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "checks",
+            "archive_and_reader_passed"
+          ],
+          "equals": 5
+        },
+        {
+          "pointer": [
+            "checks",
+            "capture_regressions_passed"
+          ],
+          "equals": 14
+        },
+        {
+          "pointer": [
+            "checks",
+            "protocol_lib_passed"
+          ],
+          "equals": 411
+        },
+        {
+          "pointer": [
+            "checks",
+            "protocol_integration_passed"
+          ],
+          "equals": 129
+        },
+        {
+          "pointer": [
+            "checks",
+            "workspace_all_targets"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "public_engine_roundtrip_verified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-PUBLIC-ROUNDTRIP",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/campaign-004.json",
+      "sha256": "aacbd283192e85759d6cb44b82dc5e0db6dc415a947ba030cbd0fbeb27ec238e",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Public Engine export, import, restart, re-export and second clone passed with authored admission and equivalence fixtures; root and ancestor stripping refusals exercised. No native, device, or human qualification. Reader delegation regression separately passed in reader-base-004.json.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "exit_code"
+          ],
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-PUBLIC-TIMEOUT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/campaign-005.json",
+      "sha256": "29f758d5a9e14c4bf91bf77042592121cec68958dff7cf43dfe87be14a4b885d",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Current-source authored-fixture archive regression failed the 20-second import wait; exact cause is not established. Retained earlier passing campaign remains separate.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-PUBLIC-REPEAT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/campaign-006.json",
+      "sha256": "e95620997078d41d89b9fb40cece0b74b5405dfc448b1d2adc6a1bb977d2c407",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Same-binary authored-fixture public archive lifecycle passed following a timeout; the earlier failure remains unresolved.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-READER43-NATIVE-REFUSAL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/reader42-reader43-proof-001.json",
+      "sha256": "f7a95edf27a3ee0ad7f25821626889b3156e7402d5e8ccbc31c4c74d47e82547",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Pinned actual reader42 App refuses owned reader43 state in both main file and committed WAL without file inventory changes; current Engine reopens. Authored empty state; no hardware or product qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-PUBLIC-DIAGNOSTIC",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/campaign-007.json",
+      "sha256": "46f6a06ea390973dffbeb1f3e586310c0ec8c314b2661f3b5ffd62e2d52ac727",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Authored lifecycle passed with additional phase and status diagnostics; earlier timeout remains unresolved.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-ARCHIVE-REGRESSION",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/regression-008.json",
+      "sha256": "9676fe1d1a952ee0ef664662becd1b8660d012ecd1d1fe269aea9fbb287dad4e",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Current diagnostic source: six archive/reader tests pass, one separately run native test ignored by default; strict Engine and Protocol lint passes. No acceptance qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "archive_tests_passed"
+          ],
+          "equals": 6
+        },
+        {
+          "pointer": [
+            "strict_lint"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-WORKSPACE-CHECK",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/workspace-current.json",
+      "sha256": "16543cd59d9052d6b19b9113a7009316fa0ef668bf64b46afce70ab0412f6445",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Workspace all-target check passed on recorded current source; no release qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
         },
         {
           "pointer": [

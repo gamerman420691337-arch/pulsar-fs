@@ -49,7 +49,7 @@ fn layout(db: &Connection) -> Result<bool> {
         return Ok(false);
     }
     let exact: bool = db.query_row("SELECT EXISTS(SELECT 1 FROM main.sqlite_master WHERE type='table' AND name=?1 AND tbl_name=?1 AND typeof(sql)='text' AND sql=?2)", params![TABLE, CREATE], |r| r.get(0))?;
-    let version: i64 = db.query_row("PRAGMA main.user_version", [], |r| r.get(0))?;
+    let version = crate::portable_browser_history_reader::version(db)?;
     ensure!(
         count == 1 && exact && version == crate::browser_fallback_reader::MAX_STORAGE_VERSION,
         "browser fallback admission layout or reader barrier differs"
@@ -153,7 +153,7 @@ fn load_indexed(
 }
 fn load(db: &Connection, epoch: &AttemptId) -> Result<Option<(SessionId, LiveCaptureReport)>> {
     if !layout(db)? {
-        let version: i64 = db.query_row("PRAGMA main.user_version", [], |r| r.get(0))?;
+        let version = crate::portable_browser_history_reader::version(db)?;
         if version == crate::browser_fallback_reader::MAX_STORAGE_VERSION && exists(db, "requests")?
         {
             let required: bool = db.query_row(
@@ -168,6 +168,17 @@ fn load(db: &Connection, epoch: &AttemptId) -> Result<Option<(SessionId, LiveCap
     capacity(db)?;
     load_indexed(db, epoch)
 }
+/// Exact canonical original acknowledgement for inert, project-scoped archives.
+/// Caller holds the SQL snapshot and separately checks disclosure approval.
+pub(crate) fn archival_receipt(
+    db: &Connection,
+    epoch: &AttemptId,
+) -> Result<(SessionId, RequestId, String, String)> {
+    let (owner, _) = load(db, epoch)?.context("original browser admission absent")?;
+    let (request,fingerprint,response):(String,String,String)=db.query_row("SELECT i.request,i.fingerprint,r.response FROM main.browser_fallback_admissions i JOIN main.requests r ON r.session=i.owner AND r.request=i.request WHERE i.epoch=?1 AND i.owner=?2 AND typeof(r.response)='text' AND length(CAST(r.response AS BLOB)) BETWEEN 1 AND 1048576",params![epoch.as_str(),owner.as_str()],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?)))?;
+    Ok((owner, RequestId::new(request)?, fingerprint, response))
+}
+
 fn require_capture(db: &Connection, actor: &SessionId, report: &LiveCaptureReport) -> Result<()> {
     require_original(actor, report, load(db, &report.identity.epoch)?)
 }
@@ -320,7 +331,7 @@ pub(crate) fn remember(
 pub(crate) fn validate(db: &Connection) -> Result<()> {
     let present = layout(db)?;
     if !present {
-        let version: i64 = db.query_row("PRAGMA main.user_version", [], |r| r.get(0))?;
+        let version = crate::portable_browser_history_reader::version(db)?;
         if version != crate::browser_fallback_reader::MAX_STORAGE_VERSION {
             return Ok(());
         }
@@ -364,3 +375,8 @@ pub(crate) fn validate(db: &Connection) -> Result<()> {
 #[cfg(test)]
 #[path = "browser_fallback_history_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+pub(crate) fn authored_capture_for_archive_test() -> LiveCaptureReport {
+    tests::report()
+}

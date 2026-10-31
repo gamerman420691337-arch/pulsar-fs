@@ -1061,6 +1061,9 @@ impl Engine {
             crate::portable_fallback_reader::arm(&tx).map_err(internal)?;
             crate::portable_fallback_graph_reader::arm(&tx).map_err(internal)?;
         }
+        if manifest.format_version >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_BROWSER_FALLBACK_HISTORY {
+            crate::portable_browser_history_reader::arm(&tx).map_err(internal)?;
+        }
         for candidate in &manifest.candidates {
             tx.execute("INSERT INTO candidates(id,project,base_revision,program,job,lineage,committed_revision,review) VALUES(?1,?2,?3,?4,NULL,?5,?6,?7)",
                 params![candidate.candidate_id.as_str(),project.as_str(),rev_sql(candidate.base_revision)?,reference(&candidate.motion),
@@ -1599,7 +1602,15 @@ fn validate_all_evidence(
         let has_fallback = catalog.values().any(|o| {
             o.roles
                 .contains(&PackageObjectRole::InferenceFallbackHistory)
-        });
+                || o.roles
+                    .contains(&PackageObjectRole::BrowserInferenceFallbackHistory)
+        }) || std::iter::once(verified.manifest())
+            .chain(verified.origins().values())
+            .any(|node| {
+                node.sources
+                    .iter()
+                    .any(|s| s.kind == SourceKind::LiveRecording)
+            });
         let _memory = if has_fallback {
             Some(pool.reserve_memory(transfers::VALIDATION_MEMORY)?)
         } else {
@@ -1677,6 +1688,11 @@ fn validate_all_evidence(
             }
         }
         fallback.finish()?;
+        super::portable_browser_history::validate_graph(
+            verified.manifest(),
+            verified.origins(),
+            &mut read,
+        )?;
     }
     for manifest in std::iter::once(verified.manifest()).chain(verified.origins().values()) {
         check()?;
@@ -2257,6 +2273,7 @@ pub(in crate::authority) fn exercise_authored_image_portable_lifecycle(
 mod tests {
     use super::*;
     use crate::project_package_format::write_package;
+    include!("project_package_browser_history_tests.rs");
     struct Fixture {
         engine: Arc<Engine>,
         session: SessionId,
@@ -2386,7 +2403,7 @@ mod tests {
                 if status.state.is_terminal() {
                     return *status;
                 }
-                assert!(Instant::now() < deadline, "import timed out");
+                assert!(Instant::now() < deadline, "import timed out: {status:?}");
                 std::thread::sleep(Duration::from_millis(1));
             }
         }

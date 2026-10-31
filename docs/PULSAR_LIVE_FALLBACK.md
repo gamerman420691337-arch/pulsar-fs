@@ -210,3 +210,11 @@ equivalence resolver and native retirement machinery. It must not weaken their
 proofs to make file and live declarations appear interchangeable. Remaining
 portable-history corruption/resource/fault and hot-WAL checks also stay open in
 the execution dashboard.
+
+
+The portable browser graph implementation is under verification in
+[PULSAR_PORTABLE_FALLBACK_HISTORY.md](PULSAR_PORTABLE_FALLBACK_HISTORY.md).
+Format 17 binds recording snapshots to original admission acknowledgements and
+historical equivalence documents; reader 43 protects retained graph metadata.
+Public Engine restart/interchange, actual native target execution, resource/fault
+and preceding-reader proof remain open until their retained campaigns pass.

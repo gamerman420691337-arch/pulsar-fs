@@ -1979,6 +1979,7 @@ mod tests {
         let sha = format!("{:x}", Sha256::digest(source));
         let mut manifest = fixture();
         manifest.sources.push(PackageSource {
+            browser_fallback_history: None,
             source_version: SourceVersionId::new("source").unwrap(),
             kind: SourceKind::Media,
             label: "source".into(),

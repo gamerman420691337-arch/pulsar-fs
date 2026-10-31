@@ -16,6 +16,7 @@ use crate::{
     ErrorCode, PackageObjectDescriptor, PortableProjectManifest, ProtocolError,
     DEFAULT_MAX_PROJECT_PACKAGE_BYTES, MAX_PROJECT_PACKAGE_MANIFEST_BYTES,
     PROJECT_PACKAGE_FORMAT_VERSION, PROJECT_PACKAGE_FORMAT_VERSION_WITH_ANNOTATED_MODELS,
+    PROJECT_PACKAGE_FORMAT_VERSION_WITH_BROWSER_FALLBACK_HISTORY,
     PROJECT_PACKAGE_FORMAT_VERSION_WITH_CANDIDATE_INTERVALS,
     PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY,
     PROJECT_PACKAGE_FORMAT_VERSION_WITH_CUDA_EVIDENCE,
@@ -322,6 +323,7 @@ where
             | PROJECT_PACKAGE_FORMAT_VERSION_WITH_DEVICE_EXPORTS
             | PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY
             | PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY
+            | PROJECT_PACKAGE_FORMAT_VERSION_WITH_BROWSER_FALLBACK_HISTORY
             | PROJECT_PACKAGE_FORMAT_VERSION_WITH_IMAGE_ORIGINS
     ) {
         return Err(ProtocolError::unsupported(
@@ -1345,7 +1347,8 @@ mod tests {
             manifest.canonical_bytes().unwrap()
         );
         bytes[8..10].copy_from_slice(
-            &(crate::PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY + 1).to_le_bytes(),
+            &(crate::PROJECT_PACKAGE_FORMAT_VERSION_WITH_BROWSER_FALLBACK_HISTORY + 1)
+                .to_le_bytes(),
         );
         assert!(package_format_version(&bytes[..52]).is_err());
         let mut opened = false;

@@ -123,7 +123,7 @@ impl PackageArtifactDescriptor {
     pub fn validate(&self) -> Result<(), ProtocolError> {
         if !matches!(
             self.format_version,
-            1..=crate::PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY
+            1..=crate::PROJECT_PACKAGE_FORMAT_VERSION_WITH_BROWSER_FALLBACK_HISTORY
         ) {
             return Err(ProtocolError::unsupported("unsupported package format"));
         }

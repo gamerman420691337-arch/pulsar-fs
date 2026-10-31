@@ -61,6 +61,51 @@ evidence. Capture includes only exact decisions referenced by the project,
 never registry enumeration or management rights. The shared CLI/desktop privacy
 notice explicitly includes model evaluation, decision and review records.
 
+## Browser recording graph (format-17 implementation under verification)
+
+A live recording source has its own optional `browser_fallback_history` object
+reference and the `browser_inference_fallback_history` role. A declaration, role,
+or format-17 ancestor requires format 17; omitted fields retain legacy canonical
+bytes. The object binds the exact recording snapshot hash/length, its original
+source version and project namespace, the original canonical admission
+acknowledgements, referenced equivalence reports and all their raw documents.
+This includes the original admission of every failed epoch, even when the
+recording contains only the eventual target. Missing, detached or substituted
+acknowledgements and directed profile/environment mismatches refuse.
+
+The browser frame starts with `PULSBH1\0`, then a little-endian four-byte header
+length, canonical schema-1 JSON and raw document bytes in digest order. The
+header is limited to 32 MiB, 1,024 admission acknowledgements and 256 referenced
+reports. Raw documents retain the 128 MiB aggregate bound and the full frame the
+160 MiB bound. Original recording snapshots retain their separate 40 MiB bound;
+local preflight admits at most 64 MiB of recording bytes, and graph verification
+charges at most 256 MiB across distinct source/payload bindings before reading.
+These are engineering admission limits, not product capacity guarantees.
+
+Capture first authorizes and catalogues the sources, then reads and hashes their
+bytes outside the authority transaction. The actual capture transaction rechecks
+each exact source tuple and the initiating session's project-specific host-owner
+disclosure acknowledgement. Original admission and equivalence records are
+collected from that same SQL snapshot; files are never read under that lock.
+The plan holds the already checked source bytes. Imported recordings reuse their
+checked ancestor evidence, without looking up acceptance in the destination.
+
+Both export materialization and clone import check the entire root/ancestor
+graph, original source namespace, inherited source reference, exact recording
+snapshot bytes, original media-source identity and placement definition,
+acknowledgement scope, decision times, directed profiles/environments,
+all eight evidence documents and detached role objects. Original reports remain
+historical data; the importer never installs accepted decisions, worker jobs,
+native source handles or permissions from this payload.
+
+Conditional reader 43 wraps reader 42 and retains older marker composition.
+Publication arms it in the same transaction as format-17 export/import metadata.
+Startup refuses stripped markers, wrong scalars, temporary shadows and retained
+format-17 declarations without their barrier before recovery. Actual previous-
+reader main/WAL refusal, public Engine export/clone/restart/re-export/second clone,
+resource and crash/fault verification remain required. Compilation or authored
+codec fixtures do not close those obligations.
+
 The authored Engine campaign reaches public export readiness, uploads/imports
 the package, restarts the destination, re-exports and imports a second clone.
 Payload bytes survive both clones, and no executable job/attempt or acceptance

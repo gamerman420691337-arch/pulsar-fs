@@ -6,9 +6,9 @@ The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue
 
 Reconciled **2026-10-30**. Roadmap **INCOMPLETE**; autonomous runner observation **active**.
 
-**Working tree: UNVERIFIED.** Development snapshot: workspace all-target compilation and formatting pass. Broad Engine run reports two Handy guard failures and a600s timeout without a final summary; journal waits are observed, cause remains unproven. Client709 and six framed scenarios pass on unchanged source. Native/rendered browser fallback and portable graph remain unverified; all25 acceptance gates stay open.
+**Working tree: UNVERIFIED.** Diagnostic authored archive lifecycle and six archive/reader regressions passed; prior intermittent import timeout remains unexplained. All 25 acceptance gates stay open.
 
-**Next: LIVE-FALLBACK-HISTORY — Complete live/browser fallback and remaining portable histories.** Exit required: Engine coordination, recording provenance and first-party handover have component and framed-client evidence. Next close actual native/rendered target workflow and full portable browser equivalence/evidence graph across export/clones/restart/re-export, including withdrawal/source/cancellation/publication faults at original limits. Preserve recording-native001-004 failures and all parent acceptance gates.
+**Next: LIVE-FALLBACK-HISTORY — Complete live/browser fallback and remaining portable histories.** Exit required: Complete browser graph root/ancestor mutation, resource and fault campaigns and native/rendered target workflow under original limits. Reader42 refusal against owned reader43 main/WAL state passed; authored fixtures do not close parent gates.
 
 Last verified checkpoint: Engine **1926 passed / 117 ignored**, clients **703 passed / 15 ignored**, Protocol **406 passed**. Current reader41 compatibility patch: 6 parser tests, 7 reader tests (1 ignored), two actual App refusal cases, strict Engine library/test lint, formatting, architecture and 36 source guards pass. Broader suite and native consumer results remain separately pinned checkpoints. Original reader41 WAL mutation and the invalid zero-test cache run remain retained; all 25 acceptance gates stay open.
 

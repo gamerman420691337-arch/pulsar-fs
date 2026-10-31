@@ -8,7 +8,7 @@ const MARKER: &str = "CREATE TABLE browser_fallback_reader(singleton INTEGER PRI
 pub(crate) const MAX_STORAGE_VERSION: i64 = 42;
 
 fn header(db: &Connection) -> Result<(i64, bool)> {
-    let raw: i64 = db.query_row("PRAGMA main.user_version", [], |r| r.get(0))?;
+    let raw = crate::portable_browser_history_reader::version(db)?;
     ensure!(
         raw == 0 || (2..=MAX_STORAGE_VERSION).contains(&raw),
         "unknown browser fallback reader version"
@@ -65,11 +65,7 @@ pub(crate) fn publish(db: &Connection, new_version: i64) -> Result<()> {
             "browser fallback reader lost its retained header"
         );
     } else {
-        db.pragma_update(
-            Some(rusqlite::DatabaseName::Main),
-            "user_version",
-            new_version,
-        )?;
+        crate::portable_browser_history_reader::publish(db, new_version)?;
     }
     Ok(())
 }
@@ -86,11 +82,7 @@ pub(crate) fn arm(tx: &Transaction<'_>) -> Result<()> {
             "INSERT INTO main.browser_fallback_reader(singleton,underlying_version) VALUES(1,?1)",
             [old],
         )?;
-        tx.pragma_update(
-            Some(rusqlite::DatabaseName::Main),
-            "user_version",
-            MAX_STORAGE_VERSION,
-        )?;
+        crate::portable_browser_history_reader::publish(tx, MAX_STORAGE_VERSION)?;
     }
     ensure!(
         header(tx)? == (old, true),

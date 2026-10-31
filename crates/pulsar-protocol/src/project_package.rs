@@ -30,6 +30,7 @@ pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_IMAGE_ORIGINS: u16 = 13;
 pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_DEVICE_EXPORTS: u16 = 14;
 pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY: u16 = 15;
 pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY: u16 = 16;
+pub const PROJECT_PACKAGE_FORMAT_VERSION_WITH_BROWSER_FALLBACK_HISTORY: u16 = 17;
 /// Canonical history plus the original reports and bounded raw evidence bodies.
 pub const MAX_PACKAGE_FALLBACK_HISTORY_BYTES: usize = 160 * 1024 * 1024;
 pub const MAX_PROJECT_PACKAGE_MANIFEST_BYTES: usize = 16 * 1024 * 1024;
@@ -55,6 +56,7 @@ pub enum PackageObjectRole {
     AnnotatedModel,
     WasmModule,
     WasmInput,
+    BrowserInferenceFallbackHistory,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -238,6 +240,9 @@ pub struct PackageAuthoredLineage {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PackageSource {
+    /// Original browser recording evidence; inert and bound to the exact snapshot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub browser_fallback_history: Option<PackageObjectRef>,
     pub source_version: SourceVersionId,
     pub kind: SourceKind,
     pub label: String,
@@ -552,6 +557,21 @@ impl PortableProjectManifest {
     }
 
     pub fn required_format_version(&self) -> u16 {
+        if self
+            .sources
+            .iter()
+            .any(|s| s.browser_fallback_history.is_some())
+            || self.objects.iter().any(|o| {
+                o.roles
+                    .contains(&PackageObjectRole::BrowserInferenceFallbackHistory)
+            })
+            || self.imported_origins.iter().any(|o| {
+                o.container.format_version
+                    >= PROJECT_PACKAGE_FORMAT_VERSION_WITH_BROWSER_FALLBACK_HISTORY
+            })
+        {
+            return PROJECT_PACKAGE_FORMAT_VERSION_WITH_BROWSER_FALLBACK_HISTORY;
+        }
         if self
             .generated_origins
             .iter()
@@ -1004,6 +1024,17 @@ impl PortableProjectManifest {
             required.reference(&authored.input, PackageObjectRole::EditInput)?;
         }
         for source in &self.sources {
+            if let Some(history) = &source.browser_fallback_history {
+                if source.kind != SourceKind::LiveRecording
+                    || history.byte_len == 0
+                    || history.byte_len > MAX_PACKAGE_FALLBACK_HISTORY_BYTES as u64
+                {
+                    return invalid(
+                        "browser fallback history requires a bounded live recording source",
+                    );
+                }
+                required.reference(history, PackageObjectRole::BrowserInferenceFallbackHistory)?;
+            }
             text(&source.label, 4096, false)?;
             required.identity(&source.identity, PackageObjectRole::SourceSnapshot)?;
             if source.kind != SourceKind::Media && !source.stash_associations.is_empty() {
@@ -1394,6 +1425,53 @@ mod tests {
         m.counts = m.record_counts().unwrap();
         m
     }
+    #[test]
+    fn browser_history_requires_format17_and_exact_live_source_role() {
+        let mut m = generated_fixture();
+        let legacy = m.canonical_bytes().unwrap();
+        assert!(!String::from_utf8(legacy.clone())
+            .unwrap()
+            .contains("browser_fallback_history"));
+        let reference = PackageObjectRef {
+            sha256: "e".repeat(64),
+            byte_len: 100,
+        };
+        m.sources[0].kind = SourceKind::LiveRecording;
+        m.sources[0].browser_fallback_history = Some(reference.clone());
+        m.objects.push(PackageObjectDescriptor {
+            sha256: reference.sha256,
+            byte_len: reference.byte_len,
+            roles: vec![PackageObjectRole::BrowserInferenceFallbackHistory],
+        });
+        m.objects.sort_by(|a, b| a.sha256.cmp(&b.sha256));
+        m.format_version = m.required_format_version();
+        m.counts = m.record_counts().unwrap();
+        assert_eq!(m.format_version, 17);
+        m.validate().unwrap();
+        let raw = m.canonical_bytes().unwrap();
+        let decoded: PortableProjectManifest = serde_json::from_slice(&raw).unwrap();
+        assert_eq!(decoded.canonical_bytes().unwrap(), raw);
+        for fault in ["format", "kind", "role", "length"] {
+            let mut bad = m.clone();
+            match fault {
+                "format" => bad.format_version = 16,
+                "kind" => bad.sources[0].kind = SourceKind::Media,
+                "role" => {
+                    bad.objects.last_mut().unwrap().roles =
+                        vec![PackageObjectRole::DependencyEvidence]
+                }
+                _ => {
+                    bad.sources[0]
+                        .browser_fallback_history
+                        .as_mut()
+                        .unwrap()
+                        .byte_len += 1
+                }
+            };
+            assert!(bad.validate().is_err(), "{fault}");
+        }
+    }
+
     #[test]
     fn sparse_legacy_closure_and_exact_canonical_roundtrip() {
         let m = fixture();
@@ -1789,7 +1867,9 @@ mod tests {
         header[8..10]
             .copy_from_slice(&PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY.to_le_bytes());
         assert_eq!(crate::package_format_version(&header).unwrap(), 16);
-        header[8..10].copy_from_slice(&17u16.to_le_bytes());
+        header[8..10].copy_from_slice(
+            &(PROJECT_PACKAGE_FORMAT_VERSION_WITH_BROWSER_FALLBACK_HISTORY + 1).to_le_bytes(),
+        );
         assert_eq!(
             crate::package_format_version(&header).unwrap_err().code,
             crate::ErrorCode::Unsupported
@@ -1862,6 +1942,7 @@ mod tests {
             review: vec![],
         });
         m.sources.push(PackageSource {
+            browser_fallback_history: None,
             source_version: source.clone(),
             kind: SourceKind::Media,
             label: "source".into(),
@@ -2104,6 +2185,7 @@ mod tests {
     #[test]
     fn stash_association_requires_new_reader_exact_payload_and_explicit_bounds() {
         let source = PackageSource {
+            browser_fallback_history: None,
             source_version: SourceVersionId::new("source").unwrap(),
             kind: SourceKind::Media,
             label: "source".into(),

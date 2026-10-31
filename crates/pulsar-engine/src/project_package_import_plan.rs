@@ -446,6 +446,7 @@ fn validate_mapping(
         if map.local != map.origin
             || !same(&l.kind, &r.kind)?
             || !same(&l.identity, &r.identity)?
+            || l.browser_fallback_history != r.browser_fallback_history
             || r.stash_associations
                 .iter()
                 .any(|a| !l.stash_associations.contains(a))
@@ -1479,6 +1480,7 @@ mod tests {
         let mut original = fixture();
         let source = SourceVersionId::new("c".repeat(64)).unwrap();
         original.sources.push(PackageSource {
+            browser_fallback_history: None,
             source_version: source.clone(),
             kind: SourceKind::Media,
             label: "synthetic".into(),

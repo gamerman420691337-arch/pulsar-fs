@@ -1143,3 +1143,170 @@ fn pending_withdrawal_and_completed_withdrawal_both_fence_current_resolution() {
     )
     .is_err());
 }
+
+/// Fabricated evidence shapes for archive correspondence only; no measurement,
+/// execution, reviewer approval or public acceptance is represented.
+pub(in crate::authority) fn browser_archive_record(
+    capture: &LiveCaptureReport,
+) -> (
+    Connection,
+    InferenceEquivalenceReport,
+    BTreeMap<String, Vec<u8>>,
+) {
+    let from = capture.options.inference.as_ref().unwrap().profile.clone();
+    let mut to = from.clone();
+    to.cpu_threads += 1;
+    let mut environment = capture
+        .inference
+        .as_ref()
+        .unwrap()
+        .fallback
+        .as_ref()
+        .unwrap()
+        .observed_environment
+        .clone();
+    environment
+        .dependencies
+        .extend([fixture_artifact("ffmpeg"), fixture_artifact("ffprobe")]);
+    let selected = capture.options.inference_fallback.as_ref().unwrap();
+    let f = authored_record_scoped(
+        |subject| {
+            subject.from_profile = from.clone();
+            subject.to_profile = to.clone();
+            subject.from_environment = environment.clone();
+            subject.to_environment = environment.clone();
+            subject.scope.recipe = InferenceEquivalenceRecipe::TemporalPosition;
+            subject.scope.source_policy = selected.source_policy.identity().unwrap();
+            subject.scope.view_policy = selected.view_policy.identity().unwrap();
+        },
+        |details| {
+            for (kind, profile) in [(K::FromExecution, &from), (K::ToExecution, &to)] {
+                let execution = match details.get_mut(&kind).unwrap() {
+                    D::FromExecution(v) | D::ToExecution(v) => v,
+                    _ => unreachable!(),
+                };
+                for case in &mut execution.cases {
+                    case.profile_sha256 = fixture_hash(&fixture_bytes(profile));
+                    case.environment_sha256 = environment.identity_sha256().unwrap();
+                    case.manifest.dependencies =
+                        vec![profile.model.clone(), profile.runtime.clone()];
+                    case.manifest.tools.onnx_runtime.as_mut().unwrap().identity =
+                        profile.runtime.clone();
+                    case.manifest.budget.memory_bytes = profile.minimum_memory_bytes.max(256 << 20);
+                    case.manifest.budget.output_bytes = profile.minimum_output_bytes.max(4096);
+                    case.manifest.budget.cpu_threads = profile.cpu_threads;
+                    let WorkerOperation::Generate {
+                        settings, model, ..
+                    } = &mut case.manifest.operation
+                    else {
+                        unreachable!()
+                    };
+                    model.as_mut().unwrap().identity = profile.model.clone();
+                    **settings = GenerationSettings {
+                        project_interval: settings.project_interval,
+                        analysis_width: 64,
+                        analysis_height: 64,
+                        source_sample_stride: 2,
+                        model_input: Some(profile.preprocessing.input.clone()),
+                        inference_profile: Some(profile.clone()),
+                        ..Default::default()
+                    };
+                    case.manifest.validate().unwrap();
+                }
+            }
+            if let D::ProviderPlacement(v) = details.get_mut(&K::ProviderPlacement).unwrap() {
+                for c in &mut v.cases {
+                    c.from.profile_sha256 = fixture_hash(&fixture_bytes(&from));
+                    c.to.profile_sha256 = fixture_hash(&fixture_bytes(&to));
+                }
+            }
+        },
+    );
+    let reference = InferenceFallbackReference {
+        dossier_id: f.report.dossier_id.clone(),
+        expected_revision: 2,
+        expected_report_sha256: f.hash.clone(),
+    };
+    let (report, docs) = archival_decision(&f.db, &reference, &mut (128 * 1024 * 1024)).unwrap();
+    (f.db, report, docs)
+}
+
+/// Private simulation seed for public archive tests. This deliberately bypasses
+/// public acceptance and never represents a real measurement or operator.
+pub(in crate::authority) fn seed_browser_archive_record(
+    db: &mut Connection,
+    actor: &SessionId,
+    capture: &mut LiveCaptureReport,
+) {
+    let (_, mut report, documents) = browser_archive_record(capture);
+    let decision = report.decision.as_mut().unwrap();
+    decision.actor_session = actor.clone();
+    decision.request_id = RequestId::new(format!(
+        "authored-browser-decision-{}",
+        uuid::Uuid::new_v4()
+    ))
+    .unwrap();
+    let request = decision.request_id.clone();
+    let tx = db.transaction().unwrap();
+    let docs = report
+        .manifest
+        .evidence
+        .iter()
+        .map(|e| (e.kind, documents[&e.identity.sha256].clone()))
+        .collect::<Vec<_>>();
+    import_pending(&tx, &report.manifest, &docs).unwrap();
+    write_decision(&tx, &report, 1).unwrap();
+    let fp = digest(b"AUTHORING FIXTURE ONLY - not public acceptance");
+    tx.execute(
+        "INSERT INTO request_identities(session,request,fingerprint) VALUES(?1,?2,?3)",
+        params![actor.as_str(), request.as_str(), fp],
+    )
+    .unwrap();
+    let body = ResponseBody::InferenceEquivalenceSaved(Box::new(InferenceEquivalenceReceipt {
+        request_id: request.clone(),
+        input_sha256: None,
+        report: report.clone(),
+    }));
+    tx.execute(
+        "INSERT INTO requests(session,request,fingerprint,response) VALUES(?1,?2,?3,?4)",
+        params![actor.as_str(), request.as_str(), fp, encode(&body).unwrap()],
+    )
+    .unwrap();
+    tx.execute(
+        "UPDATE inference_equivalence_schema SET clock_floor_unix_ms=MAX(clock_floor_unix_ms,3000)",
+        [],
+    )
+    .unwrap();
+    tx.commit().unwrap();
+    let reference = InferenceFallbackReference {
+        dossier_id: report.dossier_id.clone(),
+        expected_revision: 2,
+        expected_report_sha256: digest(encode(&report).unwrap().as_bytes()),
+    };
+    capture
+        .options
+        .inference_fallback
+        .as_mut()
+        .unwrap()
+        .equivalents = vec![reference.clone()];
+    let selection = capture
+        .options
+        .inference_fallback
+        .as_ref()
+        .unwrap()
+        .identity()
+        .unwrap();
+    let admission = capture
+        .inference
+        .as_mut()
+        .unwrap()
+        .fallback
+        .as_mut()
+        .unwrap();
+    admission.selection = selection;
+    admission.reference = reference;
+    admission.observed_environment = report.manifest.subject.from_environment;
+    admission.admitted_at_unix_ms = 4000;
+    admission.expires_at_unix_ms = 10000;
+    capture.validate().unwrap();
+}
