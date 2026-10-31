@@ -7125,7 +7125,7 @@ pub(crate) mod tests {
                 .count(),
             0
         );
-        #[cfg(unix)]
+        #[cfg(target_os = "linux")]
         assert!(!f.engine.worker_fence.has_pending_worker_custody().unwrap());
     }
 
