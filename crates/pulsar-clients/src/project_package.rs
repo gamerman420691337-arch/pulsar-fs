@@ -735,12 +735,13 @@ impl DestinationStage {
             ));
         }
         let held = self.file.metadata()?;
+        let held_identity = rustix::fs::fstat(&self.file)?;
         let named = statat(&self.directory, "bundle", AtFlags::SYMLINK_NOFOLLOW)?;
         ensure!(
             held.is_file()
                 && held.nlink() == 1
-                && held.dev() == named.st_dev
-                && held.ino() == named.st_ino,
+                && held_identity.st_dev == named.st_dev
+                && held_identity.st_ino == named.st_ino,
             "Private package staging path no longer identifies the verified regular file"
         );
         self.file.sync_all().map_err(|error| {
@@ -819,7 +820,7 @@ impl DestinationStage {
                 format!("Published path cannot be associated: {error}"),
             )
         })?;
-        if named.st_dev != held.dev() || named.st_ino != held.ino() {
+        if named.st_dev != held_identity.st_dev || named.st_ino != held_identity.st_ino {
             return Err(self.failure(PackagePublicationOutcome::OutcomeUnknown, "Published path was replaced; verified bytes must not be confused with its replacement"));
         }
         self.preserve = false;
@@ -834,13 +835,12 @@ impl DestinationStage {
     }
     fn cleanup(&mut self) {
         use rustix::fs::{statat, unlinkat, AtFlags};
-        use std::os::unix::fs::MetadataExt;
         if self.file_present {
             if let (Ok(named), Ok(held)) = (
                 statat(&self.directory, "bundle", AtFlags::SYMLINK_NOFOLLOW),
-                self.file.metadata(),
+                rustix::fs::fstat(&self.file),
             ) {
-                if named.st_dev == held.dev() && named.st_ino == held.ino() {
+                if named.st_dev == held.st_dev && named.st_ino == held.st_ino {
                     let _ = unlinkat(&self.directory, "bundle", AtFlags::empty());
                 }
             }
@@ -852,9 +852,9 @@ impl DestinationStage {
                     crate::package_staging_recovery::JOURNAL,
                     AtFlags::SYMLINK_NOFOLLOW,
                 ),
-                journal.metadata(),
+                rustix::fs::fstat(journal),
             ) {
-                if named.st_dev == held.dev() && named.st_ino == held.ino() {
+                if named.st_dev == held.st_dev && named.st_ino == held.st_ino {
                     let _ = unlinkat(
                         &self.directory,
                         crate::package_staging_recovery::JOURNAL,
@@ -865,9 +865,9 @@ impl DestinationStage {
         }
         if let (Ok(named), Ok(held)) = (
             statat(&self.parent, &self.stage_name, AtFlags::SYMLINK_NOFOLLOW),
-            self.directory.metadata(),
+            rustix::fs::fstat(&self.directory),
         ) {
-            if named.st_dev == held.dev() && named.st_ino == held.ino() {
+            if named.st_dev == held.st_dev && named.st_ino == held.st_ino {
                 let _ = unlinkat(&self.parent, &self.stage_name, AtFlags::REMOVEDIR);
             }
         }
