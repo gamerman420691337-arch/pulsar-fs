@@ -1028,10 +1028,18 @@ impl Engine {
                 Err(error) => Response::failure(request.request_id, error),
             };
         }
-        let _ = self.sweep_live_captures();
+        // Timing history validates its own source and lifetime. An unrelated
+        // live-capture sweep can block its bounded response; active captures
+        // have their own owned lease sweeper.
+        let timing_history = browser_timing::is_history_command(&request.command);
+        if !timing_history {
+            let _ = self.sweep_live_captures();
+        }
         let result = self.dispatch(&request);
         self.sweep_browser_timing();
-        let _ = self.sweep_live_captures();
+        if !timing_history {
+            let _ = self.sweep_live_captures();
+        }
         match result {
             Ok(body) => Response::success(request.request_id, body),
             Err(error) => Response::failure(request.request_id, error),
@@ -1044,7 +1052,11 @@ impl Engine {
         // I/O. Release, historical status, cancellation and stop cleanup remain
         // independent; exact registry retirement fences already queued play.
         let _handy_admission = self.handy_reconciliation_admission(&request.command)?;
-        self.transfers.lock().map_err(internal)?.sweep();
+        // Timing history has no transfer dependency; the owned transfer
+        // sweeper continues to retire leases independently.
+        if !browser_timing::is_history_command(&request.command) {
+            self.transfers.lock().map_err(internal)?.sweep();
+        }
         if let Command::Pair {
             client_name,
             pairing_token,
