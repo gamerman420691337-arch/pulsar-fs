@@ -32,7 +32,9 @@ model/profile and CUDA owner admission remain authoritative.
 Open the printed `http://127.0.0.1:PORT/` URL. Select a local video and press Play.
 The player currently supports normal playback speed. Pause, seek, video change,
 rate change, end and decoding errors clear the position preview and stop its
-capture. After seeking, press Play to start a fresh capture at that source time.
+capture. After a seek following active playback, use **Resume analysis after
+seek** to start a fresh capture at that source time. Initial source preparation
+still uses the ordinary Play control.
 The page retains no media file on the server; frames remain bounded live inputs.
 
 The server runs for 300 seconds by default (`--duration-seconds 1..600`); `--port`

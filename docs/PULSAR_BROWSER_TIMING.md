@@ -17,8 +17,9 @@ it does not start a device or qualify display, source or physical timing.
    through JavaScript numbers.
 4. Use **Inspect original timing status** to inspect the original operation.
    Inspection does not restart a measurement loop or renew an observation.
-5. Pause or seek to retire that player's timing. Press Play explicitly to create
-   a fresh player. Preparing a replacement source, closing the page, native
+5. Pause or seek to retire that player's timing. After a seek following playback,
+   use **Resume analysis after seek** to create a fresh player. After an ordinary
+   pause, use Play. Preparing a replacement source, closing the page, native
    expiry and shutdown also retire the original observation.
 
 File-picker, camera and shared-tab sources remain unbound and do not acquire this
