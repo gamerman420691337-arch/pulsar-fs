@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-RECORDING-BOUNDARY-CURRENT",
-    "scope": "Uncommitted source-bound CPU duplicate boundary handling passes the retained sterile records, 4,096-sample limit, negative guards, 415 protocol tests and Clippy. Two Engine portable checks were interrupted, and rendered post-change behavior remains unverified.",
+    "evidence": "EV-RECORDING-BOUNDARY-PORTABLE",
+    "scope": "The exact source-bound CPU duplicate boundary passes retained sterile pages, sample-count and negative guards, protocol tests, Clippy, and six Engine portable-history tests (one native case ignored). Post-change rendered behavior and qualification remain unverified.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "Engine portable-history check was interrupted twice for host I/O pressure. Earlier rendered timing failures, post-change Engine/rendered verification and all qualification gates remain open.",
+    "failure_summary": "Two earlier Engine portable checks were interrupted for host I/O pressure; a later scoped retry passed with one ignored native case. Earlier rendered timing failures and all qualification gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -1319,7 +1319,8 @@
         "EV-RECORDING-DUPLICATE-INPUT-1",
         "EV-RECORDING-DUPLICATE-INPUT-2",
         "EV-RECORDING-BOUNDARY-DRAFT",
-        "EV-RECORDING-BOUNDARY-CURRENT"
+        "EV-RECORDING-BOUNDARY-CURRENT",
+        "EV-RECORDING-BOUNDARY-PORTABLE"
       ]
     },
     {
@@ -1362,7 +1363,8 @@
         "EV-SEEK-GUARD-RENDERED-LATEST",
         "EV-RECORDING-DUPLICATE-BOUNDARY",
         "EV-RECORDING-BOUNDARY-DRAFT",
-        "EV-RECORDING-BOUNDARY-CURRENT"
+        "EV-RECORDING-BOUNDARY-CURRENT",
+        "EV-RECORDING-BOUNDARY-PORTABLE"
       ]
     },
     {
@@ -1560,7 +1562,8 @@
         "EV-BROWSER-TRANSFER-POLL-PROBE-REPEAT",
         "EV-BROWSER-PAIR-DIAGNOSTIC",
         "EV-BROWSER-PAIR-DIAGNOSTIC-BRANCHES",
-        "EV-BROWSER-READY-PROBED-FAILURE"
+        "EV-BROWSER-READY-PROBED-FAILURE",
+        "EV-RECORDING-BOUNDARY-PORTABLE"
       ]
     },
     {
@@ -12130,6 +12133,53 @@
             "engine_portable_check_completed"
           ],
           "equals": false
+        },
+        {
+          "pointer": [
+            "rendered_post_change_tested"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RECORDING-BOUNDARY-PORTABLE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/boundary-portable-engine-verification-20261031.json",
+      "sha256": "9328ae81c6250950664f0bff83e8d786c71037452ca804374b9a84bffd85e133",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "After two retained interruptions, six Engine portable-browser-history tests passed with one native preceding-reader case ignored. Post-change rendered and independent qualification remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "engine_portable_tests_passed"
+          ],
+          "equals": 6
+        },
+        {
+          "pointer": [
+            "engine_portable_tests_ignored"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "previous_interruptions_retained"
+          ],
+          "equals": true
         },
         {
           "pointer": [
