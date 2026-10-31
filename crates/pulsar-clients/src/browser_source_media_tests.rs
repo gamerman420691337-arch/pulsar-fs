@@ -259,6 +259,7 @@ fn binding() -> BrowserMediaBinding {
 }
 fn options() -> LiveCaptureOptions {
     LiveCaptureOptions {
+        inference_fallback: None,
         browser_analysis: None,
         browser_media: None,
         model_pack: None,

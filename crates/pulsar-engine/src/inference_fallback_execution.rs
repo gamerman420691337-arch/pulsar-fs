@@ -223,7 +223,7 @@ impl PreparedFallback {
 
 #[cfg(target_os = "linux")]
 impl Engine {
-    fn observe_fallback_profile(
+    pub(super) fn observe_fallback_profile(
         &self,
         profile: &DeclaredInferenceProfile,
         deadline: Instant,

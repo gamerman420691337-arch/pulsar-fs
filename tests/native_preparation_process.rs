@@ -351,6 +351,7 @@ fn native_preparation_session_client_live_custody() -> Result<()> {
         .context("CUDA profile resources")?
         .device_reservation_bytes = 96 << 20;
     let options = LiveCaptureOptions {
+        inference_fallback: None,
         browser_analysis: None,
         browser_media: None,
         model_pack: None,

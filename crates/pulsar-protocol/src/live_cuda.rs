@@ -307,6 +307,13 @@ pub enum LiveCudaStreamCommand {
     deny_unknown_fields
 )]
 pub enum LiveCudaStreamReply {
+    /// A negative provider-list observation before Ready. This is inert
+    /// metadata, not proof of original transport, worker retirement or retry
+    /// authority. The parent must bind it to its exact admitted manifest.
+    ProviderUnavailable {
+        manifest_sha256: String,
+        observation: InferenceProviderUnavailable,
+    },
     Ready {
         manifest_sha256: String,
     },
@@ -321,6 +328,38 @@ pub enum LiveCudaStreamReply {
         artifacts: WorkerCudaArtifacts,
     },
     Error(ProtocolError),
+}
+
+impl LiveCudaStreamReply {
+    /// Validate only the declared correspondence of an initialization failure.
+    /// No other reply or error message can substitute for this typed variant.
+    pub fn validate_provider_unavailable(
+        &self,
+        manifest: &LiveCudaInferenceManifest,
+    ) -> Result<&InferenceProviderUnavailable, ProtocolError> {
+        let Self::ProviderUnavailable {
+            manifest_sha256,
+            observation,
+        } = self
+        else {
+            return Err(ProtocolError::invalid(
+                "live CUDA provider observation absent",
+            ));
+        };
+        if *manifest_sha256 != manifest.identity_sha256()? {
+            return Err(ProtocolError::invalid(
+                "live CUDA provider observation belongs to another manifest",
+            ));
+        }
+        let profile_sha256 = format!(
+            "{:x}",
+            Sha256::digest(serde_json::to_vec(&manifest.stream.profile).map_err(|_| {
+                ProtocolError::invalid("live CUDA profile serialization failed")
+            })?)
+        );
+        observation.validate_for(&manifest.stream.profile, &profile_sha256)?;
+        Ok(observation)
+    }
 }
 
 /// Process-local state for every successful exchange, even if its output later
@@ -463,9 +502,14 @@ impl LiveCudaTranscript {
 }
 
 #[cfg(test)]
+pub(crate) fn authored_live_cuda_manifest() -> LiveCudaInferenceManifest {
+    tests::fixture()
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
-    fn fixture() -> LiveCudaInferenceManifest {
+    pub(super) fn fixture() -> LiveCudaInferenceManifest {
         let mut stream: LiveInferenceManifest =
             serde_json::from_str(include_str!("../tests/fixtures/live-cpu-manifest.json")).unwrap();
         stream.model.path = crate::test_host_path("/input/model").into();
@@ -557,6 +601,82 @@ mod tests {
             current: pixels,
         }
     }
+    #[test]
+    fn provider_absence_requires_the_exact_typed_initial_manifest() {
+        let manifest = fixture();
+        let observation = InferenceProviderUnavailable {
+            schema_version: 1,
+            provider: InferenceProvider::Cuda,
+            profile_sha256: format!(
+                "{:x}",
+                Sha256::digest(serde_json::to_vec(&manifest.stream.profile).unwrap())
+            ),
+            check: InferenceProviderAvailabilityCheck::NotListedByRuntime,
+        };
+        let reply = LiveCudaStreamReply::ProviderUnavailable {
+            manifest_sha256: manifest.identity_sha256().unwrap(),
+            observation,
+        };
+        reply.validate_provider_unavailable(&manifest).unwrap();
+        let bytes = serde_json::to_vec(&reply).unwrap();
+        serde_json::from_slice::<LiveCudaStreamReply>(&bytes)
+            .unwrap()
+            .validate_provider_unavailable(&manifest)
+            .unwrap();
+        for case in [
+            "attempt",
+            "epoch",
+            "clock",
+            "budget",
+            "worker",
+            "dependency",
+        ] {
+            let mut changed = manifest.clone();
+            match case {
+                "attempt" => changed.stream.attempt_id = AttemptId::new("other-attempt").unwrap(),
+                "epoch" => {
+                    changed.stream.identity.epoch = AttemptId::new("other-epoch").unwrap();
+                    changed.stream.clock.epoch = changed.stream.identity.epoch.clone();
+                }
+                "clock" => changed.stream.clock.presentation_anchor = LiveClockTick(1),
+                "budget" => changed.stream.budget.wall_time_ms -= 1,
+                "worker" => changed.stream.worker.byte_len += 1,
+                _ => changed.dependencies.pop().map(|_| ()).unwrap(),
+            }
+            assert!(
+                reply.validate_provider_unavailable(&changed).is_err(),
+                "{case}"
+            );
+        }
+        for (field, value) in [
+            ("provider", serde_json::json!("cpu")),
+            ("profile_sha256", serde_json::json!("0".repeat(64))),
+            ("schema_version", serde_json::json!(2)),
+        ] {
+            let mut value_reply = serde_json::to_value(&reply).unwrap();
+            value_reply["payload"]["observation"][field] = value;
+            let changed: LiveCudaStreamReply = serde_json::from_value(value_reply).unwrap();
+            assert!(
+                changed.validate_provider_unavailable(&manifest).is_err(),
+                "{field}"
+            );
+        }
+        let mut unknown = serde_json::to_value(&reply).unwrap();
+        unknown["payload"]["observation"]["check"] = serde_json::json!("initialization_failed");
+        assert!(serde_json::from_value::<LiveCudaStreamReply>(unknown).is_err());
+        for generic in [
+            LiveCudaStreamReply::Error(ProtocolError::new(
+                ErrorCode::Unavailable,
+                "selected CUDA provider is not listed by the initialized runtime",
+            )),
+            LiveCudaStreamReply::Ready {
+                manifest_sha256: manifest.identity_sha256().unwrap(),
+            },
+        ] {
+            assert!(generic.validate_provider_unavailable(&manifest).is_err());
+        }
+    }
+
     #[test]
     fn consecutive_pairs_cannot_rebind_previous_frame_pixels_or_clock() {
         let manifest = fixture();

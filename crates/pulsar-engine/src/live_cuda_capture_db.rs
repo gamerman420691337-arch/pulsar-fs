@@ -453,6 +453,7 @@ pub(crate) mod tests {
             identity: stream.identity.clone(),
             clock: stream.clock.clone(),
             options: LiveCaptureOptions {
+                inference_fallback: None,
                 browser_analysis: None,
                 browser_media: None,
                 model_pack: None,
@@ -481,6 +482,8 @@ pub(crate) mod tests {
             last_frame: None,
             queue: None,
             inference: Some(LiveCaptureInferenceReport {
+                fallback_transition: None,
+                fallback: None,
                 cpu_manifest: None,
                 cuda_manifest_sha256: None,
                 cuda_evidence: None,

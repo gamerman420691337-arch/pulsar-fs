@@ -5,7 +5,7 @@ const READER_NAME: &str = "portable_fallback_graph_reader";
 const READER_MARKER: &str = "CREATE TABLE portable_fallback_graph_reader(singleton INTEGER PRIMARY KEY NOT NULL CHECK(singleton=1),underlying_version INTEGER NOT NULL CHECK(underlying_version BETWEEN 2 AND 40))";
 const OUTER_VERSION: i64 = 41;
 fn header(db: &Connection) -> Result<(i64, bool)> {
-    let raw: i64 = db.query_row("PRAGMA main.user_version", [], |r| r.get(0))?;
+    let raw = crate::browser_fallback_reader::version(db)?;
     ensure!(
         raw == 0 || (2..=OUTER_VERSION).contains(&raw),
         "unknown portable fallback graph reader version"
@@ -86,11 +86,7 @@ pub(crate) fn publish(db: &Connection, new_version: i64) -> Result<()> {
             "portable fallback graph reader publication lost its retained header"
         );
     } else {
-        db.pragma_update(
-            Some(rusqlite::DatabaseName::Main),
-            "user_version",
-            new_version,
-        )?;
+        crate::browser_fallback_reader::publish(db, new_version)?;
     }
     Ok(())
 }
@@ -107,11 +103,7 @@ pub(crate) fn arm(tx: &Transaction<'_>) -> Result<()> {
             "INSERT INTO main.portable_fallback_graph_reader(singleton,underlying_version) VALUES(1,?1)",
             [old],
         )?;
-        tx.pragma_update(
-            Some(rusqlite::DatabaseName::Main),
-            "user_version",
-            OUTER_VERSION,
-        )?;
+        crate::browser_fallback_reader::publish(tx, OUTER_VERSION)?;
     }
     ensure!(
         header(tx)? == (old, true),

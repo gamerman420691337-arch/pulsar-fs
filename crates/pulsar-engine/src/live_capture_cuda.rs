@@ -90,7 +90,7 @@ pub(super) fn spawn(
                     };
                     entry.runtime.as_ref().expect("active").inference_scope()
                 };
-                let (_, mut worker) = engine.start_live_cuda(
+                let started = engine.start_live_cuda(
                     &intent,
                     manifest.clone(),
                     scope,
@@ -98,6 +98,20 @@ pub(super) fn spawn(
                     origin,
                     lease_end,
                 )?;
+                let (_, mut worker) = match started {
+                    crate::authority::engine_live_cuda::LiveCudaStartup::Ready(ready) => *ready,
+                    crate::authority::engine_live_cuda::LiveCudaStartup::ProviderUnavailable(
+                        settled,
+                    ) => {
+                        return fallback::after_provider_failure(
+                            &engine,
+                            &intent,
+                            &epoch,
+                            &manifest.attempt_id,
+                            *settled,
+                        );
+                    }
+                };
                 if !engine.live_cuda_analysis_ready(&epoch, &worker, &manifest.attempt_id)? {
                     return Ok(());
                 }

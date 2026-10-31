@@ -5,6 +5,9 @@ use crate::*;
 #[path = "browser_inference_semantics.rs"]
 mod browser_semantics;
 pub use browser_semantics::*;
+#[path = "browser_inference_fallback.rs"]
+mod browser_fallback;
+pub use browser_fallback::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
@@ -23,7 +26,7 @@ fn check(condition: bool, message: &str) -> Result<(), ProtocolError> {
         Err(ProtocolError::invalid(message))
     }
 }
-fn encoded<T: Serialize>(value: &T) -> Result<Vec<u8>, ProtocolError> {
+fn encoded<T: Serialize + ?Sized>(value: &T) -> Result<Vec<u8>, ProtocolError> {
     let bytes = serde_json::to_vec(value)
         .map_err(|_| ProtocolError::invalid("fallback policy serialization failed"))?;
     check(
@@ -170,6 +173,30 @@ impl BrowserInferenceFallbackSourcePolicy {
         self.validate()?;
         identity(self)
     }
+    pub fn matches_capture(
+        &self,
+        engine_epoch: &AttemptId,
+        options: &LiveCaptureOptions,
+    ) -> Result<bool, ProtocolError> {
+        self.validate()?;
+        options.validate()?;
+        let (Some(media), Some(_), Some(_)) = (
+            &options.browser_media,
+            &options.browser_analysis,
+            &options.inference,
+        ) else {
+            return Ok(false);
+        };
+        Ok(
+            options.source_time_basis == LiveSourceTimeBasis::SourceMediaPresentation
+                && options.encoded_source.is_none()
+                && media.engine_epoch == *engine_epoch
+                && self
+                    .sources
+                    .as_ref()
+                    .is_none_or(|sources| sources.contains(&media.selection.source)),
+        )
+    }
     /// Metadata correspondence only. Engine still resolves original native
     /// media/timing ownership, accepted evidence, cancellation and expiry.
     pub fn matches_manifest(
@@ -178,8 +205,9 @@ impl BrowserInferenceFallbackSourcePolicy {
         options: &LiveCaptureOptions,
         manifest: &LiveInferenceManifest,
     ) -> Result<bool, ProtocolError> {
-        self.validate()?;
-        options.validate()?;
+        if !self.matches_capture(engine_epoch, options)? {
+            return Ok(false);
+        }
         manifest.validate_metadata()?;
         let (Some(media), Some(_analysis), Some(inference)) = (
             &options.browser_media,
@@ -372,21 +400,7 @@ impl InferenceFallbackSelection {
             self.schema_version == 1,
             "unsupported fallback selection version",
         )?;
-        check(
-            !self.equivalents.is_empty()
-                && self.equivalents.len() <= MAX_INFERENCE_FALLBACK_REFERENCES
-                && (1..=MAX_INFERENCE_FALLBACKS).contains(&usize::from(self.maximum_fallbacks))
-                && usize::from(self.maximum_fallbacks) <= self.equivalents.len(),
-            "fallback selection count or attempt limit is invalid",
-        )?;
-        let mut seen = BTreeSet::new();
-        for reference in &self.equivalents {
-            reference.validate()?;
-            check(
-                seen.insert(&reference.dossier_id),
-                "fallback dossier may appear only once",
-            )?;
-        }
+        validate_fallback_references(&self.equivalents, self.maximum_fallbacks)?;
         self.source_policy.validate()?;
         self.view_policy.validate()?;
         encoded(self).map(|_| ())
@@ -413,6 +427,28 @@ impl InferenceFallbackSelection {
         Ok(self.source_policy.identity()? == scope.source_policy
             && self.view_policy.identity()? == scope.view_policy)
     }
+}
+
+fn validate_fallback_references(
+    references: &[InferenceFallbackReference],
+    maximum: u8,
+) -> Result<(), ProtocolError> {
+    check(
+        !references.is_empty()
+            && references.len() <= MAX_INFERENCE_FALLBACK_REFERENCES
+            && (1..=MAX_INFERENCE_FALLBACKS).contains(&usize::from(maximum))
+            && usize::from(maximum) <= references.len(),
+        "fallback selection count or attempt limit is invalid",
+    )?;
+    let mut seen = BTreeSet::new();
+    for reference in references {
+        reference.validate()?;
+        check(
+            seen.insert(&reference.dossier_id),
+            "fallback dossier may appear only once",
+        )?;
+    }
+    Ok(())
 }
 
 /// The projection mirrors equivalence paired-settings comparison: remove only

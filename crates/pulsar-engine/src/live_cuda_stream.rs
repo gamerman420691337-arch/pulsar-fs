@@ -15,6 +15,88 @@ use std::{
 };
 
 use crate::live_cuda_evidence::{EvidenceAdmission, LiveCudaEvidence};
+
+/// Original initialization failure after clean stream EOF, the expected failed
+/// child exit and confirmed whole-tree/resource retirement. A deserialized
+/// reply cannot construct this capability. It still grants no source, device,
+/// equivalence or target-execution authority.
+#[derive(Debug)]
+pub(crate) struct SettledLiveCudaProviderFailure {
+    manifest: LiveCudaInferenceManifest,
+    observation: InferenceProviderUnavailable,
+    deadline: Instant,
+}
+impl SettledLiveCudaProviderFailure {
+    pub(crate) fn original_deadline(&self) -> Instant {
+        self.deadline
+    }
+    pub(crate) fn capture_metadata(
+        &self,
+        capture: &LiveCaptureReport,
+        worker: &ArtifactIdentity,
+    ) -> Result<BrowserInferenceFallbackFailure> {
+        self.matches_manifest(&self.manifest)?;
+        capture.validate()?;
+        let info = capture
+            .inference
+            .as_ref()
+            .context("failed capture inference absent")?;
+        let selected = capture
+            .options
+            .inference
+            .as_ref()
+            .context("failed capture profile absent")?;
+        ensure!(
+            capture.active
+                && info.state == LiveCaptureInferenceState::Starting
+                && info.attempt_id == self.manifest.stream.attempt_id
+                && capture.identity == self.manifest.stream.identity
+                && capture.clock == self.manifest.stream.clock
+                && serde_json::to_vec(&selected.profile)?
+                    == serde_json::to_vec(&self.manifest.stream.profile)?
+                && info.profile_sha256 == self.observation.profile_sha256
+                && self.manifest.stream.worker == *worker
+                && info.completed == 0
+                && info.accepted == 0
+                && info.latest.is_none()
+                && info.cuda_manifest_sha256.is_none()
+                && info.cuda_evidence.is_none(),
+            "settled provider absence differs from original pre-Ready capture"
+        );
+        Ok(BrowserInferenceFallbackFailure {
+            manifest: Box::new(self.manifest.clone()),
+            observation: self.observation.clone(),
+        })
+    }
+    pub(crate) fn matches_manifest(&self, manifest: &LiveCudaInferenceManifest) -> Result<()> {
+        ensure!(
+            self.manifest.identity_sha256()? == manifest.identity_sha256()?,
+            "settled live provider failure differs from original manifest"
+        );
+        ensure!(
+            Instant::now() < self.deadline,
+            "settled live provider failure exceeded original lifetime"
+        );
+        self.observation.validate_for(
+            &manifest.stream.profile,
+            &crate::inference_profiles::profile_identity(&manifest.stream.profile)?.sha256,
+        )?;
+        Ok(())
+    }
+}
+impl std::fmt::Display for SettledLiveCudaProviderFailure {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(
+            "original live worker reports CUDA provider absent after confirmed retirement",
+        )
+    }
+}
+impl std::error::Error for SettledLiveCudaProviderFailure {}
+
+#[cfg(test)]
+#[path = "live_cuda_failure_tests.rs"]
+mod failure_tests;
+
 pub(crate) struct LiveCudaWorker {
     manifest: LiveCudaInferenceManifest,
     scope: crate::live_frames::LiveRgbScope,
@@ -174,12 +256,67 @@ impl LiveCudaWorker {
         write_message(&mut worker.monitor.write(&mut worker.stdin), &witness)?;
         let ready: LiveCudaStreamReply =
             read_bulk_header(&mut worker.monitor.read(&mut worker.stdout))?;
+        if matches!(ready, LiveCudaStreamReply::ProviderUnavailable { .. }) {
+            return Err(worker.settle_provider_unavailable(ready)?.into());
+        }
         ensure!(
             matches!(ready, LiveCudaStreamReply::Ready { manifest_sha256 }
             if manifest_sha256 == worker.manifest.identity_sha256()?),
             "CUDA live readiness differs"
         );
         Ok(worker)
+    }
+
+    fn settle_provider_unavailable(
+        &mut self,
+        reply: LiveCudaStreamReply,
+    ) -> Result<SettledLiveCudaProviderFailure> {
+        self.monitor.check()?;
+        ensure!(
+            self.sequence == 0,
+            "provider absence must precede live Ready"
+        );
+        let observation = reply.validate_provider_unavailable(&self.manifest)?.clone();
+        ensure!(
+            self.monitor.read(&mut self.stdout).read(&mut [0u8; 1])? == 0,
+            "live provider failure has undeclared trailing output"
+        );
+        loop {
+            self.monitor.tick()?;
+            let status = self
+                .custody
+                .as_mut()
+                .context("live provider failure custody absent")?
+                .child()
+                .try_wait()?;
+            if let Some(status) = status {
+                // The original worker entry exits 1 on a returned error. A
+                // signal, successful exit or unrelated status cannot qualify.
+                ensure!(
+                    status.code() == Some(1),
+                    "live provider failure exit differs"
+                );
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        self.stop.store(true, Ordering::Release);
+        self.custody
+            .as_mut()
+            .context("live provider failure custody absent")?
+            .retire(self.monitor.deadline)?;
+        // Drop the confirmed owner before returning proof: it holds CPU/RAM,
+        // GPU admission, native images, staging, watchdog and fence obligations.
+        drop(self.custody.take());
+        self.monitor.check()?;
+        self.transcript = None;
+        let settled = SettledLiveCudaProviderFailure {
+            manifest: self.manifest.clone(),
+            observation,
+            deadline: self.monitor.deadline,
+        };
+        settled.matches_manifest(&self.manifest)?;
+        Ok(settled)
     }
     /// Borrow only runtime-issued pixels; the caller retains ownership for
     /// independent freshness/completion. Failed scope or exchange retires us.

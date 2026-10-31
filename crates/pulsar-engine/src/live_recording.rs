@@ -64,6 +64,7 @@ pub(super) fn page(entry: &Entry, after: u32, limit: u16) -> PResult<ResponseBod
         .profile
         .clone();
     let report = LiveRecordingPage {
+        fallback: BrowserInferenceRecordingProvenance::from_capture(&entry.report)?.map(Box::new),
         cpu_manifest: entry
             .report
             .inference

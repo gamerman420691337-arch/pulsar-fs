@@ -133,6 +133,7 @@ mod tests {
             source: SourceVersionId::new("source").unwrap(),
         };
         let options = LiveCaptureOptions {
+            inference_fallback: None,
             browser_analysis: None,
             browser_media: None,
             model_pack: None,

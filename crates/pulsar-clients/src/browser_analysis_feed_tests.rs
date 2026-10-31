@@ -1,5 +1,8 @@
 //! Local feed admission and role/generation tests; no Engine or physical grants.
 use super::*;
+#[cfg(unix)]
+#[path = "browser_live_fallback_tests.rs"]
+mod fallback_ipc;
 use std::sync::atomic::Ordering;
 fn request() -> Request {
     let identity = HandyPlayerIdentity {

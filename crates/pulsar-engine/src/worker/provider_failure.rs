@@ -59,7 +59,6 @@ fn bound_observation(
     error: &anyhow::Error,
     failure: &ProtocolError,
 ) -> Option<InferenceProviderUnavailable> {
-    let unavailable = error.downcast_ref::<ProviderNotListed>()?;
     let profile = match &request.operation {
         WorkerOperation::Generate { settings, .. } => settings.inference_profile.as_ref(),
         WorkerOperation::Preview {
@@ -67,6 +66,39 @@ fn bound_observation(
         } => inference_profile.as_deref(),
         WorkerOperation::GenerateInput { .. } | WorkerOperation::ProbeMedia => None,
     }?;
+    let evidence = observation(profile, error)?;
+    let response = WorkerResult {
+        cuda_artifacts: None,
+        provider_unavailable: Some(evidence.clone()),
+        version: PROTOCOL_VERSION,
+        attempt_id: request.attempt_id.clone(),
+        job_id: request.job_id.clone(),
+        result: Err(failure.clone()),
+    };
+    response.validate_provider_unavailable_for(request).ok()?;
+    Some(evidence)
+}
+
+/// Called only for the original live CUDA model initialization result. Neither
+/// a generic failure nor a later stream error can create provider absence.
+#[cfg(any(test, all(target_os = "linux", feature = "cuda")))]
+pub(super) fn live_cuda_observation(
+    manifest: &LiveCudaInferenceManifest,
+    error: &anyhow::Error,
+) -> Option<LiveCudaStreamReply> {
+    let reply = LiveCudaStreamReply::ProviderUnavailable {
+        manifest_sha256: manifest.identity_sha256().ok()?,
+        observation: observation(&manifest.stream.profile, error)?,
+    };
+    reply.validate_provider_unavailable(manifest).ok()?;
+    Some(reply)
+}
+
+fn observation(
+    profile: &DeclaredInferenceProfile,
+    error: &anyhow::Error,
+) -> Option<InferenceProviderUnavailable> {
+    let unavailable = error.downcast_ref::<ProviderNotListed>()?;
     if unavailable.provider != profile.provider {
         return None;
     }
@@ -77,15 +109,9 @@ fn bound_observation(
         profile_sha256: profile_identity.sha256,
         check: InferenceProviderAvailabilityCheck::NotListedByRuntime,
     };
-    let response = WorkerResult {
-        cuda_artifacts: None,
-        provider_unavailable: Some(evidence.clone()),
-        version: PROTOCOL_VERSION,
-        attempt_id: request.attempt_id.clone(),
-        job_id: request.job_id.clone(),
-        result: Err(failure.clone()),
-    };
-    response.validate_provider_unavailable_for(request).ok()?;
+    evidence
+        .validate_for(profile, &evidence.profile_sha256)
+        .ok()?;
     Some(evidence)
 }
 
@@ -176,6 +202,38 @@ mod tests {
         };
         request.validate().unwrap();
         request
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn live_observation_preserves_only_original_typed_provider_absence() {
+        let manifest = crate::cuda_mounts::live_test_witness().manifest;
+        let error = anyhow::Error::new(ProviderNotListed {
+            provider: InferenceProvider::Cuda,
+        })
+        .context("authored original live initialization");
+        let reply = live_cuda_observation(&manifest, &error).unwrap();
+        let observed = reply.validate_provider_unavailable(&manifest).unwrap();
+        assert_eq!(observed.provider, InferenceProvider::Cuda);
+        assert_eq!(
+            observed.check,
+            InferenceProviderAvailabilityCheck::NotListedByRuntime
+        );
+        for error in [
+            anyhow::anyhow!("{error:#}"),
+            ProtocolError::new(ErrorCode::Unavailable, "provider is not listed").into(),
+            ProtocolError::new(ErrorCode::Cancelled, "cancelled").into(),
+            ProtocolError::new(ErrorCode::ResourceExhausted, "resource pressure").into(),
+            anyhow::anyhow!("invalid model output"),
+            anyhow::Error::new(ProviderNotListed {
+                provider: InferenceProvider::Cpu,
+            }),
+        ] {
+            assert!(live_cuda_observation(&manifest, &error).is_none());
+        }
+        let mut changed = manifest;
+        changed.dependencies.clear();
+        assert!(live_cuda_observation(&changed, &error).is_none());
     }
 
     #[test]

@@ -63,6 +63,7 @@ pub fn assemble_live_recordings(
     let mut points = Vec::new();
     let mut requests = Vec::new();
     let mut provisional = false;
+    let mut previous_scope: Option<&LiveRecordingPage> = None;
     for page in pages {
         page.validate()?;
         if page.active || page.discarded {
@@ -70,22 +71,27 @@ pub fn assemble_live_recordings(
                 "assemble stopped, retained recordings only",
             ));
         }
-        if !same_cpu_mode(page.cpu_manifest.as_deref(), root.cpu_manifest.as_deref())?
-            || page.model_pack != root.model_pack
+        let new_scope = scope.as_ref() != Some(&page.identity.epoch);
+        let previous_declaration = previous_scope.unwrap_or(root);
+        let same_execution = same_cpu_mode(
+            page.cpu_manifest.as_deref(),
+            previous_declaration.cpu_manifest.as_deref(),
+        )? && serde_json::to_value(&page.profile).map_err(invalid_json)?
+            == serde_json::to_value(&previous_declaration.profile).map_err(invalid_json)?;
+        if page.model_pack != root.model_pack
             || !same_recorded_media(page.browser_media.as_ref(), root.browser_media.as_ref())
             || page.source_time_basis != root.source_time_basis
             || page.engine_epoch != root.engine_epoch
             || page.identity.project != root.identity.project
             || page.identity.revision != root.identity.revision
             || page.identity.source != root.identity.source
-            || serde_json::to_value(&page.profile).map_err(invalid_json)?
-                != serde_json::to_value(&root.profile).map_err(invalid_json)?
+            || (!same_execution
+                && (!new_scope || !recorded_fallback_successor(previous_declaration, page)?))
         {
             return Err(ProtocolError::invalid(
                 "assembly boot/project/source/profile or captured CPU mode differs",
             ));
         }
-        let new_scope = scope.as_ref() != Some(&page.identity.epoch);
         if new_scope {
             if expected_after != 0 || !seen.insert(page.identity.epoch.clone()) || seen.len() > 64 {
                 return Err(ProtocolError::invalid(
@@ -96,6 +102,7 @@ pub fn assemble_live_recordings(
             header = None;
             previous = None;
             requests.push(page.recording_request_id.clone());
+            previous_scope = Some(page);
         }
         if page.after != expected_after {
             return Err(ProtocolError::invalid(
@@ -176,6 +183,49 @@ pub fn assemble_live_recordings(
         contains_cuda_provisional: provisional,
         recording_requests: requests,
     })
+}
+
+/// Correspondence only. Engine-owned consumers separately verify each original
+/// admission. Empty pre-Ready failures never contribute motion or continuity.
+fn recorded_fallback_successor(
+    previous: &LiveRecordingPage,
+    next: &LiveRecordingPage,
+) -> Result<bool, ProtocolError> {
+    let (Some(before), Some(after)) = (&previous.fallback, &next.fallback) else {
+        return Ok(false);
+    };
+    let prefix = before.admission.history.len();
+    if previous.total_samples != 0
+        || after.admission.history.len() <= prefix
+        || before.admission.selection != after.admission.selection
+        || before.admission.semantic_identity != after.admission.semantic_identity
+        || serde_json::to_value(&before.admission.history).map_err(invalid_json)?
+            != serde_json::to_value(&after.admission.history[..prefix]).map_err(invalid_json)?
+    {
+        return Ok(false);
+    }
+    let step = &after.admission.history[prefix];
+    let stream = &step.failure.manifest.stream;
+    let Some(transition) = &before.transition else {
+        return Ok(false);
+    };
+    let expected_next = after
+        .admission
+        .history
+        .get(prefix + 1)
+        .map_or(&next.identity.epoch, |step| {
+            &step.failure.manifest.stream.identity.epoch
+        });
+    Ok(stream.identity == previous.identity
+        && stream.attempt_id == previous.inference_attempt
+        && stream.clock == previous.clock
+        && stream.budget.wall_time_ms == u64::from(before.options.lease_ms)
+        && serde_json::to_value(&stream.profile).map_err(invalid_json)?
+            == serde_json::to_value(&previous.profile).map_err(invalid_json)?
+        && transition.phase == BrowserInferenceFallbackPhase::Started
+        && transition.next_epoch.as_ref() == Some(expected_next)
+        && serde_json::to_value(&transition.failure).map_err(invalid_json)?
+            == serde_json::to_value(&step.failure).map_err(invalid_json)?)
 }
 
 fn same_recorded_media(
@@ -468,6 +518,7 @@ mod tests {
         let mut s = c.inference.as_ref().unwrap().latest.clone().unwrap();
         s.capture_age_ns = s.capture_to_analysis_ns;
         LiveRecordingPage {
+            fallback: None,
             cpu_manifest: None,
             browser_media: None,
             model_pack: None,

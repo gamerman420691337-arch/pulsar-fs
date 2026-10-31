@@ -6,7 +6,7 @@ use rusqlite::{Connection, OptionalExtension, Transaction};
 
 const READER_NAME: &str = "portable_fallback_reader";
 const READER_MARKER: &str = "CREATE TABLE portable_fallback_reader(singleton INTEGER PRIMARY KEY NOT NULL CHECK(singleton=1),underlying_version INTEGER NOT NULL CHECK(underlying_version BETWEEN 2 AND 39))";
-pub(crate) const MAX_STORAGE_VERSION: i64 = 41;
+pub(crate) const MAX_STORAGE_VERSION: i64 = crate::browser_fallback_reader::MAX_STORAGE_VERSION;
 const OUTER_VERSION: i64 = 40;
 
 /// Fast negative check before SQLite or daemon lock creation. This inspects
@@ -204,12 +204,12 @@ mod tests {
         assert_eq!(std::fs::read(&path).unwrap(), b"short");
         let mut header = [0u8; 100];
         header[..16].copy_from_slice(b"SQLite format 3\0");
-        for raw in [0u32, 2, 25, 39, 40, 41] {
+        for raw in [0u32, 2, 25, 39, 40, 41, 42] {
             header[60..64].copy_from_slice(&raw.to_be_bytes());
             std::fs::write(&path, header).unwrap();
             preflight_main_header(tmp.path()).unwrap();
         }
-        for raw in [1u32, 42, u32::MAX] {
+        for raw in [1u32, 43, u32::MAX] {
             header[60..64].copy_from_slice(&raw.to_be_bytes());
             std::fs::write(&path, header).unwrap();
             assert!(preflight_main_header(tmp.path()).is_err());
@@ -226,7 +226,7 @@ mod tests {
         crate::artifacts::private_directory(&state).unwrap();
         let path = state.join("projects.sqlite3");
         let db = Connection::open(&path).unwrap();
-        db.execute_batch("PRAGMA journal_mode=WAL;PRAGMA wal_autocheckpoint=0;CREATE TABLE probe(x);PRAGMA user_version=25;PRAGMA wal_checkpoint(TRUNCATE);PRAGMA user_version=42").unwrap();
+        db.execute_batch("PRAGMA journal_mode=WAL;PRAGMA wal_autocheckpoint=0;CREATE TABLE probe(x);PRAGMA user_version=25;PRAGMA wal_checkpoint(TRUNCATE);PRAGMA user_version=43").unwrap();
         let main = std::fs::read(&path).unwrap();
         assert_eq!(u32::from_be_bytes(main[60..64].try_into().unwrap()), 25);
         let wal = std::fs::read(state.join("projects.sqlite3-wal")).unwrap();

@@ -51,6 +51,82 @@ boundary and a joined predecessor; a failed worker cannot manufacture that
 graceful boundary. Automatic alternate-backend selection is not implemented
 by `PrepareBrowserAnalysisSuccessor`.
 
+Initial fallback selection now declares its tier, axis and ordered equivalence
+references before worker startup. Engine preparation holds the original native
+source and timing pins and observes the selected execution environment outside
+authority locks. Publication and later consumption recheck the current accepted
+record, exact source/view/profile correspondence and original environment
+lifetime. The admission report is inert metadata; it cannot restore those held
+objects. Retained selection/admission conditionally requires reader42.
+
+CUDA initialization now has a distinct `ProviderUnavailable` stream reply. It
+can originate only from the typed negative provider-list query after driver
+checks and pinned runtime initialization. The worker rechecks its native inputs
+and inherited deadline before sending it. The parent binds the reply to the
+complete original manifest, requires clean EOF and the expected failed child
+exit, then confirms process-tree, staging, watchdog, fence and resource
+retirement before creating a private settled failure. Cancellation, expiry,
+trailing output, a different exit or unconfirmed retirement cannot create that
+object. Generic error text and serialized metadata cannot substitute for it.
+The CPU API always reports its provider available, so ordinary CPU errors are
+not reclassified as provider absence. The Engine startup result preserves the
+private CUDA failure separately from host errors.
+
+The Engine coordinator now retains the original native media/timing pins before
+retiring the failed epoch. A process-local lifetime carries the original deadline
+and cancellation across automatic targets. Stopping a retired ancestor signals
+every registered target worker; registration after cancellation cannot escape
+that signal. Preparing a target reserves a capture slot, and live descendants
+keep their ancestor cancellation handles from being evicted. Ordinary explicit
+succession remains a separate operation.
+
+Target preparation rechecks the declared preference order against current
+accepted directed records, the original profile/environment and the same source
+semantics. It observes the target environment outside authority locks, then
+publishes through the normal capture/worker consumers with a fresh attempt,
+epoch and browser feed. The selected pack/model and original deadline remain
+bound. Failed pixels and graceful shared-frame evidence are never transferred.
+Provider absence must precede Ready and have no outstanding delivery or transfer
+custody. Target admission retains the failed manifest, typed observation and
+selected-reference chain as inert history. Status links expose preparing,
+published-target and refusal outcomes without creating execution authority.
+
+Recordings now retain their original capture options, fallback admission and
+failure/transition history. A conditional reader42 admission index binds them to
+the exact original actor, request, project/revision, attempt and canonical receipt
+digest. Startup and candidate preparation check that correspondence; removing
+fallback fields cannot silently turn a selected recording into legacy history.
+Page assembly preserves complete headers and permits a profile change only
+through a matching recorded fallback chain. A failed pre-Ready epoch contributes
+no motion, and each new epoch still starts with a gap rather than fabricated
+frame continuity. Candidate source snapshots keep the complete recording pages;
+project packages carry those bytes through their existing SourceSnapshot role.
+
+These paths remain under verification. Component recording/index/assembly checks
+pass, but the expanded native campaign has not produced a recording/candidate
+pass. It exposed a deadline mismatch: captured CPU admission still expected the
+uncapped lease after the coordinator began supplying the held original cap.
+Admission now checks that exact same held cap. Subsequent runs retained a timeout
+and lost original timing ownership under observed filesystem write/journal
+waits. No native limit, durability setting or unrelated process was changed.
+The first-party bridge and browser now follow recorded target links and wait
+for Running before opening a new feed. They preserve the original local deadline,
+player/media/timing membership and playback grouping, clear prior observations,
+and discard callbacks already captured during startup or switching. Recording
+begins before the fresh target's first upload. A lost acknowledgement retains its
+original intent and stops further automatic replacement. These paths have
+component coverage; rendered/native handover, complete portable evidence-graph
+correspondence and the alternate-execution workflow remain unverified.
+
+The actual SessionClient and bulk-channel handshake now have framed peer tests
+over authored Engine reports. They check recording-before-bulk order, preserved
+deadline/playback membership, cleared per-feed state, waiting without another
+Start, expired/timing-mismatched refusal, and lost recording/bulk acknowledgements.
+Stop acknowledgements must name the exact original identity, boot and clock;
+an unrelated inactive reply leaves the outcome unresolved and replacement blocked.
+These tests exercise the client transport and control path without running a
+model, native Engine or rendered browser.
+
 Live admission now derives the CPU thread reservation from the explicitly
 selected profile. The former two-thread constant rejected valid one-thread
 profiles at manifest validation and larger profiles at budget admission. The
@@ -99,21 +175,25 @@ The next implementation must cross these interfaces in order:
    applicability, decision revision, evidence identities, permissions,
    withdrawal and expiry when publishing and consuming the live admission.
    A serialized report or archived decision grants no current authority.
-   `LiveCaptureOptions` currently declares no quality tier; the fallback
-   selection must require an explicit tier rather than infer one from a model
-   name or backend. File-job evidence must not silently become live evidence.
-3. Add a live-specific settled-failure and retirement path. Only the original
+   The fallback selection requires an explicit tier and axis rather than
+   inferring them from a model name or backend. File-job evidence must not
+   silently become live evidence.
+3. Verify the source/delivery transition around the private settled worker
+   failure. Only the original
    native worker's eligible provider-unavailable result, after confirmed
    retirement of worker/resource/delivery custody, may permit an automatic
    target. Cancellation, lost source/timing ownership, stale input, malformed
    output, denied resources and expired authority must not become substitutes
    for that result. Recheck the original lifetime before fresh target resource
    admission; never renew it as a side effect of switching.
-   The live reply currently carries `Error(ProtocolError)`, which is not an
-   eligible native failure witness. Do not recover eligibility from its error
-   code or message; preserve typed provider-absence evidence through actual
-   worker and resource settlement.
-4. Admit the target through the actual live CPU/CUDA consumers and use a fresh
+   The CUDA startup result now distinguishes the original settled negative
+   provider query from host/transport errors. Ordinary CPU
+   `Error(ProtocolError)` remains ineligible. Do not recover eligibility from
+   any error code or message. The coordinator consumes the original private
+   object and retains native source pins across old-epoch retirement. Exercise
+   current-record withdrawal, original-deadline, root-cancel, capacity, failed
+   publication and unknown-outcome races through that actual path.
+4. Verify target admission through the actual live CPU/CUDA consumers and use a fresh
    attempt and epoch. Do not reuse incompatible analysed samples, estimates or
    a fabricated shared-frame completion. Preserve the actual source clock and
    disclose the selected profile, switch reason and limitations through shared

@@ -201,6 +201,7 @@ mod pack_option_tests {
     #[test]
     fn unresolved_pack_is_an_explicit_request_and_legacy_omits_it() {
         let mut options = LiveCaptureOptions {
+            inference_fallback: None,
             browser_analysis: None,
             browser_media: None,
             model_pack: Some(crate::ModelPackChoice {
@@ -240,6 +241,8 @@ mod pack_option_tests {
 #[serde(deny_unknown_fields)]
 pub struct LiveCaptureOptions {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inference_fallback: Option<BrowserInferenceFallbackSelection>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub browser_analysis: Option<BrowserAnalysisCaptureDeclaration>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub browser_media: Option<BrowserMediaBinding>,
@@ -266,6 +269,16 @@ pub struct LiveCaptureOptions {
 }
 impl LiveCaptureOptions {
     pub fn validate(&self) -> Result<(), ProtocolError> {
+        if let Some(selection) = &self.inference_fallback {
+            selection.validate()?;
+            if self.browser_analysis.is_none()
+                || (self.inference.is_none() && self.model_pack.is_none())
+            {
+                return Err(ProtocolError::invalid(
+                    "browser fallback requires explicit bound browser inference",
+                ));
+            }
+        }
         if let Some(analysis) = &self.browser_analysis {
             analysis.validate()?;
             if self.browser_media.is_none()
@@ -642,6 +655,7 @@ mod tests {
             ..prior.clone()
         };
         let mut options = LiveCaptureOptions {
+            inference_fallback: None,
             browser_analysis: None,
             browser_media: None,
             model_pack: None,
@@ -704,6 +718,7 @@ mod tests {
     #[test]
     fn capture_options_refuse_unbounded_lifetimes_and_require_project_revision() {
         let mut options = LiveCaptureOptions {
+            inference_fallback: None,
             browser_analysis: None,
             browser_media: None,
             model_pack: None,
@@ -778,6 +793,10 @@ pub struct LiveCaptureEstimate {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LiveCaptureInferenceReport {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_transition: Option<BrowserInferenceFallbackTransition>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback: Option<BrowserInferenceFallbackAdmission>,
     /// Exact captured mode declared at admission, including while Starting.
     /// This metadata is not a verified runtime receipt or permission to execute.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -823,6 +842,31 @@ fn validate_captured_cpu_scope(
 }
 impl LiveCaptureInferenceReport {
     pub fn validate(&self, capture: &LiveCaptureReport) -> Result<(), ProtocolError> {
+        if let Some(transition) = &self.fallback_transition {
+            transition.validate(capture)?;
+        }
+        if self.fallback.is_some() != capture.options.inference_fallback.is_some() {
+            return Err(ProtocolError::invalid(
+                "browser fallback admission observation is missing or unexpected",
+            ));
+        }
+        if let Some(admission) = &self.fallback {
+            admission.validate(capture)?;
+            if capture
+                .options
+                .inference
+                .as_ref()
+                .is_some_and(|i| i.profile.provider == InferenceProvider::Cpu)
+                && self
+                    .cpu_manifest
+                    .as_ref()
+                    .is_none_or(|m| m.stream.worker != admission.observed_environment.worker)
+            {
+                return Err(ProtocolError::invalid(
+                    "browser fallback requires its declared captured CPU worker",
+                ));
+            }
+        }
         validate_sha256(&self.profile_sha256)?;
         use sha2::{Digest, Sha256};
         let profile = &capture
@@ -1133,6 +1177,7 @@ mod preparation_tests {
     fn default_wire_identity_and_fail_closed_preparation() {
         // Derive timestamp encoding from the typed value rather than assuming its JSON representation.
         let options = LiveCaptureOptions {
+            inference_fallback: None,
             browser_analysis: None,
             browser_media: None,
             model_pack: None,
@@ -1172,6 +1217,8 @@ mod preparation_tests {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LiveRecordingPage {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback: Option<Box<BrowserInferenceRecordingProvenance>>,
     /// Original declared captured mode; absence retains legacy host history.
     /// Full per-epoch metadata is retained as provenance, never execution authority.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1206,6 +1253,9 @@ pub struct LiveRecordingPage {
 
 impl LiveRecordingPage {
     pub fn validate(&self) -> Result<(), ProtocolError> {
+        if let Some(fallback) = &self.fallback {
+            fallback.validate_page(self)?;
+        }
         if let Some(binding) = &self.browser_media {
             binding.validate_capture_anchor(
                 self.source_time_basis,
@@ -1367,6 +1417,7 @@ mod recording_tests {
         let mut sample = capture.inference.as_ref().unwrap().latest.clone().unwrap();
         sample.capture_age_ns = sample.capture_to_analysis_ns;
         LiveRecordingPage {
+            fallback: None,
             cpu_manifest: None,
             browser_media: None,
             model_pack: None,

@@ -207,6 +207,9 @@ impl NativeBrowserMediaSuccessor {
 #[derive(Clone)]
 pub(super) struct SourceMediaPin(Arc<Lease>);
 impl SourceMediaPin {
+    pub(super) fn same_owner(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
     pub(super) fn binding(&self) -> &BrowserMediaBinding {
         &self.0.binding
     }

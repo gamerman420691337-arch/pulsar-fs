@@ -77,7 +77,7 @@ function player({frameReply,holdStart=false,recording=false,limit="1024",candida
   const context=vm.createContext({document,window:{location:{href:'http://127.0.0.1:34000/'},addEventListener(n,f){windowEvents[n]=f;}},navigator:{mediaDevices:getDisplayMedia||getUserMedia?{getDisplayMedia,getUserMedia}:undefined},fetch,TextEncoder,Uint8Array,URL,Blob,AbortSignal,crypto:{randomUUID},performance:{now:()=>clock},setTimeout,clearTimeout,console});
   vm.runInContext(code.replace('/*__PULSAR_PAGE_SCOPE__*/ null',JSON.stringify(pageScope)),context);
   const displayTimers=()=>{const id=vm.runInContext('displayTimer',context);return timers.has(id)?[timers.get(id)]:[];};
-  return {elements,sent,events,analysisEvents,drawSources,analysisLoaded,analysisSettled,pendingContinuationTimers(){const id=vm.runInContext('analysisReader?.continuation?.timer',context);return timers.has(id)?[timers.get(id).fn]:[];},continuityState(){return JSON.parse(vm.runInContext('JSON.stringify({epoch,count:analysisReader?.continuationCount,phase:analysisReader?.continuation?.phase,prepareId:analysisReader?.continuation?.prepareId})',context));},analysisEnd(time){analysisPosition=time;analysisVideo.duration=time;analysisVideo.ended=true;analysisVideo.paused=true;analysisEvents.pause?.();analysisEvents.ended?.();},futurePreview(){return JSON.parse(vm.runInContext('JSON.stringify({limit:MAX_FUTURE_ESTIMATES,entries:futureEstimates,last:lastFutureEstimate})',context));},pendingFutureTimers(){const id=vm.runInContext('futureTimer',context);return timers.has(id)?[timers.get(id).fn]:[];},analysisCallback(){return analysisQueue.find(x=>!x.cancelled)?.fn;},analysisFrame(time,frames=++analysisPresentedFrames,metadata={}){analysisPosition=time;let item;while((item=analysisQueue.shift())&&item.cancelled){};assert.ok(item,"analysis callback available");return item.fn(clock,{mediaTime:time,presentedFrames:frames,...metadata});},windowEvents,documentEvents,document,advance,metadata,settleSeek,deliverPauses(){while(pauseEvents.length)pauseEvents.shift()();},seek(time){video.currentTime=time;},timerCount:()=>displayTimers().length,pendingTimers:()=>displayTimers().map(t=>t.fn),controlTimerCount:()=>timers.size-displayTimers().length,releaseFrame:()=>resolveFrame(),releaseRoute:()=>resolveRoute(),play(){video.paused=false;events.play();},frame(time,frames=++presentedFrames,metadata={}){videoPosition=time;return queue.shift()(clock,{mediaTime:time,presentedFrames:frames,...metadata});},release(){resolveStart();}};
+  return {evaluate(script){return vm.runInContext(script,context);},elements,sent,events,analysisEvents,drawSources,analysisLoaded,analysisSettled,pendingContinuationTimers(){const id=vm.runInContext('analysisReader?.continuation?.timer',context);return timers.has(id)?[timers.get(id).fn]:[];},continuityState(){return JSON.parse(vm.runInContext('JSON.stringify({epoch,count:analysisReader?.continuationCount,phase:analysisReader?.continuation?.phase,prepareId:analysisReader?.continuation?.prepareId})',context));},analysisEnd(time){analysisPosition=time;analysisVideo.duration=time;analysisVideo.ended=true;analysisVideo.paused=true;analysisEvents.pause?.();analysisEvents.ended?.();},futurePreview(){return JSON.parse(vm.runInContext('JSON.stringify({limit:MAX_FUTURE_ESTIMATES,entries:futureEstimates,last:lastFutureEstimate})',context));},pendingFutureTimers(){const id=vm.runInContext('futureTimer',context);return timers.has(id)?[timers.get(id).fn]:[];},analysisCallback(){return analysisQueue.find(x=>!x.cancelled)?.fn;},analysisFrame(time,frames=++analysisPresentedFrames,metadata={}){analysisPosition=time;let item;while((item=analysisQueue.shift())&&item.cancelled){};assert.ok(item,"analysis callback available");return item.fn(clock,{mediaTime:time,presentedFrames:frames,...metadata});},windowEvents,documentEvents,document,advance,metadata,settleSeek,deliverPauses(){while(pauseEvents.length)pauseEvents.shift()();},seek(time){video.currentTime=time;},timerCount:()=>displayTimers().length,pendingTimers:()=>displayTimers().map(t=>t.fn),controlTimerCount:()=>timers.size-displayTimers().length,releaseFrame:()=>resolveFrame(),releaseRoute:()=>resolveRoute(),play(){video.paused=false;events.play();},frame(time,frames=++presentedFrames,metadata={}){videoPosition=time;return queue.shift()(clock,{mediaTime:time,presentedFrames:frames,...metadata});},release(){resolveStart();}};
 }
 test('player sends exact timestamp and packed RGB; pause clears motion',async()=>{
  const p=player();p.play();await p.frame(.125);assert.equal(p.elements.position.value,.6);
@@ -1185,4 +1185,43 @@ test('HSP lifecycle archive is bounded and allowlisted; explicit Inspect resets 
  const p=hspPlayer();await inspectHspPlayer(p);const previous_lifecycles=Array.from({length:10},(_,n)=>({player_id:'previous-player-'+n,prepare_request_id:'prepare-'+n,stream_request_id:'stream-'+n,play_request_id:'play-'+n,enable_request_id:null,stop_request_id:'stop-'+n,cancel_request_id:null,phase:'cleanup_confirmed',owner_proof:'archive-secret',raw:{credential:'archive-secret'},media_url:'archive-secret'}));p.setHspView({previous_lifecycles});hspAck(p,'prepare','environment','online','play','continuity');await p.elements['hsp-status'].onclick();
  const details=JSON.parse(p.elements['hsp-details'].textContent);assert.equal(details.previous_lifecycles.length,8);assert.equal(details.previous_lifecycles[0].player_id,'previous-player-2');assert.equal(details.previous_lifecycles.at(-1).stop_request_id,'stop-9');assert.equal(details.previous_lifecycles.at(-1).enable_request_id,null);assert.equal(details.previous_lifecycles.at(-1).phase,'cleanup_confirmed');assert.deepEqual(Object.keys(details.previous_lifecycles[0]),['player_id','prepare_request_id','stream_request_id','play_request_id','enable_request_id','stop_request_id','cancel_request_id','phase']);assert.ok(!p.elements['hsp-details'].textContent.includes('archive-secret'));assert.equal(p.elements['hsp-prepare-ack'].checked,true);
  await p.elements['hsp-inspect'].onclick();for(const id of ['prepare','environment','online','play','continuity'])assert.equal(p.elements['hsp-'+id+'-ack'].checked,false);assert.ok(!p.sent.some(r=>/^\/player\/hsp-(prepare|bind|play|continuity-enable)$/.test(r.route)));assert.equal(JSON.parse(p.elements['hsp-details'].textContent).previous_lifecycles.length,8);
+});
+
+
+test('fallback handover drops old observations and keeps the original deadline',()=>{
+ const p=player();
+ const result=p.evaluate(`(()=>{
+  generation=9;
+  const scope={launch_id:'l',page_id:'p',player_id:'v',source_id:'s',generation:9,time_basis:'source_media_presentation'};
+  const policy={minimum_lead_us:1,target_lead_us:2,maximum_lead_us:3};
+  const state={selection:{policy},feed:{feed_id:'old',capture_epoch:'old-epoch'},captureDeadline:10000,lastSubmitted:{old:true},lastAck:{old:true},fallbackTimer:null};
+  futureEstimates=[{position:0.8}];lastFutureEstimate={time:1};
+  const waiting={identity:{epoch:'old-epoch'},browser:{analysis_fallback:{phase:'waiting'}}};
+  const dropped=receiveAnalysisFallback(waiting,state,scope);
+  const report={identity:{epoch:'new-epoch'},active:true,inference:{state:'running',fallback:{history:[{failure:{manifest:{stream:{identity:{epoch:'old-epoch'}}}}}]}},browser:{analysis_fallback:{phase:'ready',target_epoch:'new-epoch',provider:'cpu'},analysis_feed:{feed_id:'new',capture_epoch:'new-epoch',role:'lookahead',generation:9,player:scope,policy}}};
+  const switched=receiveAnalysisFallback(report,state,scope);
+  return JSON.stringify({dropped,switched,epoch,feed:state.feed.feed_id,deadline:state.captureDeadline,waiting:state.fallbackWaiting,lastAck:state.lastAck,future:futureEstimates.length});
+ })()`);
+ assert.deepEqual(JSON.parse(result),{dropped:true,switched:true,epoch:'new-epoch',feed:'new',deadline:10000,waiting:false,lastAck:null,future:0});
+ assert.equal(p.sent.length,0);assert.equal(p.drawSources.length,0);
+});
+
+test('fallback refuses missing original history and expired original deadline',()=>{
+ const p=player();
+ for(const mode of ['history','deadline']) {
+  assert.throws(()=>p.evaluate(`(()=>{generation=9;const state={feed:{feed_id:'old',capture_epoch:'old-epoch'},captureDeadline:${mode==='deadline'?0:10000}};return receiveAnalysisFallback({identity:{epoch:'new'},active:true,inference:{state:'running',fallback:{history:[]}},browser:{analysis_fallback:{phase:'ready',target_epoch:'new'}}},state,{});})()`),mode==='deadline'?/deadline expired/:/original failure/);
+ }
+ assert.equal(p.sent.length,0);
+});
+
+test('selected startup releases its original feed only after ready without extending its deadline',()=>{
+ const p=player();
+ const result=p.evaluate(`(()=>{const state={feed:{feed_id:'original',capture_epoch:'original-epoch'},captureDeadline:10000,fallbackTimer:null};receiveAnalysisFallback({identity:{epoch:'original-epoch'},browser:{analysis_fallback:{phase:'waiting'}}},state,{});const waiting=state.fallbackWaiting;const discarded=receiveAnalysisFallback({identity:{epoch:'original-epoch'},browser:{analysis_fallback:{phase:'ready'}}},state,{});return JSON.stringify({waiting,discarded,ready:!state.fallbackWaiting,deadline:state.captureDeadline});})()`);
+ assert.deepEqual(JSON.parse(result),{waiting:true,discarded:true,ready:true,deadline:10000});assert.equal(p.sent.length,0);assert.equal(p.drawSources.length,0);
+});
+
+test('initial ready-channel opening discards its submitted frame without requiring an upload ack',()=>{
+ const p=player();
+ const result=p.evaluate(`(()=>{const state={feed:{feed_id:'original',capture_epoch:'original-epoch'},captureDeadline:10000,fallbackWaiting:false,lastSubmitted:{old:true},lastAck:null};const discarded=receiveAnalysisFallback({identity:{epoch:'original-epoch'},browser:{analysis_frame_discarded:true,analysis_fallback:{phase:'ready'}}},state,{});return JSON.stringify({discarded,lastSubmitted:state.lastSubmitted,deadline:state.captureDeadline});})()`);
+ assert.deepEqual(JSON.parse(result),{discarded:true,lastSubmitted:null,deadline:10000});assert.equal(p.sent.length,0);
 });

@@ -67,7 +67,7 @@ fn serve(proof: &crate::cuda_mounts::VerifiedLiveCudaBootstrap<'_>) -> Result<()
         .cuda_resources
         .as_ref()
         .context("CUDA live resource limits missing")?;
-    let mut estimator = temporal_position::TemporalPosition::new_cuda(
+    let initialized = temporal_position::TemporalPosition::new_cuda(
         &manifest.stream.model.path,
         &manifest.stream.runtime.path,
         &execution.library_directory.join("libcuda.so.1"),
@@ -83,7 +83,22 @@ fn serve(proof: &crate::cuda_mounts::VerifiedLiveCudaBootstrap<'_>) -> Result<()
             trace_prefix: manifest.output_dir.join("live_cuda_model"),
             maximum_output_values: 1,
         },
-    )?;
+    );
+    let mut estimator = match initialized {
+        Ok(estimator) => estimator,
+        Err(error) => {
+            if let Some(reply) = provider_failure::live_cuda_observation(manifest, &error) {
+                // The original typed negative query is usable only while the
+                // same native bytes and inherited lifetime remain valid.
+                proof.verify_after()?;
+                verify_inputs(proof)?;
+                let mut output = std::io::stdout().lock();
+                write_bulk_header(&mut output, &reply)?;
+                output.flush()?;
+            }
+            return Err(error);
+        }
+    };
     proof.verify_after()?;
     verify_inputs(proof)?;
     let manifest_sha256 = manifest.identity_sha256()?;

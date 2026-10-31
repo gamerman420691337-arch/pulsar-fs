@@ -48,7 +48,7 @@ fn bind_captured_report(report: &mut LiveCaptureReport, manifest: LiveCpuInferen
     inference.cpu_manifest = Some(Box::new(manifest));
     report.validate().unwrap();
 }
-fn captured_report() -> LiveCaptureReport {
+pub(super) fn captured_report() -> LiveCaptureReport {
     let mut report = host_report();
     let mut stream: LiveInferenceManifest = serde_json::from_str(include_str!(
         "../../pulsar-protocol/tests/fixtures/live-cpu-manifest.json"

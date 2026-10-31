@@ -1,6 +1,26 @@
 //! Fresh pack admission, preserving the caller's original request fingerprint.
 use super::*;
 
+/// The private settled-failure path may change execution profile only through
+/// accepted equivalence. The selected pack and its exact model remain current.
+pub(super) fn verify_target(engine: &Engine, options: &LiveCaptureOptions) -> PResult<()> {
+    let Some(choice) = &options.model_pack else {
+        return Ok(());
+    };
+    let current = engine.prepare_selected_live_pack(choice)?;
+    let target = options
+        .inference
+        .as_ref()
+        .ok_or_else(|| ProtocolError::invalid("fallback target profile absent"))?;
+    if current.model_path != target.model_path || current.profile.model != target.profile.model {
+        return Err(ProtocolError::new(
+            ErrorCode::DependencyMismatch,
+            "fallback target changed selected pack model",
+        ));
+    }
+    Ok(())
+}
+
 pub(super) fn resolve(
     engine: &Arc<Engine>,
     request: &Request,

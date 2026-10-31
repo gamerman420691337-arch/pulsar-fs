@@ -70,6 +70,7 @@ pub fn browser_inference_semantic_identity(
     let capture = object(&mut preserved)?;
     for field in [
         "inference",
+        "inference_fallback",
         "continuation_mode",
         "lease_ms",
         "source_anchor",
@@ -95,17 +96,31 @@ pub fn browser_inference_semantic_identity(
         }
     }
     #[derive(Serialize)]
+    struct RequestedSemantics {
+        tier: InferenceEquivalenceTier,
+        axis: Axis,
+    }
+    #[derive(Serialize)]
     struct Basis<'a> {
         schema_version: u16,
         namespace: BrowserInferenceFallbackSourceNamespace,
         model: &'a ArtifactIdentity,
         capture: serde_json::Value,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        requested: Option<RequestedSemantics>,
     }
     identity(&Basis {
         schema_version: 1,
         namespace: BrowserInferenceFallbackSourceNamespace::BrowserMediaCapture,
         model: &selected.profile.model,
         capture: preserved,
+        requested: options
+            .inference_fallback
+            .as_ref()
+            .map(|selection| RequestedSemantics {
+                tier: selection.tier,
+                axis: selection.axis,
+            }),
     })
 }
 
