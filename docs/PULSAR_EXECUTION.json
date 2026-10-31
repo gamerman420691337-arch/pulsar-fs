@@ -29,8 +29,8 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-SOURCE-CLEANUP-LATER-ATTEMPT",
-    "scope": "The first failed source release remains reported and a local-socket test confirms the later release is attempted; 714 client tests passed (15 ignored). Historic cleanup cause and custody remain unproven.",
+    "evidence": "EV-BROWSER-READY-DEADLINE-CLIPPY",
+    "scope": "Test-only Ready handling rejects Running at or after the original deadline; deterministic red/green and Engine Clippy passed. Native rerun after this change remains pending; historical cause remains unknown.",
     "active_work": "BROWSER-DEMO",
     "failure_summary": "Diagnostic source cleanup and Engine forced-stop counterevidence remain unresolved; new diagnostics do not retroactively establish cause. All qualification gates remain open.",
     "source_stamp": [
@@ -44,7 +44,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
-        "sha256": "f850f048c5649b1bfdb85a40930302c73407e87044b932b00a6da414cbe0fb91"
+        "sha256": "4abe541b7aae0116b5414ae1c3d873bf27193656684ab9298eff3aa9aefca035"
       },
       {
         "path": "crates/pulsar-engine/src/browser_timing.rs",
@@ -1283,7 +1283,7 @@
       "state": "open",
       "owner": "Codex",
       "depends_on": [],
-      "exit": "Localize retained startup/Ready and archive-cache stalls with bounded phase probes; establish a causal repair and regression without erasing earlier failures. Unchanged-binary semantic regressions now pass, while syscall tracing and an independent 4KiB write probe show variable SSD sync latency up to 11.138 seconds. That observation does not isolate startup-only cost, identify a particular competing workload, or close the original timeout. Preserve durability and original live bounds. Historical pinned-campaign reproduction now refuses before execution because two recorded system-library identities changed; locate exact historical bytes or establish a separately pinned current subject, without claiming equivalence. A separately pinned current-library run passed five native cases; original stall remains unexplained.",
+      "exit": "Localize retained startup/Ready and archive-cache stalls with bounded phase probes; establish a causal repair and regression without erasing earlier failures. Unchanged-binary semantic regressions now pass, while syscall tracing and an independent 4KiB write probe show variable SSD sync latency up to 11.138 seconds. That observation does not isolate startup-only cost, identify a particular competing workload, or close the original timeout. Preserve durability and original live bounds. Historical pinned-campaign reproduction now refuses before execution because two recorded system-library identities changed; locate exact historical bytes or establish a separately pinned current subject, without claiming equivalence. A separately pinned current-library run passed five native cases; original stall remains unexplained. A current diagnostic native browser run failed before Ready at its original capture lease after two passes; exact startup stage remains unknown. Bounded test-only Ready polling timings are available, but two passing native runs did not exercise the timeout diagnostic. The native test harness no longer accepts Running observed at or after the original deadline; deterministic regression and Clippy passed, native rerun pending.",
       "evidence": [
         "EV-STARTUP",
         "EV-RUNTIME-CACHE-BUSY",
@@ -1300,7 +1300,11 @@
         "EV-STARTUP-PINNED-REPRO-REFUSAL",
         "EV-STARTUP-REFUSAL-CORRECTED",
         "EV-STARTUP-CURRENT-LIBRARIES",
-        "EV-STARTUP-CURRENT-LIBRARIES-REPEAT"
+        "EV-STARTUP-CURRENT-LIBRARIES-REPEAT",
+        "EV-BROWSER-READY-LEASE-FAILURE",
+        "EV-BROWSER-READY-PROBE",
+        "EV-BROWSER-READY-DEADLINE-BOUNDARY",
+        "EV-BROWSER-READY-DEADLINE-CLIPPY"
       ]
     },
     {
@@ -1339,13 +1343,18 @@
       "parents": [
         "M2-INTERCHANGE"
       ],
-      "state": "awaiting_external",
+      "state": "in_progress",
       "owner": "Operator + Codex",
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped.",
-      "evidence": []
+      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards.",
+      "evidence": [
+        "EV-STASH-INSTALLED-VERSION-PREFLIGHT",
+        "EV-STASH-INSTALLED-DISCOVERY",
+        "EV-STASH-INSTALLED-AMBIGUOUS-PLAN",
+        "EV-STASH-INSTALLED-MULTIFILE-SAMPLE"
+      ]
     },
     {
       "id": "LIVE-FALLBACK-HISTORY",
@@ -1360,7 +1369,7 @@
       "depends_on": [
         "CPU-ROUNDTRIP"
       ],
-      "exit": "Complete browser graph root/ancestor mutation, resource and fault campaigns and native/rendered target workflow under original limits. Reader42 refusal against owned reader43 main/WAL state passed; authored fixtures do not close parent gates. A historical test binary with a current-library closure failed once on timing binding and passed on repeat; investigate against a current-source pinned subject and preserve metadata-custody counterevidence. One authored current Engine/Protocol native EOF and successor-transfer run passed; repeated reliability and historical failure remain open. Current Engine/Protocol native browser repeat: two of four failed, one at timing binding and one at predecessor lease; retain both and localize before reliability claims. Expanded same-subject native browser repeat: three of six failed with three distinct timing/lease/correspondence signatures; preserve original bounds and localize each.",
+      "exit": "Complete browser graph root/ancestor mutation, resource and fault campaigns and native/rendered target workflow under original limits. Reader42 refusal against owned reader43 main/WAL state passed; authored fixtures do not close parent gates. A historical test binary with a current-library closure failed once on timing binding and passed on repeat; investigate against a current-source pinned subject and preserve metadata-custody counterevidence. One authored current Engine/Protocol native EOF and successor-transfer run passed; repeated reliability and historical failure remain open. Current Engine/Protocol native browser repeat: two of four failed, one at timing binding and one at predecessor lease; retain both and localize before reliability claims. Expanded same-subject native browser repeat: three of six failed with three distinct timing/lease/correspondence signatures; preserve original bounds and localize each. Bounded test-only join poll timings are available; three passing instrumented runs did not capture the failure interval. Three additional instrumented runs passed without reproducing a failure; earlier counterevidence remains open. Test-only correspondence messages now distinguish capture gap from source mismatch; neither failure branch was observed in the subsequent native run. The test-only diagnostic branches and unchanged bound are now directly checked; native failure cause remains unknown.",
       "evidence": [
         "EV-FALLBACK-HISTORY-SNAPSHOT",
         "EV-FALLBACK-ARCHIVE-CONTRACT",
@@ -1429,7 +1438,11 @@
         "EV-BROWSER-CURRENT-LIBRARY-MIXED",
         "EV-BROWSER-CURRENT-SOURCE-NATIVE",
         "EV-BROWSER-CURRENT-SOURCE-INTERMITTENT",
-        "EV-BROWSER-CURRENT-SOURCE-SIX-RUNS"
+        "EV-BROWSER-CURRENT-SOURCE-SIX-RUNS",
+        "EV-BROWSER-TRANSFER-POLL-PROBE",
+        "EV-BROWSER-TRANSFER-POLL-PROBE-REPEAT",
+        "EV-BROWSER-PAIR-DIAGNOSTIC",
+        "EV-BROWSER-PAIR-DIAGNOSTIC-BRANCHES"
       ]
     },
     {
@@ -8681,6 +8694,746 @@
             "owned_processes_retired"
           ],
           "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-TRANSFER-POLL-PROBE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/transfer-poll-probe-run-003/scoped-verification.json",
+      "sha256": "16fc5e6a070c180bf3996a4756224e2a90793e8828b859a6e9095f45da822e29",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Test-only bounded join polling aggregates on three passing authored native campaigns. Call duration includes possible scheduler delay; inter-poll gaps include the requested 2ms park. These observations do not resolve prior failures or establish product qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "failure_interval_captured"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "runs_passed"
+          ],
+          "equals": 3
+        },
+        {
+          "pointer": [
+            "owned_processes_retired"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-TRANSFER-POLL-PROBE-REPEAT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/transfer-poll-probe-run-006/scoped-verification.json",
+      "sha256": "48e07f91afeec624c0c6331d0a27c7f4a96c3f6cd6f5ac52b76fb52126c82d21",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Three additional same-subject instrumented authored native browser campaigns passed. Together with the first three they did not reproduce the prior failures or establish reliability, physical timing or causal resolution.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "failure_interval_captured"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "additional_runs_passed"
+          ],
+          "equals": 3
+        },
+        {
+          "pointer": [
+            "instrumented_total_runs_passed"
+          ],
+          "equals": 6
+        },
+        {
+          "pointer": [
+            "owned_processes_retired"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-PAIR-DIAGNOSTIC",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/transfer-pair-probe-run-001/scoped-verification.json",
+      "sha256": "8e6ab9b4011933f0a098c67a6703a6c2f69e8e74ca9ac9471c3a088df3981d4a",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "One authored native browser campaign passed after separating test-only correspondence failure messages. The earlier ambiguous failure and both production bounds remain unchanged; this run did not exercise either failure branch.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "failure_branch_observed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "cases_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "owned_processes_retired"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-PAIR-DIAGNOSTIC-BRANCHES",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/transfer-pair-branches-run-001/scoped-verification.json",
+      "sha256": "d90ef3e4c2e58689dfbaa4e1ae0f00d0107ec74077f413031d3b9509d90b7d0d",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Test-only correspondence diagnostics verified both synthetic branch messages, the 500ms boundary, and short circuit; one authored native campaign passed without reproducing the historical failure.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "native_failure_reproduced"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "branch_test_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "native_cases_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "owned_processes_retired"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-READY-LEASE-FAILURE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/transfer-pair-branches-run-003/comparison.json",
+      "sha256": "70ff85f647821f88b1acd22647af90410b279c1f8a32d66f0b36f1e8d84e54a4",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Three authored native browser campaigns on one test-only diagnostic subject; first two passed, third failed before Ready at the original capture lease. This does not diagnose the failure or qualify real media or a physical device.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_INTERMITTENT"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "root_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "total_runs"
+          ],
+          "equals": 3
+        },
+        {
+          "pointer": [
+            "passed_runs"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "failed_runs"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "owned_processes_retired"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-READY-PROBE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/browser-ready-probe-run-002/scoped-verification.json",
+      "sha256": "240737e0d700471b997334ce09ea447a6611376081019202308cab80b0f43090",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Test-only Ready diagnostics measure Start call and maximum timing/status poll durations on timeout. Two native authored browser runs passed without exercising the timeout diagnostic. No cause, latency, rendered-media or device qualification is established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "ready_timeout_reproduced"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "runs_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "owned_processes_retired"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-READY-DEADLINE-BOUNDARY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/browser-ready-boundary-001/verification.json",
+      "sha256": "48c0c17a041ab2b5b06dc5453753b894278b51b3a8fbabeca652673053346d01",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Test-only Ready handling previously accepted Running at or after the original deadline; red/green deterministic boundary regression now refuses it. No production behavior changed and no new native campaign or Clippy run was started under heavy host I/O pressure.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "red_reproduced"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "boundary_test_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "native_after_fix_run"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "clippy_after_fix_run"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-READY-DEADLINE-CLIPPY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/browser-ready-boundary-001/clippy-verification.json",
+      "sha256": "e43884bf695f526fa4fd91102986f7428569350bbb775f518296c34ddae5d560",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Single-job Engine library and test Clippy passed for the Ready deadline harness fix. Native execution after the fix remains pending; the earlier failure is not resolved.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "clippy_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "native_after_fix_run"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-INSTALLED-VERSION-PREFLIGHT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-installed-discovery-001/verification.json",
+      "sha256": "54a3236b725d2b8c050625863d6c217935b28587b937175c5cc6e68d4bdaa88d",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Live local Stash version endpoint only; isolated Pulsar Engine readiness failed before discovery. No library metadata, credentials, publication or device actions retained or attempted.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "stash_version"
+          ],
+          "equals": "v0.31.1"
+        },
+        {
+          "pointer": [
+            "version_query_http_status"
+          ],
+          "equals": 200
+        },
+        {
+          "pointer": [
+            "pulsar_discovery_sent"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "library_content_retained"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_attempted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "cause_known"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-INSTALLED-DISCOVERY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-installed-discovery-002/verification.json",
+      "sha256": "48df3a494cb73af48d73c88df9eb158f82fc5360e3cefe0ce15fca3dbf141e20",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Two independent owned local Pulsar Engine and CLI read-only Stash list-missing requests with limit one, no API key supplied. Second response was stash_discovery and returned one scene. Scene details, paths and credentials were not retained; pagination, authenticated access, source mapping, publication and device qualification are not established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "stash_version"
+          ],
+          "equals": "v0.31.1"
+        },
+        {
+          "pointer": [
+            "attempts_succeeded"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "second_response_kind"
+          ],
+          "equals": "stash_discovery"
+        },
+        {
+          "pointer": [
+            "second_scene_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "api_key_supplied"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "library_content_retained"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_attempted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "second_engine_exit"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "second_cli_exit"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "second_scratch_removed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "previous_engine_failure_retained"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-INSTALLED-AMBIGUOUS-PLAN",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-installed-plan-001/verification.json",
+      "sha256": "7f4ef2066a386e3f3307a87935d9a3b9f6e49d5131524d4beb083fb2ccdfe952",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "One read-only installed-Stash planning request with a synthetic nonmatching mapping. The returned scene had ambiguous files, so the planner refused to select a source or destination. The actual mapping, unmatched-path behavior, full library, publication and device timing remain unverified.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "requested_limit"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "discovered_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "file_plan_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "response_kind"
+          ],
+          "equals": "stash_plan"
+        },
+        {
+          "pointer": [
+            "planning_only"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "statuses"
+          ],
+          "equals": [
+            "ambiguous_files"
+          ]
+        },
+        {
+          "pointer": [
+            "any_local_or_destination"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "library_content_retained"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_attempted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "engine_exit"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "cli_exit"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "scratch_removed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "actual_path_mapping_verified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-INSTALLED-MULTIFILE-SAMPLE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-installed-multifile-sample-001/verification.json",
+      "sha256": "feb23118b90f75168dd534b359256165f59db23cf975ebcfe6c23434d7b306bf",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Bounded read-only local installed-Stash discovery sample: 100 returned scenes, each with multiple files, and pagination was incomplete. Direct aggregate GraphQL check confirmed the file counts. No scene identities, titles, paths, media contents, credentials, writes or device activity retained. This does not characterize the rest of the library.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "OBSERVED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "requested_limit"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "sample_scenes"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "multiple_file_scenes"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "single_file_scenes"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "pagination_complete"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "media_bytes_read"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "library_content_retained"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_attempted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "actual_path_mapping_verified"
+          ],
+          "equals": false
         }
       ]
     }

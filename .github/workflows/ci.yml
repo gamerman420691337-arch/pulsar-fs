@@ -82,6 +82,8 @@ jobs:
           if [[ "$RUNNER_OS" == Linux ]]; then
             run_fast pulsar-clients source_cleanup
             run_fast pulsar-engine browser_archive_reader_delegates_live_cuda_base_without_inventing_evidence
+            run_fast pulsar-engine browser_pair_correspondence_diagnostic_keeps_bound_and_short_circuit
+            run_fast pulsar-engine browser_ready_rejects_running_at_or_after_original_deadline
           fi
 
       - name: Run portable contract and client tests
