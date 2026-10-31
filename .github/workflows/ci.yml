@@ -4,6 +4,8 @@ on:
 jobs:
   image:
     runs-on: ubuntu-latest
+    env:
+      CARGO_PROFILE_TEST_DEBUG: "1"
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -34,4 +36,19 @@ jobs:
           print(f'engine_test_bytes={size}')
           print(f'engine_test_sha256={digest.hexdigest()}')
           print(f'exceeds_control_image_limit={size > 512 * 1024 * 1024}')
+          import subprocess
+          name = 'authority::tests::browser_playback_tests::browser_play_dossier_withdrawal_retires_cached_owner_and_cannot_be_replayed_live'
+          try:
+              result = subprocess.run([str(path), '--exact', name, '--nocapture'], text=True, capture_output=True, timeout=120)
+          except subprocess.TimeoutExpired:
+              print('target_test_status=timeout')
+              raise SystemExit(1)
+          output = result.stdout + result.stderr
+          print(f'target_test_exit={result.returncode}')
+          print(f'identity_unavailable={"loaded control image identity unavailable" in output}')
+          for line in output.splitlines():
+              if line.startswith('test result:'):
+                  print(line)
+          if 'loaded control image identity unavailable' in output:
+              raise SystemExit(1)
           PY
