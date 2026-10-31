@@ -32,7 +32,7 @@
     "evidence": "EV-ASSISTANT-FIXTURE-INTERRUPTED",
     "scope": "This dashboard incorporates merged PR 24 transport repair; the assistant worker fixture remains uncommitted and unverified in a separate checkout. Full platform and device qualification remain open.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "Full CI failed on all platforms; the reproduced macOS socket defect has a scoped repair merged, while other full-suite failures remain open.",
+    "failure_summary": "Full Linux Engine CI improved from 228 failures to 37 with no identity-unavailable messages; confinement and symlink failures remain. Full Windows and macOS failures and qualification gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -1276,7 +1276,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines. A separate traced run opened timing but timed out on a probe and reported cleanup unconfirmed; an Engine fsync lasted 5.622 seconds without proven request or file correspondence. A separate file-aware trace identified slow worker-fence, staging and database fsyncs; the short rendered run exited cleanly and no fsync was tied to a timed-out request. A source-bound diagnostic render localized a further open timeout to the connected request/response call; whether write, response read, or Engine work blocked remains unknown. A separate socket trace recorded a complete send and three-second response-header read timeout, but its command was not identified; that run ended with capture cleanup unconfirmed and forced Engine termination. Resolve custody before private state cleanup. New transport diagnostics distinguish request-write from response-read failures, with no change to deadline or unknown-outcome semantics; they have not yet been exercised in a rendered failure. The current diagnostic rendered run localized timing-open timeout to response_read after local write, with no proof of Engine receipt or blocking stage. A scoped change removes timing-history requests from incidental live-capture sweeps, demonstrated by red/green contention and one short rendered pass; the earlier timeout cause, database waits and repeatability are not established. Timing-history also bypasses incidental transfer sweeping, with deterministic red/green and timing/transfer test coverage; its rendered attempt did not reach playback because private setup failed and the retry timed out. A separate sterile rendered retry on the two-sweep isolation observed 147 completed analyses and clean release, but does not establish repeatability or explain the earlier failures. One current sterile rendered run recorded 138 estimates, explicitly authored two gap fills, and downloaded a 140-action script matching its Engine receipt; synthetic edge fill reaches 60 seconds. No useful-model, repeatability, physical or human qualification follows. A post-change rendered run staged 210 estimates but had no second nonempty capture, so it did not exercise the duplicate boundary; player capture cleanup was unconfirmed and private state retained. A capture cleanup error-overwrite defect was reproduced and repaired with a two-original socket regression and one short rendered checkpoint; the historical cleanup failure is not attributed to that defect. Full on-demand CI on earlier stack commit 5e628672 failed on macOS clients and Linux engine; Windows was still running at observation. Diagnose and repair without weakening platform or confinement requirements. The same full CI subsequently completed with Windows client failures as well; correct host-specific fixtures and independently verify Windows, and retain Linux-only reference intake as an open platform capability. Host-specific path fixtures now use native temporary paths; 722 Linux client tests and Windows GNU test-code cross-check passed, but Windows execution remains unverified. A separate assistant-policy test fixture uses an owned regular worker; compilation was interrupted under host pressure and tests did not run. Verify before attributing or committing. Full CI run 41214450893 was dispatched on 4817c72 to test host path fixtures natively; it excludes the uncommitted assistant fixture. Await its actual outcome. Bounded assistant fixture build then failed Wild linking; a non-incremental retry is running, with no test result at observation. The non-incremental bounded retry ended during compilation without a test result or a recorded cause; fixture remains unverified. Current full CI commit 4817c72 also failed 43 macOS client tests, including local transport EINVAL and Linux-only reference intake; causes remain open. Current full CI commit 4817c72 also failed 228 Linux Engine tests; 190 reported unavailable control-image identity, with confinement and symlink failures retained separately. Full CI Windows client failures fell from 16 to 8; four remaining share a Unix-style model path fixture and four require Linux-only reference intake. A fixture repair is unverified. The remaining Windows analysis host-path fixture now passes 19 focused Linux tests; native Windows execution remains unverified. Native Windows verification of the remaining analysis fixture is running in full CI on 01c94fc; it excludes the uncommitted assistant fixture. Eight macOS CI timing-open failures reported response_read transport I/O; local write preceded those failures, but OS cause and Engine receipt remain unknown. Test Darwin peer-close/socket-timeout EINVAL hypothesis with deterministic native reproduction before designing a deadline-preserving fix; no causal attribution yet. Native macOS peer-close/timeout experiment runs in diagnostic-only PR 23 and must not be merged; native outcome and application causality are pending. Native macOS isolated probe confirmed timeout reset returns EINVAL after peer close even with buffered reply; Linux succeeds. Add a transport-level reproduction and deadline-preserving fix before attributing CI failures. Pulsar DeadlineStream peer-close regression passes on Linux and is dispatched for native macOS on diagnostic PR 23; result and application causality remain pending. Native Pulsar DeadlineStream regression reproduces EINVAL on macOS after peer close and passes Linux; a bounded nonblocking read fallback is under test. Attribution of all CI failures remains open. A macOS-only nonblocking read fallback rechecks the deadline; two Linux focused tests pass and native macOS validation runs on diagnostic branch. It is not merged or qualified. PR 22 merged at 2d0d60c after three-platform fast CI; this does not establish full-suite success or qualification. Draft fallback passed two native macOS and Linux regression tests; expired-deadline and truncated-reply tests and normal integration remain in progress. Full Windows native rerun reduced client failures to four, all Linux-only reference intake; host-path fixture failures no longer appear. Platform qualification remains open. Normal PR 24 carries the deadline-stream fix and four fast-CI regressions; 419 Linux protocol tests pass, current native four-test result pending. Hosted diagnostic 41219063714 measures the exact earlier CI subject Engine test binary against the control-image size bound; result and cause pending. Draft PR 26 enables descriptor-bound reference intake and exclusive publication on macOS; cross-target check and 17 Linux reference tests pass, with native macOS CI pending and Windows unsupported. Hosted rebuild of CI source produced a 754162184-byte Engine test image above its 512 MiB identity limit; previous binary hash was not captured, so cause is strongly supported but not exact-binary proven. Hosted debug-level-1 diagnostic 41219905181 will measure the same source and run one previously identity-failing test; outcome remains pending. PR 24 native macOS fast CI passed all four peer-close, EOF, expired-deadline and truncation cases; remaining checks and full qualification remain open. PR 24 deadline-stream repair merged at 397e14a after fast CI on three platforms; full suite and qualification remain open. Hosted test debug level 1 produced a 412854488-byte Engine test image and one previously identity-failing test passed; PR 27 applies this to the full Linux suite, which is running. The unverified assistant worker fixture is isolated in draft PR 28 with Linux CI coverage; local tests did not complete and CI causality remains unproven. Native macOS reference test failed one contained absolute input case with a root escape error; investigate root alias handling and rerun without weakening descriptor confinement. PR 26 root alias regression failed before repair; updated implementation revalidates declared root identity and passes 18 Linux reference tests and macOS cross-check. Native macOS rerun pending. CI debug-image setting merged at 64af4b3 after fast checks; the full Linux Engine suite remains in progress and must not be assumed passing. PR 28 first hosted assistant suite passed 12 and failed one metadata validation case; revised owned runtime fixture is pending hosted rerun. PR 26 native macOS rerun passed 18 reference tests, including prior absolute-path failure and alias replacement refusal; Linux CI and platform qualification remain open. PR 26 passed all fast checks, but GitHub refused merge because owner OAuth authorization lacks workflow scope; user must merge or grant scope. PR 28 revised fixture passed 13 hosted Linux assistant tests and all fast checks; GitHub refused merge without workflow scope. Windows reference intake remains fail-closed: documented reparse, identity and handle-relative rename primitives require a tested design addressing concurrent namespace replacement.",
+      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines. A separate traced run opened timing but timed out on a probe and reported cleanup unconfirmed; an Engine fsync lasted 5.622 seconds without proven request or file correspondence. A separate file-aware trace identified slow worker-fence, staging and database fsyncs; the short rendered run exited cleanly and no fsync was tied to a timed-out request. A source-bound diagnostic render localized a further open timeout to the connected request/response call; whether write, response read, or Engine work blocked remains unknown. A separate socket trace recorded a complete send and three-second response-header read timeout, but its command was not identified; that run ended with capture cleanup unconfirmed and forced Engine termination. Resolve custody before private state cleanup. New transport diagnostics distinguish request-write from response-read failures, with no change to deadline or unknown-outcome semantics; they have not yet been exercised in a rendered failure. The current diagnostic rendered run localized timing-open timeout to response_read after local write, with no proof of Engine receipt or blocking stage. A scoped change removes timing-history requests from incidental live-capture sweeps, demonstrated by red/green contention and one short rendered pass; the earlier timeout cause, database waits and repeatability are not established. Timing-history also bypasses incidental transfer sweeping, with deterministic red/green and timing/transfer test coverage; its rendered attempt did not reach playback because private setup failed and the retry timed out. A separate sterile rendered retry on the two-sweep isolation observed 147 completed analyses and clean release, but does not establish repeatability or explain the earlier failures. One current sterile rendered run recorded 138 estimates, explicitly authored two gap fills, and downloaded a 140-action script matching its Engine receipt; synthetic edge fill reaches 60 seconds. No useful-model, repeatability, physical or human qualification follows. A post-change rendered run staged 210 estimates but had no second nonempty capture, so it did not exercise the duplicate boundary; player capture cleanup was unconfirmed and private state retained. A capture cleanup error-overwrite defect was reproduced and repaired with a two-original socket regression and one short rendered checkpoint; the historical cleanup failure is not attributed to that defect. Full on-demand CI on earlier stack commit 5e628672 failed on macOS clients and Linux engine; Windows was still running at observation. Diagnose and repair without weakening platform or confinement requirements. The same full CI subsequently completed with Windows client failures as well; correct host-specific fixtures and independently verify Windows, and retain Linux-only reference intake as an open platform capability. Host-specific path fixtures now use native temporary paths; 722 Linux client tests and Windows GNU test-code cross-check passed, but Windows execution remains unverified. A separate assistant-policy test fixture uses an owned regular worker; compilation was interrupted under host pressure and tests did not run. Verify before attributing or committing. Full CI run 41214450893 was dispatched on 4817c72 to test host path fixtures natively; it excludes the uncommitted assistant fixture. Await its actual outcome. Bounded assistant fixture build then failed Wild linking; a non-incremental retry is running, with no test result at observation. The non-incremental bounded retry ended during compilation without a test result or a recorded cause; fixture remains unverified. Current full CI commit 4817c72 also failed 43 macOS client tests, including local transport EINVAL and Linux-only reference intake; causes remain open. Current full CI commit 4817c72 also failed 228 Linux Engine tests; 190 reported unavailable control-image identity, with confinement and symlink failures retained separately. Full CI Windows client failures fell from 16 to 8; four remaining share a Unix-style model path fixture and four require Linux-only reference intake. A fixture repair is unverified. The remaining Windows analysis host-path fixture now passes 19 focused Linux tests; native Windows execution remains unverified. Native Windows verification of the remaining analysis fixture is running in full CI on 01c94fc; it excludes the uncommitted assistant fixture. Eight macOS CI timing-open failures reported response_read transport I/O; local write preceded those failures, but OS cause and Engine receipt remain unknown. Test Darwin peer-close/socket-timeout EINVAL hypothesis with deterministic native reproduction before designing a deadline-preserving fix; no causal attribution yet. Native macOS peer-close/timeout experiment runs in diagnostic-only PR 23 and must not be merged; native outcome and application causality are pending. Native macOS isolated probe confirmed timeout reset returns EINVAL after peer close even with buffered reply; Linux succeeds. Add a transport-level reproduction and deadline-preserving fix before attributing CI failures. Pulsar DeadlineStream peer-close regression passes on Linux and is dispatched for native macOS on diagnostic PR 23; result and application causality remain pending. Native Pulsar DeadlineStream regression reproduces EINVAL on macOS after peer close and passes Linux; a bounded nonblocking read fallback is under test. Attribution of all CI failures remains open. A macOS-only nonblocking read fallback rechecks the deadline; two Linux focused tests pass and native macOS validation runs on diagnostic branch. It is not merged or qualified. PR 22 merged at 2d0d60c after three-platform fast CI; this does not establish full-suite success or qualification. Draft fallback passed two native macOS and Linux regression tests; expired-deadline and truncated-reply tests and normal integration remain in progress. Full Windows native rerun reduced client failures to four, all Linux-only reference intake; host-path fixture failures no longer appear. Platform qualification remains open. Normal PR 24 carries the deadline-stream fix and four fast-CI regressions; 419 Linux protocol tests pass, current native four-test result pending. Hosted diagnostic 41219063714 measures the exact earlier CI subject Engine test binary against the control-image size bound; result and cause pending. Draft PR 26 enables descriptor-bound reference intake and exclusive publication on macOS; cross-target check and 17 Linux reference tests pass, with native macOS CI pending and Windows unsupported. Hosted rebuild of CI source produced a 754162184-byte Engine test image above its 512 MiB identity limit; previous binary hash was not captured, so cause is strongly supported but not exact-binary proven. Hosted debug-level-1 diagnostic 41219905181 will measure the same source and run one previously identity-failing test; outcome remains pending. PR 24 native macOS fast CI passed all four peer-close, EOF, expired-deadline and truncation cases; remaining checks and full qualification remain open. PR 24 deadline-stream repair merged at 397e14a after fast CI on three platforms; full suite and qualification remain open. Hosted test debug level 1 produced a 412854488-byte Engine test image and one previously identity-failing test passed; PR 27 applies this to the full Linux suite, which is running. The unverified assistant worker fixture is isolated in draft PR 28 with Linux CI coverage; local tests did not complete and CI causality remains unproven. Native macOS reference test failed one contained absolute input case with a root escape error; investigate root alias handling and rerun without weakening descriptor confinement. PR 26 root alias regression failed before repair; updated implementation revalidates declared root identity and passes 18 Linux reference tests and macOS cross-check. Native macOS rerun pending. CI debug-image setting merged at 64af4b3 after fast checks; the full Linux Engine suite remains in progress and must not be assumed passing. PR 28 first hosted assistant suite passed 12 and failed one metadata validation case; revised owned runtime fixture is pending hosted rerun. PR 26 native macOS rerun passed 18 reference tests, including prior absolute-path failure and alias replacement refusal; Linux CI and platform qualification remain open. PR 26 passed all fast checks, but GitHub refused merge because owner OAuth authorization lacks workflow scope; user must merge or grant scope. PR 28 revised fixture passed 13 hosted Linux assistant tests and all fast checks; GitHub refused merge without workflow scope. Windows reference intake remains fail-closed: documented reparse, identity and handle-relative rename primitives require a tested design addressing concurrent namespace replacement. Full Linux Engine debug-level-1 CI passed 1924, failed 37, ignored 121, with no identity-unavailable messages; remaining confinement and symlink failures remain open. Full macOS client suite after transport repair passed 650 and failed 20 versus 43 prior; two package-import failures report EINVAL, with phase and cause unresolved.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
@@ -1390,7 +1390,9 @@
         "EV-REFERENCE-MACOS-NATIVE-GREEN",
         "EV-REFERENCE-MACOS-MERGE-SCOPE",
         "EV-ASSISTANT-FIXTURE-NATIVE-GREEN",
-        "EV-WINDOWS-REFERENCE-API-BOUNDARY"
+        "EV-WINDOWS-REFERENCE-API-BOUNDARY",
+        "EV-CI-ENGINE-DEBUG1-FULL",
+        "EV-MACOS-FULL-AFTER-TRANSPORT"
       ]
     },
     {
@@ -13792,6 +13794,100 @@
         {
           "pointer": [
             "windows_reference_implemented"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-CI-ENGINE-DEBUG1-FULL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/engine-debug1-full-ci-result-20261031.json",
+      "sha256": "21b016bb67421c1237d97e6b9444bba57988dcd6d6b539baeffa7484e8fcef27",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Full Linux Engine suite with test debug level 1 passed 1924, failed 37 and ignored 121; no control-image identity unavailable messages remained. Cgroup, confinement and symlink failures remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "engine_passed"
+          ],
+          "equals": 1924
+        },
+        {
+          "pointer": [
+            "engine_failed"
+          ],
+          "equals": 37
+        },
+        {
+          "pointer": [
+            "engine_ignored"
+          ],
+          "equals": 121
+        },
+        {
+          "pointer": [
+            "control_image_unavailable_mentions"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-MACOS-FULL-AFTER-TRANSPORT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/macos-full-after-transport-fix-20261031.json",
+      "sha256": "1c68a9b679c50feb90e875848ed9afdb9c4ae973bae109d319f71ad0e63d51a5",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Full macOS client suite after transport repair passed 650 and failed 20, versus 43 prior failures. Two package-import failures report EINVAL; their exact transport phase is unproven.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "client_failed"
+          ],
+          "equals": 20
+        },
+        {
+          "pointer": [
+            "previous_failed"
+          ],
+          "equals": 43
+        },
+        {
+          "pointer": [
+            "package_import_einval_reports"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "remaining_cause_proven"
           ],
           "equals": false
         },
