@@ -414,6 +414,67 @@ mod inference_fallback_native_tests {
                     wall_time_ms: 1000,
                     cpu_threads: profile.cpu_threads,
                 };
+                if profile.provider == InferenceProvider::Cuda {
+                    let owner = engine
+                        .cuda_owner_policy
+                        .as_ref()
+                        .context("simulated CUDA owner policy absent")?;
+                    let policy = owner.policy();
+                    let runtime = policy
+                        .native_dependencies
+                        .libraries
+                        .iter()
+                        .find(|library| {
+                            library
+                                .names
+                                .iter()
+                                .any(|name| name == "libonnxruntime.so.1")
+                        })
+                        .context("simulated CUDA runtime absent")?;
+                    case.manifest.tools.onnx_runtime = Some(ArtifactReference {
+                        path: runtime.path.clone(),
+                        identity: profile.runtime.clone(),
+                    });
+                    let libraries: Vec<CapturedNativeLibrary> = policy
+                        .native_dependencies
+                        .libraries
+                        .iter()
+                        .map(|library| {
+                            Ok(CapturedNativeLibrary {
+                                identity: ArtifactIdentity {
+                                    artifact_id: ArtifactId::new(library.sha256.clone())?,
+                                    sha256: library.sha256.clone(),
+                                    byte_len: library.byte_len,
+                                },
+                                names: library.names.clone(),
+                            })
+                        })
+                        .collect::<Result<_>>()?;
+                    let owner_policy = owner.status().source_identity;
+                    case.manifest.dependencies.push(owner_policy.clone());
+                    for library in &libraries {
+                        if !case.manifest.dependencies.contains(&library.identity) {
+                            case.manifest.dependencies.push(library.identity.clone());
+                        }
+                    }
+                    // Inert shape for synthetic equivalence documents only: this directory
+                    // is never created and does not confer a captured execution grant.
+                    case.manifest.cuda_execution = Some(WorkerCudaExecution {
+                        schema_version: 1,
+                        owner_policy,
+                        device_uuid: policy.device.device_uuid.clone(),
+                        pci_bus_address: policy.device.pci_bus_address.clone(),
+                        device_minor: policy.device.device_minor,
+                        device_ordinal: policy.accounting.device_ordinal,
+                        library_directory: engine
+                            .config
+                            .state_dir
+                            .join("SIMULATED-equivalence-not-a-capture"),
+                        libraries,
+                    });
+                } else {
+                    case.manifest.cuda_execution = None;
+                }
                 let WorkerOperation::Generate {
                     preset,
                     settings,
@@ -442,6 +503,8 @@ mod inference_fallback_native_tests {
             for case in &mut placement.cases {
                 case.from.profile_sha256 = fixture_hash(&fixture_bytes(from));
                 case.to.profile_sha256 = fixture_hash(&fixture_bytes(to));
+                case.from.executed_providers = vec![from.provider];
+                case.to.executed_providers = vec![to.provider];
             }
         }
         if let D::Review(review) = details.get_mut(&K::Review).unwrap() {
