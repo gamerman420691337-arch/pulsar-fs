@@ -148,11 +148,11 @@ impl<'a> DeadlineStream<'a> {
 impl Read for DeadlineStream<'_> {
     fn read(&mut self, bytes: &mut [u8]) -> io::Result<usize> {
         let remaining = self.remaining()?;
+        #[cfg(target_os = "macos")]
         if let Err(error) = self.stream.set_recv_timeout(Some(remaining)) {
             // Darwin rejects socket options after a Unix peer disconnects, even
             // when response bytes remain buffered. Never fall back to a blocking
             // read: the original deadline must remain an upper bound.
-            #[cfg(target_os = "macos")]
             if error.kind() == io::ErrorKind::InvalidInput {
                 self.stream.set_nonblocking(true)?;
                 let result = self.remaining().and_then(|_| self.stream.read(bytes));
@@ -161,12 +161,29 @@ impl Read for DeadlineStream<'_> {
             }
             return Err(error);
         }
+        #[cfg(not(target_os = "macos"))]
+        self.stream.set_recv_timeout(Some(remaining))?;
         self.stream.read(bytes)
     }
 }
 impl Write for DeadlineStream<'_> {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        self.stream.set_send_timeout(Some(self.remaining()?))?;
+        let remaining = self.remaining()?;
+        #[cfg(target_os = "macos")]
+        if let Err(error) = self.stream.set_send_timeout(Some(remaining)) {
+            // A disconnected Darwin Unix socket rejects timeout changes. A
+            // nonblocking attempt exposes the real write result without
+            // extending the original deadline or silently replaying bytes.
+            if error.kind() == io::ErrorKind::InvalidInput {
+                self.stream.set_nonblocking(true)?;
+                let result = self.remaining().and_then(|_| self.stream.write(bytes));
+                self.stream.set_nonblocking(false)?;
+                return result;
+            }
+            return Err(error);
+        }
+        #[cfg(not(target_os = "macos"))]
+        self.stream.set_send_timeout(Some(remaining))?;
         self.stream.write(bytes)
     }
     fn flush(&mut self) -> io::Result<()> {
@@ -328,6 +345,29 @@ mod endpoint_tests {
         let mut bounded = DeadlineStream::new(&mut stream, Instant::now() + Duration::from_secs(2));
         let mut response = [0; 5];
         assert_eq!(bounded.read_exact(&mut response).unwrap_err().kind(), io::ErrorKind::UnexpectedEof);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn deadline_stream_closed_peer_write_reports_broken_pipe() {
+        use std::os::unix::net::UnixStream;
+        let (client, server) = UnixStream::pair().unwrap();
+        drop(server);
+        let mut stream = LocalStream::UdSocket(client.into());
+        let mut bounded = DeadlineStream::new(&mut stream, Instant::now() + Duration::from_secs(2));
+        assert_eq!(bounded.write(b"chunk").unwrap_err().kind(), io::ErrorKind::BrokenPipe);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn deadline_stream_expired_deadline_refuses_write() {
+        use std::os::unix::net::UnixStream;
+        let (client, mut server) = UnixStream::pair().unwrap();
+        server.set_nonblocking(true).unwrap();
+        let mut stream = LocalStream::UdSocket(client.into());
+        let mut bounded = DeadlineStream::new(&mut stream, Instant::now());
+        assert_eq!(bounded.write(b"chunk").unwrap_err().kind(), io::ErrorKind::TimedOut);
+        assert_eq!(server.read(&mut [0; 1]).unwrap_err().kind(), io::ErrorKind::WouldBlock);
     }
 
     #[cfg(unix)]
