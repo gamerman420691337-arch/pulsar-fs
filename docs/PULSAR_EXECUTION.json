@@ -1360,7 +1360,7 @@
       "depends_on": [
         "CPU-ROUNDTRIP"
       ],
-      "exit": "Complete browser graph root/ancestor mutation, resource and fault campaigns and native/rendered target workflow under original limits. Reader42 refusal against owned reader43 main/WAL state passed; authored fixtures do not close parent gates. A historical test binary with a current-library closure failed once on timing binding and passed on repeat; investigate against a current-source pinned subject and preserve metadata-custody counterevidence. One authored current Engine/Protocol native EOF and successor-transfer run passed; repeated reliability and historical failure remain open. Current Engine/Protocol native browser repeat: two of four failed, one at timing binding and one at predecessor lease; retain both and localize before reliability claims.",
+      "exit": "Complete browser graph root/ancestor mutation, resource and fault campaigns and native/rendered target workflow under original limits. Reader42 refusal against owned reader43 main/WAL state passed; authored fixtures do not close parent gates. A historical test binary with a current-library closure failed once on timing binding and passed on repeat; investigate against a current-source pinned subject and preserve metadata-custody counterevidence. One authored current Engine/Protocol native EOF and successor-transfer run passed; repeated reliability and historical failure remain open. Current Engine/Protocol native browser repeat: two of four failed, one at timing binding and one at predecessor lease; retain both and localize before reliability claims. Expanded same-subject native browser repeat: three of six failed with three distinct timing/lease/correspondence signatures; preserve original bounds and localize each.",
       "evidence": [
         "EV-FALLBACK-HISTORY-SNAPSHOT",
         "EV-FALLBACK-ARCHIVE-CONTRACT",
@@ -1428,7 +1428,8 @@
         "EV-NATIVE-FRESHNESS-DIAGNOSTIC",
         "EV-BROWSER-CURRENT-LIBRARY-MIXED",
         "EV-BROWSER-CURRENT-SOURCE-NATIVE",
-        "EV-BROWSER-CURRENT-SOURCE-INTERMITTENT"
+        "EV-BROWSER-CURRENT-SOURCE-INTERMITTENT",
+        "EV-BROWSER-CURRENT-SOURCE-SIX-RUNS"
       ]
     },
     {
@@ -8615,6 +8616,65 @@
             "same_error_all_failures"
           ],
           "equals": false
+        },
+        {
+          "pointer": [
+            "owned_processes_retired"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-CURRENT-SOURCE-SIX-RUNS",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/current-source-browser-006/comparison.json",
+      "sha256": "35a07bba2768ca8b83a0eb1a4a71a80e8cb18447f2cdb8432f136deabeb2a025",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Six sequential authored native browser campaigns using one Engine/Protocol test binary and worker with selected source snapshot and pinned current libraries. Failures were timing-binding refusal, successor preparation lease expiry and original-pair correspondence expiry; causes remain unknown. No rendered, real-media or physical qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_INTERMITTENT"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "root_causes_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "total_runs"
+          ],
+          "equals": 6
+        },
+        {
+          "pointer": [
+            "passed_runs"
+          ],
+          "equals": 3
+        },
+        {
+          "pointer": [
+            "failed_runs"
+          ],
+          "equals": 3
+        },
+        {
+          "pointer": [
+            "distinct_failure_signatures"
+          ],
+          "equals": 3
         },
         {
           "pointer": [
