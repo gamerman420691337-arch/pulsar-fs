@@ -326,7 +326,51 @@ mod captured_cpu_browser_native_tests {
         value.validate()?;
         Ok(*value)
     }
-    fn prepare_media(client: &Client<'_>, inputs: &Inputs) -> Result<BrowserMediaBinding> {
+    #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+    fn prepare_native_image(client: &Client<'_>) -> Result<NativeImagePreparationStatus> {
+        let ResponseBody::NativeImagePreparationLimits(limits) =
+            client.call(Some(1), Command::NativeImagePreparationLimits)?
+        else {
+            bail!("native image preparation limits missing")
+        };
+        limits.validate()?;
+        ensure!(limits.supported, "native image preparation is unavailable");
+        let options = NativeImagePreparationOptions {
+            preparation_ms: limits.preparation_max_ms.min(300_000),
+            retention_ms: limits.retention_max_ms.min(900_000),
+        };
+        let ResponseBody::NativeImagePreparation(started) = client.call(
+            Some(1),
+            Command::StartNativeImagePreparation {
+                engine_epoch: limits.engine_epoch.clone(),
+                options,
+            },
+        )? else {
+            bail!("native image preparation start missing")
+        };
+        let operation = started.report.intent.operation_id.clone();
+        let deadline = Instant::now() + Duration::from_millis(options.preparation_ms);
+        loop {
+            let ResponseBody::NativeImagePreparation(status) = client.call(
+                Some(1),
+                Command::NativeImagePreparationStatus {
+                    operation_id: operation.clone(),
+                },
+            )? else {
+                bail!("native image preparation status missing")
+            };
+            status.report.validate()?;
+            if status.report.state == NativeImagePreparationState::Retained && status.available {
+                return Ok(*status);
+            }
+            ensure!(
+                !status.report.state.is_terminal() && Instant::now() < deadline,
+                "native image preparation failed or timed out: {:?}", status.report
+            );
+            std::thread::park_timeout(Duration::from_millis(25));
+        }
+    }
+    fn place_media(client: &Client<'_>, inputs: &Inputs) -> Result<()> {
         let ResponseBody::Source { source_version } = client.call(
             None,
             Command::ImportSource {
@@ -351,6 +395,9 @@ mod captured_cpu_browser_native_tests {
                 replace: None,
             },
         )?;
+        Ok(())
+    }
+    fn prepare_media(client: &Client<'_>) -> Result<BrowserMediaBinding> {
         let ResponseBody::BrowserMediaCatalog(catalog) =
             client.call(Some(1), Command::BrowserMediaCatalog)?
         else {
@@ -426,6 +473,7 @@ mod captured_cpu_browser_native_tests {
                 generation: 1,
                 time_basis: LiveSourceTimeBasis::SourceMediaPresentation,
             };
+            let open_started = Instant::now();
             let ResponseBody::BrowserTiming(report) = client.call(
                 Some(1),
                 Command::OpenBrowserTiming {
@@ -438,6 +486,11 @@ mod captured_cpu_browser_native_tests {
                 bail!("timing binding missing")
             };
             report.validate()?;
+            ensure!(
+                report.current,
+                "new browser timing binding was already not current: open_elapsed_ms={}, observation_timeout_ms={}",
+                open_started.elapsed().as_millis(), timing_policy().observation_timeout_ms
+            );
             Ok(Self {
                 binding: report.binding,
                 origin: Instant::now(),
@@ -506,7 +559,9 @@ mod captured_cpu_browser_native_tests {
             report.validate()?;
             ensure!(
                 report.current && report.binding == self.binding && !report.qualified,
-                "authored observation lost original native timing ownership"
+                "authored observation lost original native timing ownership: current={}, binding_matches={}, qualified={}, sequence={}, media_time_us={}, presented_frames={}",
+                report.current, report.binding == self.binding, report.qualified, self.sequence,
+                media_time_us, presented_frames
             );
             self.last_observation = Some(report.observation.context("native observation absent")?);
             Ok(())
@@ -1410,7 +1465,8 @@ mod captured_cpu_browser_native_tests {
             .map_err(|_| anyhow::anyhow!("browser timing registry unavailable"))?
             .retired_metadata_for_test()?;
         ensure!(
-            metadata_entries == expected_timing_entries && metadata_bytes > 0,
+            metadata_entries == expected_timing_entries
+                && (metadata_entries == 0) == (metadata_bytes == 0),
             "retained browser timing metadata count differs from actual case"
         );
         let available = engine
@@ -1436,7 +1492,9 @@ mod captured_cpu_browser_native_tests {
                 match engine.pool.reserve_memory(available) {
                     Ok(claim) => {
                         drop(claim);
-                        let extra = match engine.pool.reserve_memory(available + 1) {
+                        let extra = match engine.pool.reserve_memory(
+                            available.checked_add(1).context("RAM overshoot overflow")?,
+                        ) {
                             Ok(claim) => {
                                 drop(claim);
                                 bail!("retained timing metadata does not occupy its exact declared pool budget");
@@ -1517,23 +1575,74 @@ mod captured_cpu_browser_native_tests {
         };
         let fixture_directory = directory.path().to_path_buf();
         let mut engine: Option<Arc<Engine>> = None;
+        let mut cuda_timing_entries = 0;
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<Value> {
+            #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+            let cuda = if mode == "browser_cuda_handover" {
+                Some(CudaHandoverInputs::load(inputs)?)
+            } else {
+                None
+            };
             let mut config =
                 EngineConfig::new(directory.path().join("state"), inputs.worker.path.clone());
             config.cpu_owner_policy = Some(inputs.policy.path.clone());
+            #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+            if let Some(cuda) = &cuda {
+                config.cuda_owner_policy = Some(cuda.policy.path.clone());
+            }
             config.max_cpu_threads = inputs.owner_cpu_threads;
             config.worker_timeout = Duration::from_secs(60);
             engine = Some(Engine::open(config)?);
             let client = Client::new(engine.as_ref().unwrap())?;
-            let media = prepare_media(&client, inputs)?;
+            place_media(&client, inputs)?;
+            #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+            let preparation = if mode == "browser_cuda_handover" {
+                Some(prepare_native_image(&client)?)
+            } else {
+                None
+            };
+            let media = prepare_media(&client)?;
             let original = client.snapshot()?;
             #[cfg(target_arch = "x86_64")]
             let fallback = if mode == "browser_fallback_admission" {
                 Some(browser_fallback_fixture(&client, inputs, &media)?)
+            } else if mode == "browser_cuda_handover" {
+                #[cfg(feature = "cuda")]
+                {
+                    let profiles = cuda.as_ref().context("CUDA profiles absent")?;
+                    Some(browser_fallback_fixture_for_profiles(
+                        &client, inputs, &media, &profiles.from, &profiles.to,
+                    )?)
+                }
+                #[cfg(not(feature = "cuda"))]
+                {
+                    bail!("CUDA feature required")
+                }
+            } else {
+                None
+            };
+            #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+            let preparation = if let Some(prepared) = &preparation {
+                let ResponseBody::NativeImagePreparation(status) = client.call(
+                    Some(1),
+                    Command::NativeImagePreparationStatus {
+                        operation_id: prepared.report.intent.operation_id.clone(),
+                    },
+                )? else {
+                    bail!("native image pre-capture status missing")
+                };
+                ensure!(
+                    status.report.state == NativeImagePreparationState::Retained && status.available,
+                    "native image unavailable before live timing: {:?}", status.report
+                );
+                Some(*status)
             } else {
                 None
             };
             let mut player = AuthoredPlayer::open(&client, &media)?;
+            if mode == "browser_cuda_handover" {
+                cuda_timing_entries = 1;
+            }
             let mut value = match mode {
                 "clean_input_eof" => clean_eof(&client, inputs, &media, &mut player)?,
                 "prepared_successor_transfer" => {
@@ -1547,6 +1656,15 @@ mod captured_cpu_browser_native_tests {
                     &mut player,
                     fallback.as_ref().expect("selected fixture"),
                 )?,
+                #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+                "browser_cuda_handover" => browser_cuda_handover(
+                    &client,
+                    inputs,
+                    &media,
+                    &mut player,
+                    fallback.as_ref().expect("selected fixture"),
+                    cuda.as_ref().expect("CUDA profiles"),
+                )?,
                 _ => bail!("unknown browser campaign case"),
             };
             let after = client.snapshot()?;
@@ -1556,6 +1674,16 @@ mod captured_cpu_browser_native_tests {
                 "ephemeral browser native campaign changed committed motion"
             );
             value["committed_motion_unchanged"] = json!(true);
+            #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+            if let Some(preparation) = preparation {
+                let operation_id = preparation.report.intent.operation_id.clone();
+                value["native_image_preparation"] = json!(preparation);
+                client.call(Some(1), Command::ReleaseNativeImagePreparation { operation_id })?;
+            }
+            #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+            if let Some(cuda) = &cuda {
+                cuda.verify_unchanged()?;
+            }
             Ok(value)
         }));
         let shutdown = engine
@@ -1570,6 +1698,7 @@ mod captured_cpu_browser_native_tests {
             "clean_input_eof" => 1,
             "prepared_successor_transfer" => 2,
             "browser_fallback_admission" => 2,
+            "browser_cuda_handover" => cuda_timing_entries,
             _ => 0,
         };
         let worker_custody = engine

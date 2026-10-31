@@ -30,13 +30,33 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
-    "scope": "Format17 browser recording graph and reader43 are implemented. Public Engine export, import, restart, re-export and second clone passed with authored admission/equivalence fixtures, including stripped root and ancestor refusals; the reader delegation regression passed. Earlier component evidence remains scoped to its source. Native, preceding-App, real-media, device and human qualification remain open.",
+    "scope": "Supervised native browser CUDA provider absence to captured CPU Ready and original-root stop passed against combined source on pinned sterile fixture using revision-correct prepared native image and simulated eligibility. Broader native/rendered, portable history, genuine eligibility and all acceptance gates remain open.",
     "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Diagnostic authored archive lifecycle and six archive/reader regressions passed; prior intermittent import timeout remains unexplained. All 25 acceptance gates stay open.",
+    "failure_summary": "Earlier cold-start, timing, custody failures and original 011 supervisor rejection remain recorded; combined-source supervised native handover 013 passed with simulated eligibility. All 25 acceptance gates remain open.",
     "source_stamp": [
       {
+        "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
+        "sha256": "cce9c26c43ed2b59b2c1c581eec212a9ec673bc167c256c49fa831f6becb6914"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_browser_fallback_native_tests.rs",
+        "sha256": "18c2ad7f7489d2a064677139fc56112f7680ee38400649317d199ad16e6d8d92"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
+        "sha256": "7b7e50b6614523e71b61bd8210a0498576c309aa780eae66f5a22047314ef6b5"
+      },
+      {
+        "path": "crates/pulsar-engine/src/browser_timing.rs",
+        "sha256": "0eb6d76f9fffc8fd4cf226b56908b7137001d188fa365d15fd4635894446ab27"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_cuda.rs",
+        "sha256": "fbf6f47c2525b91c85c1a1519a61fb329ba49f4eefe4f1f33adff27e2215aa4c"
+      },
+      {
         "path": "crates/pulsar-engine/src/authority.rs",
-        "sha256": "b93bdb78cb3fb6a10737f54f9e9cbd3441b73390ee0d13d1e2a2cef2781a287d"
+        "sha256": "9ee454e94d02f654e6ee4c8b1bf5901a1dc37f3bb6622b88e7ecfde5593747ab"
       },
       {
         "path": "crates/pulsar-engine/src/browser_fallback_history.rs",
@@ -100,7 +120,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/project_package_imports.rs",
-        "sha256": "7e91058bdec40d3646bd2b1c413d4d896cd92ff027d1804cbff4f0417d1c74d3"
+        "sha256": "d12a71bf470d4bb9c96cc3af5dc82a55c7f5836b1ce7d1470a6655591afa1b1c"
       },
       {
         "path": "crates/pulsar-engine/src/project_packages.rs",
@@ -1311,7 +1331,22 @@
         "EV-READER43-NATIVE-REFUSAL",
         "EV-BROWSER-PUBLIC-DIAGNOSTIC",
         "EV-BROWSER-ARCHIVE-REGRESSION",
-        "EV-BROWSER-WORKSPACE-CHECK"
+        "EV-BROWSER-WORKSPACE-CHECK",
+        "EV-NATIVE-BROWSER-HANDOVER-COUNTER",
+        "EV-NATIVE-BROWSER-HANDOVER-TIMEOUT",
+        "EV-NATIVE-BROWSER-HANDOVER-TIMING-FAIL",
+        "EV-NATIVE-BROWSER-HANDOVER-OPEN-FAIL",
+        "EV-NATIVE-BROWSER-HANDOVER-OPEN-LATENCY",
+        "EV-NATIVE-BROWSER-HANDOVER-DEADLINE",
+        "EV-NATIVE-BROWSER-HANDOVER-EXPIRED",
+        "EV-NATIVE-BROWSER-CUSTODY-OBSERVATION",
+        "EV-NATIVE-BROWSER-NATIVE-CAPTURE-DEADLINE",
+        "EV-NATIVE-BROWSER-PREPARED-CAPTURE-FAIL",
+        "EV-NATIVE-BROWSER-PREPARED-REVISION-FAIL",
+        "EV-NATIVE-BROWSER-HANDOVER-VERIFIER-COUNTER",
+        "EV-NATIVE-BROWSER-HANDOVER-REVALIDATED",
+        "EV-NATIVE-BROWSER-HANDOVER-SUPERVISED",
+        "EV-NATIVE-BROWSER-HANDOVER-INTEGRATED"
       ]
     },
     {
@@ -6133,6 +6168,417 @@
         {
           "pointer": [
             "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-HANDOVER-COUNTER",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-handover-001/check.json",
+      "sha256": "3db791d37510d7392e9e092b7a2a4791b99d8ac6e6539c4391a910dfcf2c643f",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "First supervised native browser handover failed before provider launch because simulated CUDA equivalence request lacked a CUDA declaration; parent reaped its owned processes, while fixture cleanup metadata assertion failed on the early path. No qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-HANDOVER-TIMEOUT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-handover-002/check.json",
+      "sha256": "faca3188e3822aceed4c3f56acada7faf871a54f7c0e9b5ec6059f87da7fbf6b",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Second supervised native browser handover timed out before producing its test receipt; direct child joined and no owned processes remained, but an intent-stage worker custody journal and scratch were retained. No native handover or qualification established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-HANDOVER-TIMING-FAIL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-handover-003/check.json",
+      "sha256": "207370af8dea213d46b5dfa952406f69560b81d34e689f8554b711eebb63952a",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Supervised native browser handover failed with authored observation lost original native timing ownership; test also reported metadata custody not cleared before engine drop. Supervisor joined its processes and removed outer scratch. No native handover or qualification established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-HANDOVER-OPEN-FAIL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-handover-004/check.json",
+      "sha256": "0edcfe4ffdec8e1a569b28177b441ca7424ae6b12b0a86227edd011fb40e96a9",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Instrumented supervised handover failed because newly opened browser timing binding was already non-current; case also reported metadata-count and cleanup-budget failures. Supervisor joined owned processes and removed outer scratch; no handover or qualification established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-HANDOVER-OPEN-LATENCY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-handover-005/check.json",
+      "sha256": "902a36e35b5a8d5f52e2269b51dfdf5613553ae792748c442b4337b659396670",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Supervised native handover failed at a non-current timing open, measured total call 617 ms against 500 ms observation timeout; total call duration alone does not prove time spent inside the deadline. Both test cleanup stages passed; supervisor joined owned processes and removed scratch. No handover or qualification established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-HANDOVER-DEADLINE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-handover-006/check.json",
+      "sha256": "12383d712e37b37def1f80943cb5816b6db7182fae0726a0afff5a3f1924f7ad",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Native handover reached capture but failed when original deadline expired before target publication; fixture reported shutdown and both cleanup-stage failures. Supervisor joined owned processes and removed outer scratch. No handover or qualification established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-HANDOVER-EXPIRED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-handover-007/check.json",
+      "sha256": "9fdbcbbd27633ece90809f8d2de69549cf2584614bc9cc88e2792dbb9f720c2d",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Native handover failed with original capture expired and inference retired, without a fallback transition. Fixture shutdown and custody checks failed; supervisor joined owned processes and retained scratch due to worker custody journal. No handover or qualification established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-CUSTODY-OBSERVATION",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-handover-007/custody-observation.json",
+      "sha256": "5d7295d0dea9f4df56b47882b4227c5beaf93b0305c39f16214217e43ee14cdf",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Read-only post-run observation: one retired worker-group tombstone with absent cgroup path, no active groups or staging. The empty job CUDA-intent table does not determine live worker progress. Does not resolve custody or qualify handover.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "retired_group_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "cuda_intent_count"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-NATIVE-CAPTURE-DEADLINE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-handover-008/check.json",
+      "sha256": "92baecd0856a9815802aa91b80eea99e4a51f5d1ee6d8b1f875f42e996f0ad29",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Instrumented run began native dependency capture 141 ms into original capture lifetime and did not report capture completion before deadline expiry; no fallback transition occurred. Fixture cleanup passed, and supervisor joined processes and removed scratch. No handover or qualification established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-PREPARED-CAPTURE-FAIL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-handover-009/check.json",
+      "sha256": "791d768050e6113e7126965ae9bda9a0593bd49aa069deb017e1f34c89be963b",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Public preparation reached retained state, but live startup attempted native capture and failed its absolute deadline; no fallback transition. Fixture and supervisor cleanup passed. Retention availability at live start was not measured. No handover or qualification established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-PREPARED-REVISION-FAIL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-handover-010/check.json",
+      "sha256": "e14b319e26376027396bcf96efa999bbeb92b1e6885d082e97495258602669b2",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Revision-correct prepared native image reached worker startup within 11692 ms; test then failed with expected_revision missing and produced no handover receipt. Fixture and supervisor cleanup passed. No handover or qualification established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-HANDOVER-VERIFIER-COUNTER",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-handover-011/check.json",
+      "sha256": "31ca377702842881f061efd2f153db986b4919124460f172c3179aca16e63523",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Native test passed, but original supervisor rejected the receipt because its shared verifier expected two timing entries for a one-binding handover; original rejection is retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-HANDOVER-REVALIDATED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-handover-011/corrected-revalidation.json",
+      "sha256": "a95c3cfc044122bdedbc94fdb0e1dd9f903284f57d4528fc96977a58008fbf0b",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Run 011 native CUDA provider absence to captured CPU target and root stop passed on the pinned sterile fixture; case-correct retained-receipt revalidation and negative mutations passed. Original supervisor rejection retained. Eligibility simulated; no physical, real-media, human, model or release qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "original_supervisor_passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "simulated_eligibility"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-HANDOVER-SUPERVISED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-handover-012/check.json",
+      "sha256": "4ab4a68ba9d4f2fbab8f76913aa18fe14ac2955a3ed8401ff8e062d85122086f",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Run 012 independently supervised native CUDA provider absence to captured CPU Ready and original-root stop using retained revision-correct prepared image and sterile fixture; exact one-test result, typed failure, scope, subject identity, and cleanup verified. Simulated eligibility; no physical device, actual public human acceptance, learned quality, real-media, platform or release qualification. Earlier failures and original 011 verifier rejection remain.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "simulated_eligibility"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "complete_roadmap_coverage"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-HANDOVER-INTEGRATED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-handover-013/check.json",
+      "sha256": "b75da1003ff42a455095446b44f195e935557b4a7be00b7a41422d4c0893b53f",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Run 013 passed supervised CUDA provider absence to captured CPU Ready and original-root stop against combined origin/main source with freshly built test and worker, revision-correct prepared image, sterile fixture, and simulated eligibility. Cleanup and subject integrity passed. No physical device, real-media, human, model or release qualification; earlier failures retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "simulated_eligibility"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "complete_roadmap_coverage"
           ],
           "equals": false
         }
