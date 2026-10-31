@@ -891,7 +891,13 @@ mod tests {
         assert!(PreparedPackageImport::open(&path, &PackageImportControl::default()).is_ok());
         fs::write(
             &path,
-            probe_bytes(PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY + 1),
+            probe_bytes(PROJECT_PACKAGE_FORMAT_VERSION_WITH_BROWSER_FALLBACK_HISTORY),
+        )
+        .unwrap();
+        assert!(PreparedPackageImport::open(&path, &PackageImportControl::default()).is_ok());
+        fs::write(
+            &path,
+            probe_bytes(PROJECT_PACKAGE_FORMAT_VERSION_WITH_BROWSER_FALLBACK_HISTORY + 1),
         )
         .unwrap();
         assert!(PreparedPackageImport::open(&path, &PackageImportControl::default()).is_err());
