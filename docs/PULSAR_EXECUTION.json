@@ -30,9 +30,9 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
-    "scope": "CLI/desktop shared history passed scoped tests; controlled comparisons reproduce X11 panic when close-window destroys the X11 window, while graceful close passes. Original multi-action close cause and platform qualification remain unproven.",
+    "scope": "Current-source rendered sterile timeline interactions produced five distinct stopped recordings at 200ms policy; all retained samples and declared clock anchors were checked, including one empty capture. Rapid retirement ordering and user Play semantics remain open.",
     "active_work": "CLIENT-CORRECTNESS",
-    "failure_summary": "Desktop close-tool exit 101 retained; controlled comparisons support destructive windowclose as cause in empty-desktop cases, without proving the original session identical. Earlier timing failures and all qualification gates remain open.",
+    "failure_summary": "Earlier 420s cleanup and native freshness failures remain unresolved; one seek-run capture contained no estimates. All 25 qualification gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -1190,7 +1190,8 @@
         "EV-RENDERED-420-REPEAT",
         "EV-RENDERED-CURRENT-RECORDING-EXPORT",
         "EV-RENDERED-200MS-RECORDING",
-        "EV-RENDERED-200MS-RECORDING-EXPORT"
+        "EV-RENDERED-200MS-RECORDING-EXPORT",
+        "EV-RENDERED-SEEK-200MS"
       ]
     },
     {
@@ -1225,7 +1226,8 @@
         "EV-CLI-HISTORY-RESTRICTED-NATIVE",
         "EV-DESKTOP-HISTORY-CLOSE-FAIL",
         "EV-DESKTOP-TITLEBAR-CLOSE-COMPARISON",
-        "EV-DESKTOP-CLOSE-MECHANISM"
+        "EV-DESKTOP-CLOSE-MECHANISM",
+        "EV-RENDERED-SEEK-200MS"
       ]
     },
     {
@@ -7442,6 +7444,59 @@
         {
           "pointer": [
             "original_session_cause_proven"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RENDERED-SEEK-200MS",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/rendered-seek-200ms-001/verification.json",
+      "sha256": "4c8272b2825f11266e824301d0c431030706dbbcf4e3f2fe2a00fa00c068922f",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Current-source rendered sterile bound-source playback and timeline interactions under 200ms policy produced five distinct stopped captures with 151,0,102,68,109 accepted estimates; all 430 retained estimates satisfy capture-to-analysis age and declared five-second source-to-project anchor correspondence. Final two recordings cover 1.2\u20137.9s and 29.1\u201339.9s; one intermediate capture is empty. Player, browser and Engine exited 0. Rapid retirement ordering and explicit-Play semantics are not established; no device, real-media or model qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "distinct_stopped_epochs"
+          ],
+          "equals": 5
+        },
+        {
+          "pointer": [
+            "empty_capture_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "all_accepted_within_200ms"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "previous_timing_failure_cause_resolved"
           ],
           "equals": false
         }
