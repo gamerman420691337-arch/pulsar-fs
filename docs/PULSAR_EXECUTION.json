@@ -1348,11 +1348,12 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping.",
+      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards.",
       "evidence": [
         "EV-STASH-INSTALLED-VERSION-PREFLIGHT",
         "EV-STASH-INSTALLED-DISCOVERY",
-        "EV-STASH-INSTALLED-AMBIGUOUS-PLAN"
+        "EV-STASH-INSTALLED-AMBIGUOUS-PLAN",
+        "EV-STASH-INSTALLED-MULTIFILE-SAMPLE"
       ]
     },
     {
@@ -9344,6 +9345,89 @@
             "scratch_removed"
           ],
           "equals": true
+        },
+        {
+          "pointer": [
+            "actual_path_mapping_verified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-INSTALLED-MULTIFILE-SAMPLE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-installed-multifile-sample-001/verification.json",
+      "sha256": "feb23118b90f75168dd534b359256165f59db23cf975ebcfe6c23434d7b306bf",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Bounded read-only local installed-Stash discovery sample: 100 returned scenes, each with multiple files, and pagination was incomplete. Direct aggregate GraphQL check confirmed the file counts. No scene identities, titles, paths, media contents, credentials, writes or device activity retained. This does not characterize the rest of the library.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "OBSERVED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "requested_limit"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "sample_scenes"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "multiple_file_scenes"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "single_file_scenes"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "pagination_complete"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "media_bytes_read"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "library_content_retained"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_attempted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
         },
         {
           "pointer": [
