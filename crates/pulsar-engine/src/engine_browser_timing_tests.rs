@@ -737,6 +737,23 @@ mod browser_timing_tests {
     }
 
     #[test]
+    fn browser_timing_open_does_not_wait_for_unrelated_transfer_registry() {
+        let x = fixture_timing();
+        let engine = x.f.engine.clone();
+        let request = x.open.clone();
+        let held = x.f.engine.transfers.lock().unwrap();
+        let (send, receive) = std::sync::mpsc::sync_channel(1);
+        let task = std::thread::spawn(move || {
+            let _ = send.send(engine.handle(request));
+        });
+        let outcome = receive.recv_timeout(std::time::Duration::from_secs(1));
+        drop(held);
+        task.join().unwrap();
+        let response = outcome.expect("timing open waited for unrelated transfer sweep");
+        assert!(matches!(response.result, Ok(ResponseBody::BrowserTiming(_))));
+    }
+
+    #[test]
     fn browser_timing_open_does_not_wait_for_unrelated_live_registry() {
         let x = fixture_timing();
         let engine = x.f.engine.clone();

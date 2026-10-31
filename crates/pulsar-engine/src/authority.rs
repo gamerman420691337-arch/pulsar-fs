@@ -1052,7 +1052,11 @@ impl Engine {
         // I/O. Release, historical status, cancellation and stop cleanup remain
         // independent; exact registry retirement fences already queued play.
         let _handy_admission = self.handy_reconciliation_admission(&request.command)?;
-        self.transfers.lock().map_err(internal)?.sweep();
+        // Timing history has no transfer dependency; the owned transfer
+        // sweeper continues to retire leases independently.
+        if !browser_timing::is_history_command(&request.command) {
+            self.transfers.lock().map_err(internal)?.sweep();
+        }
         if let Command::Pair {
             client_name,
             pairing_token,
