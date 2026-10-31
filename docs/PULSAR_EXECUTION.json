@@ -1220,7 +1220,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines. A separate traced run opened timing but timed out on a probe and reported cleanup unconfirmed; an Engine fsync lasted 5.622 seconds without proven request or file correspondence.",
+      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines. A separate traced run opened timing but timed out on a probe and reported cleanup unconfirmed; an Engine fsync lasted 5.622 seconds without proven request or file correspondence. A separate file-aware trace identified slow worker-fence, staging and database fsyncs; the short rendered run exited cleanly and no fsync was tied to a timed-out request.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
@@ -1269,7 +1269,8 @@
         "EV-LOCAL-ENGINE-RETRY",
         "EV-SOURCE-CLEANUP-CURRENT-TESTS",
         "EV-RENDERED-TIMING-OPEN-TIMEOUT",
-        "EV-RENDERED-TIMING-TRACE"
+        "EV-RENDERED-TIMING-TRACE",
+        "EV-RENDERED-TIMING-FILE-TRACE"
       ]
     },
     {
@@ -11072,6 +11073,53 @@
         {
           "pointer": [
             "same_request_or_file_proven"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historical_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RENDERED-TIMING-FILE-TRACE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-first-failure-001/rendered-file-sync-trace-20261031.json",
+      "sha256": "79f11b0a296dd3f4f8891c3f9b97de6e187a0ab04a3830d4e0514591b28ba2d0",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Separate traced short sterile browser playback observed 156 completed analyses, unqualified timing, successful source release and clean player exit. File-aware tracing identified a 4.52-second worker-fence sync before play and slower staging and database syncs; no sync was linked to a specific timed-out request.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "completed_analyses_observed"
+          ],
+          "equals": 156
+        },
+        {
+          "pointer": [
+            "longest_fsync_category"
+          ],
+          "equals": "worker-fence.lock"
+        },
+        {
+          "pointer": [
+            "same_request_proven"
           ],
           "equals": false
         },
