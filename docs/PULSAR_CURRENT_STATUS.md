@@ -6,7 +6,7 @@ The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue
 
 Reconciled **2026-10-30**. Roadmap **INCOMPLETE**; autonomous runner observation **active**.
 
-**Working tree: UNVERIFIED.** Earlier 420s cleanup and native freshness failures remain unresolved; new 200ms observation covers one retained capture only. All 25 acceptance gates remain open.
+**Working tree: UNVERIFIED.** Earlier 420s cleanup and native freshness failures remain unresolved. Latest player and engine exited 0, but the browser was force-stopped during teardown. All 25 acceptance gates remain open.
 
 **Next: LIVE-FALLBACK-HISTORY — Complete live/browser fallback and remaining portable histories.** Exit required: Complete browser graph root/ancestor mutation, resource and fault campaigns and native/rendered target workflow under original limits. Reader42 refusal against owned reader43 main/WAL state passed; authored fixtures do not close parent gates.
 
