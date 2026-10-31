@@ -2902,7 +2902,7 @@ mod tests {
             assert_eq!(f.count("jobs"), 0);
             assert_eq!(f.count("attempts"), 0);
             assert!(f.engine.workers.lock().unwrap().is_empty());
-            #[cfg(unix)]
+            #[cfg(target_os = "linux")]
             assert!(!f.engine.worker_fence.has_pending_worker_custody().unwrap());
             let ResponseBody::CandidateImageOriginPixels(pixels) = f
                 .scoped(
