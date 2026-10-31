@@ -30,9 +30,9 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
-    "scope": "Supervised native browser CUDA provider absence to captured CPU Ready and original-root stop passed against combined source on pinned sterile fixture using revision-correct prepared native image and simulated eligibility. Broader native/rendered, portable history, genuine eligibility and all acceptance gates remain open.",
+    "scope": "Runs 006 and 007 passed supervised native fallback target recording and archive lifecycle using sterile input and simulated eligibility; 007 binds current source. Wider software and independent qualification remain open.",
     "active_work": "LIVE-FALLBACK-HISTORY",
-    "failure_summary": "Earlier cold-start, timing, custody failures and original 011 supervisor rejection remain recorded; combined-source supervised native handover 013 passed with simulated eligibility. All 25 acceptance gates remain open.",
+    "failure_summary": "Runs 006 and 007 passed scoped native recording archive lifecycle and cleanup; 004\u2013005 freshness failures and all earlier failures retained. Full acceptance and all 25 gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -40,11 +40,11 @@
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_browser_fallback_native_tests.rs",
-        "sha256": "18c2ad7f7489d2a064677139fc56112f7680ee38400649317d199ad16e6d8d92"
+        "sha256": "7337905cd259bd2c691c1735cda0fca220a32f7e3ed7ed741cc228f51430e65a"
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
-        "sha256": "7b7e50b6614523e71b61bd8210a0498576c309aa780eae66f5a22047314ef6b5"
+        "sha256": "8786e3d3da1311f3a5cbd5647b598618346e89c6b031d41a1482a01780c7f193"
       },
       {
         "path": "crates/pulsar-engine/src/browser_timing.rs",
@@ -84,7 +84,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/portable_browser_history.rs",
-        "sha256": "b3e63eafa06469376337d4898d83ac07fe66f89f56ca554c9c50ac1913171c98"
+        "sha256": "0f5194f1664a22a1556db8db6b17c1b48229ad79005ba48191eecdb4f085272b"
       },
       {
         "path": "crates/pulsar-engine/src/portable_browser_history_reader.rs",
@@ -120,7 +120,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/project_package_imports.rs",
-        "sha256": "d12a71bf470d4bb9c96cc3af5dc82a55c7f5836b1ce7d1470a6655591afa1b1c"
+        "sha256": "2c56808c39abd9ba070881e362f8cc369903dae2bc4dd409f748f67f1daf888c"
       },
       {
         "path": "crates/pulsar-engine/src/project_packages.rs",
@@ -1346,7 +1346,14 @@
         "EV-NATIVE-BROWSER-HANDOVER-VERIFIER-COUNTER",
         "EV-NATIVE-BROWSER-HANDOVER-REVALIDATED",
         "EV-NATIVE-BROWSER-HANDOVER-SUPERVISED",
-        "EV-NATIVE-BROWSER-HANDOVER-INTEGRATED"
+        "EV-NATIVE-BROWSER-HANDOVER-INTEGRATED",
+        "EV-NATIVE-BROWSER-RECORDING-FAIL",
+        "EV-NATIVE-BROWSER-RECORDING-EXPORT-FAIL",
+        "EV-NATIVE-BROWSER-RECORDING-SOURCE-FAIL",
+        "EV-NATIVE-BROWSER-RECORDING-FRESHNESS-FAIL",
+        "EV-NATIVE-BROWSER-RECORDING-FRESHNESS-REPEAT",
+        "EV-NATIVE-BROWSER-RECORDING-ARCHIVE",
+        "EV-NATIVE-BROWSER-RECORDING-ARCHIVE-FINAL"
       ]
     },
     {
@@ -6550,6 +6557,233 @@
       "kind": "json",
       "outcome": "partial",
       "scope": "Run 013 passed supervised CUDA provider absence to captured CPU Ready and original-root stop against combined origin/main source with freshly built test and worker, revision-correct prepared image, sterile fixture, and simulated eligibility. Cleanup and subject integrity passed. No physical device, real-media, human, model or release qualification; earlier failures retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "simulated_eligibility"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "complete_roadmap_coverage"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-RECORDING-FAIL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-recording-001/check.json",
+      "sha256": "899762423da5fcea73a1bf7ce38c52a6a5da49c1c3f2ff7d9651272507971c80",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Supervised native fallback recording run 001 failed before recording on a combined worker/image/budget assertion; its full-lease assumption conflicts with the shorter target lease and is a likely cause, not independently isolated. Prepared image release was skipped on the error path and pre-drop resource custody failed. No device or qualification. Original receipt retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-RECORDING-EXPORT-FAIL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-recording-002/check.json",
+      "sha256": "e60fa6d6a61f2c69587c092b98a8c8101a340b4cd430e393164bef499b839426",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Run 002 progressed through actual captured CPU estimate and recording to attempted package export, which refused the original directed failure transition. Prepared-image release returned success, but pre-drop RAM custody still failed; neither archive roundtrip nor cleanup proved. Simulated eligibility; no physical device or qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-RECORDING-SOURCE-FAIL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-recording-003/check.json",
+      "sha256": "aac2ecabf7cc56743f92038a070be313363885d3c879497b98de207a66863bc6",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Run 003 localized export refusal to the original directed failure source-scope comparison. Run 013 retained actual manifest shows confined /input/model rather than the host model path; the source-bound correction and recording-discard cleanup are not yet verified. Simulated eligibility; no physical device or qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-RECORDING-FRESHNESS-FAIL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-recording-004/check.json",
+      "sha256": "1296d85acae6aec88971919d9137782d6c4cd5c87a6dcdc866f1be8a35874599",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Run 004 failed the original combined 200 ms estimate freshness assertion before export. Recording discard, prepared image release, pre-drop worker resource accounting, post-drop full resource accounting and scratch cleanup passed. Confined-path archive correction remains unverified. Simulated eligibility; no physical qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-RECORDING-FRESHNESS-REPEAT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-recording-005/check.json",
+      "sha256": "6287bdb6012393b17fae86cc6d7c838a37e7804e77fc15770f45154809a14c27",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Run 005 repeated the same combined 200 ms freshness/status assertion failure before export on the same binary. The exact failing component was not printed; diagnostic build pending. Simulated eligibility and no physical qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-RECORDING-ARCHIVE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-recording-006/check.json",
+      "sha256": "2b5991ccf0d4ca47a2873fc1b77d34f2d98912dbe4e9f0089eb3a3a1054b035b",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Run 006 passed supervised actual CUDA provider absence to captured CPU target, one recorded estimate, package export, restart/re-export/two public clone lifecycle, and substituted/stripped/ancestor refusals, with full cleanup and immutable subject checks. Uses sterile authored inputs and simulated eligibility; earlier freshness failures remain; no physical, human, model, real-media, platform or release qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "simulated_eligibility"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "complete_roadmap_coverage"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-NATIVE-BROWSER-RECORDING-ARCHIVE-FINAL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/native-recording-007/check.json",
+      "sha256": "39f7095feef3be7b659e66df92335a153d527693f32a2ba17905a2660e8e365e",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Run 007 repeated supervised native fallback recording, package export, two-clone/re-export lifecycle, mutation refusals and resource cleanup against current source after test-only lint changes. Sterile authored input and simulated eligibility; earlier freshness failures retained; no independent or physical qualification.",
       "freshness": "pinned_checkpoint",
       "assertions": [
         {

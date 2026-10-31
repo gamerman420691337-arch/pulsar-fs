@@ -2269,6 +2269,13 @@ pub(in crate::authority) fn exercise_authored_image_portable_lifecycle(
         );
     }
 }
+#[cfg(all(test, target_os = "linux", target_arch = "x86_64", feature = "cuda"))]
+pub(crate) fn exercise_native_browser_portable_lifecycle(
+    bytes: &[u8],
+    payload: &PackageObjectRef,
+) {
+    tests::exercise_browser_portable_lifecycle(bytes, payload);
+}
 #[cfg(test)]
 mod tests {
     use super::*;
