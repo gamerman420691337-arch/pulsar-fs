@@ -211,11 +211,17 @@ mod platform {
 
     struct Directory {
         path: PathBuf,
+        declared_path: PathBuf,
         file: File,
     }
     impl Directory {
         fn open(path: &Path, live_root: bool) -> Result<Self> {
             no_parent(path)?;
+            let declared_path = if path.is_absolute() {
+                path.to_path_buf()
+            } else {
+                std::env::current_dir()?.join(path)
+            };
             let path = path.canonicalize().context("Resolve reference directory")?;
             no_parent(&path)?;
             if live_root {
@@ -226,7 +232,7 @@ mod platform {
                 OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
                 Mode::empty(),
             )?);
-            let result = Self { path, file };
+            let result = Self { path, declared_path, file };
             result.check_name()?;
             Ok(result)
         }
@@ -236,12 +242,16 @@ mod platform {
         }
         fn check_name(&self) -> Result<()> {
             let current = fs::symlink_metadata(&self.path)?;
+            let declared = fs::metadata(&self.declared_path)?;
             let held = self.file.metadata()?;
             ensure!(
                 current.is_dir()
                     && !current.file_type().is_symlink()
                     && current.dev() == held.dev()
-                    && current.ino() == held.ino(),
+                    && current.ino() == held.ino()
+                    && declared.is_dir()
+                    && declared.dev() == held.dev()
+                    && declared.ino() == held.ino(),
                 "Reference directory was replaced or renamed"
             );
             Ok(())
@@ -250,6 +260,7 @@ mod platform {
             no_parent(path)?;
             let relative = if path.is_absolute() {
                 path.strip_prefix(&self.path)
+                    .or_else(|_| path.strip_prefix(&self.declared_path))
                     .context("Input path escapes the declared reference root")?
             } else {
                 path
@@ -1359,6 +1370,21 @@ mod platform {
             ] {
                 assert!(parse_reference(raw.as_bytes()).is_err(), "{raw}");
             }
+        }
+
+        #[test]
+        fn declared_root_alias_accepts_contained_absolute_path_and_detects_replacement() {
+            let fixture = Fixture::new();
+            let alias = fixture.directory.path().join("root-alias");
+            std::os::unix::fs::symlink(fixture.directory.path(), &alias).unwrap();
+            let declared = alias.join("Live-Reference");
+            let root = Directory::open(&declared, true).unwrap();
+            assert_eq!(root.relative(&declared.join("source.bin")).unwrap(), PathBuf::from("source.bin"));
+            let replacement = fixture.directory.path().join("replacement");
+            fs::create_dir_all(replacement.join("Live-Reference")).unwrap();
+            fs::remove_file(&alias).unwrap();
+            std::os::unix::fs::symlink(&replacement, &alias).unwrap();
+            assert!(root.check_name().is_err());
         }
 
         #[test]
