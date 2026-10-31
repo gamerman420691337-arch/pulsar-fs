@@ -463,25 +463,59 @@ impl Payload {
                             .as_ref()
                             .and_then(|i| i.fallback.as_ref())
                             .expect("checked admission");
-                        if !same(&step.failure.manifest.stream.profile, &subject.from_profile)?
-                            || admission.observed_environment.identity_sha256()?
-                                != subject.from_environment.identity_sha256()?
-                            || step.next_profile_sha256
-                                != digest(encode(&subject.to_profile)?.as_bytes())
-                            || !old
-                                .options
-                                .inference_fallback
-                                .as_ref()
-                                .expect("checked selection")
-                                .matches_subject(
-                                    &old.engine_epoch,
-                                    &old.options,
-                                    &step.failure.manifest.stream,
-                                    subject,
-                                )?
+                        if !same(&step.failure.manifest.stream.profile, &subject.from_profile)? {
+                            return Err(invalid(
+                                "browser original directed failure profile differs",
+                            ));
+                        }
+                        if admission.observed_environment.identity_sha256()?
+                            != subject.from_environment.identity_sha256()?
                         {
                             return Err(invalid(
-                                "browser original directed failure transition differs",
+                                "browser original directed failure environment differs",
+                            ));
+                        }
+                        if step.next_profile_sha256
+                            != digest(encode(&subject.to_profile)?.as_bytes())
+                        {
+                            return Err(invalid(
+                                "browser original directed failure target profile differs",
+                            ));
+                        }
+                        // Native CUDA capture pins the host model before mapping it
+                        // into the worker at the fixed guest path. Compare source
+                        // scope against the original declaration without altering
+                        // the retained manifest or accepting arbitrary path aliases.
+                        let mut source_stream = step.failure.manifest.stream.clone();
+                        let declared_path = &old
+                            .options
+                            .inference
+                            .as_ref()
+                            .expect("checked profile")
+                            .model_path;
+                        if source_stream.model.path != *declared_path {
+                            if source_stream.model.path != std::path::Path::new(LIVE_CPU_MODEL_PATH)
+                            {
+                                return Err(invalid(
+                                    "browser original confined model path differs",
+                                ));
+                            }
+                            source_stream.model.path = declared_path.clone();
+                        }
+                        if !old
+                            .options
+                            .inference_fallback
+                            .as_ref()
+                            .expect("checked selection")
+                            .matches_subject(
+                                &old.engine_epoch,
+                                &old.options,
+                                &source_stream,
+                                subject,
+                            )?
+                        {
+                            return Err(invalid(
+                                "browser original directed failure source scope differs",
                             ));
                         }
                         assessment.require_acceptance(admission.admitted_at_unix_ms)?;
