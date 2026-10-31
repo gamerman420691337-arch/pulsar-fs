@@ -1533,7 +1533,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards. A separate read-only 100-scene page contained two distinct file IDs per scene and no exact lexical server-side sidecar collisions within a scene; local mapping, all remaining pages and publication semantics are unverified. A bounded non-atomic same-host metadata sample found 100 pairs refer to the same inode with one symlink path; this does not authorize symlink capture or settle file-selection policy. A separate non-atomic metadata sample observed ancestor-directory symlinks with absolute targets; keep no-follow capture and recheck any alias identity without retaining paths. Installed schema exposes Scene.interactive and Scene.paths.funscript, but schema introspection alone does not prove file-specific attachment for multifile scenes. Installed Scene schema exposes no primary-named field; schema alone does not establish file order or selected-file attachment. An isolated Stash v0.31.1 sterile two-alias fixture became interactive and exposed a scene funscript path after scanning one synthetic sidecar; file-specific attachment and actual-user publication remain unproven. An owned sterile Stash/Engine fixture confirmed that even an explicitly selected regular file is refused when the scene has two alias IDs; project state stayed unchanged. An uncommitted explicit multifile capture opt-in draft has partial protocol/path tests; integration build stopped under host I/O pressure, and old-reader, native and publication checks remain open. A retry of the draft Engine integration test was stopped under sustained I/O pressure; owned compiler/linker descendants were retired and the unverified patch retained. Source-bound Engine mock integration now passes for explicit capture and rejection cases; client/old-reader/native checks and multifile publication remain open.",
+      "exit": "Verify the actual configured Stash endpoint, encrypted credential references and server/local mappings through bounded discovery, matched-source generation and publication, cancellation/restart, and no-overwrite behavior. Read-only discovery against local Stash v0.31.1 succeeded, but full pagination, authenticated configurations, actual-user mappings and publication remain unverified. A 100-scene sample found multifile aliases; automatic selection and no-follow capture safeguards remain. Explicit selected-file capture is merged in PR 17: focused source tests and an owned sterile Stash alias fixture passed, while default selection, changed paths and symlinks were refused. A preceding Engine refused the new wire field in an unauthenticated check; that is not end-to-end compatibility. Multifile publication and actual-user workflow remain unqualified. Earlier startup, integration build and workspace-check interruptions remain retained in the linked evidence.",
       "evidence": [
         "EV-STASH-INSTALLED-VERSION-PREFLIGHT",
         "EV-STASH-INSTALLED-DISCOVERY",
@@ -1557,7 +1557,8 @@
         "EV-STASH-EXPLICIT-NATIVE-FIXTURE",
         "EV-STASH-EXPLICIT-FINAL-SOURCE",
         "EV-STASH-WORKSPACE-CHECK-INTERRUPTED",
-        "EV-STASH-WORKSPACE-RETRY-PASS"
+        "EV-STASH-WORKSPACE-RETRY-PASS",
+        "EV-STASH-EXPLICIT-CAPTURE-MERGED"
       ]
     },
     {
@@ -14446,6 +14447,41 @@
         {
           "pointer": [
             "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-EXPLICIT-CAPTURE-MERGED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/stash-explicit-capture-merge-reconciliation-20261031.json",
+      "sha256": "4e2146a5a48518e684a6dcad99aed946a5fac83db91f5e219654746fda8fe617",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "PR 17 merged explicit multifile source capture after three-platform fast CI. Owned sterile Stash fixture evidence is separate; actual user-library and multifile publication qualification remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "merge_ancestor_of_main"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "actual_user_library_qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "multifile_publication_qualified"
           ],
           "equals": false
         }
