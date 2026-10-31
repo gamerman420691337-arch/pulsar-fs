@@ -760,13 +760,16 @@ mod captured_cpu_browser_native_tests {
             .checked_sub(old.capture_tick.0)
             .context("capture tick regressed")?;
         ensure!(
-            gap <= 500_000_000
-                && new.source_time
-                    == SourceTimestamp::new(
-                        i64::try_from(inputs.decoded.frames[new_index].source_time_us)?,
-                        1_000_000
-                    )?,
-            "original pair no longer within native correspondence bound"
+            gap <= 500_000_000,
+            "original pair no longer within native correspondence bound: capture_tick_gap_ns={gap}, max_gap_ns=500000000"
+        );
+        ensure!(
+            new.source_time
+                == SourceTimestamp::new(
+                    i64::try_from(inputs.decoded.frames[new_index].source_time_us)?,
+                    1_000_000
+                )?,
+            "original pair no longer within native correspondence bound: source_time_mismatch"
         );
         let expected = LiveInferenceInput {
             sequence,

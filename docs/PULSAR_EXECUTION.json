@@ -29,8 +29,8 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-BROWSER-TRANSFER-POLL-PROBE-REPEAT",
-    "scope": "Test-only bounded poll measurements passed six native browser runs; none captured a failure interval. Prior timing, lease and correspondence failures remain unexplained.",
+    "evidence": "EV-BROWSER-PAIR-DIAGNOSTIC",
+    "scope": "Test-only correspondence failure messages now distinguish capture-tick gap from source-time mismatch; one native campaign passed without exercising either failure branch. Earlier failures remain unexplained.",
     "active_work": "BROWSER-DEMO",
     "failure_summary": "Diagnostic source cleanup and Engine forced-stop counterevidence remain unresolved; new diagnostics do not retroactively establish cause. All qualification gates remain open.",
     "source_stamp": [
@@ -44,7 +44,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
-        "sha256": "0364240c3b6f47a3bbe0fe2a92f4481556fab07f868a4849dd9b329eb4a9cedb"
+        "sha256": "0f8a595a8fb40e76f4a49fd2d62ca92aa29d9162e82e3e24cdb1fd785694b291"
       },
       {
         "path": "crates/pulsar-engine/src/browser_timing.rs",
@@ -1360,7 +1360,7 @@
       "depends_on": [
         "CPU-ROUNDTRIP"
       ],
-      "exit": "Complete browser graph root/ancestor mutation, resource and fault campaigns and native/rendered target workflow under original limits. Reader42 refusal against owned reader43 main/WAL state passed; authored fixtures do not close parent gates. A historical test binary with a current-library closure failed once on timing binding and passed on repeat; investigate against a current-source pinned subject and preserve metadata-custody counterevidence. One authored current Engine/Protocol native EOF and successor-transfer run passed; repeated reliability and historical failure remain open. Current Engine/Protocol native browser repeat: two of four failed, one at timing binding and one at predecessor lease; retain both and localize before reliability claims. Expanded same-subject native browser repeat: three of six failed with three distinct timing/lease/correspondence signatures; preserve original bounds and localize each. Bounded test-only join poll timings are available; three passing instrumented runs did not capture the failure interval. Three additional instrumented runs passed without reproducing a failure; earlier counterevidence remains open.",
+      "exit": "Complete browser graph root/ancestor mutation, resource and fault campaigns and native/rendered target workflow under original limits. Reader42 refusal against owned reader43 main/WAL state passed; authored fixtures do not close parent gates. A historical test binary with a current-library closure failed once on timing binding and passed on repeat; investigate against a current-source pinned subject and preserve metadata-custody counterevidence. One authored current Engine/Protocol native EOF and successor-transfer run passed; repeated reliability and historical failure remain open. Current Engine/Protocol native browser repeat: two of four failed, one at timing binding and one at predecessor lease; retain both and localize before reliability claims. Expanded same-subject native browser repeat: three of six failed with three distinct timing/lease/correspondence signatures; preserve original bounds and localize each. Bounded test-only join poll timings are available; three passing instrumented runs did not capture the failure interval. Three additional instrumented runs passed without reproducing a failure; earlier counterevidence remains open. Test-only correspondence messages now distinguish capture gap from source mismatch; neither failure branch was observed in the subsequent native run.",
       "evidence": [
         "EV-FALLBACK-HISTORY-SNAPSHOT",
         "EV-FALLBACK-ARCHIVE-CONTRACT",
@@ -1431,7 +1431,8 @@
         "EV-BROWSER-CURRENT-SOURCE-INTERMITTENT",
         "EV-BROWSER-CURRENT-SOURCE-SIX-RUNS",
         "EV-BROWSER-TRANSFER-POLL-PROBE",
-        "EV-BROWSER-TRANSFER-POLL-PROBE-REPEAT"
+        "EV-BROWSER-TRANSFER-POLL-PROBE-REPEAT",
+        "EV-BROWSER-PAIR-DIAGNOSTIC"
       ]
     },
     {
@@ -8777,6 +8778,53 @@
             "instrumented_total_runs_passed"
           ],
           "equals": 6
+        },
+        {
+          "pointer": [
+            "owned_processes_retired"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-PAIR-DIAGNOSTIC",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/transfer-pair-probe-run-001/scoped-verification.json",
+      "sha256": "8e6ab9b4011933f0a098c67a6703a6c2f69e8e74ca9ac9471c3a088df3981d4a",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "One authored native browser campaign passed after separating test-only correspondence failure messages. The earlier ambiguous failure and both production bounds remain unchanged; this run did not exercise either failure branch.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "failure_branch_observed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "cases_passed"
+          ],
+          "equals": 2
         },
         {
           "pointer": [
