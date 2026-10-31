@@ -1223,7 +1223,10 @@
         "EV-SEEK-GUARD-RENDERED-CURRENT",
         "EV-SEEK-GUARD-RENDERED-LATEST",
         "EV-SOURCE-CLEANUP-DIAGNOSTIC-RED",
-        "EV-SOURCE-CLEANUP-DIAGNOSTIC-GREEN"
+        "EV-SOURCE-CLEANUP-DIAGNOSTIC-GREEN",
+        "EV-SOURCE-CLEANUP-CLIENT-SUITE",
+        "EV-SOURCE-CLEANUP-RENDERED",
+        "EV-SOURCE-CLEANUP-CUSTODY-OBSERVATION"
       ]
     },
     {
@@ -8127,6 +8130,29 @@
             "workspace_stopped"
           ],
           "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-SOURCE-CLEANUP-CUSTODY-OBSERVATION",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-rendered-001/custody-observation.json",
+      "sha256": "ca4c74ecc0f9565d9c0b41d9cdd245d7f8e58a1fd5b1668fe8bd92033ba055c1",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Post-exit snapshot only: no open handles were reported in these state trees, their fence lists and creation records were empty, and observed worker-named cgroups were unpopulated. This does not prove historical custody or identify which run owned any cgroup.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historical_custody_verified"
+          ],
+          "equals": false
         }
       ]
     }
