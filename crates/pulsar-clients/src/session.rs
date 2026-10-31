@@ -8,6 +8,21 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+/// Bounded transport phase only; never include endpoint or credential text.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum BrowserTransportPhase {
+    Connect,
+    Deadline,
+    Call,
+}
+impl std::fmt::Display for BrowserTransportPhase {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "browser transport {self:?}")
+    }
+}
+impl std::error::Error for BrowserTransportPhase {}
+
 pub trait EngineApi {
     fn execute(
         &mut self,
@@ -186,6 +201,7 @@ impl SessionClient {
         let remaining = deadline
             .checked_duration_since(std::time::Instant::now())
             .filter(|remaining| !remaining.is_zero())
+            .context(BrowserTransportPhase::Deadline)
             .context("Browser guard control deadline expired before connection")?;
         let request = build_request(
             self.credentials.session.clone(),
@@ -196,9 +212,14 @@ impl SessionClient {
             revision,
         );
         request.validate()?;
-        let mut transport = LocalClient::connect(&self.endpoint, remaining)?;
-        transport.set_deadline(deadline)?;
-        let response = transport.call(&request)?;
+        let mut transport = LocalClient::connect(&self.endpoint, remaining)
+            .context(BrowserTransportPhase::Connect)?;
+        transport
+            .set_deadline(deadline)
+            .context(BrowserTransportPhase::Deadline)?;
+        let response = transport
+            .call(&request)
+            .context(BrowserTransportPhase::Call)?;
         if response.version != request.version || response.request_id != request.request_id {
             bail!(
                 "Browser guard response identity mismatch; outcome is unknown and was not replayed"
@@ -1246,6 +1267,55 @@ mod tests {
         assert!(client.fork_native().operation_deadline.is_none());
         client.set_operation_deadline(None);
         assert!(client.operation_deadline.is_none());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn browser_control_distinguishes_deadline_connect_and_call_failures() {
+        use std::os::unix::net::UnixListener;
+
+        let root = tempfile::tempdir().unwrap();
+        let endpoint = root.path().join("engine.sock");
+        let client = SessionClient::from_credentials(
+            &endpoint,
+            SessionId::new("phase-session").unwrap(),
+            "synthetic-private-token".into(),
+        )
+        .unwrap();
+        let invoke = |deadline| {
+            client.browser_call_until(
+                new_request_id(),
+                Command::BrowserTimingOpenStatus {
+                    original_request_id: new_request_id(),
+                },
+                ProjectId::new("phase-project").unwrap(),
+                None,
+                deadline,
+            )
+        };
+        let error = invoke(Instant::now()).unwrap_err();
+        assert_eq!(
+            error.downcast_ref::<BrowserTransportPhase>(),
+            Some(&BrowserTransportPhase::Deadline)
+        );
+        let error = invoke(Instant::now() + Duration::from_millis(500)).unwrap_err();
+        assert_eq!(
+            error.downcast_ref::<BrowserTransportPhase>(),
+            Some(&BrowserTransportPhase::Connect)
+        );
+
+        let listener = UnixListener::bind(&endpoint).unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let _: Request = read_message(&mut stream).unwrap();
+            std::thread::sleep(Duration::from_millis(150));
+        });
+        let error = invoke(Instant::now() + Duration::from_millis(50)).unwrap_err();
+        assert_eq!(
+            error.downcast_ref::<BrowserTransportPhase>(),
+            Some(&BrowserTransportPhase::Call)
+        );
+        server.join().unwrap();
     }
 
     #[test]
