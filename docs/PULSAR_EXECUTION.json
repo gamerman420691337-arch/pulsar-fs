@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-RECORDING-DEMO-STARTUP-WAIT-REPEAT",
-    "scope": "Two separate private recording attempts did not reach playback; Engine readiness was not observed and filesystem journal wait was sampled during elevated I/O pressure. The second Engine exited 1 after termination during startup. Cause and qualification remain open.",
+    "evidence": "EV-ABSOLUTE-CONNECT-VERIFIED",
+    "scope": "Uncommitted browser connection deadline hardening passed two focused tests, 721 client tests, 413 protocol tests and strict Clippy. A prior suite timeout is retained. No new rendered run or root-cause proof exists.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "Repeated private recording attempts did not reach playback because Engine readiness was not observed; journal wait was sampled during elevated I/O pressure. The latest Engine exited 1 when terminated during startup. Earlier timing failures and all qualification gates remain open.",
+    "failure_summary": "The broad client/protocol test run timed out in a filesystem-heavy test while the test thread was observed in journal wait. Earlier rendered timing and startup failures and all qualification gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -220,7 +220,7 @@
       },
       {
         "path": "crates/pulsar-clients/src/session.rs",
-        "sha256": "6397ac85555f749934a037a27be93b58325da3babd011250f8043c094c4a9ba9"
+        "sha256": "61910e0ac71215317bed77cf5b5a1a9633f2fc9d17cd472e5fdba0e184ff38e8"
       },
       {
         "path": "crates/pulsar-clients/src/browser_player_timing.rs",
@@ -232,7 +232,7 @@
       },
       {
         "path": "crates/pulsar-protocol/src/transport.rs",
-        "sha256": "1a227326ab6511ba0c3e0fae99f0eb99074a09b113ef7a7e39e20497aa363dfb"
+        "sha256": "9f2e61f0718d4e9d29725fc1ac3a45b428c02cd254aded36353ad9048153309e"
       },
       {
         "path": "crates/pulsar-engine/src/engine_browser_timing_tests.rs",
@@ -1302,7 +1302,9 @@
         "EV-TIMING-TRANSFER-SWEEP-ISOLATION",
         "EV-TIMING-TRANSFER-SWEEP-RENDERED",
         "EV-RECORDING-DEMO-STARTUP-WAIT",
-        "EV-RECORDING-DEMO-STARTUP-WAIT-REPEAT"
+        "EV-RECORDING-DEMO-STARTUP-WAIT-REPEAT",
+        "EV-ABSOLUTE-CONNECT-DRAFT",
+        "EV-ABSOLUTE-CONNECT-VERIFIED"
       ]
     },
     {
@@ -11735,6 +11737,100 @@
             "engine_exit_code"
           ],
           "equals": 1
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-ABSOLUTE-CONNECT-DRAFT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-first-failure-001/absolute-connect-draft-verification-20261031.json",
+      "sha256": "1b94f71337be047f7e5f79ecc64c15bf0ef379f211341b0790b54845c58a6f9a",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Uncommitted absolute-deadline connection hardening passed two focused socket tests; a broader suite timed out during unrelated filesystem-heavy work and Clippy remains unrun. This does not establish cause of the rendered response-read timeout.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "absolute_connect_targeted_tests_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "broader_suite_finished"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "clippy_run"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-ABSOLUTE-CONNECT-VERIFIED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-first-failure-001/absolute-connect-final-verification-20261031.json",
+      "sha256": "8376ab91b39b64abf3887ac0001ec99c6278d3638890478c75d60d11d7a6a59b",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Absolute-deadline connection path passed two focused socket tests, 721 client tests, 413 protocol tests, and strict Clippy. Earlier broad-suite timeout is retained; rendered behavior and underlying response-read failure remain unqualified.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "absolute_connect_targeted_tests_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "client_tests_passed"
+          ],
+          "equals": 721
+        },
+        {
+          "pointer": [
+            "protocol_tests_passed"
+          ],
+          "equals": 413
+        },
+        {
+          "pointer": [
+            "clippy_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "rendered_test_executed"
+          ],
+          "equals": false
         },
         {
           "pointer": [
