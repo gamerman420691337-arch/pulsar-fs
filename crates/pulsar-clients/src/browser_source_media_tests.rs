@@ -1,6 +1,84 @@
 use super::*;
 
 #[test]
+fn shutdown_reports_sanitized_source_cleanup_failure_and_preserves_it() {
+    let directory = tempfile::tempdir().unwrap();
+    let socket = directory.path().join("private-missing.sock");
+    let client = SessionClient::from_credentials(
+        &socket,
+        SessionId::new("source-test-actor").unwrap(),
+        "synthetic-private-authentication".into(),
+    )
+    .unwrap();
+    let b = binding();
+    let mut media =
+        MediaController::new(&client, b.project_id.clone(), b.revision, 30, None).unwrap();
+    media.prepared = Some(Prepared {
+        intent: intent(&b, Arc::new(AtomicBool::new(false))),
+        report: None,
+        ready: None,
+        pending: 0,
+        release_pending: false,
+        cleanup_attempted: false,
+        error: None,
+    });
+    let first = media.shutdown().unwrap_err().to_string();
+    assert!(first.contains("source cleanup unconfirmed"));
+    assert!(first.contains("transport_io"));
+    assert!(first.contains("exchange"));
+    assert!(!first.contains("private-missing.sock"));
+    assert!(!first.contains("synthetic-private-authentication"));
+    assert_eq!(media.shutdown().unwrap_err().to_string(), first);
+}
+
+#[test]
+fn source_cleanup_diagnostics_classify_without_disclosing_error_text() {
+    let cases = [
+        (
+            anyhow::Error::new(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "private token and path",
+            ))
+            .context(SourceFailureStage::Exchange),
+            "exchange",
+            "transport_timeout",
+            None,
+        ),
+        (
+            anyhow::Error::new(ProtocolError::new(
+                ErrorCode::Forbidden,
+                "private token and path",
+            ))
+            .context(SourceFailureStage::Exchange),
+            "exchange",
+            "protocol_rejected",
+            Some(ErrorCode::Forbidden),
+        ),
+        (
+            anyhow::anyhow!("private token and path").context(SourceFailureStage::Reply),
+            "reply",
+            "reply_validation",
+            None,
+        ),
+        (
+            anyhow::Error::new(TransportError::ResponseMismatch)
+                .context(SourceFailureStage::Exchange),
+            "exchange",
+            "transport_framing",
+            None,
+        ),
+    ];
+    for (error, stage, category, code) in cases {
+        let value = source_cleanup_diagnostic(&error);
+        assert_eq!(
+            value,
+            serde_json::json!({"stage":stage,"category":category,"protocol_code":code})
+        );
+        assert!(!value.to_string().contains("private"));
+    }
+}
+
+#[test]
 fn replacement_preparation_detaches_prior_successor_without_losing_cleanup() {
     for dispatched in [true, false] {
         // Drive the actual controller routes with an authored native response and

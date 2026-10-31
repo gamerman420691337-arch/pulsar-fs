@@ -6,7 +6,7 @@ The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue
 
 Reconciled **2026-10-30**. Roadmap **INCOMPLETE**; autonomous runner observation **active**.
 
-**Working tree: UNVERIFIED.** Original rendered seek autoplay, first guard cleanup failure and diagnostic Engine force-kill retained. One current-source rendered scenario passed; earlier cleanup cause and all qualification gates remain unresolved.
+**Working tree: UNVERIFIED.** Diagnostic source cleanup and Engine forced-stop counterevidence remain unresolved; new diagnostics do not retroactively establish cause. All qualification gates remain open.
 
 **Next: BROWSER-DEMO — Verify the real rendered-browser-to-recording/export demo.** Exit required: Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence.
 
