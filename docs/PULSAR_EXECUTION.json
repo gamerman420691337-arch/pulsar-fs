@@ -30,9 +30,9 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
-    "scope": "CLI/desktop shared history passed scoped tests; controlled comparisons reproduce X11 panic when close-window destroys the X11 window, while graceful close passes. Original multi-action close cause and platform qualification remain unproven.",
+    "scope": "Controlled rendered seek attempts showed new analysis without a separate Play click; browser event ordering and cause require diagnosis. Retained earlier observations and no device qualification.",
     "active_work": "CLIENT-CORRECTNESS",
-    "failure_summary": "Desktop close-tool exit 101 retained; controlled comparisons support destructive windowclose as cause in empty-desktop cases, without proving the original session identical. Earlier timing failures and all qualification gates remain open.",
+    "failure_summary": "Rendered seek explicit-Play contract failed in two observed interactions; root cause unresolved. Earlier timing failures and all 25 qualification gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -1190,7 +1190,9 @@
         "EV-RENDERED-420-REPEAT",
         "EV-RENDERED-CURRENT-RECORDING-EXPORT",
         "EV-RENDERED-200MS-RECORDING",
-        "EV-RENDERED-200MS-RECORDING-EXPORT"
+        "EV-RENDERED-200MS-RECORDING-EXPORT",
+        "EV-RENDERED-SEEK-200MS",
+        "EV-RENDERED-SEEK-EXPLICIT-PLAY-FAIL"
       ]
     },
     {
@@ -1225,7 +1227,9 @@
         "EV-CLI-HISTORY-RESTRICTED-NATIVE",
         "EV-DESKTOP-HISTORY-CLOSE-FAIL",
         "EV-DESKTOP-TITLEBAR-CLOSE-COMPARISON",
-        "EV-DESKTOP-CLOSE-MECHANISM"
+        "EV-DESKTOP-CLOSE-MECHANISM",
+        "EV-RENDERED-SEEK-200MS",
+        "EV-RENDERED-SEEK-EXPLICIT-PLAY-FAIL"
       ]
     },
     {
@@ -7442,6 +7446,106 @@
         {
           "pointer": [
             "original_session_cause_proven"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RENDERED-SEEK-200MS",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/rendered-seek-200ms-001/verification.json",
+      "sha256": "4c8272b2825f11266e824301d0c431030706dbbcf4e3f2fe2a00fa00c068922f",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Current-source rendered sterile bound-source playback and timeline interactions under 200ms policy produced five distinct stopped captures with 151,0,102,68,109 accepted estimates; all 430 retained estimates satisfy capture-to-analysis age and declared five-second source-to-project anchor correspondence. Final two recordings cover 1.2\u20137.9s and 29.1\u201339.9s; one intermediate capture is empty. Player, browser and Engine exited 0. Rapid retirement ordering and explicit-Play semantics are not established; no device, real-media or model qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "distinct_stopped_epochs"
+          ],
+          "equals": 5
+        },
+        {
+          "pointer": [
+            "empty_capture_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "all_accepted_within_200ms"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "previous_timing_failure_cause_resolved"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RENDERED-SEEK-EXPLICIT-PLAY-FAIL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/rendered-seek-explicit-play-001/verification.json",
+      "sha256": "7337d11eec49c247d9e4b8d6b5377836d3349d3e98f09a4d06536fd03e7a7bfd",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Two rendered sterile bound-source timeline interactions during playback were followed by new analysis/start indications and later recordings (101 and 87 estimates) without a separately issued Play click after either seek. This conflicts with the page explicit-Play statement; browser event ordering and cause remain unresolved. Two intermediate captures had zero samples. Player, browser and Engine exited 0; no device or qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "explicit_play_contract_met"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "seeks_observed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "root_cause_resolved"
           ],
           "equals": false
         }
