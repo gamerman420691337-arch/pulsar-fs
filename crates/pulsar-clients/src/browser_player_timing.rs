@@ -47,6 +47,8 @@ struct FailureDiagnostic {
     stage: FailureStage,
     category: &'static str,
     protocol_code: Option<ErrorCode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transport_phase: Option<crate::session::BrowserTransportPhase>,
 }
 impl FailureDiagnostic {
     fn from_error(operation: &'static str, error: &anyhow::Error) -> Self {
@@ -102,6 +104,9 @@ impl FailureDiagnostic {
             stage,
             category,
             protocol_code: protocol.map(|p| p.code),
+            transport_phase: error
+                .downcast_ref::<crate::session::BrowserTransportPhase>()
+                .copied(),
         }
     }
 }
@@ -809,6 +814,7 @@ impl Timing {
                                     stage: FailureStage::Delivery,
                                     category: "result_delivery",
                                     protocol_code: None,
+                                    transport_phase: None,
                                 });
                             }
                         }
@@ -913,6 +919,7 @@ impl Timing {
             stage: FailureStage::Queue,
             category: "queue_unavailable",
             protocol_code: None,
+            transport_phase: None,
         });
         Err(unavailable(record))
     }

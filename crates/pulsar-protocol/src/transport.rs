@@ -25,6 +25,16 @@ pub struct LocalClient {
     deadline: Option<Instant>,
 }
 
+/// Local call phase at failure; this describes transport progress, not whether
+/// the Engine executed the request or committed its outcome.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LocalCallPhase {
+    BeforeWrite,
+    RequestWrite,
+    ResponseRead,
+    ResponseIdentity,
+}
+
 impl LocalClient {
     pub fn connect(path: impl AsRef<Path>, timeout: Duration) -> Result<Self, TransportError> {
         if timeout.is_zero() {
@@ -62,22 +72,40 @@ impl LocalClient {
     /// connection; callers must reconnect and use the same request ID rather
     /// than silently replaying an ambiguous mutating operation with a new ID.
     pub fn call(&mut self, request: &Request) -> Result<Response, TransportError> {
-        request.validate()?;
-        let mut stream = self
-            .stream
-            .take()
-            .ok_or(TransportError::ConnectionPoisoned)?;
-        let deadline = Instant::now()
-            .checked_add(self.timeout)
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "RPC timeout overflow"))?;
+        self.call_with_phase(request).map_err(|(_, error)| error)
+    }
+
+    /// As [`Self::call`], additionally reporting the local phase of failure.
+    /// A write failure may follow a partial write; it never proves non-dispatch.
+    pub fn call_with_phase(
+        &mut self,
+        request: &Request,
+    ) -> Result<Response, (LocalCallPhase, TransportError)> {
+        request
+            .validate()
+            .map_err(|error| (LocalCallPhase::BeforeWrite, error.into()))?;
+        let mut stream = self.stream.take().ok_or((
+            LocalCallPhase::BeforeWrite,
+            TransportError::ConnectionPoisoned,
+        ))?;
+        let deadline = Instant::now().checked_add(self.timeout).ok_or_else(|| {
+            (
+                LocalCallPhase::BeforeWrite,
+                io::Error::new(io::ErrorKind::InvalidInput, "RPC timeout overflow").into(),
+            )
+        })?;
         let deadline = self
             .deadline
             .map_or(deadline, |absolute| absolute.min(deadline));
         let mut io = DeadlineStream::new(&mut stream, deadline);
-        write_message(&mut io, request)?;
-        let response: Response = read_message(&mut io)?;
+        write_message(&mut io, request).map_err(|error| (LocalCallPhase::RequestWrite, error))?;
+        let response: Response =
+            read_message(&mut io).map_err(|error| (LocalCallPhase::ResponseRead, error))?;
         if response.version != PROTOCOL_VERSION || response.request_id != request.request_id {
-            return Err(TransportError::ResponseMismatch);
+            return Err((
+                LocalCallPhase::ResponseIdentity,
+                TransportError::ResponseMismatch,
+            ));
         }
         self.stream = Some(stream);
         Ok(response)
