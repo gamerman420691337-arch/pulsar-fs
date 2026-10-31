@@ -30,7 +30,7 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-ASSISTANT-FIXTURE-INTERRUPTED",
-    "scope": "This dashboard incorporates merged PR 24 transport repair; the assistant worker fixture remains uncommitted and unverified in a separate checkout. Full platform and device qualification remain open.",
+    "scope": "This dashboard incorporates merged macOS read and write transport repairs. The assistant worker fixture remains unmerged; package-import fixture verification, full platform and device qualification remain open.",
     "active_work": "BROWSER-DEMO",
     "failure_summary": "Full Linux Engine CI improved from 228 failures to 37 with no identity-unavailable messages; confinement and symlink failures remain. Full Windows and macOS failures and qualification gates remain open.",
     "source_stamp": [
@@ -172,7 +172,7 @@
       },
       {
         "path": ".github/workflows/ci.yml",
-        "sha256": "fe573172db2e6247729d9a54078e280ecabe87ff2d3ed84c66f48341babe38e4"
+        "sha256": "07058684ccc5a7d97af8e8e7fabf0616dad17164d121600da228e8fdfbe34e00"
       },
       {
         "path": "crates/pulsar-clients/src/browser_source_media.rs",
@@ -232,7 +232,7 @@
       },
       {
         "path": "crates/pulsar-protocol/src/transport.rs",
-        "sha256": "f87a295cd9f96cfb168f4c4c1f46dac0e94aaf7f632fe5fd05861e4039c64557"
+        "sha256": "bf0f1d2086b12f6f65ad68b3e45216b9ecee60a4250ae50a6c179b21418e1c64"
       },
       {
         "path": "crates/pulsar-engine/src/engine_browser_timing_tests.rs",
