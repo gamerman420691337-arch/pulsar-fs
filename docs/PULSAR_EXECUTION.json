@@ -30,9 +30,9 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
-    "scope": "CLI undo, redo and candidate rebase passed isolated native campaigns; Engine test additionally refuses reduced-authority protected undo/redo without mutation. Separate reduced-authority CLI and rendered-desktop paths remain open.",
+    "scope": "CLI undo, redo and candidate rebase passed isolated synthetic native campaigns including replay/restart, owner-authorized protection history and separate reduced-authority CLI refusals through actual grant APIs. Rendered desktop remains open.",
     "active_work": "CLIENT-CORRECTNESS",
-    "failure_summary": "Earlier timing failures and all qualification gates remain open; reduced-authority refusal is currently verified in-process, not through a separate CLI session.",
+    "failure_summary": "Earlier timing failures and all qualification gates remain open; reduced-authority CLI proof covers two isolated synthetic projects only.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -1221,7 +1221,8 @@
         "EV-CLI-HISTORY-NATIVE",
         "EV-CLI-HISTORY-RESTART",
         "EV-CLI-HISTORY-PROTECTION",
-        "EV-HISTORY-REDUCED-AUTHORITY"
+        "EV-HISTORY-REDUCED-AUTHORITY",
+        "EV-CLI-HISTORY-RESTRICTED-NATIVE"
       ]
     },
     {
@@ -7256,6 +7257,67 @@
             "physical_device"
           ],
           "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-CLI-HISTORY-RESTRICTED-NATIVE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cli-history/result-004.json",
+      "sha256": "ae5482d425fb6965441ad4a79efffe9c7444795a3b101aae19d998d960d2ca5c",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Separate actual CLI process on two isolated synthetic projects was reduced to Read+Edit using actual Engine Pair/Grant/Revoke APIs; protected undo and redo each returned Forbidden without changing project or protection state. Helper credentials stayed in memory, and owned Engine exited 0. No rendered desktop, real-media, device or independent qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "observations",
+            "undo",
+            "refused"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "observations",
+            "undo",
+            "unchanged"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "observations",
+            "redo",
+            "refused"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "observations",
+            "redo",
+            "unchanged"
+          ],
+          "equals": true
         }
       ]
     }
