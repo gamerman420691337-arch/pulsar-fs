@@ -9,6 +9,8 @@ mod stamp;
 pub(in crate::authority) use clock::{BootBounds, NativeAcceptedCapture};
 #[path = "live_capture_inference.rs"]
 mod inference;
+#[cfg(all(test, target_os = "linux"))]
+pub(super) use inference::CpuStartupTestPhases;
 #[path = "live_capture_successor.rs"]
 mod successor;
 pub(in crate::authority) use successor::{

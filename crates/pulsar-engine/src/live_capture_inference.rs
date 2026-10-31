@@ -3,6 +3,8 @@ use super::*;
 #[cfg(target_os = "linux")]
 #[path = "live_capture_cpu.rs"]
 mod captured_cpu;
+#[cfg(all(test, target_os = "linux"))]
+pub(in crate::authority) use captured_cpu::CpuStartupTestPhases;
 #[cfg(target_os = "linux")]
 #[path = "live_capture_cuda.rs"]
 mod cuda;

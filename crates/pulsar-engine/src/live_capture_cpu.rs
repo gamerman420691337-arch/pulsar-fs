@@ -30,6 +30,28 @@ pub(super) fn declaration(
     )?)))
 }
 
+// Test-only, bounded, per-attempt observation. This is not worker authority or
+// a production status and does not assert that a phase completed.
+#[cfg(test)]
+#[derive(Default)]
+pub(in crate::authority) struct CpuStartupTestPhases {
+    phases: Mutex<HashMap<String, &'static str>>,
+}
+#[cfg(test)]
+impl CpuStartupTestPhases {
+    fn record(&self, attempt: &AttemptId, phase: &'static str) {
+        if let Ok(mut phases) = self.phases.lock() {
+            let key = attempt.to_string();
+            if phases.contains_key(&key) || phases.len() < 64 {
+                phases.insert(key, phase);
+            }
+        }
+    }
+    pub(in crate::authority) fn read(&self, attempt: &AttemptId) -> Option<&'static str> {
+        self.phases.lock().ok()?.get(attempt.as_str()).copied()
+    }
+}
+
 struct Admission {
     manifest: Box<LiveCpuInferenceManifest>,
     scope: LiveRgbScope,
@@ -140,6 +162,10 @@ pub(super) fn start(
     lease_end: Instant,
     assets: RetirementAssets,
 ) -> PResult<LiveInferenceWorker> {
+    #[cfg(test)]
+    engine
+        .cpu_startup_test_phases
+        .record(&stream.attempt_id, "initial_admission");
     let admitted = admission(engine, stream, &cancel, origin, lease_end, None)?;
     let deadline = crate::live_worker_lifetime::deadline(
         origin,
@@ -153,6 +179,10 @@ pub(super) fn start(
         .native_dependencies
         .validate()
         .map_err(unavailable)?;
+    #[cfg(test)]
+    engine
+        .cpu_startup_test_phases
+        .record(&stream.attempt_id, "image_capture");
     let image = engine.native_image_reuse.capture_with(
         &owner.policy().native_dependencies,
         &cancel,
@@ -178,6 +208,10 @@ pub(super) fn start(
             )
         },
     )?;
+    #[cfg(test)]
+    engine
+        .cpu_startup_test_phases
+        .record(&stream.attempt_id, "image_verification");
     if owner
         .captured_image_supervised(&image)
         .map_err(unavailable)?
@@ -187,6 +221,10 @@ pub(super) fn start(
         return Err(changed("captured CPU bytes differ from admitted image"));
     }
     admission(engine, stream, &cancel, origin, lease_end, Some(&admitted))?;
+    #[cfg(test)]
+    engine
+        .cpu_startup_test_phases
+        .record(&stream.attempt_id, "worker_staging");
     let prepared = crate::live_staging::prepare_tracked(
         &engine.config,
         &engine.pool,
@@ -230,6 +268,10 @@ pub(super) fn start(
         model: open(&paths[1])?,
         assets,
     };
+    #[cfg(test)]
+    engine
+        .cpu_startup_test_phases
+        .record(&stream.attempt_id, "mount_plan");
     let plan = OwnedLiveCpuMountCommand::prepare(
         &engine.config,
         &admitted.manifest,
@@ -239,12 +281,45 @@ pub(super) fn start(
     )
     .map_err(unavailable)?;
     admission(engine, stream, &cancel, origin, lease_end, Some(&admitted))?;
+    #[cfg(test)]
+    engine
+        .cpu_startup_test_phases
+        .record(&stream.attempt_id, "worker_start_and_ready");
     let worker = LiveInferenceWorker::start_captured(plan, cancel.clone())?;
+    #[cfg(test)]
+    engine
+        .cpu_startup_test_phases
+        .record(&stream.attempt_id, "post_ready_admission");
     admission(engine, stream, &cancel, origin, lease_end, Some(&admitted))?;
     if worker.captured_manifest_sha256() != Some(admitted.manifest.identity_sha256()?.as_str()) {
         return Err(changed(
             "captured CPU Ready differs from original admission",
         ));
     }
+    #[cfg(test)]
+    engine
+        .cpu_startup_test_phases
+        .record(&stream.attempt_id, "worker_ready");
     Ok(worker)
+}
+
+#[cfg(test)]
+mod startup_phase_tests {
+    use super::*;
+    #[test]
+    fn cpu_startup_phase_is_bounded_and_attempt_scoped() {
+        let phases = CpuStartupTestPhases::default();
+        let first = AttemptId::new("first").unwrap();
+        let second = AttemptId::new("second").unwrap();
+        phases.record(&first, "image_capture");
+        phases.record(&second, "worker_staging");
+        assert_eq!(phases.read(&first), Some("image_capture"));
+        assert_eq!(phases.read(&second), Some("worker_staging"));
+        for index in 0..80 {
+            phases.record(&AttemptId::new(format!("other-{index}")).unwrap(), "other");
+        }
+        phases.record(&first, "worker_ready");
+        assert_eq!(phases.read(&first), Some("worker_ready"));
+        assert_eq!(phases.phases.lock().unwrap().len(), 64);
+    }
 }
