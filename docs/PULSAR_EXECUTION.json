@@ -32,7 +32,7 @@
     "evidence": "EV-TIMING-TRANSPORT-PHASE",
     "scope": "Uncommitted client diagnostic adds sanitized transport-phase classification; focused socket tests, full client tests, strict Clippy and a native build passed. Rendered timing open still timed out during the call; request/write versus response/read and Engine cause remain unresolved.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "Rendered timing open timed out during the connected request/response call; cleanup remained unconfirmed. Earlier failures retained; all qualification gates remain open.",
+    "failure_summary": "A separate rendered socket trace ended with capture cleanup unconfirmed and forced Engine termination; a socket response read timed out after request send but its command was not identified. Private state retained and worker custody unverified. All qualification gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -1232,7 +1232,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines. A separate traced run opened timing but timed out on a probe and reported cleanup unconfirmed; an Engine fsync lasted 5.622 seconds without proven request or file correspondence. A separate file-aware trace identified slow worker-fence, staging and database fsyncs; the short rendered run exited cleanly and no fsync was tied to a timed-out request. A source-bound diagnostic render localized a further open timeout to the connected request/response call; whether write, response read, or Engine work blocked remains unknown.",
+      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines. A separate traced run opened timing but timed out on a probe and reported cleanup unconfirmed; an Engine fsync lasted 5.622 seconds without proven request or file correspondence. A separate file-aware trace identified slow worker-fence, staging and database fsyncs; the short rendered run exited cleanly and no fsync was tied to a timed-out request. A source-bound diagnostic render localized a further open timeout to the connected request/response call; whether write, response read, or Engine work blocked remains unknown. A separate socket trace recorded a complete send and three-second response-header read timeout, but its command was not identified; that run ended with capture cleanup unconfirmed and forced Engine termination. Resolve custody before private state cleanup.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
@@ -1283,7 +1283,8 @@
         "EV-RENDERED-TIMING-OPEN-TIMEOUT",
         "EV-RENDERED-TIMING-TRACE",
         "EV-RENDERED-TIMING-FILE-TRACE",
-        "EV-TIMING-TRANSPORT-PHASE"
+        "EV-TIMING-TRANSPORT-PHASE",
+        "EV-RENDERED-SOCKET-TRACE"
       ]
     },
     {
@@ -11193,6 +11194,59 @@
         {
           "pointer": [
             "historical_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RENDERED-SOCKET-TRACE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-first-failure-001/rendered-socket-trace-20261031.json",
+      "sha256": "0acbd04d5c7f6b7d32ceca6f198a7c7a2f213ede9ff83e179d2ce90362dbe8de",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Separate payload-suppressed socket trace observed a complete local request send followed by a 3.02-second response-header read timeout, but the command is unidentified. This run had capture cleanup unconfirmed and a force-killed Engine; no worker custody proof. Private state retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "completed_send_then_response_header_timeout"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "operation_identified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "engine_exit_signal"
+          ],
+          "equals": 9
+        },
+        {
+          "pointer": [
+            "creation_records"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "worker_custody_verified"
           ],
           "equals": false
         },
