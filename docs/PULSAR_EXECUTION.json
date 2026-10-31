@@ -1283,7 +1283,7 @@
       "state": "open",
       "owner": "Codex",
       "depends_on": [],
-      "exit": "Localize retained startup/Ready and archive-cache stalls with bounded phase probes; establish a causal repair and regression without erasing earlier failures. Unchanged-binary semantic regressions now pass, while syscall tracing and an independent 4KiB write probe show variable SSD sync latency up to 11.138 seconds. That observation does not isolate startup-only cost, identify a particular competing workload, or close the original timeout. Preserve durability and original live bounds. Historical pinned-campaign reproduction now refuses before execution because two recorded system-library identities changed; locate exact historical bytes or establish a separately pinned current subject, without claiming equivalence.",
+      "exit": "Localize retained startup/Ready and archive-cache stalls with bounded phase probes; establish a causal repair and regression without erasing earlier failures. Unchanged-binary semantic regressions now pass, while syscall tracing and an independent 4KiB write probe show variable SSD sync latency up to 11.138 seconds. That observation does not isolate startup-only cost, identify a particular competing workload, or close the original timeout. Preserve durability and original live bounds. Historical pinned-campaign reproduction now refuses before execution because two recorded system-library identities changed; locate exact historical bytes or establish a separately pinned current subject, without claiming equivalence. A separately pinned current-library run passed five native cases; original stall remains unexplained.",
       "evidence": [
         "EV-STARTUP",
         "EV-RUNTIME-CACHE-BUSY",
@@ -1297,7 +1297,9 @@
         "EV-STARTUP-IO-OBSERVATION",
         "EV-LIVE-RECORDING-FALLBACK",
         "EV-LIVE-FALLBACK-SNAPSHOT",
-        "EV-STARTUP-PINNED-REPRO-REFUSAL"
+        "EV-STARTUP-PINNED-REPRO-REFUSAL",
+        "EV-STARTUP-REFUSAL-CORRECTED",
+        "EV-STARTUP-CURRENT-LIBRARIES"
       ]
     },
     {
@@ -8351,6 +8353,88 @@
             "exit_code"
           ],
           "equals": 1
+        }
+      ]
+    },
+    {
+      "id": "EV-STARTUP-REFUSAL-CORRECTED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/repro-20261031-preflight/corrected-verification.json",
+      "sha256": "0c641bc5f13266fe9bbdd9c02771bbe627afd7f549b1d6e14ac8c95d2d3e6a19",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Corrected source-snapshot directory; historical pinned closure still refused because library bytes changed.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "REFUSED"
+        },
+        {
+          "pointer": [
+            "startup_test_executed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STARTUP-CURRENT-LIBRARIES",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/current-library-native-001/scoped-verification.json",
+      "sha256": "f9261729be8f56f206e090c91d3550741e53157b3513dc4e03c7723fd3610d03",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "One pinned current-library native startup campaign passed five cases; different library subject does not establish historical cause or acceptance.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "same_historical_library_subject"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "cases_passed"
+          ],
+          "equals": 5
+        },
+        {
+          "pointer": [
+            "total_cases"
+          ],
+          "equals": 5
+        },
+        {
+          "pointer": [
+            "owned_processes_retired"
+          ],
+          "equals": true
         }
       ]
     }
