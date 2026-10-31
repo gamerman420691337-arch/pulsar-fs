@@ -1282,6 +1282,30 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn browser_transport_truncated_response_keeps_outcome_unknown_and_poisoned() {
+        use std::os::unix::net::UnixListener;
+
+        let root = tempfile::tempdir().unwrap();
+        let endpoint = root.path().join("engine.sock");
+        let listener = UnixListener::bind(&endpoint).unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let _: Request = read_message(&mut stream).unwrap();
+            stream.write_all(&10_u32.to_be_bytes()).unwrap();
+            stream.write_all(b"abc").unwrap();
+        });
+        let mut client = LocalClient::connect(&endpoint, Duration::from_secs(1)).unwrap();
+        let request = Request::new(new_request_id(), Command::Capabilities);
+        let (phase, _) = client.call_with_phase(&request).unwrap_err();
+        assert_eq!(phase, pulsar_protocol::LocalCallPhase::ResponseRead);
+        let (phase, error) = client.call_with_phase(&request).unwrap_err();
+        assert_eq!(phase, pulsar_protocol::LocalCallPhase::BeforeWrite);
+        assert!(matches!(error, pulsar_protocol::TransportError::ConnectionPoisoned));
+        server.join().unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn browser_transport_write_failure_remains_poisoned_and_ambiguous() {
         use std::net::Shutdown;
         use std::os::unix::net::UnixListener;
