@@ -217,7 +217,7 @@ fn temporal_inference() -> LiveCaptureInference {
     })).unwrap();
     profile.validate().unwrap();
     LiveCaptureInference {
-        model_path: "/explicit/temporal.onnx".into(),
+        model_path: std::env::temp_dir().join("temporal.onnx"),
         profile,
     }
 }
@@ -277,7 +277,7 @@ fn failed_capture_and_current_generator_changes_preserve_the_reviewed_snapshot()
     let mut generator = temporal_inference();
     panel.capture_generator(generator.clone()).unwrap();
     let captured = serde_json::to_vec(&panel.form.build().unwrap()).unwrap();
-    generator.model_path = "/different/temporal.onnx".into();
+    generator.model_path = std::env::temp_dir().join("different-temporal.onnx");
     assert_eq!(
         serde_json::to_vec(&panel.form.build().unwrap()).unwrap(),
         captured

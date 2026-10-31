@@ -10,10 +10,12 @@ fn artifact(value: u8) -> ArtifactIdentity {
     }
 }
 fn host_report() -> LiveCaptureReport {
-    let report: LiveCaptureReport = serde_json::from_str(include_str!(
+    let mut report: LiveCaptureReport = serde_json::from_str(include_str!(
         "../../pulsar-protocol/tests/fixtures/live-cpu-capture-report.json"
     ))
     .unwrap();
+    report.options.inference.as_mut().unwrap().model_path =
+        std::env::temp_dir().join("fixture-model.onnx");
     report.validate().unwrap();
     report
 }
