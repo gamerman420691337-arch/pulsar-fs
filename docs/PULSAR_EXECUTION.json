@@ -1299,7 +1299,8 @@
         "EV-LIVE-FALLBACK-SNAPSHOT",
         "EV-STARTUP-PINNED-REPRO-REFUSAL",
         "EV-STARTUP-REFUSAL-CORRECTED",
-        "EV-STARTUP-CURRENT-LIBRARIES"
+        "EV-STARTUP-CURRENT-LIBRARIES",
+        "EV-STARTUP-CURRENT-LIBRARIES-REPEAT"
       ]
     },
     {
@@ -1359,7 +1360,7 @@
       "depends_on": [
         "CPU-ROUNDTRIP"
       ],
-      "exit": "Complete browser graph root/ancestor mutation, resource and fault campaigns and native/rendered target workflow under original limits. Reader42 refusal against owned reader43 main/WAL state passed; authored fixtures do not close parent gates.",
+      "exit": "Complete browser graph root/ancestor mutation, resource and fault campaigns and native/rendered target workflow under original limits. Reader42 refusal against owned reader43 main/WAL state passed; authored fixtures do not close parent gates. A historical test binary with a current-library closure failed once on timing binding and passed on repeat; investigate against a current-source pinned subject and preserve metadata-custody counterevidence.",
       "evidence": [
         "EV-FALLBACK-HISTORY-SNAPSHOT",
         "EV-FALLBACK-ARCHIVE-CONTRACT",
@@ -1424,7 +1425,8 @@
         "EV-NATIVE-BROWSER-RECORDING-ARCHIVE",
         "EV-NATIVE-BROWSER-RECORDING-ARCHIVE-FINAL",
         "EV-NATIVE-BROWSER-RECORDING-REPEAT",
-        "EV-NATIVE-FRESHNESS-DIAGNOSTIC"
+        "EV-NATIVE-FRESHNESS-DIAGNOSTIC",
+        "EV-BROWSER-CURRENT-LIBRARY-MIXED"
       ]
     },
     {
@@ -8435,6 +8437,82 @@
             "owned_processes_retired"
           ],
           "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-STARTUP-CURRENT-LIBRARIES-REPEAT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/current-library-native-002/scoped-verification.json",
+      "sha256": "7e630fb4e4ae788bc6f64f9eccd7147c124dfad4cee72ad61833e379bb422d8c",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Second current-library native startup campaign; historical cause remains open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "cases_passed"
+          ],
+          "equals": 5
+        },
+        {
+          "pointer": [
+            "owned_processes_retired"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-CURRENT-LIBRARY-MIXED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/current-library-browser-002/comparison.json",
+      "sha256": "470c4e328c5b21c696a3d0b11ef2716c667943484ef5be26c26f5cc8f13652ce",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Two same-subject confined authored native browser EOF/successor campaigns; first failed timing binding and metadata custody checks, immediate repeat passed. Not rendered-browser, current-source, real-media, physical or human qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "MIXED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "current_source_qualified"
+          ],
+          "equals": false
         }
       ]
     }
