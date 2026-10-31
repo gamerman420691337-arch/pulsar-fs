@@ -201,11 +201,6 @@ impl SessionClient {
             }
             _ => bail!("Browser guard control refuses unrelated commands"),
         }
-        let remaining = deadline
-            .checked_duration_since(std::time::Instant::now())
-            .filter(|remaining| !remaining.is_zero())
-            .context(BrowserTransportPhase::Deadline)
-            .context("Browser guard control deadline expired before connection")?;
         let request = build_request(
             self.credentials.session.clone(),
             self.credentials.auth_token.clone(),
@@ -215,11 +210,13 @@ impl SessionClient {
             revision,
         );
         request.validate()?;
-        let mut transport = LocalClient::connect(&self.endpoint, remaining)
+        deadline
+            .checked_duration_since(std::time::Instant::now())
+            .filter(|remaining| !remaining.is_zero())
+            .context(BrowserTransportPhase::Deadline)
+            .context("Browser guard control deadline expired before connection")?;
+        let mut transport = LocalClient::connect_until(&self.endpoint, deadline)
             .context(BrowserTransportPhase::Connect)?;
-        transport
-            .set_deadline(deadline)
-            .context(BrowserTransportPhase::Deadline)?;
         let response = transport.call_with_phase(&request).map_err(|(phase, error)| {
             let phase = match phase {
                 pulsar_protocol::LocalCallPhase::BeforeWrite => BrowserTransportPhase::BeforeWrite,
@@ -1278,6 +1275,49 @@ mod tests {
         assert!(client.fork_native().operation_deadline.is_none());
         client.set_operation_deadline(None);
         assert!(client.operation_deadline.is_none());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn absolute_connect_keeps_deadline_for_later_call() {
+        use std::io::Read;
+        use std::os::unix::net::UnixListener;
+
+        let root = tempfile::tempdir().unwrap();
+        let endpoint = root.path().join("engine.sock");
+        let listener = UnixListener::bind(&endpoint).unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+            let mut byte = [0_u8; 1];
+            stream.read(&mut byte).unwrap()
+        });
+        let deadline = Instant::now() + Duration::from_millis(250);
+        let mut client = LocalClient::connect_until(&endpoint, deadline).unwrap();
+        if let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
+            std::thread::sleep(remaining + Duration::from_millis(5));
+        }
+        let request = Request::new(new_request_id(), Command::Capabilities);
+        let (phase, _) = client.call_with_phase(&request).unwrap_err();
+        assert_eq!(phase, pulsar_protocol::LocalCallPhase::RequestWrite);
+        assert_eq!(server.join().unwrap(), 0, "expired call sent bytes");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn expired_absolute_connect_does_not_reach_listener() {
+        use std::os::unix::net::UnixListener;
+
+        let root = tempfile::tempdir().unwrap();
+        let endpoint = root.path().join("engine.sock");
+        let listener = UnixListener::bind(&endpoint).unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let error = match LocalClient::connect_until(&endpoint, Instant::now()) {
+            Ok(_) => panic!("expired deadline connected"),
+            Err(error) => error,
+        };
+        assert!(matches!(error, pulsar_protocol::TransportError::Io(ref e) if e.kind() == std::io::ErrorKind::TimedOut));
+        assert!(matches!(listener.accept(), Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock));
     }
 
     #[cfg(unix)]

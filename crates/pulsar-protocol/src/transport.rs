@@ -50,6 +50,20 @@ impl LocalClient {
         })
     }
 
+    /// Connect and bound all later calls by the same absolute deadline.
+    pub fn connect_until(path: impl AsRef<Path>, deadline: Instant) -> Result<Self, TransportError> {
+        let stream = connect_local_until(path.as_ref(), deadline)?;
+        let timeout = connect_remaining(deadline)?;
+        stream.set_recv_timeout(Some(timeout))?;
+        stream.set_send_timeout(Some(timeout))?;
+        connect_remaining(deadline)?;
+        Ok(Self {
+            stream: Some(stream),
+            timeout,
+            deadline: Some(deadline),
+        })
+    }
+
     /// Bound subsequent RPCs by one caller-owned absolute deadline. This can
     /// only shorten a prior bound; an expired bound poisons the connection.
     /// Callers covering connection setup must pass its remaining budget to
@@ -162,7 +176,6 @@ impl Write for DeadlineStream<'_> {
 /// bound remote named-pipe network activity. Remote pipes are rejected here;
 /// only the local pipe namespace is an engine API endpoint.
 pub fn connect_local(path: &Path, timeout: Duration) -> io::Result<LocalStream> {
-    use interprocess::{local_socket::ConnectOptions, ConnectWaitMode};
     if timeout.is_zero() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -172,6 +185,11 @@ pub fn connect_local(path: &Path, timeout: Duration) -> io::Result<LocalStream> 
     let deadline = Instant::now().checked_add(timeout).ok_or_else(|| {
         io::Error::new(io::ErrorKind::InvalidInput, "connection timeout overflow")
     })?;
+    connect_local_until(path, deadline)
+}
+
+fn connect_local_until(path: &Path, deadline: Instant) -> io::Result<LocalStream> {
+    use interprocess::{local_socket::ConnectOptions, ConnectWaitMode};
     #[cfg(windows)]
     validate_local_pipe_endpoint(&path.to_string_lossy())?;
     loop {
