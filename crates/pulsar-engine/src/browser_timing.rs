@@ -939,6 +939,16 @@ impl Engine {
                         .as_ref()
                         .is_none_or(NativeBrowserMediaSuccessor::current)
             });
+        #[cfg(test)]
+        if !report.current {
+            eprintln!(
+                "browser timing open recheck: begin_ns={begin}, recheck_ns={:?}, deadline_ns={deadline_ns}, clock_failed={}, source_current={}, shutting_down={}",
+                registry.last_tick_ns,
+                registry.clock_failed,
+                source.current(),
+                self.is_shutting_down()
+            );
+        }
         if report.current {
             let source = Arc::new(source);
             let lifetime = Arc::new(Lifetime {

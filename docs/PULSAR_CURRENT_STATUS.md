@@ -6,7 +6,7 @@ The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue
 
 Reconciled **2026-10-30**. Roadmap **INCOMPLETE**; autonomous runner observation **active**.
 
-**Working tree: UNVERIFIED.** Diagnostic authored archive lifecycle and six archive/reader regressions passed; prior intermittent import timeout remains unexplained. All 25 acceptance gates stay open.
+**Working tree: UNVERIFIED.** Earlier cold-start, timing, custody failures and original 011 supervisor rejection remain recorded; combined-source supervised native handover 013 passed with simulated eligibility. All 25 acceptance gates remain open.
 
 **Next: LIVE-FALLBACK-HISTORY — Complete live/browser fallback and remaining portable histories.** Exit required: Complete browser graph root/ancestor mutation, resource and fault campaigns and native/rendered target workflow under original limits. Reader42 refusal against owned reader43 main/WAL state passed; authored fixtures do not close parent gates.
 

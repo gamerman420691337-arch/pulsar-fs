@@ -1,6 +1,72 @@
 // Included inside captured_cpu_browser_native_tests. Eligibility is deliberately
 // simulated in an owned disposable database; no public acceptance is performed.
 
+#[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+struct CudaHandoverInputs {
+    policy: ArtifactReference,
+    from_file: ArtifactReference,
+    to_file: ArtifactReference,
+    from: DeclaredInferenceProfile,
+    to: DeclaredInferenceProfile,
+}
+
+#[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+impl CudaHandoverInputs {
+    fn load(inputs: &Inputs) -> Result<Self> {
+        let load = |path_name: &str, hash_name: &str| -> Result<ArtifactReference> {
+            pinned(path_env(path_name)?, &std::env::var(hash_name)?)
+        };
+        let policy = load(
+            "PULSAR_BROWSER_CUDA_POLICY",
+            "PULSAR_BROWSER_CUDA_POLICY_SHA256",
+        )?;
+        let from_file = load(
+            "PULSAR_BROWSER_CUDA_PROFILE",
+            "PULSAR_BROWSER_CUDA_PROFILE_SHA256",
+        )?;
+        let to_file = load(
+            "PULSAR_BROWSER_CPU_PROFILE",
+            "PULSAR_BROWSER_CPU_PROFILE_SHA256",
+        )?;
+        let from: DeclaredInferenceProfile =
+            serde_json::from_slice(&read_bounded(&from_file.path, 1024 * 1024)?)?;
+        let to: DeclaredInferenceProfile =
+            serde_json::from_slice(&read_bounded(&to_file.path, 1024 * 1024)?)?;
+        from.validate()?;
+        to.validate()?;
+        ensure!(
+            from.provider == InferenceProvider::Cuda,
+            "original profile must be CUDA"
+        );
+        ensure!(
+            to.provider == InferenceProvider::Cpu,
+            "target profile must be CPU"
+        );
+        ensure!(
+            from.model == inputs.model.identity && to.model == inputs.model.identity,
+            "profile model differs from pinned fixture"
+        );
+        ensure!(
+            encode(&to)? == encode(&inputs.profile()?)?,
+            "target profile differs from captured CPU policy"
+        );
+        Ok(Self {
+            policy,
+            from_file,
+            to_file,
+            from,
+            to,
+        })
+    }
+
+    fn verify_unchanged(&self) -> Result<()> {
+        for artifact in [&self.policy, &self.from_file, &self.to_file] {
+            pinned(artifact.path.clone(), &artifact.identity.sha256)?;
+        }
+        Ok(())
+    }
+}
+
 fn with_timing_observers<T>(
     client: &Client<'_>,
     players: &mut [&mut AuthoredPlayer],
@@ -26,10 +92,17 @@ fn with_timing_observers<T>(
         });
         let result = operation();
         drop(stop);
-        observer
+        let observed = observer
             .join()
-            .map_err(|_| anyhow::anyhow!("authored timing observer panicked"))??;
-        result
+            .map_err(|_| anyhow::anyhow!("authored timing observer panicked"))?;
+        match (result, observed) {
+            (Ok(value), Ok(())) => Ok(value),
+            (Err(error), Ok(())) => Err(error),
+            (Ok(_), Err(error)) => Err(error),
+            (Err(operation), Err(observer)) => Err(anyhow::anyhow!(
+                "operation failed: {operation:#}; timing observer failed: {observer:#}"
+            )),
+        }
     })
 }
 
@@ -38,6 +111,27 @@ fn browser_fallback_fixture(
     client: &Client<'_>,
     inputs: &Inputs,
     media: &BrowserMediaBinding,
+) -> Result<BrowserInferenceFallbackSelection> {
+    let from = inputs.profile()?;
+    let mut to = from.clone();
+    to.cpu_threads = to
+        .cpu_threads
+        .checked_add(1)
+        .context("fixture CPU count overflow")?;
+    ensure!(
+        to.cpu_threads <= inputs.owner_cpu_threads,
+        "fixture alternate profile exceeds explicit owner thread pool"
+    );
+    browser_fallback_fixture_for_profiles(client, inputs, media, &from, &to)
+}
+
+#[cfg(target_arch = "x86_64")]
+fn browser_fallback_fixture_for_profiles(
+    client: &Client<'_>,
+    inputs: &Inputs,
+    media: &BrowserMediaBinding,
+    from: &DeclaredInferenceProfile,
+    to: &DeclaredInferenceProfile,
 ) -> Result<BrowserInferenceFallbackSelection> {
     let source = SourceArtifact {
         source_version: media.selection.source_version.clone(),
@@ -49,16 +143,6 @@ fn browser_fallback_fixture(
         path: inputs.model.path.clone(),
         identity: inputs.model.identity.clone(),
     };
-    let from = inputs.profile()?;
-    let mut to = from.clone();
-    to.cpu_threads = to
-        .cpu_threads
-        .checked_add(1)
-        .context("fixture CPU count overflow")?;
-    ensure!(
-        to.cpu_threads <= inputs.owner_cpu_threads,
-        "fixture alternate profile exceeds explicit owner thread pool"
-    );
     let selected = BrowserInferenceFallbackSelection {
         schema_version: 1,
         tier: InferenceEquivalenceTier::Default,
@@ -85,9 +169,178 @@ fn browser_fallback_fixture(
         &client.actor,
         &source,
         &model,
-        &from,
-        &to,
+        from,
+        to,
         &selected,
+    )
+}
+
+#[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+fn browser_cuda_handover(
+    client: &Client<'_>,
+    inputs: &Inputs,
+    media: &BrowserMediaBinding,
+    player: &mut AuthoredPlayer,
+    selected: &BrowserInferenceFallbackSelection,
+    profiles: &CudaHandoverInputs,
+) -> Result<Value> {
+    player.observe(client)?;
+    let mut initial_options = options(inputs, media, player)?;
+    initial_options
+        .inference
+        .as_mut()
+        .context("inference absent")?
+        .profile = profiles.from.clone();
+    initial_options.inference_fallback = Some(selected.clone());
+    initial_options.validate()?;
+    let deadline = Instant::now() + Duration::from_millis(u64::from(LEASE_MS));
+    let intent = client.intent(
+        Some(1),
+        Command::StartLiveCapture {
+            engine_epoch: media.engine_epoch.clone(),
+            options: initial_options.clone(),
+        },
+    );
+    let original = capture(with_timing_observers(client, &mut [&mut *player], || {
+        Ok(client.engine.handle(intent).result?)
+    })?)?;
+    let (failure, next_epoch) = loop {
+        player.observe(client)?;
+        let current = client.capture(&original.identity.epoch)?;
+        if let Some(transition) = current
+            .inference
+            .as_ref()
+            .and_then(|i| i.fallback_transition.as_ref())
+        {
+            match transition.phase {
+                BrowserInferenceFallbackPhase::Started => {
+                    break (
+                        transition.failure.clone(),
+                        transition
+                            .next_epoch
+                            .clone()
+                            .context("started target absent")?,
+                    )
+                }
+                BrowserInferenceFallbackPhase::Refused => {
+                    bail!("automatic target refused: {:?}", transition.error)
+                }
+                BrowserInferenceFallbackPhase::Preparing => {}
+            }
+        }
+        ensure!(
+            Instant::now() < deadline,
+            "original capture deadline expired before target publication: active={}, retirement={:?}, inference_state={:?}, inference_error={:?}, transition_phase={:?}",
+            current.active,
+            current.retirement,
+            current.inference.as_ref().map(|inference| inference.state),
+            current.inference.as_ref().and_then(|inference| inference.error.as_ref()),
+            current.inference.as_ref().and_then(|inference| inference.fallback_transition.as_ref()).map(|transition| transition.phase)
+        );
+        std::thread::park_timeout(Duration::from_millis(5));
+    };
+    ensure!(
+        failure.observation.provider == InferenceProvider::Cuda,
+        "settled failure was not CUDA provider absence"
+    );
+    ensure!(
+        failure.manifest.stream.identity == original.identity,
+        "failure manifest lost original identity"
+    );
+    let target = loop {
+        player.observe(client)?;
+        let report = client.capture(&next_epoch)?;
+        let inference = report
+            .inference
+            .as_ref()
+            .context("target inference absent")?;
+        if inference.state == LiveCaptureInferenceState::Running {
+            break report;
+        }
+        ensure!(
+            report.active && inference.error.is_none(),
+            "target retired before Ready: {:?}",
+            inference.error
+        );
+        ensure!(
+            Instant::now() < deadline,
+            "original capture deadline expired before target Ready"
+        );
+        std::thread::park_timeout(Duration::from_millis(5));
+    };
+    let info = target
+        .inference
+        .as_ref()
+        .context("target inference absent")?;
+    let history = info
+        .fallback
+        .as_ref()
+        .context("target fallback history absent")?;
+    ensure!(
+        target.identity.epoch != original.identity.epoch
+            && info.attempt_id != failure.manifest.stream.attempt_id,
+        "target reused original attempt or epoch"
+    );
+    ensure!(
+        target.options.browser_media.as_ref() == Some(media),
+        "target changed source media binding"
+    );
+    ensure!(
+        target
+            .options
+            .browser_analysis
+            .as_ref()
+            .context("target feed absent")?
+            .timing_binding_id
+            == initial_options
+                .browser_analysis
+                .as_ref()
+                .context("original feed absent")?
+                .timing_binding_id,
+        "target changed timing owner"
+    );
+    ensure!(
+        target
+            .options
+            .inference
+            .as_ref()
+            .context("target profile absent")?
+            .profile
+            .provider
+            == InferenceProvider::Cpu,
+        "target was not CPU"
+    );
+    ensure!(
+        history.predecessor.as_ref() == Some(&original.identity) && history.history.len() == 1,
+        "target lost original fallback history"
+    );
+    ensure!(
+        target.options.lease_ms <= initial_options.lease_ms,
+        "target extended original lease"
+    );
+    capture(client.call(
+        Some(1),
+        Command::StopLiveCapture {
+            epoch: original.identity.epoch.clone(),
+        },
+    )?)?;
+    let stopped = loop {
+        let report = client.capture(&target.identity.epoch)?;
+        if !report.active {
+            break report;
+        }
+        ensure!(
+            Instant::now() < deadline,
+            "target survived root stop until original deadline"
+        );
+        std::thread::park_timeout(Duration::from_millis(5));
+    };
+    ensure!(
+        stopped.retirement == Some(LiveCaptureRetirement::Stopped),
+        "target did not retire from root stop"
+    );
+    Ok(
+        json!({"case":"browser_cuda_handover","passed":true,"simulated_eligibility":true,"actual_provider_absence":true,"actual_target_ready":true,"root_stop_retired_target":true,"physical_device":false,"qualified":false,"failure":failure,"original":original,"target":target,"stopped":stopped}),
     )
 }
 
@@ -448,5 +701,23 @@ fn native_browser_fallback_admission_refuses_stale_and_withdrawn_records() {
         "passed":result["passed"],"simulated_eligibility":true,"qualified":false,"physical_device":false,
         "public_equivalence_acceptance_called":false,"subjects":inputs.subjects(),"cases":[result]});
     save(&output.join("browser-fallback-admission.json"), &receipt).expect("retain scoped receipt");
+    assert_eq!(receipt["passed"], true, "{}", receipt["cases"][0]["error"]);
+}
+
+#[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+#[test]
+#[ignore = "requires pinned CUDA and CPU policies/profiles, absent CUDA provider, sterile browser inputs, delegated cgroups and owned supervisor"]
+fn native_browser_cuda_provider_absence_starts_captured_cpu_target() {
+    let output = path_env("PULSAR_CAPTURED_CPU_BROWSER_OUTPUT").expect("owned output");
+    let inputs = Inputs::load().expect("pinned browser inputs");
+    let cuda = CudaHandoverInputs::load(&inputs).expect("pinned handover inputs");
+    let result = campaign_case(&inputs, "browser_cuda_handover");
+    inputs
+        .verify_unchanged()
+        .expect("borrowed browser subjects unchanged");
+    cuda.verify_unchanged()
+        .expect("borrowed handover subjects unchanged");
+    let receipt = json!({"schema_version":1,"scope":"Actual worker provider absence and captured CPU target with simulated equivalence eligibility and authored browser timing; no measured equivalence or physical qualification", "passed":result["passed"],"simulated_eligibility":true,"physical_device":false,"qualified":false,"subjects":inputs.subjects(),"cuda_policy":cuda.policy,"from_profile":cuda.from_file,"to_profile":cuda.to_file,"cases":[result]});
+    save(&output.join("browser-cuda-handover.json"), &receipt).expect("retain scoped receipt");
     assert_eq!(receipt["passed"], true, "{}", receipt["cases"][0]["error"]);
 }
