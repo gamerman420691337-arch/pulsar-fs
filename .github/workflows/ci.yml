@@ -8,7 +8,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 5
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -18,3 +18,5 @@ jobs:
           set -euo pipefail
           rustc --edition=2021 scripts/macos_socket_probe.rs -o "$RUNNER_TEMP/pulsar-socket-probe"
           "$RUNNER_TEMP/pulsar-socket-probe"
+      - name: Exercise Pulsar deadline stream
+        run: cargo test -p pulsar-protocol --lib deadline_stream_reads_buffered_reply_after_peer_closes --locked
