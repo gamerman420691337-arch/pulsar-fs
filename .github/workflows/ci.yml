@@ -72,6 +72,9 @@ jobs:
           run_fast pulsar-core source_transition_
           run_fast pulsar-protocol project_package::tests
           run_fast pulsar-clients preview::tests
+          if [[ "$RUNNER_OS" != Windows ]]; then
+            run_fast pulsar-protocol unix_local_connection_is_bounded_verified_and_bidirectional
+          fi
           if [[ "$RUNNER_OS" == Linux ]]; then
             run_fast pulsar-engine browser_archive_reader_delegates_live_cuda_base_without_inventing_evidence
           fi

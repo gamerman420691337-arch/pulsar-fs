@@ -220,6 +220,58 @@ fn validate_local_pipe_endpoint(name: &str) -> io::Result<()> {
 #[cfg(test)]
 mod endpoint_tests {
     use super::*;
+    #[cfg(unix)]
+    #[test]
+    fn unix_local_connection_is_bounded_verified_and_bidirectional() {
+        use std::os::unix::net::UnixListener;
+        struct Directory(std::path::PathBuf);
+        impl Drop for Directory {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_file(self.0.join("control.sock"));
+                let _ = std::fs::remove_dir(&self.0);
+            }
+        }
+        let directory = Directory(
+            std::env::temp_dir().join(format!(
+                "p{}-{:x}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos() as u64
+            )),
+        );
+        std::fs::create_dir(&directory.0).unwrap();
+        let path = directory.0.join("control.sock");
+        let listener = UnixListener::bind(&path).unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream.set_nonblocking(false).unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            stream
+                .set_write_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            let mut input = [0u8; 1];
+            stream.read_exact(&mut input).unwrap();
+            assert_eq!(input, [42]);
+            stream.write_all(&[43]).unwrap();
+        });
+        let mut stream = connect_local(&path, Duration::from_secs(2))
+            .expect("bounded connect and peer verification");
+        stream
+            .set_send_timeout(Some(Duration::from_secs(2)))
+            .expect("send timeout");
+        stream
+            .set_recv_timeout(Some(Duration::from_secs(2)))
+            .expect("receive timeout");
+        stream.write_all(&[42]).expect("client write");
+        let mut output = [0u8; 1];
+        stream.read_exact(&mut output).expect("client read");
+        assert_eq!(output, [43]);
+        server.join().unwrap();
+    }
     #[test]
     fn windows_endpoint_accepts_only_canonical_local_pipe_names() {
         assert!(validate_local_pipe_endpoint(r"\\.\pipe\pulsar-user-control").is_ok());
