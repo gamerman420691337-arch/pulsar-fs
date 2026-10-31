@@ -147,7 +147,20 @@ impl<'a> DeadlineStream<'a> {
 }
 impl Read for DeadlineStream<'_> {
     fn read(&mut self, bytes: &mut [u8]) -> io::Result<usize> {
-        self.stream.set_recv_timeout(Some(self.remaining()?))?;
+        let remaining = self.remaining()?;
+        if let Err(error) = self.stream.set_recv_timeout(Some(remaining)) {
+            // Darwin rejects socket options after a Unix peer disconnects, even
+            // when response bytes remain buffered. Never fall back to a blocking
+            // read: the original deadline must remain an upper bound.
+            #[cfg(target_os = "macos")]
+            if error.kind() == io::ErrorKind::InvalidInput {
+                self.stream.set_nonblocking(true)?;
+                let result = self.remaining().and_then(|_| self.stream.read(bytes));
+                self.stream.set_nonblocking(false)?;
+                return result;
+            }
+            return Err(error);
+        }
         self.stream.read(bytes)
     }
 }
@@ -266,6 +279,57 @@ fn validate_local_pipe_endpoint(name: &str) -> io::Result<()> {
 #[cfg(test)]
 mod endpoint_tests {
     use super::*;
+    #[cfg(unix)]
+    #[test]
+    fn deadline_stream_reads_buffered_reply_after_peer_closes() {
+        use std::os::unix::net::UnixStream;
+        let (client, mut server) = UnixStream::pair().unwrap();
+        server.write_all(b"reply").unwrap();
+        drop(server);
+        let mut stream = LocalStream::UdSocket(client.into());
+        let mut bounded = DeadlineStream::new(&mut stream, Instant::now() + Duration::from_secs(2));
+        let mut response = [0; 5];
+        bounded.read_exact(&mut response).unwrap();
+        assert_eq!(&response, b"reply");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn deadline_stream_empty_closed_peer_returns_eof() {
+        use std::os::unix::net::UnixStream;
+        let (client, server) = UnixStream::pair().unwrap();
+        drop(server);
+        let mut stream = LocalStream::UdSocket(client.into());
+        let mut bounded = DeadlineStream::new(&mut stream, Instant::now() + Duration::from_secs(2));
+        assert_eq!(bounded.read(&mut [0; 1]).unwrap(), 0);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn deadline_stream_expired_deadline_refuses_buffered_reply() {
+        use std::os::unix::net::UnixStream;
+        let (client, mut server) = UnixStream::pair().unwrap();
+        server.write_all(b"reply").unwrap();
+        drop(server);
+        let mut stream = LocalStream::UdSocket(client.into());
+        let mut bounded = DeadlineStream::new(&mut stream, Instant::now());
+        let error = bounded.read(&mut [0; 5]).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn deadline_stream_truncated_closed_reply_is_eof() {
+        use std::os::unix::net::UnixStream;
+        let (client, mut server) = UnixStream::pair().unwrap();
+        server.write_all(b"rep").unwrap();
+        drop(server);
+        let mut stream = LocalStream::UdSocket(client.into());
+        let mut bounded = DeadlineStream::new(&mut stream, Instant::now() + Duration::from_secs(2));
+        let mut response = [0; 5];
+        assert_eq!(bounded.read_exact(&mut response).unwrap_err().kind(), io::ErrorKind::UnexpectedEof);
+    }
+
     #[cfg(unix)]
     #[test]
     fn unix_local_connection_is_bounded_verified_and_bidirectional() {
