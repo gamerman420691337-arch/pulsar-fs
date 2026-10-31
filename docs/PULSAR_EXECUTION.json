@@ -29,8 +29,8 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-BROWSER-READY-PROBED-FAILURE",
-    "scope": "Post-fix native Ready failed before transfer: Start call was 61.7ms and last state remained Starting after 5508 polls at the original deadline. No causal phase is established; retained timing and correspondence failures remain open.",
+    "evidence": "EV-CPU-START-PHASE-PROBE",
+    "scope": "A bounded per-attempt test-only CPU startup phase probe passed its unit test, Clippy and one native browser campaign; worker_ready was observed on success. Historical Ready and transfer failures remain unexplained.",
     "active_work": "BROWSER-DEMO",
     "failure_summary": "Diagnostic source cleanup and Engine forced-stop counterevidence remain unresolved; new diagnostics do not retroactively establish cause. All qualification gates remain open.",
     "source_stamp": [
@@ -44,7 +44,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
-        "sha256": "4abe541b7aae0116b5414ae1c3d873bf27193656684ab9298eff3aa9aefca035"
+        "sha256": "f751dc323dd57bf30e0abb1efa66d0a2dbd8a20713686b5675a096e436ab0dd9"
       },
       {
         "path": "crates/pulsar-engine/src/browser_timing.rs",
@@ -56,7 +56,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/authority.rs",
-        "sha256": "e9d288db54cfa45c236b6d01ec067d50a0e6d8a27760464a05b213c4fbe099f2"
+        "sha256": "48534fd68b7a73a4917772f16b66d56a0dfabccaae8a037875dc64c32fa56f24"
       },
       {
         "path": "crates/pulsar-engine/src/browser_fallback_history.rs",
@@ -181,6 +181,18 @@
       {
         "path": "crates/pulsar-clients/src/browser_source_media_tests.rs",
         "sha256": "0612d0df99741a56092196411716591f4623e2bf3b5668365a1f5494cad39fe0"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_cpu.rs",
+        "sha256": "725720da196cba7280473126d9d08ac128364403b5bc229bcbde9245c0dbdbe9"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_inference.rs",
+        "sha256": "766b3240eec5ed37034354eecbd356aaa69ebd664960878d5955133883ce4c68"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_captures.rs",
+        "sha256": "8426c077c242e3b5dfa9cf4995c61a1e6d7c63c8c973c34e1a8e458a4f991e71"
       }
     ]
   },
@@ -1283,7 +1295,7 @@
       "state": "open",
       "owner": "Codex",
       "depends_on": [],
-      "exit": "Localize retained startup/Ready and archive-cache stalls with bounded phase probes; establish a causal repair and regression without erasing earlier failures. Unchanged-binary semantic regressions now pass, while syscall tracing and an independent 4KiB write probe show variable SSD sync latency up to 11.138 seconds. That observation does not isolate startup-only cost, identify a particular competing workload, or close the original timeout. Preserve durability and original live bounds. Historical pinned-campaign reproduction now refuses before execution because two recorded system-library identities changed; locate exact historical bytes or establish a separately pinned current subject, without claiming equivalence. A separately pinned current-library run passed five native cases; original stall remains unexplained. A current diagnostic native browser run failed before Ready at its original capture lease after two passes; exact startup stage remains unknown. Bounded test-only Ready polling timings are available, but two passing native runs did not exercise the timeout diagnostic. The native test harness no longer accepts Running observed at or after the original deadline; deterministic regression and Clippy passed, native rerun pending. Post-fix native Ready failure: Start returned in 61.7ms; after 5508 polls the last state was Starting at the unchanged deadline. Preparation stage and cause remain unknown. A bounded per-attempt test-only phase probe is unverified in a retained branch and patch; its build was deliberately stopped under host I/O pressure and must be tested before use.",
+      "exit": "Localize retained startup/Ready and archive-cache stalls with bounded phase probes; establish a causal repair and regression without erasing earlier failures. Unchanged-binary semantic regressions now pass, while syscall tracing and an independent 4KiB write probe show variable SSD sync latency up to 11.138 seconds. That observation does not isolate startup-only cost, identify a particular competing workload, or close the original timeout. Preserve durability and original live bounds. Historical pinned-campaign reproduction now refuses before execution because two recorded system-library identities changed; locate exact historical bytes or establish a separately pinned current subject, without claiming equivalence. A separately pinned current-library run passed five native cases; original stall remains unexplained. A current diagnostic native browser run failed before Ready at its original capture lease after two passes; exact startup stage remains unknown. Bounded test-only Ready polling timings are available, but two passing native runs did not exercise the timeout diagnostic. The native test harness no longer accepts Running observed at or after the original deadline; deterministic regression and Clippy passed, native rerun pending. Post-fix native Ready failure: Start returned in 61.7ms; after 5508 polls the last state was Starting at the unchanged deadline. Preparation stage and cause remain unknown. A bounded per-attempt test-only phase probe is unverified in a retained branch and patch; its build was deliberately stopped under host I/O pressure and must be tested before use. A bounded per-attempt test-only phase probe passed unit/Clippy and observed worker_ready in one passing native run; no failed startup phase was captured. A second native run observed worker_ready and passed; no failure phase was captured.",
       "evidence": [
         "EV-STARTUP",
         "EV-RUNTIME-CACHE-BUSY",
@@ -1306,7 +1318,9 @@
         "EV-BROWSER-READY-DEADLINE-BOUNDARY",
         "EV-BROWSER-READY-DEADLINE-CLIPPY",
         "EV-BROWSER-READY-PROBED-FAILURE",
-        "EV-CPU-START-PHASE-INTERRUPTED"
+        "EV-CPU-START-PHASE-INTERRUPTED",
+        "EV-CPU-START-PHASE-PROBE",
+        "EV-CPU-START-PHASE-PROBE-REPEAT"
       ]
     },
     {
@@ -1350,7 +1364,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards. A separate read-only 100-scene page contained two distinct file IDs per scene and no exact lexical server-side sidecar collisions within a scene; local mapping, all remaining pages and publication semantics are unverified. A bounded non-atomic same-host metadata sample found 100 pairs refer to the same inode with one symlink path; this does not authorize symlink capture or settle file-selection policy.",
+      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards. A separate read-only 100-scene page contained two distinct file IDs per scene and no exact lexical server-side sidecar collisions within a scene; local mapping, all remaining pages and publication semantics are unverified. A bounded non-atomic same-host metadata sample found 100 pairs refer to the same inode with one symlink path; this does not authorize symlink capture or settle file-selection policy. A separate non-atomic metadata sample observed ancestor-directory symlinks with absolute targets; keep no-follow capture and recheck any alias identity without retaining paths. Installed schema exposes Scene.interactive and Scene.paths.funscript, but schema introspection alone does not prove file-specific attachment for multifile scenes. Installed Scene schema exposes no primary-named field; schema alone does not establish file order or selected-file attachment. An isolated Stash v0.31.1 sterile two-alias fixture became interactive and exposed a scene funscript path after scanning one synthetic sidecar; file-specific attachment and actual-user publication remain unproven. An owned sterile Stash/Engine fixture confirmed that even an explicitly selected regular file is refused when the scene has two alias IDs; project state stayed unchanged. An uncommitted explicit multifile capture opt-in draft has partial protocol/path tests; integration build stopped under host I/O pressure, and old-reader, native and publication checks remain open. A retry of the draft Engine integration test was stopped under sustained I/O pressure; owned compiler/linker descendants were retired and the unverified patch retained.",
       "evidence": [
         "EV-STASH-INSTALLED-VERSION-PREFLIGHT",
         "EV-STASH-INSTALLED-DISCOVERY",
@@ -1358,7 +1372,15 @@
         "EV-STASH-INSTALLED-MULTIFILE-SAMPLE",
         "EV-STASH-INSTALLED-FILE-SHAPE",
         "EV-STASH-INSTALLED-FILE-SHAPE-CLARIFIED",
-        "EV-STASH-INSTALLED-ALIAS-SAMPLE"
+        "EV-STASH-INSTALLED-ALIAS-SAMPLE",
+        "EV-STASH-INSTALLED-ALIAS-SHAPE",
+        "EV-STASH-INSTALLED-SCHEMA",
+        "EV-STASH-PRIMARY-SCHEMA",
+        "EV-STASH-OWNED-FIXTURE-INCOMPLETE",
+        "EV-STASH-OWNED-ALIAS-FIXTURE",
+        "EV-STASH-EXPLICIT-ALIAS-RED",
+        "EV-STASH-EXPLICIT-CAPTURE-DRAFT",
+        "EV-STASH-EXPLICIT-CAPTURE-DRAFT-RETRY"
       ]
     },
     {
@@ -9797,6 +9819,757 @@
         {
           "pointer": [
             "full_library_exhaustion_checked"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-CPU-START-PHASE-PROBE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/cpu-start-phase-native-002/scoped-verification.json",
+      "sha256": "f7a75f6e9742fb796972c699bdf3786f7252867c93af890313e59d7918059c2a",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Bounded per-attempt test-only CPU phase marker passed isolation/capacity unit test and strict Engine Clippy; one authored native browser campaign passed with worker_ready observed. The failure interval was not captured, and no historical, rendered-media, physical or release qualification follows. Prior interrupted build, module visibility compile error and initial Clippy failure retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "failure_interval_captured"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "unit_test_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "clippy_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "native_cases_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "native_success_phase"
+          ],
+          "equals": "worker_ready"
+        },
+        {
+          "pointer": [
+            "owned_processes_retired"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "test_only"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-CPU-START-PHASE-PROBE-REPEAT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/cpu-start-phase-native-003/scoped-verification.json",
+      "sha256": "19234cd850a6e69c5f84277ed4fa202ea987adf230bf4588f1d6fd0b9cd9b906",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "A second authored native browser run with the per-attempt test-only CPU startup marker passed and reported worker_ready. It did not reproduce or localize the earlier failure and does not qualify rendered media or a physical device.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "historic_cause_resolved"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "failure_phase_captured"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "native_cases_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "native_success_phase"
+          ],
+          "equals": "worker_ready"
+        },
+        {
+          "pointer": [
+            "owned_processes_retired"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-INSTALLED-ALIAS-SHAPE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-installed-alias-shape-001/verification.json",
+      "sha256": "daacbd930241d4302bd89200cb7affc90b0a9c13b2495082a0e2156eb0a55df3",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Read-only metadata inspection of one 100-scene GraphQL page found 100 encountered symlink paths, all with an ancestor-directory symlink and an absolute link target; their resolved paths differed from their lexical parent. This observation followed links only for metadata, is non-atomic, and does not authorize symlink capture, establish selection policy, prove actual mapping, or describe other pages. No path, target, scene ID, name or media bytes retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "OBSERVED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "sample_scenes"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "observed_ancestor_symlinks"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "observed_absolute_link_targets"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "resolved_outside_lexical_parent"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "atomic_snapshot"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "full_library_exhaustion_checked"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "media_bytes_read"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "library_content_retained"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_attempted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-INSTALLED-SCHEMA",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-installed-schema-001/verification.json",
+      "sha256": "80ddde589802ad2d8a8dde5ac4c9a4a6a44179c1b526261a352f167e6c25a309",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Read-only GraphQL schema introspection only. Scene exposes files and scene-level interactive and paths fields; ScenePathsType includes funscript. Schema presence does not prove a script-to-file association, publication behavior or qualification. No scene data, IDs, names or paths retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "OBSERVED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "scene_related_fields"
+          ],
+          "equals": [
+            "files",
+            "interactive",
+            "interactive_speed",
+            "paths"
+          ]
+        },
+        {
+          "pointer": [
+            "scene_paths_fields"
+          ],
+          "equals": [
+            "screenshot",
+            "preview",
+            "stream",
+            "webp",
+            "vtt",
+            "sprite",
+            "funscript",
+            "interactive_heatmap",
+            "caption"
+          ]
+        },
+        {
+          "pointer": [
+            "file_specific_attachment_proven"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "library_content_retained"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_attempted"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-PRIMARY-SCHEMA",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-installed-primary-schema-001/verification.json",
+      "sha256": "a1507c430c8a2026f7c341ac57a4ac8ae4cd0783d724ae9074a44dca4f276b48",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Installed Stash Scene type exposes no field whose name contains primary. This schema check does not prove file ordering, identify the selected file, or establish how scripts attach. No scene data or credentials retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "OBSERVED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "scene_primary_field_count"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "file_order_primary_proven"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "library_content_retained"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_attempted"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-OWNED-FIXTURE-INCOMPLETE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-owned-fixture-initial-001/verification.json",
+      "sha256": "57d3f67c28256d4f3d0681c143d250b004417b59d71c45931b53089ae2a78bf1",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "First isolated Stash alias fixture accepted setup but the scan returned an HTTP error. No attachment observation or user-library mutation occurred; exact HTTP status was not captured.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "INCOMPLETE"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "fixture_only"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "setup_success"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "stage"
+          ],
+          "equals": "initial_scan"
+        },
+        {
+          "pointer": [
+            "error_type"
+          ],
+          "equals": "HTTPError"
+        },
+        {
+          "pointer": [
+            "scratch_removed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "user_stash_mutation_requested"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-OWNED-ALIAS-FIXTURE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-owned-alias-fixture-002/verification.json",
+      "sha256": "2baa4d9ef0b5655add9968a5cafa2f0c5f0cca94be947829f8101a800f15198b",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "One isolated Stash v0.31.1 fixture scanned a sterile video through a real directory and an ancestor-directory symlink. A synthetic sidecar placed in the real directory was scanned; the one two-file scene became interactive and exposed a funscript path. This scene-level observation does not establish file-specific association, actual-user-library safety, Pulsar publication, physical timing or release qualification. No user Stash mutation or device action requested.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "OBSERVED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "fixture_only"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "stash_version"
+          ],
+          "equals": "v0.31.1"
+        },
+        {
+          "pointer": [
+            "listener_owned"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "port_is_not_user_stash"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "user_stash_mutation_requested"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "initial_scan_status"
+          ],
+          "equals": "FINISHED"
+        },
+        {
+          "pointer": [
+            "initial_scene_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "initial_file_counts"
+          ],
+          "equals": [
+            2
+          ]
+        },
+        {
+          "pointer": [
+            "initial_interactive_count"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "same_scene_two_files"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "sidecar_scan_status"
+          ],
+          "equals": "FINISHED"
+        },
+        {
+          "pointer": [
+            "scene_still_present"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "after_interactive"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "after_funscript_path_present"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "after_file_count"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "fixture_stash_exit"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "scratch_removed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "file_specific_attachment_proven"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-EXPLICIT-ALIAS-RED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-owned-explicit-alias-red-001/verification.json",
+      "sha256": "cfcdc37b1fd8b6b1d4be8d3706de9f08ee103d99dc98e2ff21154f95de17d1b5",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Owned isolated Stash and Pulsar Engine fixture: one sterile video was scanned through a regular directory and an alias symlink, producing two Stash file IDs for the same inode. Explicit capture of the regular path with a mapping was refused as ambiguous; the private project was unchanged. This is an expected baseline refusal, not support for alias capture or user-library qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "EXPECTED_REFUSAL"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "fixture_only"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "user_stash_mutation_requested"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "listener_owned"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "scan_status"
+          ],
+          "equals": "FINISHED"
+        },
+        {
+          "pointer": [
+            "scene_file_count"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "same_target_inode"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "selected_regular_path"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "capture_exit"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "ambiguous_or_changed_refusal"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "project_revision_unchanged"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "project_sources_empty"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "engine_exit"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "fixture_stash_exit"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "scratch_removed"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-EXPLICIT-CAPTURE-DRAFT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-owned-explicit-alias-red-001/draft-verification.json",
+      "sha256": "8dd17905bbd6649873d018f91e249a588240498821b4e4861c3544c6ad052293",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Uncommitted explicit multifile capture opt-in draft requires a selected ID, expected server path and no-follow local source. Existing automatic planning and multifile publication stay fenced. Protocol opt-in/legacy-shaped decoder and path-level tests passed on earlier draft; the Engine integration build was interrupted under host I/O pressure. Full client build, actual preceding-reader behavior, end-to-end current binary, publication and user alias policy remain unverified.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "UNVERIFIED_DRAFT"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "production_enabled"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "end_to_end_green"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "actual_old_reader_tested"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "authority_test_executed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_multifile_enabled"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-EXPLICIT-CAPTURE-DRAFT-RETRY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-owned-explicit-alias-red-001/draft-verification-v2.json",
+      "sha256": "211fe44e7496910e0d507019b658f03a5c538141b9ae78d4402a7018860eaf70",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Current uncommitted explicit multifile opt-in draft remains unverified. The Engine integration test build was stopped for sustained host I/O pressure; owned orphan compiler and linker processes were subsequently terminated or had already exited, and no open build-cache handles remained at observation. Earlier protocol and path-level tests passed on preceding draft snapshots; a current-source full client build, actual old-reader check and native integration remain pending. No user-library publication enabled.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "UNVERIFIED_DRAFT"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "production_enabled"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "end_to_end_green"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "authority_test_executed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "actual_old_reader_tested"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_multifile_enabled"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "orphan_compiler_and_linker_retired"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "build_cache_open_handles_at_check"
           ],
           "equals": false
         }

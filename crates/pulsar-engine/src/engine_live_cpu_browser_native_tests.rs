@@ -744,9 +744,10 @@ mod captured_cpu_browser_native_tests {
             );
             if native_ready_within_original_lease(info.state, Instant::now(), end).with_context(|| {
                 format!(
-                    "native Ready diagnostics: start_call_ns={}, polls={}, timing_observe_max_ns={}, capture_status_max_ns={}, last_state={:?}",
+                    "native Ready diagnostics: start_call_ns={}, polls={}, timing_observe_max_ns={}, capture_status_max_ns={}, last_state={:?}, cpu_start_phase={:?}",
                     start_call_elapsed.as_nanos(), poll_count, timing_observe_max.as_nanos(),
-                    capture_status_max.as_nanos(), info.state
+                    capture_status_max.as_nanos(), info.state,
+                    client.engine.cpu_startup_test_phases.read(&info.attempt_id)
                 )
             })? {
                 return Ok((current, end));
@@ -1076,8 +1077,12 @@ mod captured_cpu_browser_native_tests {
         );
         let stopped = stop(client, &ready.identity.epoch)?;
         release(client, media, player)?;
+        let cpu_start_phase = ready
+            .inference
+            .as_ref()
+            .and_then(|info| client.engine.cpu_startup_test_phases.read(&info.attempt_id));
         Ok(
-            json!({"case":"clean_input_eof","ready":ready,"estimates":[one,two],"observed_actual_estimates":2,"sealed":sealed,"stopped":stopped,"media":media,"timing_binding":player.binding,"last_authored_timing_observation":player.last_observation,"captured_clean_completion_observed":true,"clean_completion_basis":"Sealed with captured manifest requires private CapturedClean proof after worker final-byte verification, output EOF, successful child exit and joined custody","ingress_refused_after_close":true,"original_lease_ms":LEASE_MS,"freshness_limit_ns":MAX_AGE_NS,"source_acceptance_called":false,"physical_device":false,"qualified":false} ),
+            json!({"case":"clean_input_eof","cpu_start_phase_observed":cpu_start_phase,"ready":ready,"estimates":[one,two],"observed_actual_estimates":2,"sealed":sealed,"stopped":stopped,"media":media,"timing_binding":player.binding,"last_authored_timing_observation":player.last_observation,"captured_clean_completion_observed":true,"clean_completion_basis":"Sealed with captured manifest requires private CapturedClean proof after worker final-byte verification, output EOF, successful child exit and joined custody","ingress_refused_after_close":true,"original_lease_ms":LEASE_MS,"freshness_limit_ns":MAX_AGE_NS,"source_acceptance_called":false,"physical_device":false,"qualified":false} ),
         )
     }
     fn prepare_successor(
