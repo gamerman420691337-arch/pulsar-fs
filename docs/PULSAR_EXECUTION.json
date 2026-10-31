@@ -1266,7 +1266,8 @@
         "EV-LOCAL-ENGINE-COMPILE-TIMEOUT",
         "EV-SOURCE-CLEANUP-FIRST-FAILURE",
         "EV-SOURCE-CLEANUP-LATER-ATTEMPT",
-        "EV-LOCAL-ENGINE-RETRY"
+        "EV-LOCAL-ENGINE-RETRY",
+        "EV-SOURCE-CLEANUP-CURRENT-TESTS"
       ]
     },
     {
@@ -10936,6 +10937,47 @@
         {
           "pointer": [
             "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-SOURCE-CLEANUP-CURRENT-TESTS",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-first-failure-001/current-branch-cleanup-tests-20261031.json",
+      "sha256": "7a673229b28a232796b4b05e1efdad66b369f243c95b556a9b75e9e74667de86",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Four current-branch in-process source cleanup diagnostic tests passed. A separate native browser source filter selected only an ignored test; no rendered scenario ran and the historical failure remains unexplained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "source_cleanup_tests_passed"
+          ],
+          "equals": 4
+        },
+        {
+          "pointer": [
+            "native_filter_tests_passed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "native_filter_tests_ignored"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "historical_failure_resolved"
           ],
           "equals": false
         }
