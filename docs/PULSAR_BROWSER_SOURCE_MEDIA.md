@@ -47,8 +47,9 @@ installed executable may not contain them.
    starts neither inference nor device motion. Playback must be visible, at
    normal speed and inside the declared trim.
 6. Pause, seek or **Stop preview** retires the current player/capture while keeping
-   this prepared source loaded. Seek within the trim and press Play explicitly to
-   start another playback. Trim end stops playback. **Release prepared source**
+   this prepared source loaded. After a seek following playback, use **Resume
+   analysis after seek** to start another playback. Trim end stops playback.
+   **Release prepared source**
    detaches the URL and requests release of the original preparation. After an
    uncertain response, use **Inspect original preparation** or release that same
    selection; do not assume a replacement has started.
