@@ -49,6 +49,6 @@ jobs:
           for line in output.splitlines():
               if line.startswith('test result:'):
                   print(line)
-          if 'loaded control image identity unavailable' in output:
-              raise SystemExit(1)
+          if name not in output or result.returncode != 0:
+              raise SystemExit('target test did not pass; see sanitized result above')
           PY
