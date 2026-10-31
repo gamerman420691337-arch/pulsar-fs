@@ -1364,7 +1364,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards. A separate read-only 100-scene page contained two distinct file IDs per scene and no exact lexical server-side sidecar collisions within a scene; local mapping, all remaining pages and publication semantics are unverified. A bounded non-atomic same-host metadata sample found 100 pairs refer to the same inode with one symlink path; this does not authorize symlink capture or settle file-selection policy. A separate non-atomic metadata sample observed ancestor-directory symlinks with absolute targets; keep no-follow capture and recheck any alias identity without retaining paths. Installed schema exposes Scene.interactive and Scene.paths.funscript, but schema introspection alone does not prove file-specific attachment for multifile scenes. Installed Scene schema exposes no primary-named field; schema alone does not establish file order or selected-file attachment.",
+      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped. Local Stash v0.31.1 version query responded; isolated Pulsar Engine did not become ready, so actual discovery has not been attempted. Mapping and credential requirements remain to be established. Two isolated read-only Pulsar discovery requests to local Stash v0.31.1 succeeded, limited to one result. Source mapping, complete pagination, publication, restart and authenticated configurations remain unverified; prior Engine startup failure retained. One real-scene read-only plan refused ambiguous files and emitted no local source/destination; synthetic mapping does not prove the actual path mapping. A bounded installed-Stash sample contained 100 multifile scenes; current planning and source capture reject multifile scenes, so independently validate an explicit-selection design before changing those safeguards. A separate read-only 100-scene page contained two distinct file IDs per scene and no exact lexical server-side sidecar collisions within a scene; local mapping, all remaining pages and publication semantics are unverified. A bounded non-atomic same-host metadata sample found 100 pairs refer to the same inode with one symlink path; this does not authorize symlink capture or settle file-selection policy. A separate non-atomic metadata sample observed ancestor-directory symlinks with absolute targets; keep no-follow capture and recheck any alias identity without retaining paths. Installed schema exposes Scene.interactive and Scene.paths.funscript, but schema introspection alone does not prove file-specific attachment for multifile scenes. Installed Scene schema exposes no primary-named field; schema alone does not establish file order or selected-file attachment. An isolated Stash v0.31.1 sterile two-alias fixture became interactive and exposed a scene funscript path after scanning one synthetic sidecar; file-specific attachment and actual-user publication remain unproven.",
       "evidence": [
         "EV-STASH-INSTALLED-VERSION-PREFLIGHT",
         "EV-STASH-INSTALLED-DISCOVERY",
@@ -1375,7 +1375,9 @@
         "EV-STASH-INSTALLED-ALIAS-SAMPLE",
         "EV-STASH-INSTALLED-ALIAS-SHAPE",
         "EV-STASH-INSTALLED-SCHEMA",
-        "EV-STASH-PRIMARY-SCHEMA"
+        "EV-STASH-PRIMARY-SCHEMA",
+        "EV-STASH-OWNED-FIXTURE-INCOMPLETE",
+        "EV-STASH-OWNED-ALIAS-FIXTURE"
       ]
     },
     {
@@ -10136,6 +10138,204 @@
         {
           "pointer": [
             "publication_attempted"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-OWNED-FIXTURE-INCOMPLETE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-owned-fixture-initial-001/verification.json",
+      "sha256": "57d3f67c28256d4f3d0681c143d250b004417b59d71c45931b53089ae2a78bf1",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "First isolated Stash alias fixture accepted setup but the scan returned an HTTP error. No attachment observation or user-library mutation occurred; exact HTTP status was not captured.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "INCOMPLETE"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "fixture_only"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "setup_success"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "stage"
+          ],
+          "equals": "initial_scan"
+        },
+        {
+          "pointer": [
+            "error_type"
+          ],
+          "equals": "HTTPError"
+        },
+        {
+          "pointer": [
+            "scratch_removed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "user_stash_mutation_requested"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-OWNED-ALIAS-FIXTURE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-owned-alias-fixture-002/verification.json",
+      "sha256": "2baa4d9ef0b5655add9968a5cafa2f0c5f0cca94be947829f8101a800f15198b",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "One isolated Stash v0.31.1 fixture scanned a sterile video through a real directory and an ancestor-directory symlink. A synthetic sidecar placed in the real directory was scanned; the one two-file scene became interactive and exposed a funscript path. This scene-level observation does not establish file-specific association, actual-user-library safety, Pulsar publication, physical timing or release qualification. No user Stash mutation or device action requested.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "OBSERVED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "fixture_only"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "stash_version"
+          ],
+          "equals": "v0.31.1"
+        },
+        {
+          "pointer": [
+            "listener_owned"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "port_is_not_user_stash"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "user_stash_mutation_requested"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "initial_scan_status"
+          ],
+          "equals": "FINISHED"
+        },
+        {
+          "pointer": [
+            "initial_scene_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "initial_file_counts"
+          ],
+          "equals": [
+            2
+          ]
+        },
+        {
+          "pointer": [
+            "initial_interactive_count"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "same_scene_two_files"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "sidecar_scan_status"
+          ],
+          "equals": "FINISHED"
+        },
+        {
+          "pointer": [
+            "scene_still_present"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "after_interactive"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "after_funscript_path_present"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "after_file_count"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "fixture_stash_exit"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "scratch_removed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "file_specific_attachment_proven"
           ],
           "equals": false
         }
