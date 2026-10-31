@@ -30,9 +30,9 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
-    "scope": "CLI undo, redo and candidate rebase passed actual isolated synthetic campaigns including restart/replay and owner-authorized protection undo/redo. Reduced-authority and rendered-desktop scenarios remain open.",
+    "scope": "CLI undo, redo and candidate rebase passed isolated native campaigns; Engine test additionally refuses reduced-authority protected undo/redo without mutation. Separate reduced-authority CLI and rendered-desktop paths remain open.",
     "active_work": "CLIENT-CORRECTNESS",
-    "failure_summary": "Earlier timing failures and all qualification gates remain open; CLI protection scenario exercised owner authority only.",
+    "failure_summary": "Earlier timing failures and all qualification gates remain open; reduced-authority refusal is currently verified in-process, not through a separate CLI session.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -56,7 +56,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/authority.rs",
-        "sha256": "9ee454e94d02f654e6ee4c8b1bf5901a1dc37f3bb6622b88e7ecfde5593747ab"
+        "sha256": "e9d288db54cfa45c236b6d01ec067d50a0e6d8a27760464a05b213c4fbe099f2"
       },
       {
         "path": "crates/pulsar-engine/src/browser_fallback_history.rs",
@@ -1220,7 +1220,8 @@
         "EV-FALLBACK-PACKAGE-BARRIER",
         "EV-CLI-HISTORY-NATIVE",
         "EV-CLI-HISTORY-RESTART",
-        "EV-CLI-HISTORY-PROTECTION"
+        "EV-CLI-HISTORY-PROTECTION",
+        "EV-HISTORY-REDUCED-AUTHORITY"
       ]
     },
     {
@@ -7226,6 +7227,35 @@
             "protected_final_revision"
           ],
           "equals": 6
+        }
+      ]
+    },
+    {
+      "id": "EV-HISTORY-REDUCED-AUTHORITY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cli-history/reduced-authority-001.json",
+      "sha256": "87dbf8bc62d12bab563fb7441e162ba2a4905b4dd532553ac9a9adbe4de68bc1",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Exact Engine in-process test verifies Read+Edit editor lacking ManageProtection is refused protected undo and policy-restoring redo, with no snapshot mutation after refused redo; owner redo succeeds. This does not exercise a reduced-authority CLI process, physical device, or qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
         }
       ]
     }
