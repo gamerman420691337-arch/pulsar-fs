@@ -29,8 +29,8 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-RENDERED-RESPONSE-READ-TIMEOUT",
-    "scope": "The changed transport diagnostic passed protocol/client suites and the truncated-response regression. A source-bound rendered run reproduced timing open timeout at response_read after local write; server receipt and cause remain unknown.",
+    "evidence": "EV-TIMING-LIVE-SWEEP-ISOLATION",
+    "scope": "Uncommitted scoped removal of unrelated live-capture sweeps from timing-history handling passed a deterministic contention regression, timing and capture test groups, Engine Clippy, native build and one sterile short rendered run. Original timeout causation, database contention, repeatability and qualification remain open.",
     "active_work": "BROWSER-DEMO",
     "failure_summary": "Rendered timing open timed out during response read after local request write; cleanup remained unconfirmed. The Engine blocking stage is unknown. All qualification gates remain open.",
     "source_stamp": [
@@ -56,7 +56,7 @@
       },
       {
         "path": "crates/pulsar-engine/src/authority.rs",
-        "sha256": "6ee8900c9fe3d84d185a845f3646990dc9e0d4e20be8d8252cf78624cc6a9211"
+        "sha256": "112a9852fee37f3587c34ad925a0b656c516d2225cc1c4d589bae97dc3307486"
       },
       {
         "path": "crates/pulsar-engine/src/browser_fallback_history.rs",
@@ -233,6 +233,10 @@
       {
         "path": "crates/pulsar-protocol/src/transport.rs",
         "sha256": "1a227326ab6511ba0c3e0fae99f0eb99074a09b113ef7a7e39e20497aa363dfb"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_browser_timing_tests.rs",
+        "sha256": "06b5d8039a86710affaeee9ac91f413eb060b0c1afb3cd3328e6c085f74b77d0"
       }
     ]
   },
@@ -1236,7 +1240,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines. A separate traced run opened timing but timed out on a probe and reported cleanup unconfirmed; an Engine fsync lasted 5.622 seconds without proven request or file correspondence. A separate file-aware trace identified slow worker-fence, staging and database fsyncs; the short rendered run exited cleanly and no fsync was tied to a timed-out request. A source-bound diagnostic render localized a further open timeout to the connected request/response call; whether write, response read, or Engine work blocked remains unknown. A separate socket trace recorded a complete send and three-second response-header read timeout, but its command was not identified; that run ended with capture cleanup unconfirmed and forced Engine termination. Resolve custody before private state cleanup. New transport diagnostics distinguish request-write from response-read failures, with no change to deadline or unknown-outcome semantics; they have not yet been exercised in a rendered failure. The current diagnostic rendered run localized timing-open timeout to response_read after local write, with no proof of Engine receipt or blocking stage.",
+      "exit": "Localize the retained generic timing_exchange_unconfirmed cleanup failure with available first_failure diagnostics and establish repeatable reliability without extending original deadlines. Finish pending source/transfer replacement, interruption and unknown-outcome coverage with exact source/clock/CPU correspondence. Pair-gate starvation and initial lookahead margin have scoped repairs and rendered checkpoints, including 120s reviewed export and 40s current provisional snapshots at the original age budget. Verify useful fresh output on actual admitted models/categories/platforms; these neutral-model software checkpoints do not establish physical or quality qualification. Early-G ageing cause is now isolated and first-party sequencing repaired; complete SSD/whole-path timing qualification at original bounds, preserving EV-NATIVE-STAMP-PLATFORM over-gap and timeout evidence. A current private rendered attempt identified the first failure as timing open exchange transport_timeout and exited with timing cleanup unconfirmed; original source release later reported released. Determine the causal blocking stage and repair without weakening deadlines. A separate traced run opened timing but timed out on a probe and reported cleanup unconfirmed; an Engine fsync lasted 5.622 seconds without proven request or file correspondence. A separate file-aware trace identified slow worker-fence, staging and database fsyncs; the short rendered run exited cleanly and no fsync was tied to a timed-out request. A source-bound diagnostic render localized a further open timeout to the connected request/response call; whether write, response read, or Engine work blocked remains unknown. A separate socket trace recorded a complete send and three-second response-header read timeout, but its command was not identified; that run ended with capture cleanup unconfirmed and forced Engine termination. Resolve custody before private state cleanup. New transport diagnostics distinguish request-write from response-read failures, with no change to deadline or unknown-outcome semantics; they have not yet been exercised in a rendered failure. The current diagnostic rendered run localized timing-open timeout to response_read after local write, with no proof of Engine receipt or blocking stage. A scoped change removes timing-history requests from incidental live-capture sweeps, demonstrated by red/green contention and one short rendered pass; the earlier timeout cause, database waits and repeatability are not established.",
       "evidence": [
         "EV-RENDERED-RECORDING",
         "EV-SOURCE-ROLLOVER",
@@ -1293,7 +1297,8 @@
         "EV-TIMING-READ-WRITE-PHASE",
         "EV-TIMING-TRUNCATED-DRAFT",
         "EV-TIMING-TRUNCATED-TEST",
-        "EV-RENDERED-RESPONSE-READ-TIMEOUT"
+        "EV-RENDERED-RESPONSE-READ-TIMEOUT",
+        "EV-TIMING-LIVE-SWEEP-ISOLATION"
       ]
     },
     {
@@ -11471,6 +11476,65 @@
             "engine_exit_code"
           ],
           "equals": 0
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-TIMING-LIVE-SWEEP-ISOLATION",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/source-cleanup-first-failure-001/timing-live-sweep-verification-20261031.json",
+      "sha256": "4ce88cb45923771b868d93686922ccc31f3854b9766637348956c0d3bf48ced1",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "A deterministic test showed timing-open waiting on an unrelated live-capture registry; the scoped removal of incidental sweeps passed the regression, 26 timing tests, 47 live-capture tests and Engine Clippy. One sterile rendered short playback passed. Earlier failure causation, database contention, reliability and qualification remain unresolved.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "baseline_contention_test_failed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "modified_contention_test_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "browser_timing_tests_passed"
+          ],
+          "equals": 26
+        },
+        {
+          "pointer": [
+            "live_capture_tests_passed"
+          ],
+          "equals": 47
+        },
+        {
+          "pointer": [
+            "rendered_completed_analyses_observed"
+          ],
+          "equals": 38
+        },
+        {
+          "pointer": [
+            "historical_cause_resolved"
+          ],
+          "equals": false
         },
         {
           "pointer": [
