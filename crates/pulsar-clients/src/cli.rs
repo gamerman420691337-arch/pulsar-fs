@@ -1331,6 +1331,31 @@ pub enum Commands {
         #[arg(long)]
         request_id: Option<String>,
     },
+    /// Undo the latest committed revision, subject to current protection authority.
+    Undo {
+        project: String,
+        #[arg(long)]
+        revision: u64,
+        #[arg(long)]
+        request_id: Option<String>,
+    },
+    /// Redo the next committed revision, subject to current protection authority.
+    Redo {
+        project: String,
+        #[arg(long)]
+        revision: u64,
+        #[arg(long)]
+        request_id: Option<String>,
+    },
+    /// Rebase a retained candidate onto the named current revision for separate review.
+    RebaseCandidate {
+        project: String,
+        candidate: String,
+        #[arg(long)]
+        revision: u64,
+        #[arg(long)]
+        request_id: Option<String>,
+    },
     /// Read or explicitly replace the protection list; writes require manage authority.
     Protection {
         #[command(subcommand)]
@@ -2951,6 +2976,28 @@ mod tests {
             Cli::try_parse_from(["pulsar", "pattern-candidate", "project", "/patterns.txt"])
                 .is_err()
         );
+    }
+    #[test]
+    fn history_commands_require_revision_and_accept_explicit_request_identity() {
+        for name in ["undo", "redo"] {
+            assert!(Cli::try_parse_from(["pulsar", name, "project"]).is_err());
+            assert!(Cli::try_parse_from([
+                "pulsar", name, "project", "--revision", "7", "--request-id", "history-request",
+            ])
+            .is_ok());
+        }
+        assert!(
+            Cli::try_parse_from(["pulsar", "rebase-candidate", "project", "candidate"]).is_err()
+        );
+        assert!(matches!(
+            Cli::try_parse_from([
+                "pulsar", "rebase-candidate", "project", "candidate", "--revision", "7",
+                "--request-id", "rebase-request",
+            ])
+            .unwrap()
+            .command,
+            Some(Commands::RebaseCandidate { revision: 7, request_id: Some(id), .. }) if id == "rebase-request"
+        ));
     }
     #[test]
     fn saved_assistant_generation_cli_requires_separate_approval_and_complete_prepare_options() {

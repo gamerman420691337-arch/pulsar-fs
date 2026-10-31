@@ -6,9 +6,9 @@ The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue
 
 Reconciled **2026-10-30**. Roadmap **INCOMPLETE**; autonomous runner observation **active**.
 
-**Working tree: UNVERIFIED.** Earlier 420s cleanup and native freshness failures remain unresolved. Latest player and engine exited 0, but the browser was force-stopped during teardown. All 25 acceptance gates remain open.
+**Working tree: UNVERIFIED.** Desktop close-tool exit 101 retained; controlled comparisons support destructive windowclose as cause in empty-desktop cases, without proving the original session identical. Earlier timing failures and all qualification gates remain open.
 
-**Next: LIVE-FALLBACK-HISTORY — Complete live/browser fallback and remaining portable histories.** Exit required: Complete browser graph root/ancestor mutation, resource and fault campaigns and native/rendered target workflow under original limits. Reader42 refusal against owned reader43 main/WAL state passed; authored fixtures do not close parent gates.
+**Next: CLIENT-CORRECTNESS — Close shared-client correctness and editing fault scenarios.** Exit required: Verify source/view/time correspondence and target loss/reacquisition through real consumers; exercise protected editing, review/commit/rebase/undo/restart and crash/storage faults in CLI/desktop. Retain real-media limitations under M1-DATA. CUDA unit-report dependencies and the reproduced HSP journal-contention readiness race have scoped repairs; complete remaining shared-client and editing fault scenarios without treating unit fixtures as qualification.
 
 Last verified checkpoint: Engine **1926 passed / 117 ignored**, clients **703 passed / 15 ignored**, Protocol **406 passed**. Current reader41 compatibility patch: 6 parser tests, 7 reader tests (1 ignored), two actual App refusal cases, strict Engine library/test lint, formatting, architecture and 36 source guards pass. Broader suite and native consumer results remain separately pinned checkpoints. Original reader41 WAL mutation and the invalid zero-test cache run remain retained; all 25 acceptance gates stay open.
 
