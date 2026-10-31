@@ -30,9 +30,9 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-BROWSER-ARCHIVE-GRAPH-DRAFT",
-    "scope": "Controlled rendered seek attempts showed new analysis without a separate Play click; browser event ordering and cause require diagnosis. Retained earlier observations and no device qualification.",
-    "active_work": "CLIENT-CORRECTNESS",
-    "failure_summary": "Rendered seek explicit-Play contract failed in two observed interactions; root cause unresolved. Earlier timing failures and all 25 qualification gates remain open.",
+    "scope": "Seek guard blocks browser automatic replay and waits for original capture stop and local player-release acknowledgements. Exact current source passed 181 mock tests, 82 focused Rust tests and one rendered sterile seek/resume scenario at 200ms; repeat reliability and independent qualification remain open.",
+    "active_work": "BROWSER-DEMO",
+    "failure_summary": "Original rendered seek autoplay, first guard cleanup failure and diagnostic Engine force-kill retained. One current-source rendered scenario passed; earlier cleanup cause and all qualification gates remain unresolved.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -161,6 +161,18 @@
       {
         "path": "crates/pulsar-clients/src/lib.rs",
         "sha256": "9dde8474d1fd57c9ff8d83b5022ef954150b71d794c155129a72a944cbebfe33"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_live.html",
+        "sha256": "dc717cf2585aa30f89df6210ed55b50815b5cc137521e8a2cdb499b7afbfbd28"
+      },
+      {
+        "path": "scripts/browser-live-player.test.mjs",
+        "sha256": "4eeeef39e5b2d3736a5e25c7e71856e642b8c4c83926729e5f059bd3133299eb"
+      },
+      {
+        "path": ".github/workflows/ci.yml",
+        "sha256": "d30a0f7cddbe6aad318292d1a8d2ab247673c1dff8e24b608398d1eba0af248f"
       }
     ]
   },
@@ -1192,7 +1204,16 @@
         "EV-RENDERED-200MS-RECORDING",
         "EV-RENDERED-200MS-RECORDING-EXPORT",
         "EV-RENDERED-SEEK-200MS",
-        "EV-RENDERED-SEEK-EXPLICIT-PLAY-FAIL"
+        "EV-RENDERED-SEEK-EXPLICIT-PLAY-FAIL",
+        "EV-SEEK-EVENT-DIAGNOSTIC-FAIL",
+        "EV-SEEK-MOCK-RED",
+        "EV-SEEK-FIRST-GUARD-FAIL",
+        "EV-SEEK-GUARD-RENDERED-SCOPED",
+        "EV-SEEK-GUARD-MOCK-FINAL",
+        "EV-SEEK-GUARD-RENDERED-FINAL",
+        "EV-SEEK-GUARD-MOCK-181",
+        "EV-SEEK-GUARD-RENDERED-CURRENT",
+        "EV-SEEK-GUARD-RENDERED-LATEST"
       ]
     },
     {
@@ -1229,7 +1250,10 @@
         "EV-DESKTOP-TITLEBAR-CLOSE-COMPARISON",
         "EV-DESKTOP-CLOSE-MECHANISM",
         "EV-RENDERED-SEEK-200MS",
-        "EV-RENDERED-SEEK-EXPLICIT-PLAY-FAIL"
+        "EV-RENDERED-SEEK-EXPLICIT-PLAY-FAIL",
+        "EV-SEEK-GUARD-RENDERED-FINAL",
+        "EV-SEEK-GUARD-RENDERED-CURRENT",
+        "EV-SEEK-GUARD-RENDERED-LATEST"
       ]
     },
     {
@@ -7546,6 +7570,387 @@
         {
           "pointer": [
             "root_cause_resolved"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-SEEK-EVENT-DIAGNOSTIC-FAIL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/rendered-seek-event-diagnostic-001/verification.json",
+      "sha256": "175bc326600873c635a0d614bd56175ec290a074a70f5a3687eb96bf207ddf95",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Instrumented rendered browser observed pause while seeking, seeking, seeked, then browser play; player later exited 1 with source cleanup unconfirmed and Engine was force-killed at teardown. Worker custody not independently verified. No qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "automatic_play_observed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "source_cleanup_unconfirmed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "worker_custody_verified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-SEEK-MOCK-RED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/rendered-seek-event-diagnostic-001/test-red-001.json",
+      "sha256": "c1dc0bf87e856ed8a322cc38e63995dfa26a17d1acb8f84af0f67f1c037e502e",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Mock regression of observed event order reproduced a second player start before explicit resume; baseline failed as expected.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "actual_start_count"
+          ],
+          "equals": 2
+        }
+      ]
+    },
+    {
+      "id": "EV-SEEK-FIRST-GUARD-FAIL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/rendered-seek-guard-first-001/verification.json",
+      "sha256": "eedd3e83f408c885407841d5dd443794a31aa8908ba612ca5266a6710275762a",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "First rendered guard kept seek stopped across observation but explicit resume was refused for prior Engine outcome uncertain; player exited 1 with timing-open and capture-cleanup unconfirmed. Browser and Engine exited 0. No physical/model qualification. This failure is retained while an acknowledgement-wait guard is developed.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "seek_remained_stopped_observed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "resume_succeeded"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "timing_open_unconfirmed"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-SEEK-GUARD-RENDERED-SCOPED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/rendered-seek-guard-second-001/verification.json",
+      "sha256": "9346efdb4a567976f726c8f371c2a239785ec0a5ef38a1f47f5de3663efe5825",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "One earlier guard revision passed a rendered sterile bound-source seek and explicit resume at 200ms; two stopped recordings held 56 and 116 samples. Subsequent event-order hardening changed source and needs fresh rendered verification. Prior cleanup failures remain.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "seek_stopped_before_resume"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "explicit_resume_observed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "prior_cleanup_failure_resolved"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-SEEK-GUARD-MOCK-FINAL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/rendered-seek-guard-second-001/node-verification-final.json",
+      "sha256": "a348e40eab5c2bc2d22c50a76f263d988d78024424c3aeb6429b98d74bec9a69",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Earlier guard source passed 180 browser mock tests; subsequent queued trim-end hardening has separate 181-test evidence.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "tests"
+          ],
+          "equals": 180
+        },
+        {
+          "pointer": [
+            "failures"
+          ],
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "id": "EV-SEEK-GUARD-RENDERED-FINAL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/rendered-seek-guard-final-001/verification.json",
+      "sha256": "bcbb16af2ae3ee51adea2b93a6a9b2d324009a5ccdb6e60ea08ebdadcaae199b",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Earlier guard source in one rendered sterile seek at 200ms stayed stopped until separate Resume, then produced fresh output; two distinct stopped captures held 92 and 117 samples. A subsequent queued trim-end hardening changed source and needs fresh rendered verification. Prior failures and qualification gates remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "seek_stopped_before_resume"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "explicit_resume_observed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "all_accepted_within_200ms"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "prior_cleanup_failure_resolved"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-SEEK-GUARD-MOCK-181",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/rendered-seek-guard-final-001/node-verification.json",
+      "sha256": "95d01997d5f8b787b6e5cf694c95a60034a9416083a148e4e0c1555172eb67c8",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Current guard source passed 181 browser mock tests, including delayed pause, queued trim-end, pending/unknown/malformed stop and repeated seek; final source needs fresh rendered verification. No physical or model qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "tests"
+          ],
+          "equals": 181
+        },
+        {
+          "pointer": [
+            "failures"
+          ],
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "id": "EV-SEEK-GUARD-RENDERED-CURRENT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/rendered-seek-guard-final-001/verification.json",
+      "sha256": "bcbb16af2ae3ee51adea2b93a6a9b2d324009a5ccdb6e60ea08ebdadcaae199b",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Earlier guard source passed one rendered sterile seek/resume scenario; subsequent queued trim-end hardening changed source and requires fresh rendered verification. Prior cleanup failures and all qualification gates remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "seek_stopped_before_resume"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "explicit_resume_observed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "all_accepted_within_200ms"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "prior_cleanup_failure_resolved"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-SEEK-GUARD-RENDERED-LATEST",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/rendered-seek-guard-current-001/verification.json",
+      "sha256": "947e400ac15c2d6c2cb741c6a11b06e14fc9c5cd9d3961cbef6571e90ecda3a7",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Exact current guard source passed one rendered sterile bound-source seek under 200ms policy: stopped until separate Resume, then fresh provisional output; two distinct stopped recordings held 79 and 117 accepted samples within the capture-to-analysis bound. Player, browser and Engine exited 0. Earlier failures, repeat reliability, independent worker custody, physical/model/real-media and release qualifications remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "seek_stopped_before_resume"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "explicit_resume_observed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "all_accepted_within_200ms"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "prior_cleanup_failure_resolved"
           ],
           "equals": false
         }

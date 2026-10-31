@@ -73,6 +73,7 @@ function player({frameReply,holdStart=false,recording=false,limit="1024",candida
    if(['/start','/frame','/analysis/finish','/analysis/finish-status'].includes(route)&&nativeFeed)data={...data,options:{lease_ms:leaseMs,...data.options},browser:{analysis_final_result_matches:false,...data.browser,analysis_feed:nativeFeed,analysis_last_upload:nativeLastUpload,analysis_finish_request_id:route.startsWith('/analysis/')?'input-close-'+feedCalls:null}};
    return {ok:true,json:async()=>data};
   };
+  elements['resume-after-seek']={hidden:true};
   const document={visibilityState:'visible',addEventListener(n,f){documentEvents[n]=f;},getElementById:id=>elements[id],createElement:()=>({click(){},getContext:()=>({drawImage(reader){drawnReader=reader;drawSources.push(reader===analysisVideo?"analysis":"visible");},getImageData:()=>({data:new Uint8Array(64*64*4).fill(drawnReader===analysisVideo?128:64)})})})};
   const context=vm.createContext({document,window:{location:{href:'http://127.0.0.1:34000/'},addEventListener(n,f){windowEvents[n]=f;}},navigator:{mediaDevices:getDisplayMedia||getUserMedia?{getDisplayMedia,getUserMedia}:undefined},fetch,TextEncoder,Uint8Array,URL,Blob,AbortSignal,crypto:{randomUUID},performance:{now:()=>clock},setTimeout,clearTimeout,console});
   vm.runInContext(code.replace('/*__PULSAR_PAGE_SCOPE__*/ null',JSON.stringify(pageScope)),context);
@@ -464,13 +465,13 @@ test('prepared Play binds only the native selection ID while capture request bod
 });
 
 test('prepared URL and source identity survive pause seek and explicit resume with fresh player generations',async()=>{
- const p=mediaPlayer();await prepareMedia(p);p.play();await p.frame(.1);p.elements.video.pause();assert.equal(p.elements.video.src,'/media/token-one');p.play();await p.frame(.2);p.events.seeking();assert.equal(p.elements.video.src,'/media/token-one');p.play();await p.frame(.3);
+ const p=mediaPlayer();await prepareMedia(p);p.play();await p.frame(.1);p.elements.video.pause();assert.equal(p.elements.video.src,'/media/token-one');p.play();await p.frame(.2);p.events.seeking();assert.equal(p.elements.video.src,'/media/token-one');await p.elements['resume-after-seek'].onclick();await p.frame(.3);
  const registrations=p.sent.filter(r=>r.route==='/player/start').map(jsonBody);assert.equal(registrations.length,3);assert.ok(registrations.every(r=>r.source_id==='selection-one'&&r.media_selection_id==='selection-one'));assert.ok(registrations[0].generation<registrations[1].generation&&registrations[1].generation<registrations[2].generation);assert.equal(p.sent.filter(r=>r.route==='/media/prepare').length,1);assert.equal(p.sent.filter(r=>r.route==='/media/release').length,0);
 });
 
 test('declared trim skips pretrim frames and stops at its half-open end without releasing bytes',async()=>{
  const p=mediaPlayer({candidateReplies:{'/media/prepare':{...readyMedia,trim_start_us:100000,trim_end_us:200000}}});await prepareMedia(p);p.play();await p.frame(.099999);assert.equal(p.sent.filter(r=>r.route==='/start'||r.route==='/frame').length,0);await p.frame(.1);assert.equal(p.sent.filter(r=>r.route==='/frame').length,1);await p.frame(.199999);assert.equal(p.sent.filter(r=>r.route==='/frame').length,2);await p.frame(.2);assert.equal(p.elements.video.paused,true);assert.equal(p.sent.filter(r=>r.route==='/frame').length,2);assert.equal(p.elements.video.src,'/media/token-one');assert.equal(p.sent.filter(r=>r.route==='/media/release').length,0);assert.match(p.elements.status.textContent,/trim ended/);
- p.seek(.1);await flush();p.play();await p.frame(.1);assert.equal(p.sent.filter(r=>r.route==='/player/start').length,2);
+ p.seek(.1);await flush();await p.elements['resume-after-seek'].onclick();await p.frame(.1);assert.equal(p.sent.filter(r=>r.route==='/player/start').length,2);
 });
 
 test('local file replacement revokes prepared selection and registers an explicitly unbound source',async()=>{
@@ -550,7 +551,7 @@ test('obsolete metadata and seek completion cannot settle or reposition a replac
 });
 
 test('bound Play outside trim refuses registration and manual seek inside trim never auto-rearms',async()=>{
- const p=mediaPlayer({candidateReplies:{'/media/prepare':{...readyMedia,trim_start_us:100000,trim_end_us:200000}}});await prepareMedia(p);assert.equal(p.elements.video.currentTime,.1);p.play();await p.frame(.12);p.seek(.05);await flush();p.play();assert.equal(p.sent.filter(r=>r.route==='/player/start').length,1);assert.equal(p.elements.video.paused,true);assert.match(p.elements.status.textContent,/Seek inside/);assert.equal(p.elements.video.currentTime,.05);
+ const p=mediaPlayer({candidateReplies:{'/media/prepare':{...readyMedia,trim_start_us:100000,trim_end_us:200000}}});await prepareMedia(p);assert.equal(p.elements.video.currentTime,.1);p.play();await p.frame(.12);p.seek(.05);await flush();await p.elements['resume-after-seek'].onclick();assert.equal(p.sent.filter(r=>r.route==='/player/start').length,1);assert.equal(p.elements.video.paused,true);assert.match(p.elements.status.textContent,/Seek inside/);assert.equal(p.elements.video.currentTime,.05);
  p.seek(.15);await flush();assert.equal(p.sent.filter(r=>r.route==='/player/start').length,1);assert.equal(p.elements.video.paused,true);p.play();await p.frame(.16);assert.equal(p.sent.filter(r=>r.route==='/player/start').length,2);assert.equal(jsonBody(p.sent.filter(r=>r.route==='/start').at(-1)).media_us,160000);assert.equal(p.elements.video.src,'/media/token-one');assert.equal(p.sent.filter(r=>r.route==='/media/release').length,0);
  p.seek(.2);await flush();p.play();assert.equal(p.sent.filter(r=>r.route==='/player/start').length,2);assert.equal(p.elements.video.paused,true);
 });
@@ -610,6 +611,110 @@ test('queued pause preserves seek and hidden-page stop reasons',async()=>{
   assert.match(p.elements.status.textContent,reason==='seek'?/Seek stopped analysis/:/Hidden page stopped analysis/);
   assert.equal(p.sent.filter(r=>r.route==='/stop').length,1);
  }
+});
+
+test('native seek auto-play cannot restart analysis without explicit resume',async()=>{
+ const p=player({queuedPause:true});p.play();await p.frame(.1);await flush();
+ p.elements.video.seeking=true;p.elements.video.pause();p.deliverPauses();p.events.seeking();
+ await p.elements['resume-after-seek'].onclick();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ assert.match(p.elements.status.textContent,/Wait for the seek/);
+ p.elements.video.seeking=false;p.events.seeked?.();p.play();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ assert.equal(p.elements.video.paused,true);
+ assert.equal(p.elements['resume-after-seek'].hidden,false);
+ await p.elements['resume-after-seek'].onclick();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,2);
+});
+test('seek arriving after a pause event still requires explicit resume',async()=>{
+ const p=player({queuedPause:true});p.play();await p.frame(.1);await flush();
+ p.elements.video.pause();p.deliverPauses();p.events.seeking();p.play();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ assert.equal(p.elements['resume-after-seek'].hidden,false);
+});
+test('seek after pause retains the original pending stop fence',async()=>{
+ const p=player({queuedPause:true,holdRoute:'/stop'});p.play();await p.frame(.1);await flush();
+ p.elements.video.pause();p.deliverPauses();await flush();p.events.seeking();
+ const resume=p.elements['resume-after-seek'].onclick();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ p.releaseRoute();await resume;await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,2);
+});
+test('seek after a queued trim-end pause still requires explicit resume',async()=>{
+ const p=mediaPlayer({queuedPause:true,candidateReplies:{'/media/prepare':{...readyMedia,trim_start_us:100000,trim_end_us:200000}}});
+ await prepareMedia(p);p.play();await p.frame(.12);await p.frame(.2);p.deliverPauses();p.seek(.1);await flush();
+ assert.equal(p.elements['resume-after-seek'].hidden,false);
+ p.play();await flush();assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+});
+test('seek gate also blocks auto-play before a queued seek handler retires the old player',async()=>{
+ const p=player({queuedPause:true});p.play();await p.frame(.1);await flush();
+ p.elements.video.seeking=true;p.evaluate('programmaticPauses=1');p.elements.video.pause();p.deliverPauses();
+ p.elements.video.seeking=false;p.play();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ assert.equal(p.elements.video.paused,true);
+ assert.ok(p.sent.some(x=>x.route==='/stop'));
+});
+test('failed explicit seek resume remains available without starting analysis',async()=>{
+ const p=player({queuedPause:true});p.play();await p.frame(.1);await flush();
+ p.elements.video.seeking=true;p.elements.video.pause();p.deliverPauses();p.events.seeking();p.elements.video.seeking=false;
+ p.elements.video.play=async()=>{throw Error('play rejected');};
+ await p.elements['resume-after-seek'].onclick();
+ assert.equal(p.elements['resume-after-seek'].hidden,false);
+ assert.match(p.elements.status.textContent,/play rejected/);
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+});
+test('explicit seek resume waits for the original capture stop acknowledgement',async()=>{
+ const p=player({queuedPause:true,holdRoute:'/stop'});p.play();await p.frame(.1);await flush();
+ p.elements.video.seeking=true;p.elements.video.pause();p.deliverPauses();p.events.seeking();p.elements.video.seeking=false;await flush();
+ const resume=p.elements['resume-after-seek'].onclick();await flush();
+ assert.equal(p.elements['resume-after-seek'].disabled,true);
+ await p.elements['resume-after-seek'].onclick();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ p.releaseRoute();await resume;await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,2);
+});
+test('a new seek while stop is pending prevents resume until it settles',async()=>{
+ const p=player({queuedPause:true,holdRoute:'/stop'});p.play();await p.frame(.1);await flush();
+ p.elements.video.seeking=true;p.elements.video.pause();p.deliverPauses();p.events.seeking();p.elements.video.seeking=false;await flush();
+ const resume=p.elements['resume-after-seek'].onclick();await flush();p.elements.video.seeking=true;p.releaseRoute();await resume;await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ assert.equal(p.elements['resume-after-seek'].hidden,false);
+ p.elements.video.seeking=false;await p.elements['resume-after-seek'].onclick();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,2);
+});
+test('unknown original seek stop fences explicit resume',async()=>{
+ const p=player({queuedPause:true,replyOverride:r=>r.route==='/stop'?{ok:false,json:async()=>({error:'original stop outcome unknown'})}:null});p.play();await p.frame(.1);await flush();
+ p.elements.video.seeking=true;p.elements.video.pause();p.deliverPauses();p.events.seeking();p.elements.video.seeking=false;await flush();
+ await p.elements['resume-after-seek'].onclick();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ assert.equal(p.elements['resume-after-seek'].disabled,true);
+ assert.match(p.elements.status.textContent,/stop.*confirm|unknown/i);
+});
+test('malformed successful stop reply fences seek resume',async()=>{
+ const p=player({queuedPause:true,replyOverride:r=>r.route==='/stop'?{ok:true,json:async()=>({active:true})}:null});p.play();await p.frame(.1);await flush();
+ p.elements.video.seeking=true;p.elements.video.pause();p.deliverPauses();p.events.seeking();p.elements.video.seeking=false;await flush();
+ await p.elements['resume-after-seek'].onclick();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ assert.equal(p.elements['resume-after-seek'].disabled,true);
+ assert.match(p.elements.status.textContent,/stop.*confirm/i);
+});
+test('unconfirmed player release fences seek resume',async()=>{
+ const p=player({queuedPause:true,replyOverride:r=>r.route==='/player/stop'?{ok:false,json:async()=>({error:'player release unknown'})}:null});p.play();await p.frame(.1);await flush();
+ p.elements.video.seeking=true;p.elements.video.pause();p.deliverPauses();p.events.seeking();p.elements.video.seeking=false;await flush();
+ await p.elements['resume-after-seek'].onclick();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ assert.equal(p.elements['resume-after-seek'].disabled,true);
+ assert.match(p.elements.status.textContent,/stop.*confirm|release unknown/i);
+});
+test('seek during pending player registration waits for its late retirement',async()=>{
+ const p=player({queuedPause:true,holdRoute:'/player/start'});p.play();await flush();
+ p.elements.video.seeking=true;p.elements.video.pause();p.deliverPauses();p.events.seeking();p.elements.video.seeking=false;
+ const resume=p.elements['resume-after-seek'].onclick();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ p.releaseRoute();await resume;await flush();
+ const routes=p.sent.map(x=>x.route);
+ assert.equal(routes.filter(x=>x==='/player/start').length,2);
+ assert.ok(routes.indexOf('/stop')<routes.lastIndexOf('/player/start'));
 });
 
 

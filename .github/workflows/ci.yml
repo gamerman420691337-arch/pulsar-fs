@@ -61,6 +61,10 @@ jobs:
         if: runner.os == 'Linux'
         run: node scripts/check-architecture.mjs
 
+      - name: Test browser player behavior
+        if: runner.os == 'Linux'
+        run: node --test scripts/browser-live-player.test.mjs
+
       - name: Run fast contract and client tests
         shell: bash
         run: |
