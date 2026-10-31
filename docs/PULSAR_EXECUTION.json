@@ -1356,7 +1356,8 @@
         "EV-STASH-INSTALLED-DISCOVERY",
         "EV-STASH-INSTALLED-AMBIGUOUS-PLAN",
         "EV-STASH-INSTALLED-MULTIFILE-SAMPLE",
-        "EV-STASH-INSTALLED-FILE-SHAPE"
+        "EV-STASH-INSTALLED-FILE-SHAPE",
+        "EV-STASH-INSTALLED-FILE-SHAPE-CLARIFIED"
       ]
     },
     {
@@ -9559,7 +9560,7 @@
       "sha256": "4221fc7dbdc0e2b6bfcbf7258ca2394bb7b1ddf441ff20fc1776214b9ff419f7",
       "kind": "json",
       "outcome": "partial",
-      "scope": "One bounded read-only GraphQL page of 100 noninteractive scenes: each had two distinct file IDs. A lexical comparison of server-path sidecar names found no exact collisions within each scene. This does not check mapped local paths, filesystem case folding, existing files, other pages, publication semantics or qualification. No scene identities, names or paths were retained.",
+      "scope": "One bounded read-only GraphQL page of 100 noninteractive scenes: each had two distinct file IDs. A lexical comparison of server-path sidecar names found no exact collisions within each scene. This does not check mapped local paths, filesystem case folding, existing files, other pages, publication semantics or qualification. No scene identities, names or paths were retained. Correction: this particular GraphQL query did not check exhaustion; its false exhaustion field relied on the preceding separate discovery. See EV-STASH-INSTALLED-FILE-SHAPE-CLARIFIED.",
       "freshness": "pinned_checkpoint",
       "assertions": [
         {
@@ -9603,6 +9604,85 @@
         {
           "pointer": [
             "full_library_exhausted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "actual_local_mapping_verified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "media_bytes_read"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "library_content_retained"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "publication_attempted"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-INSTALLED-FILE-SHAPE-CLARIFIED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/stash-installed-file-shape-001/verification-clarified.json",
+      "sha256": "f30a4a1418158c746c2abd54f50d7aa6b7debd7c975d2a8117dec85bbfea89f2",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "One bounded read-only GraphQL page of 100 noninteractive scenes: each had two distinct file IDs. A lexical comparison of server-path sidecar names found no exact collisions within each scene. The query did not check whether more pages exist. Mapped local paths, filesystem case folding, existing files, publication semantics and qualification are not established. No scene identities, names or paths were retained.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "OBSERVED"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "sample_scenes"
+          ],
+          "equals": 100
+        },
+        {
+          "pointer": [
+            "file_count_histogram"
+          ],
+          "equals": {
+            "2": 100
+          }
+        },
+        {
+          "pointer": [
+            "scenes_with_duplicate_file_ids"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "scenes_with_exact_server_sidecar_collisions"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "full_library_exhaustion_checked"
           ],
           "equals": false
         },
