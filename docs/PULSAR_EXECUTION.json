@@ -29,10 +29,10 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-STERILE-RECORD-EXPORT-ABSOLUTE",
-    "scope": "A current private rendered sterile run recorded 138 provisional estimates, refused export with gaps, then explicitly authored gap fills and exported 140 actions matching the Engine receipt. This does not resolve earlier timeouts or establish useful-model, repeatability, physical-device or human acceptance.",
+    "evidence": "EV-RECORDING-DUPLICATE-BOUNDARY",
+    "scope": "Two retained sterile inference records expose an exact duplicate continuation boundary that the current assembler refuses. Their matching input identities and scalar position need a provenance-preserving, fail-closed design and regression; no silent deduplication is assumed.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "The broad client/protocol test run timed out in a filesystem-heavy test while the test thread was observed in journal wait. Earlier rendered timing and startup failures and all qualification gates remain open.",
+    "failure_summary": "Private rendered staging refused two retained epochs with an identical 22-second boundary point; player also reported timing cleanup unconfirmed. No candidate/export was created. Earlier timeouts and all qualification gates remain open.",
     "source_stamp": [
       {
         "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
@@ -1306,7 +1306,10 @@
         "EV-ABSOLUTE-CONNECT-DRAFT",
         "EV-ABSOLUTE-CONNECT-VERIFIED",
         "EV-STERILE-RECORD-EXPORT-ABSOLUTE",
-        "EV-STERILE-RECORD-EXPORT-BYTES"
+        "EV-STERILE-RECORD-EXPORT-BYTES",
+        "EV-RECORDING-DUPLICATE-BOUNDARY",
+        "EV-RECORDING-DUPLICATE-INPUT-1",
+        "EV-RECORDING-DUPLICATE-INPUT-2"
       ]
     },
     {
@@ -1346,7 +1349,8 @@
         "EV-RENDERED-SEEK-EXPLICIT-PLAY-FAIL",
         "EV-SEEK-GUARD-RENDERED-FINAL",
         "EV-SEEK-GUARD-RENDERED-CURRENT",
-        "EV-SEEK-GUARD-RENDERED-LATEST"
+        "EV-SEEK-GUARD-RENDERED-LATEST",
+        "EV-RECORDING-DUPLICATE-BOUNDARY"
       ]
     },
     {
@@ -11919,6 +11923,111 @@
         {
           "pointer": [
             "inverted"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RECORDING-DUPLICATE-BOUNDARY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/verification.json",
+      "sha256": "5ad95beef034774e37590e977ee9944780dae8f9f40d1f9731294236f78d0fca",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Private sterile rendered playback retained 131 and 41 samples across two epochs. Staging was refused at a duplicate 22-second boundary; retained records show identical current/previous input artifact identities and scalar output at that exact time. No candidate or export was created; player exited 1 with timing cleanup unconfirmed. No deduplication or qualification is implied.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "stage_rejected"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "boundary_duplicate_exact"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "boundary_current_identity_equal"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "boundary_previous_identity_equal"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "candidate_count"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "player_exit_code"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RECORDING-DUPLICATE-INPUT-1",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/inference-record-1.json",
+      "sha256": "a2987f784eff1a602af02678a7a05970752e9c304d517d4ab80afbe490d7965e",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Synthetic unqualified source-bound inference record retained for duplicate continuation-boundary investigation.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "schema"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RECORDING-DUPLICATE-INPUT-2",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-30/live-fallback-admission/browser-public/sterile-record-correspondence-001/inference-record-2.json",
+      "sha256": "f24309fff92fb7aaa9774ce11c8307c2ad74a7b5eea863a0e8a0db44c6119c2a",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Synthetic unqualified source-bound inference record retained for duplicate continuation-boundary investigation.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "schema"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "qualified"
           ],
           "equals": false
         }
