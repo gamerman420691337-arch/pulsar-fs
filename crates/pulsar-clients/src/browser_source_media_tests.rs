@@ -32,6 +32,44 @@ fn shutdown_reports_sanitized_source_cleanup_failure_and_preserves_it() {
 }
 
 #[test]
+fn source_cleanup_preserves_first_failed_original_when_multiple_releases_fail() {
+    let directory = tempfile::tempdir().unwrap();
+    let client = SessionClient::from_credentials(
+        &directory.path().join("missing.sock"),
+        SessionId::new("source-test-actor").unwrap(),
+        "synthetic-authentication".into(),
+    )
+    .unwrap();
+    let b = binding();
+    let mut media =
+        MediaController::new(&client, b.project_id.clone(), b.revision, 30, None).unwrap();
+    let prepared = |request: &str, selection: &str| {
+        let mut original = intent(&b, Arc::new(AtomicBool::new(false)));
+        original.request_id = RequestId::new(request).unwrap();
+        original.selection_id = AttemptId::new(selection).unwrap();
+        Prepared {
+            intent: original,
+            report: None,
+            ready: None,
+            pending: 0,
+            release_pending: false,
+            cleanup_attempted: false,
+            error: None,
+        }
+    };
+    media.prepared = Some(prepared("first-request", "first-selection"));
+    media
+        .retired
+        .push(prepared("second-request", "second-selection"));
+    let failure = media.shutdown().unwrap_err().to_string();
+    assert!(failure.contains("first-request"), "{failure}");
+    assert!(failure.contains("first-selection"), "{failure}");
+    assert!(!failure.contains("second-request"), "{failure}");
+    assert!(media.retired[0].intent.cancelled.load(Ordering::Acquire));
+    assert_eq!(media.shutdown().unwrap_err().to_string(), failure);
+}
+
+#[test]
 fn source_cleanup_diagnostics_classify_without_disclosing_error_text() {
     let cases = [
         (
