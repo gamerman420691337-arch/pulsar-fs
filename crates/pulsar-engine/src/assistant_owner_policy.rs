@@ -23,6 +23,9 @@ pub(crate) struct Policy {
     cpu_threads: u16,
     wall_time_ms: u64,
     worker_memory_bytes: u64,
+    /// Optional native execution limits. Absent preserves the pinned defaults.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    execution: Option<AssistantExecutionLimits>,
 }
 impl Policy {
     fn validate(&self, config: &crate::EngineConfig) -> Result<()> {
@@ -55,6 +58,7 @@ impl Policy {
             cpu_threads: self.cpu_threads,
             wall_time_ms: self.wall_time_ms,
             worker_memory_bytes: self.worker_memory_bytes,
+            execution: self.execution.clone(),
         };
         profile.validate()?;
         ensure!(
@@ -130,6 +134,7 @@ impl Policy {
                 projector,
                 self.cpu_threads,
                 self.wall_time_ms,
+                self.execution.clone(),
             )?;
         } else {
             engine.register_assistant_profile(
@@ -138,6 +143,7 @@ impl Policy {
                 self.model,
                 self.cpu_threads,
                 self.wall_time_ms,
+                self.execution.clone(),
             )?;
         }
         Ok(())
@@ -220,6 +226,8 @@ pub struct AssistantPolicySetup {
     pub cpu_threads: u16,
     pub wall_time_ms: u64,
     pub worker_memory_bytes: u64,
+    /// Optional native execution limits for the registered profile.
+    pub execution: Option<AssistantExecutionLimits>,
     pub absolute_assets: bool,
     pub approve_host_inference: bool,
 }
@@ -299,6 +307,7 @@ pub fn create_assistant_policy(
         cpu_threads: options.cpu_threads,
         wall_time_ms: options.wall_time_ms,
         worker_memory_bytes: options.worker_memory_bytes,
+        execution: options.execution.clone(),
     };
     let mut checked = policy.clone();
     checked.runtime_path = options.runtime;
@@ -715,6 +724,7 @@ mod tests {
         };
         let config = crate::EngineConfig::new(root.path().join("state"), runtime.clone());
         let mut policy = Policy {
+            execution: None,
             projector: None,
             schema_version: 1,
             approve_inference: true,
@@ -728,7 +738,9 @@ mod tests {
             wall_time_ms: 1000,
             worker_memory_bytes: 512 * 1024 * 1024,
         };
-        policy.validate(&config).expect("owned policy fixture is valid");
+        policy
+            .validate(&config)
+            .expect("owned policy fixture is valid");
         policy.approve_inference = false;
         assert!(policy.validate(&config).is_err());
         policy.approve_inference = true;
@@ -755,6 +767,7 @@ mod tests {
             byte_len: 1,
         };
         let policy = Policy {
+            execution: None,
             projector: None,
             schema_version: 2,
             approve_inference: true,
@@ -837,6 +850,7 @@ mod tests {
         let (path, _, config) = portable_fixture(root.path());
         std::fs::remove_file(&path).unwrap();
         let options = || AssistantPolicySetup {
+            execution: None,
             projector: None,
             output: path.clone(),
             runtime: root.path().join("assets/runtime"),
@@ -872,6 +886,7 @@ mod tests {
         let (path, _, config) = portable_fixture(root.path());
         std::fs::remove_file(&path).unwrap();
         let options = || AssistantPolicySetup {
+            execution: None,
             projector: None,
             output: path.clone(),
             runtime: root.path().join("assets/runtime"),
@@ -905,6 +920,7 @@ mod tests {
     }
     fn vision_options(root: &Path, output: &Path, absolute_assets: bool) -> AssistantPolicySetup {
         AssistantPolicySetup {
+            execution: None,
             output: output.to_path_buf(),
             runtime: root.join("assets/runtime"),
             model: root.join("assets/model"),

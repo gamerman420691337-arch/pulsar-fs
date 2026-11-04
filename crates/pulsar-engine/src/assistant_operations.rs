@@ -200,6 +200,7 @@ impl Engine {
         model: ArtifactIdentity,
         cpu_threads: u16,
         wall_time_ms: u64,
+        execution: Option<AssistantExecutionLimits>,
     ) -> PResult<AssistantProfile> {
         if paths.vision.is_some() {
             return Err(ProtocolError::unsupported(
@@ -215,6 +216,7 @@ impl Engine {
             cpu_threads,
             wall_time_ms,
             worker_memory_bytes: paths.worker_memory_bytes,
+            execution,
         };
         declaration.validate()?;
         if Duration::from_millis(wall_time_ms) > self.config.worker_timeout {
@@ -250,6 +252,7 @@ impl Engine {
         projector: ArtifactReference,
         cpu_threads: u16,
         wall_time_ms: u64,
+        execution: Option<AssistantExecutionLimits>,
     ) -> PResult<AssistantProfile> {
         if paths.vision.is_some() || !projector.path.is_absolute() {
             return Err(ProtocolError::invalid(
@@ -266,6 +269,7 @@ impl Engine {
             cpu_threads,
             wall_time_ms,
             worker_memory_bytes: paths.worker_memory_bytes,
+            execution,
         };
         declaration.validate()?;
         if Duration::from_millis(wall_time_ms) > self.config.worker_timeout {
@@ -572,6 +576,7 @@ impl Engine {
                 scope: scope.clone(),
                 cpu_threads: profile.declaration.cpu_threads,
                 wall_time_ms: profile.declaration.wall_time_ms,
+                execution: profile.declaration.execution.clone(),
             };
             crate::assistant_launch::validate_request(&worker_request)?;
             let report = AssistantReport {

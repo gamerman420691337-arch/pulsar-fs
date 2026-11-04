@@ -353,6 +353,7 @@ mod tests {
             ffprobe: identity("ffprobe", b"ffprobe"),
         };
         let profile = AssistantProfile {
+            execution: None,
             profile_id: AttemptId::new("vision").unwrap(),
             worker: identity("worker", b"worker"),
             runtime: identity("runtime", b"runtime"),

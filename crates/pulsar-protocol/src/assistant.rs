@@ -141,6 +141,126 @@ impl AssistantVisionInput {
     }
 }
 
+/// Largest assistant model artifact a profile may declare.
+///
+/// Raised from 2 GiB so a 7B-8B 4-bit GGUF (~4.5-5 GB) fits. This is a bound on the
+/// declaration, not a reservation: admission still has to fit the memory budget.
+pub const MAX_ASSISTANT_MODEL_BYTES: u64 = 8 * 1024 * 1024 * 1024;
+/// Largest assistant worker memory declaration. Admission bounds remain separate.
+pub const MAX_ASSISTANT_WORKER_MEMORY_BYTES: u64 = 12 * 1024 * 1024 * 1024;
+pub const MIN_ASSISTANT_CONTEXT_TOKENS: u32 = 512;
+pub const MAX_ASSISTANT_CONTEXT_TOKENS: u32 = 32_768;
+pub const MAX_ASSISTANT_OUTPUT_TOKENS: u32 = 4_096;
+pub const MAX_ASSISTANT_GPU_LAYERS: u16 = 999;
+pub const MAX_ASSISTANT_SYSTEM_CONTEXT_BYTES: usize = 64 * 1024;
+pub const MAX_ASSISTANT_USER_REQUEST_BYTES: usize = 16 * 1024;
+pub const MAX_ASSISTANT_WORKER_REQUEST_BYTES: u64 = 256 * 1024;
+
+/// Sampling declaration for one assistant profile.
+///
+/// The historical pinned behaviour is deterministic: temperature 0 and seed 42.
+/// Roleplay needs real sampling, so it is declared explicitly rather than changed
+/// underneath the evidence that was captured at temperature 0.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AssistantSampling {
+    pub temperature: f32,
+    pub top_p: f32,
+    pub min_p: f32,
+    pub repeat_penalty: f32,
+    pub seed: u32,
+}
+
+impl Default for AssistantSampling {
+    fn default() -> Self {
+        Self::deterministic()
+    }
+}
+
+impl AssistantSampling {
+    /// The behaviour every earlier checkpoint was captured under.
+    pub fn deterministic() -> Self {
+        Self {
+            temperature: 0.0,
+            top_p: 1.0,
+            min_p: 0.0,
+            repeat_penalty: 1.0,
+            seed: 42,
+        }
+    }
+
+    pub fn is_deterministic(&self) -> bool {
+        *self == Self::deterministic()
+    }
+
+    pub fn validate(&self) -> Result<(), ProtocolError> {
+        if !self.temperature.is_finite()
+            || !(0.0..=2.0).contains(&self.temperature)
+            || !self.top_p.is_finite()
+            || !(0.0..=1.0).contains(&self.top_p)
+            || !self.min_p.is_finite()
+            || !(0.0..=1.0).contains(&self.min_p)
+            || !self.repeat_penalty.is_finite()
+            || !(0.5..=2.0).contains(&self.repeat_penalty)
+        {
+            return Err(ProtocolError::invalid("assistant sampling differs"));
+        }
+        Ok(())
+    }
+}
+
+/// Explicit native execution limits for one assistant profile.
+///
+/// Absent on a profile, the historical pinned behaviour is preserved exactly:
+/// 2048 context tokens, a scope-derived output ceiling, CPU-only offload and
+/// deterministic sampling. A roleplay profile declares its own.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AssistantExecutionLimits {
+    pub context_tokens: u32,
+    /// Absent keeps the scope-derived ceiling the creative path already used.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_output_tokens: Option<u32>,
+    pub gpu_layers: u16,
+    #[serde(default)]
+    pub sampling: AssistantSampling,
+}
+
+impl AssistantExecutionLimits {
+    /// Context a roleplay conversation needs to hold a scene.
+    pub fn roleplay(context_tokens: u32, gpu_layers: u16) -> Self {
+        Self {
+            context_tokens,
+            max_output_tokens: Some(512),
+            gpu_layers,
+            sampling: AssistantSampling {
+                temperature: 0.8,
+                top_p: 0.95,
+                min_p: 0.05,
+                repeat_penalty: 1.1,
+                seed: 42,
+            },
+        }
+    }
+
+    pub fn validate(&self) -> Result<(), ProtocolError> {
+        if !(MIN_ASSISTANT_CONTEXT_TOKENS..=MAX_ASSISTANT_CONTEXT_TOKENS)
+            .contains(&self.context_tokens)
+            || self
+                .max_output_tokens
+                .is_some_and(|tokens| !(64..=MAX_ASSISTANT_OUTPUT_TOKENS).contains(&tokens))
+            || self.gpu_layers > MAX_ASSISTANT_GPU_LAYERS
+            || self
+                .max_output_tokens
+                .is_some_and(|tokens| tokens >= self.context_tokens)
+        {
+            return Err(ProtocolError::invalid("assistant execution limits differ"));
+        }
+        self.sampling.validate()?;
+        Ok(())
+    }
+}
+
 /// Private one-shot worker transport. Identity declarations authorize no effect.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -156,8 +276,9 @@ pub struct AssistantWorkerRequest {
     pub scope: AssistantProposalScope,
     pub cpu_threads: u16,
     pub wall_time_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution: Option<AssistantExecutionLimits>,
 }
-pub const MAX_ASSISTANT_WORKER_REQUEST_BYTES: u64 = 32 * 1024;
 pub const MAX_ASSISTANT_WORKER_RESPONSE_BYTES: u64 = 8 * 1024;
 impl AssistantWorkerRequest {
     pub fn validate(&self) -> Result<(), ProtocolError> {
@@ -179,11 +300,11 @@ impl AssistantWorkerRequest {
         }
         if self.version != crate::PROTOCOL_VERSION
             || self.runtime.byte_len > 128 * 1024 * 1024
-            || self.model.byte_len > 2 * 1024 * 1024 * 1024
+            || self.model.byte_len > MAX_ASSISTANT_MODEL_BYTES
             || self.system_context.is_empty()
-            || self.system_context.len() > 8192
+            || self.system_context.len() > MAX_ASSISTANT_SYSTEM_CONTEXT_BYTES
             || self.user_request.trim().is_empty()
-            || self.user_request.len() > 4096
+            || self.user_request.len() > MAX_ASSISTANT_USER_REQUEST_BYTES
             || self.system_context.contains('\0')
             || self.user_request.contains('\0')
             || !(1..=16).contains(&self.cpu_threads)
@@ -192,6 +313,9 @@ impl AssistantWorkerRequest {
             return Err(ProtocolError::invalid(
                 "assistant worker request exceeds explicit limits",
             ));
+        }
+        if let Some(execution) = &self.execution {
+            execution.validate()?;
         }
         Ok(())
     }
@@ -280,7 +404,7 @@ mod tests {
 }
 
 /// Host-registered native exception, scoped to this Engine lifetime. No paths.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AssistantProfile {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -292,6 +416,8 @@ pub struct AssistantProfile {
     pub cpu_threads: u16,
     pub wall_time_ms: u64,
     pub worker_memory_bytes: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution: Option<AssistantExecutionLimits>,
 }
 impl AssistantProfile {
     pub fn validate(&self) -> Result<(), ProtocolError> {
@@ -315,10 +441,12 @@ impl AssistantProfile {
             scope: AssistantProposalScope::default(),
             cpu_threads: self.cpu_threads,
             wall_time_ms: self.wall_time_ms,
+            execution: self.execution.clone(),
         }
         .validate()?;
         if self.worker.byte_len > 128 * 1024 * 1024
-            || !(512 * 1024 * 1024..=8 * 1024 * 1024 * 1024).contains(&self.worker_memory_bytes)
+            || !(512 * 1024 * 1024..=MAX_ASSISTANT_WORKER_MEMORY_BYTES)
+                .contains(&self.worker_memory_bytes)
         {
             return Err(ProtocolError::invalid(
                 "assistant profile exceeds native bounds",
@@ -608,6 +736,7 @@ mod authenticated_tests {
     use super::*;
     pub(super) fn profile() -> AssistantProfile {
         AssistantProfile {
+            execution: None,
             vision_projector: None,
             profile_id: crate::AttemptId::new("profile").unwrap(),
             worker: crate::ArtifactIdentity {
@@ -814,6 +943,7 @@ mod resolution_contract_tests {
                 target_focus: vec![],
                 review_focus: vec![],
                 profile: AssistantProfile {
+                    execution: None,
                     vision_projector: None,
                     profile_id: crate::AttemptId::new("profile").unwrap(),
                     worker: identity(),
@@ -1209,6 +1339,7 @@ mod vision_tests {
     }
     fn request() -> AssistantWorkerRequest {
         AssistantWorkerRequest {
+            execution: None,
             vision: Some(AssistantVisionInput {
                 projector: identity(4),
                 rgb: identity(12),
@@ -1461,5 +1592,121 @@ mod prepared_image_tests {
         let decoded: AssistantStart = serde_json::from_slice(&raw).unwrap();
         decoded.validate().unwrap();
         assert_eq!(serde_json::to_vec(&decoded).unwrap(), raw);
+    }
+}
+
+#[cfg(test)]
+mod execution_limit_tests {
+    use super::*;
+
+    fn model(bytes: u64) -> crate::ArtifactIdentity {
+        crate::ArtifactIdentity {
+            artifact_id: crate::ArtifactId::new("model").unwrap(),
+            sha256: "a".repeat(64),
+            byte_len: bytes,
+        }
+    }
+
+    fn request(
+        model_bytes: u64,
+        execution: Option<AssistantExecutionLimits>,
+    ) -> AssistantWorkerRequest {
+        AssistantWorkerRequest {
+            vision: None,
+            version: crate::PROTOCOL_VERSION,
+            attempt_id: crate::AttemptId::new("attempt").unwrap(),
+            runtime: crate::ArtifactIdentity {
+                artifact_id: crate::ArtifactId::new("runtime").unwrap(),
+                sha256: "b".repeat(64),
+                byte_len: 1024,
+            },
+            model: model(model_bytes),
+            system_context: "system".into(),
+            user_request: "user".into(),
+            scope: AssistantProposalScope::default(),
+            cpu_threads: 4,
+            wall_time_ms: 45_000,
+            execution,
+        }
+    }
+
+    #[test]
+    fn a_large_roleplay_model_artifact_is_admissible() {
+        // 6 GiB: previously rejected by the old 2 GiB ceiling.
+        request(6 * 1024 * 1024 * 1024, None)
+            .validate()
+            .expect("6 GiB model declares within the raised ceiling");
+        assert!(request(MAX_ASSISTANT_MODEL_BYTES + 1, None)
+            .validate()
+            .is_err());
+    }
+
+    #[test]
+    fn the_pinned_defaults_are_preserved_when_nothing_is_declared() {
+        let absent = request(1024, None);
+        absent.validate().unwrap();
+        assert!(absent.execution.is_none());
+        assert!(AssistantSampling::default().is_deterministic());
+    }
+
+    #[test]
+    fn a_roleplay_profile_declares_context_offload_and_sampling() {
+        let execution = AssistantExecutionLimits::roleplay(8192, 33);
+        execution.validate().unwrap();
+        assert_eq!(execution.context_tokens, 8192);
+        assert!(!execution.sampling.is_deterministic(), "roleplay samples");
+        request(6 * 1024 * 1024 * 1024, Some(execution))
+            .validate()
+            .expect("roleplay profile validates");
+    }
+
+    #[test]
+    fn context_and_output_bounds_are_enforced() {
+        let mut execution = AssistantExecutionLimits::roleplay(8192, 0);
+        execution.context_tokens = MIN_ASSISTANT_CONTEXT_TOKENS - 1;
+        assert!(execution.validate().is_err());
+
+        let mut execution = AssistantExecutionLimits::roleplay(8192, 0);
+        execution.context_tokens = MAX_ASSISTANT_CONTEXT_TOKENS + 1;
+        assert!(execution.validate().is_err());
+
+        let mut execution = AssistantExecutionLimits::roleplay(8192, 0);
+        execution.max_output_tokens = Some(8192);
+        assert!(
+            execution.validate().is_err(),
+            "output must be below the context"
+        );
+    }
+
+    #[test]
+    fn sampling_bounds_reject_nonsense() {
+        let mut sampling = AssistantSampling::deterministic();
+        sampling.temperature = f32::NAN;
+        assert!(sampling.validate().is_err());
+
+        let mut sampling = AssistantSampling::deterministic();
+        sampling.top_p = 1.5;
+        assert!(sampling.validate().is_err());
+
+        let mut sampling = AssistantSampling::deterministic();
+        sampling.repeat_penalty = 0.1;
+        assert!(sampling.validate().is_err());
+
+        let mut sampling = AssistantSampling::deterministic();
+        sampling.temperature = 0.9;
+        sampling.validate().unwrap();
+    }
+
+    #[test]
+    fn the_prompt_budgets_now_admit_a_scene_transcript() {
+        let mut wide = request(1024, None);
+        wide.system_context = "s".repeat(MAX_ASSISTANT_SYSTEM_CONTEXT_BYTES);
+        wide.user_request = "u".repeat(MAX_ASSISTANT_USER_REQUEST_BYTES);
+        wide.validate()
+            .expect("raised prompt budgets admit long history");
+
+        let mut over = request(1024, None);
+        over.system_context = "s".repeat(MAX_ASSISTANT_SYSTEM_CONTEXT_BYTES + 1);
+        assert!(over.validate().is_err());
     }
 }

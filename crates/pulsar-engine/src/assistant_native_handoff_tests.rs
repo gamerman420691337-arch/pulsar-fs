@@ -86,6 +86,7 @@ fn native_generation_assistant_handoff(cpu_only: bool) -> anyhow::Result<()> {
             model_identity,
             4,
             45000,
+            None,
         )?;
         let ResponseBody::Source { source_version } = f
             .engine
@@ -677,6 +678,7 @@ fn native_authenticated_prepared_image_start_retains_source_and_rejects_stale_pi
     crate::create_assistant_policy(
         &setup_config,
         crate::AssistantPolicySetup {
+            execution: None,
             output: policy_path.clone(),
             runtime,
             model,
