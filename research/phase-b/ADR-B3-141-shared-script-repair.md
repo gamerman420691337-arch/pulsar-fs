@@ -1,0 +1,11 @@
+# ADR B3-141: standalone script repair through shared authority
+
+Status: implemented; scoped Core/Engine/Client/native CLI checks PASS. Unqualified numerical script transformation; desktop controls and independent acceptance remain open.
+
+Fix still refuses legacy repair. Add an explicit repair import using the existing immutable source snapshot, ImportSource+Edit authorization, resource admission, candidate storage and review machinery. Ordinary import remains strict. Repair import accepts signed integer positions, clamps to 0–100, sorts stably and keeps the last input position at duplicate timestamps. Reject negative/overflow timestamps, empty/oversized input and malformed JSON. Preserve raw source identity; report sanitized intake as synthesized review, without observation or quality authority.
+
+Pure Core repair operates on one gap-free stroke track on the standard millisecond/integer-percent grid. Checked policy removes interior points when elapsed time from the last retained point is below jitter window and absolute position change is at most jitter threshold; first and last times remain. Then clamp each discrete position delta to floor(maximum-percent-per-second * elapsed milliseconds / 1000), with an additional numerical slope check. This is an average script slope policy, not peak velocity, acceleration, motor safety or useful motion. No retiming, invented support or generic gap filling.
+
+Client fix validates policy/output before project creation, explicitly imports/sanitizes an immutable candidate, computes checked values, commits the sanitized baseline, uploads an untrusted edit through the existing broker, then commits and selected-axis exports. Existing edit receipts, imported source ancestry, protected segment checks, stale revision checks and Undo/Redo remain authoritative. Default output is a new .fixed.funscript; existing destinations are refused and Engine publication remains no-clobber. Failures retain the project for inspection; no automatic replay or rollback.
+
+Verify sanitation and strict-import differences, exact independently authored repaired actions, configuration refusal before source effects, no-clobber aliases, receipt/history/source identity, native consumer and broader suites. Native rendered GUI and physical/model/media/platform/human acceptance remain independent.

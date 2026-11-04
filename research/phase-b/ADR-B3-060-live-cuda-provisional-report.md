@@ -1,0 +1,11 @@
+# ADR B3-060: Explicit provisional CUDA reports with Engine clock completion
+
+Status: Provisional reporting, native Engine clock completion and final serial regressions verified. Public GPU startup remains disabled.
+
+Represent GPU estimates with an explicit provisional variant rather than placing them in an ordinary CPU estimate. Bind the variant to the exact stream manifest. Add an optional report manifest digest, omitted for CPU serialization. Reject provider/binding mismatches and qualified claims. A Running GPU report requires its Ready binding; an unbound Starting report may represent startup that has not reached Ready. Retired reports clear latest while retaining any established metadata binding. This digest is not final original-trace evidence.
+
+Require the launched private GPU worker to match the capture runtime's opaque owner scope before marking Ready. A manifest with equal public identity/clock facts from another runtime is insufficient. Recheck fence, active lease/revision/grants, attempt, profile and worker identity. Convert the worker's current issued exchange into the provisional variant, then use the existing Engine clock completion path. Reject skipped result sequences, wrong providers/manifests, altered pixels and invalid durations before publishing. Preserve stale counters and retirement behavior.
+
+Keep CPU bytes compatible and require preceding readers to refuse new CUDA report bytes. Reproduce the preceding reader's provider-disguise validation gap without the new fields; the current reader must reject it. This is metadata validation evidence, not a historical enabled GPU launch or physical effect.
+
+Native verification uses actual private Engine startup and authenticated RGB/status interfaces with a test-inserted registry entry. Its frame capture ticks share the Engine origin, and Engine completion computes freshness. Retain one other worker reservation throughout. Separately verify consuming Finish and original trace, then Stop/cleanup. Do not equate this fixture with automatic public GPU capture admission, durable final evidence persistence, sustained live acquisition or qualified latency. See [implementation and evidence](../../docs/PULSAR_LIVE_CUDA_PROVISIONAL_REPORT.md). All independent model/media/device/platform/human release gates remain open.

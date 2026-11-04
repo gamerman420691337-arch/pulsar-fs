@@ -2,7 +2,7 @@
 //! original sessions, permissions, jobs, or attempts as local authority.
 use crate::{
     CandidateId, ErrorCode, PackageArtifactDescriptor, PackageObjectDescriptor, PackageObjectRef,
-    PortableProjectManifest, ProtocolError, RevisionId, SourceVersionId,
+    PortableProjectManifest, ProtocolError, RevisionId, SourcePlacementId, SourceVersionId,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -32,6 +32,13 @@ pub struct PackageSourceOrigin {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct PackagePlacementOrigin {
+    pub local: SourcePlacementId,
+    pub origin: SourcePlacementId,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PackageActorOrigin {
     pub local: String,
     pub origin: String,
@@ -50,6 +57,8 @@ pub struct PackageArchiveOrigin {
     pub candidates: Vec<PackageCandidateOrigin>,
     pub sources: Vec<PackageSourceOrigin>,
     pub actors: Vec<PackageActorOrigin>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub placements: Vec<PackagePlacementOrigin>,
 }
 impl PackageArchiveOrigin {
     /// Catalog and mapping entries are charged even when another namespace
@@ -61,6 +70,7 @@ impl PackageArchiveOrigin {
             self.candidates.len(),
             self.sources.len(),
             self.actors.len(),
+            self.placements.len(),
         ]
         .into_iter()
         .try_fold(0usize, |sum, count| sum.checked_add(count))
@@ -130,6 +140,11 @@ pub fn validate_imported_origin_shapes(
         .iter()
         .map(|revision| revision.actor.as_str())
         .collect();
+    let placements: BTreeSet<_> = manifest
+        .placements
+        .iter()
+        .flat_map(|p| p.definitions.iter().map(|d| &d.placement_id))
+        .collect();
     let mut entries = 0usize;
     let mut bytes = 0u64;
     for origin in &manifest.imported_origins {
@@ -161,6 +176,7 @@ pub fn validate_imported_origin_shapes(
             || !sorted(origin.candidates.iter().map(|map| map.local.as_str()))
             || !sorted(origin.sources.iter().map(|map| map.local.as_str()))
             || !sorted(origin.actors.iter().map(|map| map.local.as_str()))
+            || !sorted(origin.placements.iter().map(|map| &map.local))
         {
             return Err(invalid(
                 "origin catalogs and local mapping keys must be unique and ordered",
@@ -181,6 +197,10 @@ pub fn validate_imported_origin_shapes(
                 .sources
                 .iter()
                 .any(|map| !sources.contains(map.local.as_str()))
+            || origin
+                .placements
+                .iter()
+                .any(|map| !placements.contains(&map.local))
             || origin.actors.iter().any(|map| {
                 !actors.contains(map.local.as_str()) || !actor(&map.local) || !actor(&map.origin)
             })
@@ -191,4 +211,145 @@ pub fn validate_imported_origin_shapes(
         }
     }
     Ok(())
+}
+
+/// Checked historical generation facts, never a live job or publication grant.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ArchivedGenerationOrigin {
+    pub origin_manifest: PackageObjectRef,
+    pub project_id: crate::ProjectId,
+    pub candidate_id: CandidateId,
+    pub job_id: crate::JobId,
+    pub attempt_id: crate::AttemptId,
+    pub source_version: SourceVersionId,
+    pub source_identity: crate::ArtifactIdentity,
+    pub program: crate::ArtifactIdentity,
+    pub worker_manifest: PackageObjectRef,
+    pub worker_receipt: crate::ArtifactIdentity,
+    pub preset: String,
+    pub settings: crate::GenerationSettings,
+    pub clock: Option<ArchivedGenerationClock>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ArchivedGenerationClock {
+    pub receipt: crate::ArtifactIdentity,
+    pub sample_count: u64,
+    pub source_origin: crate::SourceTimestamp,
+    pub project_trim: crate::TimeRange,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ArchivedGenerationReport {
+    pub project_id: crate::ProjectId,
+    pub candidate_id: CandidateId,
+    pub origins: Vec<ArchivedGenerationOrigin>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub master_derivation: Option<ArchivedMasterDerivation>,
+    pub archival: bool,
+    pub active_job: bool,
+    pub publication_authority: bool,
+    pub release_qualified: bool,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ArchivedMasterDerivation {
+    pub revision: RevisionId,
+    pub master: crate::ArtifactIdentity,
+    pub source_version: SourceVersionId,
+    pub anchor_candidate: CandidateId,
+    pub retiming_revisions: Vec<RevisionId>,
+    pub publication_authority: bool,
+}
+impl ArchivedGenerationReport {
+    pub fn validate(&self) -> Result<(), ProtocolError> {
+        if !self.archival
+            || self.active_job
+            || self.publication_authority
+            || self.release_qualified
+            || self.origins.is_empty()
+            || self.origins.len() > 16
+        {
+            return Err(ProtocolError::invalid(
+                "archived generation facts cannot assert live or publication authority",
+            ));
+        }
+        let mut previous = None;
+        for origin in &self.origins {
+            origin.origin_manifest.validate()?;
+            origin.worker_manifest.validate()?;
+            origin.source_identity.validate()?;
+            origin.program.validate()?;
+            origin.worker_receipt.validate()?;
+            origin.settings.validate()?;
+            if previous.is_some_and(|key: (&str, &str)| {
+                key >= (
+                    origin.origin_manifest.sha256.as_str(),
+                    origin.candidate_id.as_str(),
+                )
+            }) {
+                return Err(ProtocolError::invalid(
+                    "archived generation origins must be unique and sorted",
+                ));
+            }
+            previous = Some((
+                origin.origin_manifest.sha256.as_str(),
+                origin.candidate_id.as_str(),
+            ));
+            if origin.source_version.as_str() != origin.source_identity.sha256
+                || origin.worker_receipt.artifact_id.as_str() != origin.worker_receipt.sha256
+                || origin.program.artifact_id.as_str()
+                    != format!("motion.{}", origin.program.sha256)
+            {
+                return Err(ProtocolError::invalid(
+                    "archived generation artifact correspondence",
+                ));
+            }
+            match (&origin.settings.source_placement, &origin.clock) {
+                (None, None) => {}
+                (Some(_), Some(clock))
+                    if clock.receipt == origin.worker_receipt
+                        && clock.sample_count > 0
+                        && clock.sample_count <= 1_000_000 => {}
+                _ => {
+                    return Err(ProtocolError::invalid(
+                        "archived generation clock declaration differs from checked receipt",
+                    ))
+                }
+            }
+        }
+        if let Some(master) = &self.master_derivation {
+            master.master.validate()?;
+            if master.publication_authority
+                || master.anchor_candidate != self.candidate_id
+                || self
+                    .origins
+                    .iter()
+                    .any(|o| o.source_version != master.source_version)
+                || master.master.artifact_id.as_str() != format!("motion.{}", master.master.sha256)
+                || master.retiming_revisions.len() > 128
+                || master
+                    .retiming_revisions
+                    .iter()
+                    .any(|r| *r > master.revision)
+                || master.retiming_revisions.windows(2).any(|r| r[0] >= r[1])
+            {
+                return Err(ProtocolError::invalid(
+                    "archived master derivation correspondence",
+                ));
+            }
+        }
+        if serde_json::to_vec(self)
+            .map_err(|_| ProtocolError::invalid("archived generation encoding"))?
+            .len()
+            > 768 * 1024
+        {
+            return Err(ProtocolError::new(
+                ErrorCode::ResourceExhausted,
+                "archived generation report exceeds bounded control response",
+            ));
+        }
+        Ok(())
+    }
 }

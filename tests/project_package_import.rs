@@ -76,6 +76,7 @@ fn rejected<T>(result: Result<T>, allowed: &[ErrorCode]) -> Result<()> {
 struct Fixture {
     root: PathBuf,
     state: PathBuf,
+    binary: PathBuf,
     child: Option<Child>,
     completed: bool,
     always_cleanup: bool,
@@ -83,6 +84,9 @@ struct Fixture {
 }
 impl Fixture {
     fn new() -> Result<Self> {
+        Self::with_binary(Path::new(env!("CARGO_BIN_EXE_pulsar")))
+    }
+    fn with_binary(binary: &Path) -> Result<Self> {
         let nonce = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
         let root = std::env::temp_dir().join(format!(
             "pulsar-package-import-{}-{nonce}",
@@ -92,6 +96,7 @@ impl Fixture {
         fs::set_permissions(&root, fs::Permissions::from_mode(0o700))?;
         let mut fixture = Self {
             state: root.join("state"),
+            binary: binary.to_owned(),
             root,
             child: None,
             completed: false,
@@ -110,7 +115,7 @@ impl Fixture {
             .append(true)
             .open(self.root.join("engine.stderr"))?;
         self.child = Some(
-            ProcessCommand::new(env!("CARGO_BIN_EXE_pulsar"))
+            ProcessCommand::new(&self.binary)
                 .arg("engine")
                 .env("PULSAR_STATE_DIR", &self.state)
                 .stdin(Stdio::null())
@@ -235,28 +240,6 @@ impl Actor {
             .with_session(self.session.clone())
             .with_auth_token(self.auth_token.clone())
     }
-    fn request(
-        &self,
-        command: Command,
-        project: &ProjectId,
-        revision: Option<RevisionId>,
-    ) -> Request {
-        let mut request = Request::new(request_id(), command)
-            .with_session(self.session.clone())
-            .with_auth_token(self.auth_token.clone());
-        request.project = Some(project.clone());
-        request.expected_revision = revision;
-        request
-    }
-    fn call(
-        &self,
-        f: &Fixture,
-        command: Command,
-        project: &ProjectId,
-        revision: Option<RevisionId>,
-    ) -> Result<ResponseBody> {
-        f.call(&self.request(command, project, revision))
-    }
     fn client(&self, f: &Fixture) -> Result<SessionClient> {
         SessionClient::from_credentials(
             &f.endpoint(),
@@ -264,23 +247,11 @@ impl Actor {
             self.auth_token.clone(),
         )
     }
-    fn handshake(&self, lease: &PackageDownloadLease) -> PackageBulkHandshake {
-        PackageBulkHandshake {
-            version: PROTOCOL_VERSION,
-            channel: PackageBulkChannel::ProjectPackageDownload,
-            session: self.session.clone(),
-            auth_token: self.auth_token.clone(),
-            lease_id: lease.lease_id.clone(),
-            engine_epoch: lease.engine_epoch.clone(),
-            operation_id: lease.operation_id.clone(),
-            artifact_sha256: lease.artifact.sha256.clone(),
-        }
-    }
 }
 
 fn client_project(response: ClientResponse) -> Result<pulsar_clients::ProjectSnapshot> {
     match response {
-        ClientResponse::Project(project) => Ok(project),
+        ClientResponse::Project(project) => Ok(*project),
         _ => bail!("expected hydrated project"),
     }
 }
@@ -334,6 +305,30 @@ fn protected() -> Vec<ProtectedRegion> {
     }]
 }
 
+// Exact finite fixture oracle, independent of the footprint/union implementation.
+fn fixture_protection(revision: u64) -> Result<Vec<ProtectedRegion>> {
+    let region = |axis, start, end| -> Result<ProtectedRegion> {
+        Ok(ProtectedRegion {
+            axis: Some(axis),
+            range: TimeRange::new(ProjectTime::from_nanos(start), ProjectTime::from_nanos(end))?,
+        })
+    };
+    Ok(match revision {
+        0 | 1 => vec![],
+        2 | 4 => vec![region(Axis::Sway, 0, 300_000_001)?],
+        3 | 5 => vec![
+            region(Axis::Stroke, 200_000_001, 300_000_001)?,
+            region(Axis::Sway, 0, 300_000_001)?,
+        ],
+        6 => protected(),
+        7 => vec![
+            protected()[0].clone(),
+            region(Axis::Sway, 200_000_001, 300_000_001)?,
+        ],
+        _ => bail!("unknown fixture protection revision"),
+    })
+}
+
 const PROJECT_NAME: &str = "P1c independent import";
 const IMPORT_BYTES: &[u8] = br#"{"version":"1.0","actions":[{"at":0,"pos":35},{"at":100,"pos":45},{"at":200,"pos":40},{"at":300,"pos":50}]}"#;
 const FOREIGN_MARKER: &str = "OTHER_PROJECT_MUST_NOT_LEAK_P1C_6c1182";
@@ -380,7 +375,7 @@ fn commit(
 }
 fn candidate_response(response: ClientResponse) -> Result<pulsar_clients::CandidateSnapshot> {
     match response {
-        ClientResponse::Candidate(candidate) => Ok(candidate),
+        ClientResponse::Candidate(candidate) => Ok(*candidate),
         _ => bail!("expected candidate"),
     }
 }
@@ -698,7 +693,7 @@ fn inspect_bundle(path: &Path, artifact: &PackageArtifactDescriptor) -> Result<C
     file.read_exact(&mut header)?;
     ensure!(&header[..8] == b"PULSPKG\0", "wrong literal package magic");
     ensure!(
-        matches!(u16::from_le_bytes(header[8..10].try_into()?), 1 | 2)
+        matches!(u16::from_le_bytes(header[8..10].try_into()?), 1..=4)
             && u16::from_le_bytes(header[8..10].try_into()?) == artifact.format_version
             && u16::from_le_bytes(header[10..12].try_into()?) == 0,
         "unknown format/flags"
@@ -826,7 +821,7 @@ fn check_import_graph(
         "project/history head changed"
     );
     ensure!(
-        m["head"]["protected"] == serde_json::to_value(protected())?,
+        m["head"]["protected"] == serde_json::to_value(fixture_protection(head)?)?,
         "protection changed"
     );
     let revisions = m["revisions"].as_array().context("revision list missing")?;
@@ -850,13 +845,10 @@ fn check_import_graph(
             _ => bail!("unexpected revision"),
         };
         check_motion(checked_object(bundle, &row["motion"])?, shape)?;
+        let expected_protected = fixture_protection(n)?;
         ensure!(
-            row["protected"]
-                .as_array()
-                .context("historical protection missing")?
-                .len()
-                == usize::from(n >= 6),
-            "historical protection changed"
+            row["protected"] == serde_json::to_value(expected_protected)?,
+            "historical protection changed at revision {n}"
         );
     }
     let history = m["edit_states"].as_array().context("history missing")?;
@@ -902,11 +894,8 @@ fn check_import_graph(
             _ => bail!("unexpected retained history position"),
         };
         check_motion(checked_object(bundle, &row["motion"])?, shape)?;
-        let expected_protected = if position >= 4 {
-            protected()
-        } else {
-            Vec::new()
-        };
+        let source_revision = [0, 1, 2, 5, 6, 7][position as usize];
+        let expected_protected = fixture_protection(source_revision)?;
         ensure!(
             row["protected"] == serde_json::to_value(expected_protected)?,
             "retained history protection changed at position {position}"
@@ -1069,7 +1058,7 @@ fn import_status(response: ResponseBody) -> Result<PackageImportStatus> {
     match response {
         ResponseBody::PackageImport(status) => {
             status.validate()?;
-            Ok(status)
+            Ok(*status)
         }
         _ => bail!("expected import operation"),
     }
@@ -1086,7 +1075,7 @@ fn upload_lease(response: ResponseBody) -> Result<PackageUploadLease> {
 fn declaration(bytes: &[u8]) -> PackageUploadDeclaration {
     PackageUploadDeclaration {
         format_version: if bytes.len() >= 10
-            && matches!(u16::from_le_bytes([bytes[8], bytes[9]]), 1 | 2)
+            && matches!(u16::from_le_bytes([bytes[8], bytes[9]]), 1..=3)
         {
             u16::from_le_bytes([bytes[8], bytes[9]])
         } else {
@@ -1445,7 +1434,10 @@ fn import_diagnostics(
     project: &ProjectId,
 ) -> Result<DiagnosticsReport> {
     match client.execute(
-        Command::Diagnostics { candidate_id: None },
+        Command::Diagnostics {
+            candidate_id: None,
+            maximum_speed_percent_per_second: None,
+        },
         Some(project.clone()),
         None,
     )? {
@@ -1471,6 +1463,447 @@ fn assert_import_trust(client: &mut SessionClient, project: &ProjectId) -> Resul
     );
     Ok(())
 }
+#[test]
+#[ignore = "requires an explicitly pinned historical schema-2 executable"]
+fn historical_reader_refuses_placement_package_before_project_publication() -> Result<()> {
+    let binary = PathBuf::from(
+        std::env::var("PULSAR_SCHEMA2_TEST_BINARY").context("missing pinned reader")?,
+    );
+    ensure!(
+        digest_file(&binary)? == "3a6c98fb06fcfef47908a2de6b91a7cfb29608b23d4c5034e000777cf97a5b00",
+        "historical reader differs from its retained validation subject"
+    );
+    let mut f = Fixture::new()?;
+    let owner = f.pair("placement-package-source")?;
+    let mut client = owner.client(&f)?;
+    let source = build_archive(&f, &mut client)?;
+    let project = source.expected.project;
+    let spec = SourcePlacementSpec {
+        source_version: source.expected.media,
+        source_start: SourceTimestamp::new(0, 1)?,
+        source_end: SourceTimestamp::new(2, 1)?,
+        source_anchor: SourceTimestamp::new(0, 1)?,
+        project_anchor: ProjectTime::from_nanos(0),
+        rate_numerator: 1,
+        rate_denominator: 1,
+    };
+    let placed = client_project(client.execute(
+        Command::SetSourcePlacement {
+            spec,
+            replace: None,
+        },
+        Some(project.clone()),
+        Some(RevisionId::new(6)),
+    )?)?;
+    let (_, _, path) = reexport(
+        &f,
+        &mut client,
+        &project,
+        placed.revision.value(),
+        "historical-refusal",
+    )?;
+    let mut old = Fixture::with_binary(&binary)?;
+    let actor = old.pair("historical-importer")?;
+    let mut reader = actor.client(&old)?;
+    let before = project_catalog(&old)?;
+    let prepared = PreparedPackageImport::open(&path, &PackageImportControl::default())?;
+    rejected(
+        reader.start_project_import(&prepared, request_id()),
+        &[ErrorCode::Unsupported],
+    )?;
+    ensure!(
+        project_catalog(&old)? == before,
+        "unsupported version published a partial project"
+    );
+    old.completed = true;
+    f.completed = true;
+    Ok(())
+}
+
+#[test]
+fn project_package_placements_survive_clone_history_restart_and_second_export() -> Result<()> {
+    let mut f = Fixture::new()?;
+    let owner = f.pair("placement-origin")?;
+    let mut client = owner.client(&f)?;
+    let source = build_archive(&f, &mut client)?;
+    let project = &source.expected.project;
+    let before = current(&mut client, project)?;
+    let mut spec = SourcePlacementSpec {
+        source_version: source.expected.media.clone(),
+        source_start: SourceTimestamp::new(0, 1)?,
+        source_end: SourceTimestamp::new(2, 1)?,
+        source_anchor: SourceTimestamp::new(1, 2)?,
+        project_anchor: ProjectTime::from_nanos(-123),
+        rate_numerator: 2,
+        rate_denominator: 13,
+    };
+    let placed = client_project(client.execute(
+        Command::SetSourcePlacement {
+            spec: spec.clone(),
+            replace: None,
+        },
+        Some(project.clone()),
+        Some(before.revision),
+    )?)?;
+    let old = placed.placements[0].placement_id.clone();
+    spec.rate_numerator = -2;
+    let replaced = client_project(client.execute(
+        Command::SetSourcePlacement {
+            spec,
+            replace: Some(old.clone()),
+        },
+        Some(project.clone()),
+        Some(placed.revision),
+    )?)?;
+    let new = replaced.placements[0].placement_id.clone();
+    let undone = client_project(client.execute(
+        Command::Undo,
+        Some(project.clone()),
+        Some(replaced.revision),
+    )?)?;
+    ensure!(
+        undone.placements == placed.placements && undone.program == before.program,
+        "source alignment rewrote motion or undo failed"
+    );
+    let (artifact, bundle, path) = reexport(
+        &f,
+        &mut client,
+        project,
+        undone.revision.value(),
+        "placed-original",
+    )?;
+    ensure!(
+        artifact.format_version == 3,
+        "placement capture did not advertise its version"
+    );
+    let exported: PortableProjectManifest = serde_json::from_value(bundle.manifest.clone())?;
+    exported.validate()?;
+    let closure = exported
+        .placements
+        .as_ref()
+        .context("missing placement closure")?;
+    ensure!(
+        closure.definitions.len() == 2 && closure.active == vec![old.clone()],
+        "removed/replaced placement history was dropped"
+    );
+    let importer = f.pair("placement-clone")?;
+    let completed = shared_import(&f, &importer, &path)?;
+    let clone = complete_receipt(&completed)?.project_id.clone();
+    let mut local = importer.client(&f)?;
+    let snapshot = current(&mut local, &clone)?;
+    ensure!(
+        snapshot.program == before.program
+            && snapshot.revision == undone.revision
+            && snapshot.placements.len() == 1,
+        "clone lost neutral motion or placement membership"
+    );
+    let local_old = snapshot.placements[0].placement_id.clone();
+    ensure!(
+        local_old != old
+            && local_old != new
+            && snapshot.placements[0].spec == placed.placements[0].spec,
+        "clone did not assign a fresh identity preserving alignment"
+    );
+    let redone = client_project(local.execute(
+        Command::Redo,
+        Some(clone.clone()),
+        Some(snapshot.revision),
+    )?)?;
+    ensure!(
+        redone.placements[0].placement_id != new
+            && redone.placements[0].placement_id != local_old
+            && redone.placements[0].spec == replaced.placements[0].spec,
+        "clone redo lost the inactive immutable definition"
+    );
+    let restored = client_project(local.execute(
+        Command::Undo,
+        Some(clone.clone()),
+        Some(redone.revision),
+    )?)?;
+    f.stop()?;
+    f.start()?;
+    local = importer.client(&f)?;
+    let reopened = current(&mut local, &clone)?;
+    ensure!(
+        reopened.placements == restored.placements && reopened.program == before.program,
+        "restart lost placement membership or motion"
+    );
+    let removed = client_project(local.execute(
+        Command::RemoveSourcePlacement {
+            placement_id: local_old,
+        },
+        Some(clone.clone()),
+        Some(reopened.revision),
+    )?)?;
+    ensure!(
+        removed.placements.is_empty(),
+        "remove did not clear active placement"
+    );
+    let (_, second_bundle, second_path) = reexport(
+        &f,
+        &mut local,
+        &clone,
+        removed.revision.value(),
+        "placed-clone",
+    )?;
+    let second_manifest: PortableProjectManifest = serde_json::from_value(second_bundle.manifest)?;
+    ensure!(
+        second_manifest
+            .placements
+            .as_ref()
+            .context("removed placement closure missing")?
+            .definitions
+            .len()
+            == 2,
+        "inactive history was omitted from re-export"
+    );
+    let second_importer = f.pair("placement-second-clone")?;
+    let second = shared_import(&f, &second_importer, &second_path)?;
+    let second_project = complete_receipt(&second)?.project_id.clone();
+    let mut second_client = second_importer.client(&f)?;
+    let second_snapshot = current(&mut second_client, &second_project)?;
+    ensure!(
+        second_snapshot.placements.is_empty() && second_snapshot.program == before.program,
+        "second clone changed captured state"
+    );
+    let second_undo = client_project(second_client.execute(
+        Command::Undo,
+        Some(second_project.clone()),
+        Some(second_snapshot.revision),
+    )?)?;
+    ensure!(
+        second_undo.placements.len() == 1
+            && second_undo.placements[0].spec == placed.placements[0].spec
+            && second_undo.program == before.program,
+        "second clone cannot restore placement history"
+    );
+    reexport(
+        &f,
+        &mut second_client,
+        &second_project,
+        second_undo.revision.value(),
+        "placed-second-clone",
+    )?;
+    f.completed = true;
+    Ok(())
+}
+
+#[test]
+fn review_decisions_survive_native_history_clone_and_reexport_as_archival_declarations(
+) -> Result<()> {
+    let mut f = Fixture::new()?;
+    let owner = f.pair("review-origin")?;
+    let mut client = owner.client(&f)?;
+    let source = build_archive(&f, &mut client)?;
+    let project = source.expected.project.clone();
+    let before = current(&mut client, &project)?;
+    let ClientResponse::ReviewStatus(status) =
+        client.execute(Command::ReviewStatus, Some(project.clone()), None)?
+    else {
+        bail!("review status missing")
+    };
+    let entry = status
+        .entries
+        .first()
+        .context("fixture must retain a review warning")?
+        .clone();
+    let intent = Command::SetReviewDisposition {
+        review_id: entry.review_id.clone(),
+        disposition: ReviewDisposition::Resolved,
+        note: "Synthetic QA declaration; interval reviewed".into(),
+    };
+    let decision_id = request_id();
+    let resolved = client_project(client.execute_identified(
+        decision_id.clone(),
+        intent.clone(),
+        Some(project.clone()),
+        Some(before.revision),
+    )?)?;
+    ensure!(resolved.program == before.program, "review changed motion");
+    let undone = client_project(client.execute(
+        Command::Undo,
+        Some(project.clone()),
+        Some(resolved.revision),
+    )?)?;
+    let ClientResponse::ReviewStatus(open) =
+        client.execute(Command::ReviewStatus, Some(project.clone()), None)?
+    else {
+        bail!("review status missing")
+    };
+    ensure!(
+        open.entries.iter().all(|e| e.decision.is_none()),
+        "undo did not reopen review"
+    );
+    let redone = client_project(client.execute(
+        Command::Redo,
+        Some(project.clone()),
+        Some(undone.revision),
+    )?)?;
+    let ClientResponse::ReviewStatus(closed) =
+        client.execute(Command::ReviewStatus, Some(project.clone()), None)?
+    else {
+        bail!("review status missing")
+    };
+    ensure!(
+        closed.entries.iter().any(|e| e.review_id == entry.review_id
+            && e.decision
+                .as_ref()
+                .is_some_and(|d| d.disposition == ReviewDisposition::Resolved)),
+        "redo lost decision"
+    );
+    f.restart()?;
+    client = owner.client(&f)?;
+    let replay = client_project(client.execute_identified(
+        decision_id,
+        intent,
+        Some(project.clone()),
+        Some(before.revision),
+    )?)?;
+    ensure!(
+        replay.revision == resolved.revision
+            && current(&mut client, &project)?.revision == redone.revision,
+        "review replay created another revision"
+    );
+    let (artifact, bundle, path) = reexport(
+        &f,
+        &mut client,
+        &project,
+        redone.revision.value(),
+        "review-origin",
+    )?;
+    ensure!(
+        artifact.format_version == 4,
+        "review archive must declare format 4"
+    );
+    let manifest: PortableProjectManifest = serde_json::from_value(bundle.manifest)?;
+    let original = manifest
+        .revision_lineage
+        .iter()
+        .find(|r| r.revision == resolved.revision)
+        .context("review revision missing")?;
+    ensure!(original.review.decisions.len()==1 && original.review.flags.iter().any(|flag|review_identity(flag).ok().as_deref()==Some(entry.review_id.as_str())),"archive dropped original warning or decision");
+    if let Some(reader) = std::env::var_os("PULSAR_SCHEMA4_TEST_BINARY") {
+        let reader = PathBuf::from(reader);
+        ensure!(
+            digest_file(&reader)?
+                == "2cad2b212a0a003717946be79b8f6fcbe31923bf04ffe5e3b7317764bb3ea1a4",
+            "schema-4 reader differs from retained checkpoint"
+        );
+        f.stop()?;
+        let error_path = f.root.join("schema4-refusal.stderr");
+        let mut child = ProcessCommand::new(&reader)
+            .arg("engine")
+            .env("PULSAR_STATE_DIR", &f.state)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(File::create(&error_path)?)
+            .spawn()?;
+        let deadline = Instant::now() + Duration::from_secs(15);
+        let status = loop {
+            if let Some(status) = child.try_wait()? {
+                break status;
+            }
+            if Instant::now() >= deadline {
+                child.kill()?;
+                child.wait()?;
+                bail!("historical schema-4 reader failed to terminate");
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        ensure!(
+            !status.success()
+                && fs::read_to_string(error_path)?
+                    .contains("schema requires an explicit recoverable migration"),
+            "schema-4 reader accepted the review database"
+        );
+        f.start()?;
+        client = owner.client(&f)?;
+        let ClientResponse::ReviewStatus(retained) =
+            client.execute(Command::ReviewStatus, Some(project.clone()), None)?
+        else {
+            bail!("review status missing after reader refusal")
+        };
+        ensure!(
+            retained
+                .entries
+                .iter()
+                .any(|e| e.review_id == entry.review_id
+                    && e.decision
+                        .as_ref()
+                        .is_some_and(|d| d.disposition == ReviewDisposition::Resolved)),
+            "historical reader lost decision"
+        );
+        let mut old = Fixture::with_binary(&reader)?;
+        let actor = old.pair("historical-review-importer")?;
+        let mut historical = actor.client(&old)?;
+        let catalog = project_catalog(&old)?;
+        let prepared = PreparedPackageImport::open(&path, &PackageImportControl::default())?;
+        rejected(
+            historical.start_project_import(&prepared, request_id()),
+            &[ErrorCode::Unsupported],
+        )?;
+        ensure!(
+            project_catalog(&old)? == catalog,
+            "old reader published unsupported review archive"
+        );
+        old.completed = true;
+    }
+    let importer = f.pair("review-clone")?;
+    let complete = shared_import(&f, &importer, &path)?;
+    let clone = complete_receipt(&complete)?.project_id.clone();
+    let mut local = importer.client(&f)?;
+    let ClientResponse::ReviewStatus(imported) =
+        local.execute(Command::ReviewStatus, Some(clone.clone()), None)?
+    else {
+        bail!("review status missing")
+    };
+    ensure!(
+        imported.unknown && imported.entries.iter().all(|e| e.decision.is_none()),
+        "archival declarations became local review authority"
+    );
+    let (_, clone_bundle, clone_path) = reexport(
+        &f,
+        &mut local,
+        &clone,
+        imported.revision.value(),
+        "review-clone",
+    )?;
+    let cloned: PortableProjectManifest = serde_json::from_value(clone_bundle.manifest)?;
+    let archival = cloned
+        .revision_lineage
+        .iter()
+        .find(|r| r.revision == resolved.revision)
+        .context("archival decision missing")?;
+    ensure!(
+        archival.review.decisions.len() == 1
+            && archival.review.decisions[0].actor != original.review.decisions[0].actor
+            && archival.review.decisions[0].note == original.review.decisions[0].note,
+        "clone did not preserve archival actor mapping and rationale"
+    );
+    let second = f.pair("review-second-clone")?;
+    let complete = shared_import(&f, &second, &clone_path)?;
+    let second_project = complete_receipt(&complete)?.project_id.clone();
+    let mut second_client = second.client(&f)?;
+    let ClientResponse::ReviewStatus(second_status) =
+        second_client.execute(Command::ReviewStatus, Some(second_project.clone()), None)?
+    else {
+        bail!("review status missing")
+    };
+    ensure!(
+        second_status.unknown && second_status.entries.iter().all(|e| e.decision.is_none()),
+        "transitive clone invented acceptance"
+    );
+    reexport(
+        &f,
+        &mut second_client,
+        &second_project,
+        second_status.revision.value(),
+        "review-second-clone",
+    )?;
+    f.completed = true;
+    Ok(())
+}
+
 #[test]
 fn project_package_import_clones_exact_closure_with_fresh_authority_and_ids() -> Result<()> {
     let mut f = Fixture::new()?;
@@ -1600,10 +2033,8 @@ fn project_package_import_reopens_inert_history_and_native_edit_boundaries() -> 
     );
     check_motion_program(&undo.program, 2)?;
     ensure!(
-        import_diagnostics(&mut client, &project)?
-            .protected_regions
-            .is_empty(),
-        "Undo did not restore pre-protection state"
+        import_diagnostics(&mut client, &project)?.protected_regions == fixture_protection(5)?,
+        "Undo did not restore the authored protection preceding the explicit policy"
     );
     let redo = client_project(client.execute(
         Command::Redo,
@@ -2164,7 +2595,7 @@ mod qualification {
 
     fn indexed_source(path: &Path, length: u64) -> Result<String> {
         ensure!(
-            length % BLOCK as u64 == 0,
+            length.is_multiple_of(BLOCK as u64),
             "indexed sparse fixture requires whole blocks"
         );
         let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;

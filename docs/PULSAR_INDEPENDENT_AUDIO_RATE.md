@@ -1,0 +1,19 @@
+# Declared independent audio clock rates
+
+Pulsar now accepts an optional exact positive rational rate in independent-audio alignment. The worker maps original source time as `audio_anchor + rate * (video_time - video_anchor)` before subtracting the original decoded audio origin and selecting the containing 10 ms RMS window. Missing rates retain unit-rate behavior and the old JSON representation. Invalid rates and unknown rate fields refuse typed decoding. Overflow refuses; no floating-point timestamp conversion is introduced.
+
+The desktop offers integer text fields for audio seconds per video second, parsed directly into the same checked contract. This preserves values above floating-point integer precision. CLI files and project APIs use the same declaration; historical worker manifests and receipt settings retain it. Existing audio continuity validation, immutable source identities, confinement, faithful visual precedence, action times and explicit unsupported-support gaps remain in place. See the [interface and examples](PULSAR_INDEPENDENT_AUDIO_ALIGNMENT.md).
+
+## Verification
+
+The [source-bound checkpoint](evidence/roadmap-2026-10-09/independent-audio-rate/checkpoint.json) records eight changed source paths and 409 unchanged among 417 records. The preceding contract rejects an explicit rate with `unknown field rate`; the identical mapping assertion passes against current protocol code. Protocol coverage checks signed anchors, one-part-per-million correspondence over one hour, cross-cancellation, overflow, invalid rates, unknown fields and legacy serialization.
+
+Current direct source compilations and suites pass 99 protocol tests, 631 default Engine tests (55 ignored), 633 CUDA Engine tests (69 ignored) and 137 client tests (three ignored). Fresh protocol libraries use matching cached dependency feature variants; tests are not claimed as Cargo workspace execution. The offline locked CUDA release build passes, with existing Engine warnings. The seven runtime bundle files are independently rehashed. Structural gates pass 289 architecture checks and 36 source guards. Initial missed initializers and harness dependency/environment errors remain in their original transcripts; corrected final gates pass.
+
+Two authored campaigns use the final release executable through ordinary CLI/Engine generation, gap refusal, invalid-rate refusal before attempts, captured supplier removal, restart, package export, clone/re-export and second clone. Rates are the legacy implicit one and explicit one-half. Every portable object hash and the exact retained original alignment are verified. An independent Python Fraction oracle checks all 48 sample clocks, containing windows and unchanged project times across six mixed-audio receipts. Worker fixtures separately cover faster and slower clocks while faithful visual motion stays identical. No real media, fitting, sterile evaluation, installed Stash or physical playback occurs.
+
+The desktop controls compile and their integer parsing/selection tests pass; rendered interaction has not been exercised. These campaigns do not invoke CUDA inference or establish model quality, latency or platform/device qualification. All owned Engines have empty final worker custody and no visible process holds the scratch tree.
+
+## Remaining scope
+
+This supports producer-declared constant drift. It does not measure synchronization, estimate offset/rate, infer nonlinear correspondence, repair discontinuous audio timestamps or supply semantic audio interpretation. GB-04 and the full roadmap remain partial. Real-media comparison, model quality, installed Stash and mixed-clock publication, cold/sustained performance, six-axis/live work, assistant/plugins, offline platform coverage, physical Handy and human/release acceptance remain open.

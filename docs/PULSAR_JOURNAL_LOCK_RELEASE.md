@@ -1,0 +1,22 @@
+# Private journal lock release
+
+Private client journals now explicitly release transaction locks before successful return and attempt release on early refusal or unwinding. The lock stays held through the original callback and synced atomic replacement. This fixes the reproduced case where a child retaining a duplicate lock descriptor causes a later read to receive `Recovery journal is busy; no mutation was dispatched` after the writer has returned.
+
+Linux locks belong to open-file descriptions and can survive a caller's descriptor close while duplicates remain open; explicit unlock releases that shared lock. See [flock(2)](https://man7.org/linux/man-pages/man2/flock.2.html) and [ADR B6-018](../research/phase-b/ADR-B6-018-transaction-scoped-recovery-lock-release.md).
+
+The regression uses the actual private transaction and safely gives its held descriptor to an owned child waiting on a separate control descriptor. It verifies the child's device/inode and live lifetime, checks exclusion during the callback, and requires a new read to succeed after success, callback refusal and caught unwind while the child still retains the descriptor. Success preserves committed value 42; refusal/unwind preserve initial value zero. The child is killed and joined before evaluating the verdict. The first attempt used a forbidden unsafe process callback and was rejected by `forbid(unsafe_code)`; the final test uses safe process APIs with no exception to that rule.
+
+No public interface, wire/storage format, dependency or timeout changes. Nonblocking acquisition and ownership/no-follow/single-link/inode checks stay intact. Unlock failure on successful completion returns an error and keeps the original recovery intent; early-error/unwind cleanup is best effort. This does not prove crash/power-loss cleanup or shorten durable filesystem sync waits.
+
+The controlled test first failed with the exact post-return busy error, then passed all three completion paths on tmpfs. Complete ordinary-storage client library runs now PASS in both configurations: standalone 198 passed/four ignored in 65.90 seconds; engine-feature-unified 198 passed/four ignored in 1.85 seconds. The previous complete unified run failed its pack-journal load after writer joins. Both strict workspace Clippy configurations, formatting, architecture 352 and guards 36 PASS. The engine and protocol source subjects are unchanged from the preceding withdrawal checkpoint; no fresh engine/model/device execution is claimed by this increment.
+
+Full test results and earlier failures are retained in [the source-bound checkpoint](evidence/roadmap-2026-10-10/journal-lock-release/checkpoint.json). The controlled mechanism is proven; it is not independently established as the cause of every earlier intermittent storage failure. Complete software/model/media/platform/rendered/physical Handy/human/release acceptance remains open. No annotations or training-quality evidence are assumed.
+
+
+## Controlled inherited-descriptor lifetime
+
+The inherited-lock fixture now keeps its child waiting on a private duplex control descriptor until the test explicitly kills and joins it. The child's stdin still holds the actual transaction lock's open-file description. This replaces a five-second sleep that could finish before slow durable transaction completion. No production journal code, acquisition timeout, lock policy, ownership checks or durability operation changed.
+
+A new regression holds transaction completion for six seconds. With the previous child fixture it failed at `fixture must still be sleeping when retired` (0 passed/one failed, 27.32 seconds). The first controlled-child attempt also failed: a shell input redirection replaced stdin with the control socket, and the existing device/inode assertion detected it. The corrected fixture clears the child environment and uses Bash's explicit-descriptor read to preserve stdin. Both focused tests pass (two passed/zero ignored, 7.33 seconds), covering the slow completion and original success/refusal/unwind paths. Owned children are retired before verdict assertions.
+
+This repairs the reproducibly inadequate test lifetime. It does not establish that lock release caused the separate concurrent-journal busy failures or that host storage latency is fixed. Current full-suite results and exact source hashes are retained in the [fixture checkpoint](evidence/roadmap-2026-10-10/recovery-fixture/checkpoint.json). The complete roadmap remains incomplete.

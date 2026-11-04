@@ -1,0 +1,24 @@
+# Explicit Stash batch generation migration
+
+Status: local software implementation; full roadmap and qualification remain open.
+
+`stash migrate-batch` explicitly adopts current engine/tool/owner authority and a complete new generation configuration for a stopped `needs_attention` batch. It requires the authenticated owning session, current local Stash owner proof and exact `ledger_sha256` returned by `stash batch-status`. It does not discover scenes, contact Stash, run generation, edit motion or dispatch scans/tags. Migration remains paused; inspect its receipt and issue a separate `stash resume-batch`.
+
+```sh
+pulsar stash batch-status BATCH_ID
+pulsar stash migrate-batch BATCH_ID --expected-ledger-sha256 OBSERVED_SHA256 \
+  --generation generation.json --request-id MIGRATION_REQUEST_ID
+pulsar stash resume-batch BATCH_ID --request-id RESUME_REQUEST_ID
+```
+
+The bounded JSON file must explicitly contain `preset`, `settings` and `model_path`. `preset` is `fast` or `default`; `settings` follows the shared `GenerationSettings` contract. An absolute `model_path` captures replacement bytes; `null` explicitly chooses no custom model. A declared inference profile must match the newly captured model. Reusing original captured bytes is also explicit input to this command; ordinary matching-byte restoration plus resume remains a separate recovery option. Relative paths, invalid settings, stale ledger identities, running/cancelled/finished batches, an active scheduler and more than 16 migrations refuse. Existing project Read authority is required; future generation requires Generate authority and unchanged project revision.
+
+The raw private ledger is compared before preparation and again in the authority transaction. Successful migration and its replay receipt commit atomically. Any artifact prepared before a later refusal remains inert. Migration reserves 128 MiB for simultaneous metadata copies. The ledger is limited to 16 MiB before Rust String allocation/JSON parsing, including status and cancellation reads; status pages remain bounded to five items and 768 KiB. Digests identify metadata, not model quality or permission to redistribute source data.
+
+Before superseding a pending generation command, the engine checks the successful authoritative receipt under its original session/request/fingerprint in the same transaction. An accepted generation with a lost ledger acknowledgement keeps its original job, moves to observation and retains its original request ID. An unaccepted generation keeps its complete old command and ID in private superseded history. Only a later explicit resume can allocate a new future generation phase ID. The receipt lists reconciled and superseded IDs separately, with previous/current options, worker and model identities. Previous options and owner capability digest remain private archival metadata. Already accepted jobs keep their original manifests and existing checkpoint/resume restrictions.
+
+Migration preserves source selection/mappings, source captures, successful commits/publications, pending external effects, remote identities and unknown scan/tag outcomes. It never retries an uncertain external mutation. It does not replace a failed/interrupted accepted job, recover a lost remote scan job ID, migrate portable Stash associations or alter supplier files. Pending non-generation phases remain intact. Cancelled or finished batches cannot be reopened through migration.
+
+Unmigrated private batch records remain version 2. Migrated records use version 3 and contain an explicit migration receipt field within the existing strict report reader. The exact pinned preceding schema-9 engine refuses this record on status/resume without rewriting it; this prevents its older serializer from dropping migration history. The database stays schema 9 and portable maximum stays 7. Old clients may refuse new status fields; use the current client for ledger identities/migration. This is a private batch-reader boundary, not a portable project format change.
+
+The [local receipt](evidence/roadmap-2026-10-01/stash-batch-migration/validation.json) binds the checked source and binaries. Native authored media/model tests exercise stale identity refusal, explicit replacement after captured-model drift, exact replay, paused restart, preceding-engine refusal without ledger/master overwrite, retained superseded identity and one accepted replacement-model job. The mock server receives queries only. Rust cases separately cover accepted-receipt reconciliation, future authority/revision, active/terminal state, bounded cells and preservation of later external phases. The accepted-receipt unit fixture is synthetic ledger evidence, not a real crash or device run. No installed Stash, Handy, private reference, training, natural-media, GUI usability, platform or release qualification follows.

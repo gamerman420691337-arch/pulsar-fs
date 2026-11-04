@@ -1,0 +1,41 @@
+{
+  "request_id": "combined-fixture",
+  "controller": {
+    "acquisition_request_id": "acquire-fixture",
+    "controller_id": "fixture-controller",
+    "preparation_request_id": "prepare-fixture",
+    "preparation_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "project_id": "fixture-project",
+    "revision": 1,
+    "engine_epoch": "fixture-boot",
+    "device_session": "fixture-device-session",
+    "device_id": "fixture-device",
+    "generation": 0,
+    "duration_ms": 1000,
+    "deadline_boottime_ns": 2000000000,
+    "state": "active",
+    "armed": true,
+    "physical_stop_pending": false,
+    "playback_enabled": false
+  },
+  "qualification": {
+    "dossier_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "revision": 2
+  },
+  "synchronization": {
+    "sync_request_id": "sync-fixture",
+    "record_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "synchronization_sent_boottime_ns": 1,
+  "synchronization_received_boottime_ns": 2,
+  "server_sent_boottime_ns": 3,
+  "server_received_boottime_ns": 4,
+  "clock_domain": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "estimated_server_ms": 1000,
+  "server_uncertainty_ns": 1000,
+  "device_uncertainty_ns": 2000000,
+  "combined_uncertainty_ns": 2001000,
+  "admitted_user_offset_ms": -50,
+  "current": true,
+  "playback_enabled": false
+}

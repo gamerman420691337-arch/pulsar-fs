@@ -280,10 +280,7 @@ impl PackageUploadClient {
             } if offset == request.offset
                 && byte_len == request.byte_len
                 && sha256 == request.sha256
-                && next_offset == expected_next =>
-            {
-                ()
-            }
+                && next_offset == expected_next => {}
             PackageUploadReply::Error(error) => return Err(error.into()),
             _ => return Err(TransportError::ResponseMismatch),
         }

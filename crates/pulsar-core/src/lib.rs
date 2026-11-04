@@ -6,26 +6,82 @@
 //! are not a claim of physical-device or neural-model qualification.
 #![forbid(unsafe_code)]
 
+mod adaptation;
 mod authority;
-mod edit_values;
 mod device;
+mod edit_recipes;
+mod edit_values;
+pub use adaptation::*;
+pub use edit_recipes::*;
 mod dsp;
 mod geometry;
+mod video_view;
+mod view_coordinates;
+pub use video_view::*;
+pub use view_coordinates::*;
+mod handy_stream;
+mod handy_stream_envelope;
 mod ids;
 mod jobs;
+mod live;
+mod live_clock;
+pub use handy_stream::*;
+pub use handy_stream_envelope::*;
+mod live_motion_assembly;
+pub use live_motion_assembly::*;
+mod gap_resolution;
+pub use gap_resolution::*;
+mod browser_clock;
+mod browser_start;
+mod live_clock_probe;
+mod live_decode_clock;
+pub use browser_clock::*;
+pub use browser_start::*;
+pub use live::*;
+pub use live_clock::*;
+pub use live_clock_probe::*;
+pub use live_decode_clock::*;
 mod motion;
+mod multimodal;
+pub use multimodal::*;
+mod script_repair;
+pub use script_repair::*;
+mod audio_oscillation;
+pub use audio_oscillation::*;
+mod audio_analysis;
 pub mod perception;
+pub use audio_analysis::*;
 mod synthesis;
 pub use synthesis::*;
+mod segment_speed;
+pub use segment_speed::*;
 mod editing;
 pub use editing::*;
+mod declared_source_clock;
+mod generation_interval;
+mod placed_generation;
 mod project;
+mod reference_curve;
+pub use reference_curve::*;
+mod source_placement;
+pub use declared_source_clock::*;
+mod source_seek;
 mod time;
+pub use generation_interval::*;
+mod motion_retiming;
+mod source_clock_motion;
+mod source_clock_selection;
+pub use motion_retiming::*;
+pub use placed_generation::*;
+pub use source_clock_motion::*;
+pub use source_clock_selection::*;
+pub use source_placement::*;
+pub use source_seek::*;
 
 pub use authority::*;
-pub use edit_values::*;
 pub use device::*;
 pub use dsp::*;
+pub use edit_values::*;
 pub use geometry::*;
 pub use ids::*;
 pub use jobs::*;
@@ -45,6 +101,8 @@ pub enum CoreError {
     Overflow,
     #[error("rational timestamp denominator must be nonzero")]
     InvalidTimebase,
+    #[error("invalid source-frame seek: {0}")]
+    InvalidSourceSeek(String),
     #[error("value must be finite")]
     NonFinite,
     #[error("normalized value must be in [0, 1]")]

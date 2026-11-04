@@ -29,6 +29,7 @@ struct Lease {
     base: RevisionId,
     label: String,
     file: Option<File>,
+    retained_evidence: Option<crate::live_cuda_capture_db::EvidenceDownload>,
     staging: Option<tempfile::NamedTempFile>,
     reservation: Option<Reservation>,
     chunks: HashMap<u64, (u32, String)>,
@@ -92,6 +93,7 @@ impl Lease {
     fn release(&mut self) {
         if !self.finalizing {
             self.file.take();
+            self.retained_evidence.take();
             self.staging.take();
             self.reservation.take();
         }
@@ -160,17 +162,23 @@ pub(super) fn initialize(db: &Connection) -> PResult<()> {
     artifacts::sync_dir(&staging).map_err(unavailable)?;
     Ok(())
 }
-pub(super) fn start_sweeper(engine: &Arc<Engine>) {
-    let engine = Arc::downgrade(engine);
-    std::thread::spawn(move || loop {
-        std::thread::sleep(Duration::from_millis(250));
-        let Some(engine) = engine.upgrade() else {
-            break;
-        };
-        if let Ok(mut transfers) = engine.transfers.lock() {
-            transfers.sweep();
-        };
-    });
+pub(super) fn start_sweeper(engine: &Arc<Engine>) -> PResult<()> {
+    let weak = Arc::downgrade(engine);
+    engine
+        .spawn_task("pulsar-transfers", None, move || loop {
+            std::thread::sleep(Duration::from_millis(250));
+            let Some(engine) = weak.upgrade() else {
+                break;
+            };
+            if engine.is_shutting_down() {
+                break;
+            }
+            if let Ok(mut transfers) = engine.transfers.lock() {
+                transfers.sweep();
+            };
+        })
+        .map_err(internal)?;
+    Ok(())
 }
 fn grant(direction: TransferDirection) -> Scope {
     if direction == TransferDirection::Upload {
@@ -187,7 +195,9 @@ impl Engine {
         fingerprint: &str,
     ) -> PResult<ResponseBody> {
         match &request.command {
-            Command::BeginEditUpload { .. } | Command::BeginMotionDownload { .. } => {
+            Command::BeginEditUpload { .. }
+            | Command::BeginMotionDownload { .. }
+            | Command::BeginLiveCudaEvidenceDownload { .. } => {
                 self.begin_transfer(request, fingerprint)
             }
             Command::FinishEditUpload { lease_id } => {
@@ -309,7 +319,7 @@ impl Engine {
     }
     fn begin_transfer(&self, request: &Request, fingerprint: &str) -> PResult<ResponseBody> {
         let session = request.session.as_ref().unwrap();
-        let (direction, sha256, total, offset, length, base, label, descriptor) = {
+        let (direction, sha256, total, offset, length, base, label, descriptor, retained_evidence) = {
             let db = self.db.lock().map_err(internal)?;
             self.authorize(&db, request, session)?;
             if let Some(body) = self.prior_begin(&db, request, fingerprint)? {
@@ -338,6 +348,7 @@ impl Engine {
                         RevisionId::new(revision as u64),
                         label.clone(),
                         None,
+                        None,
                     )
                 }
                 Command::BeginMotionDownload {
@@ -365,6 +376,35 @@ impl Engine {
                         RevisionId::new(0),
                         String::new(),
                         Some(descriptor),
+                        None,
+                    )
+                }
+                Command::BeginLiveCudaEvidenceDownload { epoch, part } => {
+                    let originals = crate::live_cuda_capture_db::download(
+                        &db,
+                        &self.pool,
+                        project(request)?,
+                        epoch,
+                        *part,
+                    )
+                    .map_err(unavailable)?
+                    .ok_or_else(|| {
+                        ProtocolError::new(
+                            ErrorCode::NotFound,
+                            "no retained CUDA evidence for this project and capture",
+                        )
+                    })?;
+                    let identity = originals.identity().map_err(internal)?;
+                    (
+                        TransferDirection::Download,
+                        identity.sha256,
+                        identity.byte_len,
+                        0,
+                        identity.byte_len,
+                        request.expected_revision.expect("validated revision"),
+                        String::new(),
+                        None,
+                        Some(originals),
                     )
                 }
                 _ => return Err(ProtocolError::invalid("not a begin-transfer command")),
@@ -385,14 +425,16 @@ impl Engine {
         } else {
             reservation
         };
-        let (file, staging) = if let Some(descriptor) = descriptor {
-            (self.motion_store.open_verified(&descriptor)?, None)
+        let (file, staging) = if retained_evidence.is_some() {
+            (None, None)
+        } else if let Some(descriptor) = descriptor {
+            (Some(self.motion_store.open_verified(&descriptor)?), None)
         } else {
             let temporary =
                 tempfile::NamedTempFile::new_in(self.config.state_dir.join("transfer-staging"))
                     .map_err(unavailable)?;
             (
-                temporary.as_file().try_clone().map_err(unavailable)?,
+                Some(temporary.as_file().try_clone().map_err(unavailable)?),
                 Some(temporary),
             )
         };
@@ -411,7 +453,8 @@ impl Engine {
             deadline: Instant::now() + LEASE_LIFETIME,
             base,
             label,
-            file: Some(file),
+            file,
+            retained_evidence,
             staging,
             reservation: Some(reservation),
             chunks: HashMap::new(),
@@ -585,20 +628,31 @@ impl Engine {
             ));
         }
         drop(db);
-        let mut bytes = vec![0; byte_len as usize];
-        let file = lease
-            .file
-            .as_mut()
-            .ok_or_else(|| ProtocolError::invalid("download file unavailable"))?;
-        file.seek(SeekFrom::Start(offset)).map_err(unavailable)?;
-        file.read_exact(&mut bytes).map_err(unavailable)?;
+        let bytes = if let Some(originals) = &lease.retained_evidence {
+            originals
+                .bytes()
+                .get(offset as usize..end as usize)
+                .ok_or_else(|| ProtocolError::invalid("retained evidence chunk outside original"))?
+                .to_vec()
+        } else {
+            let mut bytes = vec![0; byte_len as usize];
+            let file = lease
+                .file
+                .as_mut()
+                .ok_or_else(|| ProtocolError::invalid("download file unavailable"))?;
+            file.seek(SeekFrom::Start(offset)).map_err(unavailable)?;
+            file.read_exact(&mut bytes).map_err(unavailable)?;
+            bytes
+        };
         if !retry {
             lease.chunks.insert(offset, (byte_len, String::new()));
             lease.accepted += u64::from(byte_len);
         }
         if lease.accepted == lease.length {
             lease.completed = true;
-            lease.reservation.take();
+            if lease.retained_evidence.is_none() {
+                lease.reservation.take();
+            }
         }
         Ok(bytes)
     }
@@ -621,11 +675,14 @@ impl Engine {
                 let tx = db
                     .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
                     .map_err(internal)?;
-                let body = ResponseBody::Candidate(candidate_snapshot(
-                    &tx,
-                    &CandidateId::new(candidate).map_err(internal)?,
-                    project(request)?,
-                )?);
+                let body = ResponseBody::Candidate(
+                    (candidate_snapshot(
+                        &tx,
+                        &CandidateId::new(candidate).map_err(internal)?,
+                        project(request)?,
+                    )?)
+                    .into(),
+                );
                 remember(&tx, session.as_str(), request, fingerprint, &body)?;
                 tx.commit().map_err(internal)?;
                 return Ok(body);
@@ -696,6 +753,7 @@ impl Engine {
                 .map_err(|error| ProtocolError::invalid(error.to_string()))?;
             let output = self.motion_store.publish(&reconciled.program)?;
             let mut review_state = prior;
+            review_state.decisions.clear();
             review_state.flags = lineage::clipped(
                 &review_state.flags,
                 &lineage::coverage(&reconciled.program)?,
@@ -845,8 +903,9 @@ impl Engine {
                 ],
             )
             .map_err(internal)?;
-            let body =
-                ResponseBody::Candidate(candidate_snapshot(&tx, &candidate, project(request)?)?);
+            let body = ResponseBody::Candidate(
+                (candidate_snapshot(&tx, &candidate, project(request)?)?).into(),
+            );
             event(
                 &tx,
                 project(request)?,
@@ -1011,6 +1070,108 @@ mod tests {
                 .unwrap(),
             0
         );
+    }
+    #[test]
+    fn retained_evidence_completed_retry_keeps_admission_until_retirement() {
+        for retire in ["abandon", "revoke", "expire"] {
+            let f = fixture(VALIDATION_MEMORY);
+            let (pool, owned) = crate::live_cuda_capture_db::tests::owned_download_fixture(
+                LiveCudaEvidencePart::Trace,
+            );
+            let expected = owned.bytes().to_vec();
+            let identity = owned.identity().unwrap();
+            let id = id!(TransferId);
+            let handshake = BulkHandshake {
+                version: PROTOCOL_VERSION,
+                session: f.session.clone(),
+                auth_token: f.token.clone(),
+                lease_id: id.clone(),
+                engine_epoch: f.engine.engine_epoch.clone(),
+            };
+            let lease = Lease {
+                id: id.clone(),
+                session: f.session.clone(),
+                project: f.project.clone(),
+                epoch: f.engine.engine_epoch.clone(),
+                direction: TransferDirection::Download,
+                sha256: identity.sha256,
+                total: identity.byte_len,
+                offset: 0,
+                length: identity.byte_len,
+                accepted: 0,
+                deadline: Instant::now() + LEASE_LIFETIME,
+                base: RevisionId::new(0),
+                label: String::new(),
+                file: None,
+                retained_evidence: Some(owned),
+                staging: None,
+                reservation: Some(
+                    f.engine
+                        .pool
+                        .reserve_memory(2 * MAX_ARTIFACT_CHUNK_BYTES as u64)
+                        .unwrap(),
+                ),
+                chunks: HashMap::new(),
+                finalizing: false,
+                cancelled: false,
+                completed: false,
+            };
+            f.engine
+                .transfers
+                .lock()
+                .unwrap()
+                .leases
+                .insert(id.to_string(), lease);
+            assert_eq!(
+                f.engine
+                    .bulk_download(&handshake, 0, expected.len() as u32)
+                    .unwrap(),
+                expected
+            );
+            assert_eq!(
+                f.engine
+                    .bulk_download(&handshake, 0, expected.len() as u32)
+                    .unwrap(),
+                expected
+            );
+            assert!(pool
+                .reserve_memory(crate::live_cuda_evidence::EVIDENCE_MEMORY_BYTES + 1)
+                .is_err());
+            assert!(f.engine.pool.reserve_memory(VALIDATION_MEMORY).is_err());
+            match retire {
+                "abandon" => {
+                    f.call(
+                        Command::AbandonTransfer {
+                            lease_id: id.clone(),
+                        },
+                        None,
+                    )
+                    .unwrap();
+                }
+                "revoke" => {
+                    f.engine
+                        .transfers
+                        .lock()
+                        .unwrap()
+                        .revoke(&f.session, &f.project);
+                }
+                "expire" => {
+                    let mut state = f.engine.transfers.lock().unwrap();
+                    state.leases.get_mut(id.as_str()).unwrap().deadline =
+                        Instant::now() - Duration::from_millis(1);
+                    state.sweep();
+                }
+                _ => unreachable!(),
+            }
+            assert!(f
+                .engine
+                .bulk_download(&handshake, 0, expected.len() as u32)
+                .is_err());
+            assert!(pool
+                .reserve_memory(2 * crate::live_cuda_evidence::EVIDENCE_MEMORY_BYTES)
+                .is_ok());
+            assert!(f.engine.pool.reserve_memory(VALIDATION_MEMORY).is_ok());
+        }
     }
     #[test]
     fn upload_chunks_are_authenticated_exact_replay_and_sequential() {

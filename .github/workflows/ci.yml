@@ -44,6 +44,12 @@ jobs:
         run: |
           brew install ffmpeg
 
+      - name: Check execution dashboard
+        if: runner.os == 'Linux'
+        run: |
+          python3 -B scripts/execution_dashboard.py --check
+          python3 -B scripts/test_execution_dashboard.py
+
       - name: Check compilation
         run: cargo check --workspace --all-targets --locked --verbose
 

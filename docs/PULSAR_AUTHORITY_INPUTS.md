@@ -1,0 +1,15 @@
+# Shared authority and archival input contracts
+
+Date: 2026-10-10. Status: interface verification PASS; full roadmap PARTIAL with unresolved runtime intermittence.
+
+Four internal interfaces now use named inputs: PreviewIntent for the common file/pack/annotated/placement preview path; OperationDependencies for prior attempts, extra dependency identities and retained CUDA capture; PublicationSelection for an explicitly selected archival producer and current local publication snapshot; RevisionRow for borrowed local revision-lineage metadata checked against retained archive records. Twelve call sites preserve their prior values. These types grant no authority or admission. Authentication stays on Request; imported job identities remain historical evidence; caller reservations and retained capture owners keep their existing lifetimes.
+
+After input unpacking, all four implementation bodies are byte-identical to the preceding source. Selected-origin resolution, source association, current revision checks, ancestry/retiming correspondence, backend pins, model approval, storage accounting and inherited clocks remain unchanged. The change removes four argument-count lint findings without new allowances.
+
+The first full engine test command FAILS: 703 tests pass, two live-staging post-reply tests fail with "producer never reached post-reply hook: Timeout", and 79 qualification cases remain ignored. An unchanged-binary focused run passes both cases in 2.03 seconds; an unchanged-binary full library run passes 705 in 50.75 seconds. This establishes intermittence, not its cause or a repair. Archive/Stash/preview cases pass in the initial failed command.
+
+The existing hook-timeout assertion now includes the preparation caller's available outcome and reserved storage, only on failure. Its one-second hook wait, original preparation deadline, return/cleanup waits, success assertions and production behavior remain unchanged. Ranked hypotheses distinguish slow setup I/O, early preparation failure and thread scheduling delay; the diagnostic alone cannot separate every I/O/scheduling case. The new diagnostic path has not been triggered in the passing final run.
+
+Final all-feature engine tests PASS: 705 unit tests and 12 integration tests, with 79 qualification cases ignored; final unit suite takes 9.66 seconds. Default engine and final all-feature/all-target workspace compilation pass. Architecture passes 350 checks; source guards pass 36. Strict engine Clippy remains FAIL, exit 101, at 15 distinct findings (10 library and 10 test-target errors). None remain in the four refactored interfaces. Global formatting and prior workspace/native/startup reliability failures remain unresolved.
+
+The [checkpoint](evidence/roadmap-2026-10-10/authority-inputs/checkpoint.json) retains the failed and passing commands, hypotheses, source identities, patches and four body comparisons. Installed Stash, useful media/model quality, physical Handy, platform matrix, rendered UI, human and release gates remain separate and open. No acceptance or reliability qualification is inferred from the final green package run.

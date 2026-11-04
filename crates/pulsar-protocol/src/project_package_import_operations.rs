@@ -73,7 +73,10 @@ pub fn package_format_version(header: &[u8]) -> Result<u16, ProtocolError> {
         return Err(invalid("invalid package header"));
     }
     let version = u16::from_le_bytes([header[8], header[9]]);
-    if !matches!(version, 1 | 2) {
+    if !matches!(
+        version,
+        1..=crate::PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY
+    ) {
         return Err(ProtocolError::new(
             ErrorCode::Unsupported,
             "unsupported package format version",
@@ -101,7 +104,10 @@ pub struct PackageUploadDeclaration {
 }
 impl PackageUploadDeclaration {
     pub fn validate(&self) -> Result<(), ProtocolError> {
-        if !matches!(self.format_version, 1 | 2) {
+        if !matches!(
+            self.format_version,
+            1..=crate::PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY
+        ) {
             return Err(ProtocolError::new(
                 ErrorCode::Unsupported,
                 "unsupported package format version",

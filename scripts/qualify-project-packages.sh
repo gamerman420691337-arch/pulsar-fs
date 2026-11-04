@@ -8,7 +8,7 @@ export CARGO_NET_OFFLINE=true
 : "${TLA2TOOLS_JAR:?Set TLA2TOOLS_JAR to the installed development TLC jar}"
 bash scripts/qualify-motion-transfers.sh
 node scripts/qualify-package-model.mjs
-cargo build --bin pulsar --offline --locked
+timeout 600 cargo build --workspace --bins --offline --locked
 cargo test --test project_package_export --offline --locked -- --nocapture
 if [[ "${PULSAR_RUN_LARGE_PACKAGE_TEST:-0}" == "1" ]]; then
   cargo test --test project_package_export --offline --locked -- --ignored --nocapture

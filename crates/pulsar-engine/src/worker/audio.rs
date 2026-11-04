@@ -23,6 +23,15 @@ pub(super) struct DecodedAudio {
     pub timeline: AudioTimeline,
 }
 
+impl AudioTimeline {
+    pub(super) fn origin(&self) -> Result<ExactSeconds> {
+        Ok(ExactSeconds::new(
+            i128::from(self.first_pts) * i128::from(self.time_base_numerator),
+            u64::from(self.time_base_denominator),
+        )?)
+    }
+}
+
 #[derive(Deserialize)]
 struct Probe {
     streams: Vec<AudioStream>,
@@ -129,6 +138,14 @@ fn admit_timeline(bytes: &[u8]) -> Result<AudioTimeline> {
 }
 
 pub(super) fn decode(request: &WorkerRequest, deadline: Instant) -> Result<DecodedAudio> {
+    decode_source(request, &request.source, deadline)
+}
+
+pub(super) fn decode_source(
+    request: &WorkerRequest,
+    source: &SourceArtifact,
+    deadline: Instant,
+) -> Result<DecodedAudio> {
     let mut probe = Command::new(&request.tools.ffprobe.path);
     probe
         .args([
@@ -146,7 +163,7 @@ pub(super) fn decode(request: &WorkerRequest, deadline: Instant) -> Result<Decod
             "-of",
             "json",
         ])
-        .arg(&request.source.path);
+        .arg(&source.path);
     let metadata_limit = usize::try_from((request.budget.memory_bytes / 16).min(32 * 1024 * 1024))?;
     let metadata = media::bounded_output(probe, metadata_limit, deadline)?;
     let timeline = admit_timeline(&metadata)?;
@@ -170,13 +187,14 @@ pub(super) fn decode(request: &WorkerRequest, deadline: Instant) -> Result<Decod
             "-v",
             "error",
             "-nostdin",
+            "-xerror",
             "-threads",
             &request.budget.cpu_threads.to_string(),
             "-protocol_whitelist",
             "file,pipe",
             "-i",
         ])
-        .arg(&request.source.path)
+        .arg(&source.path)
         .args([
             "-map",
             "0:a:0",
@@ -206,7 +224,9 @@ pub(super) fn decode(request: &WorkerRequest, deadline: Instant) -> Result<Decod
         ));
     }
     let samples = bytes
-        .chunks_exact(4)
+        .as_chunks::<4>()
+        .0
+        .iter()
         .map(|v| f32::from_le_bytes([v[0], v[1], v[2], v[3]]))
         .collect();
     Ok(DecodedAudio { samples, timeline })

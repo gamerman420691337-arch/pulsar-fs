@@ -1,0 +1,766 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pulsar live browser preview</title>
+<style>body{background:#151922;color:#eee;font:17px system-ui;max-width:1000px;margin:32px auto;padding:16px}video{width:100%;max-height:65vh;background:#000}button,input{font:inherit;margin:8px 4px;padding:8px}progress{width:100%;height:32px}#status{white-space:pre-wrap}small{color:#bbc}</style>
+<h1>Pulsar browser motion preview</h1><p>Select a local video, explicitly share a browser tab, or use a camera. Play at normal speed to analyze it. Pause or seek clears the preview and stops its capture.</p><label><input id="record" type="checkbox"> Record accepted estimates for the next playback</label><label> Maximum estimates per capture <input id="record-limit" type="number" min="1" max="4096" value="1024"></label><input id="file" type="file" accept="video/*"><button id="share-tab">Share a browser tab</button><button id="camera">Use camera</button><p>Camera access is requested only by Use camera; no microphone is requested. Camera timestamps describe browser presentation, not a calibrated device clock. Shared-tab timestamps describe the captured stream, not the source player timeline. Tab-player seeking/pause detection and toy synchronization remain unavailable.</p><section><h2>Engine media and placement</h2><p>Prepare exact imported bytes from an active Engine placement. Local files, cameras, and shared tabs remain unbound. The clock mapping below is producer-declared, not calibrated or synchronized.</p><button id="refresh-media">Refresh Engine sources</button><select id="media-selection" aria-label="Engine source and placement"></select><pre id="media-details"></pre><label>Browser presentation anchor (microseconds) <input id="media-presentation-anchor" type="text" inputmode="numeric" value="0"></label><label>Native source-elapsed anchor (microseconds) <input id="media-elapsed-anchor" type="text" inputmode="numeric" value="0"></label><label><input id="media-clock-ack" type="checkbox"> I declare this anchor mapping; defaults are not calibration or synchronization evidence</label><p>Anchor and catalog edits apply only to a new preparation after releasing the original selection.</p><button id="prepare-media">Prepare selected source</button><button id="inspect-media">Inspect original preparation</button><button id="release-media">Release prepared source</button><p id="media-message">No Engine source prepared. Preparation does not start playback, inference, or device motion.</p></section><section><label><input id="lookahead" type="checkbox"> Analyze ahead using prepared Engine media</label><label>Requested lead (ms) <input id="lookahead-ms" type="number" min="1" max="15000" value="1000"></label><label><input id="analysis-continuity" type="checkbox"> Continue analysis for longer videos</label><p id="lookahead-status">Lookahead is off. Ordinary preview uses the visible player.</p><video id="analysis-video" muted playsinline hidden aria-label="Analysis reader ahead of visible playback" style="width:180px;max-height:120px"></video><p id="analysis-estimate"></p></section><video id="video" controls playsinline></video><button id="stop">Stop preview</button><progress id="position" max="1" value="0"></progress><p id="status">Choose a video to begin.</p><p id="guard-status">Handy stop guard: no player registered. Monitoring does not establish browser/device synchronization or physical stopping.</p><p id="timing-status">Browser timing: no prepared player. Transport observations do not calibrate display, source, or device timing.</p><button id="inspect-timing">Inspect original timing status</button><section><h2>Prepared Handy browser Start (hosted HSSP)</h2><p>Video Play starts analysis and browser timing only. Device Start is a separate explicit action using a prepared Active controller and accepted browser/source dossier.</p><button id="handy-inspect" disabled>Inspect prepared selection</button><pre id="handy-selection"></pre><label><input id="handy-environment-ack" type="checkbox"> I confirm this browser environment matches the displayed accepted dossier</label><label><input id="handy-play-ack" type="checkbox"> Start the selected Handy playback</label><label><input id="handy-online-ack" type="checkbox"> Allow ongoing qualified device timing inspections during this playback</label><button id="handy-start" disabled>Start selected Handy playback</button><button id="handy-original" disabled>Inspect ORIGINAL Start</button><button id="handy-stop" disabled>Stop/release Handy</button><p id="handy-status">Prepared browser playback controls are not configured. No device motion is requested by video Play.</p><small>Controller and clock input can expire during setup. Stale input requires explicit fresh preparation. Transport acknowledgment does not establish physical response or stopping.</small></section><section id="hsp-panel"><h2>Handy HSP live analysis</h2><p>Video Play starts analysis and browser timing only. Inspect the native device and source selection, then explicitly prepare synchronization, bind current analysis, and Play the device.</p><button id="hsp-inspect" disabled>Inspect HSP selection</button><pre id="hsp-selection"></pre><label><input id="hsp-prepare-ack" type="checkbox"> Allow synchronization for the displayed device</label><button id="hsp-prepare" disabled>Prepare synchronization</button><button id="hsp-preparation-status" disabled>Inspect ORIGINAL preparation</button><button id="hsp-cancel" disabled>Cancel ORIGINAL preparation</button><label><input id="hsp-environment-ack" type="checkbox"> I confirm this browser environment matches the displayed source dossier</label><label><input id="hsp-online-ack" type="checkbox"> Allow ongoing online device control for this HSP stream</label><button id="hsp-bind" disabled>Bind current analysis</button><p id="hsp-continuity-duration">No bounded HSP continuity duration selected.</p><label><input id="hsp-continuity-ack" type="checkbox"> Enable HSP continuity for the displayed native duration</label><button id="hsp-continuity-enable" disabled>Enable bounded HSP continuity</button><button id="hsp-continuity-status" disabled>Inspect ORIGINAL continuity</button><label><input id="hsp-play-ack" type="checkbox"> Play the selected Handy HSP stream</label><button id="hsp-play" disabled>Play HSP stream</button><button id="hsp-stop" disabled>Stop ORIGINAL HSP stream</button><button id="hsp-status" disabled>Inspect ORIGINAL HSP status</button><p id="hsp-status-message" role="status">HSP controls are not configured. Video Play requests no device motion.</p><pre id="hsp-details"></pre><small>Readiness and remaining time are native observations. Expired preparation requires fresh explicit consent. Engine admission remains authoritative. Original Stop and cancel remain available while other work is pending. Transport acknowledgment does not confirm physical motion or stopping.</small></section><section><h2>Retained inference recordings</h2><button id="refresh-recordings">Refresh recordings</button><select id="recording-selection" aria-label="Retained capture recording"></select><button id="read-recording">Read first page</button><label><input id="retire-recordings-ack" type="checkbox"> Retire the selected stopped playback from the active index, preserving its records</label><button id="retire-recordings">Retire stopped playback index</button><button id="recording-history">Inspect retired recording index</button><button id="save-recording">Save inference record (.json)</button><p id="record-status">Recording is optional. Stop playback before saving. This is inferred/provisional evidence, not a funscript.</p><pre id="record-details"></pre></section><section><h2>Recorded motion candidate</h2><p>Select a stopped capture above. Staging includes its entire playback and all retained continuation captures. Missing coverage stays unavailable.</p><label>Project range start (seconds) <input id="candidate-start" type="number" min="0" step="0.001" value="0"></label><label>Project range end (seconds) <input id="candidate-end" type="number" min="0" step="0.001" value="60"></label><label>Maximum interpolation interval (ms) <input id="candidate-interval" type="number" min="0.001" max="1000" step="0.001" value="200"></label><button id="stage-candidate">Stage selected playback</button><button id="retry-candidate">Retry original staging request</button><button id="candidate-status">Inspect retained staging intent</button><label><input id="retire-candidate-ack" type="checkbox"> Retire the confirmed recording candidate, preserving Engine history</label><button id="retire-candidate">Retire confirmed recording candidate</button><button id="candidate-history">Inspect retired recording candidates</button><button id="review-candidate">Review candidate diagnostics</button><label><input id="commit-ack" type="checkbox"> Replace the project master with this reviewed candidate, preserving its remaining gaps</label><button id="commit-candidate" disabled>Commit reviewed candidate</button><button id="retry-commit">Retry original commit request</button><button id="prepare-gaps">Prepare all inspected Stroke gaps</button><label><input id="gap-ack" type="checkbox"> Author linear bridges and nearest-value edge holds for all inspected gaps</label><button id="stage-gaps">Stage or resume prepared gap proposal</button><button id="gap-status">Inspect or recover gap proposal intent</button><label><input id="retire-gap-ack" type="checkbox"> Retire the confirmed gap proposal, preserving Engine history</label><button id="retire-gap">Retire confirmed gap proposal</button><button id="gap-history">Inspect retired gap proposals</button><button id="inspect-export">Inspect committed Stroke for export</button><button id="download-script">Download inspected Stroke (.funscript)</button><button id="export-status">Inspect or recover script export intent</button><label><input id="retire-export-ack" type="checkbox"> Retire the confirmed export intent, preserving its files and history</label><button id="retire-export">Retire confirmed export intent</button><button id="export-history">Refresh retained export history</button><select id="export-history-selection" aria-label="Retained export history"></select><button id="history-download">Download selected retained export</button><button id="retry-export">Retry original script download</button><p id="candidate-message">Staging creates an uncommitted proposal. Commit is explicit and preserves gaps. No funscript export or device playback is started.</p><pre id="candidate-details"></pre></section><small>Explicit model output, unqualified motion preview. Prepared Handy Start requires separate accepted browser/source evidence and explicit consent. Optional existing-play monitoring can request stopping on player loss. HSP live device streaming requires its separate preparation, binding and Play controls. Server frame-receipt timing excludes browser capture/transfer delay. Gap repair authors synthetic motion and requires review and a separate commit. Script download requires a separately inspected, gap-free committed master.</small>
+<script>
+'use strict';
+const PAGE_SCOPE = /*__PULSAR_PAGE_SCOPE__*/ null;
+const video=document.getElementById('video'),status=document.getElementById('status'),position=document.getElementById('position'),canvas=document.createElement('canvas');canvas.width=canvas.height=64;
+const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.imageSmoothingEnabled=false;
+const analysisVideo=document.getElementById('analysis-video'),lookaheadInput=document.getElementById('lookahead'),lookaheadMs=document.getElementById('lookahead-ms'),lookaheadStatus=document.getElementById('lookahead-status'),analysisEstimate=document.getElementById('analysis-estimate');
+const continuityInput=document.getElementById('analysis-continuity');
+const MAX_FUTURE_ESTIMATES=1024;
+let analysisReader=null,visibleFrameTickUs=null,futureEstimates=[],lastFutureEstimate=null,futureTimer=null;
+let generation=0,epoch=null,busy=false,armed=false,objectURL=null,chain=Promise.resolve(),recordingMaximum,captureStream=null,captureBasis=null,capturePending=false;
+let display=null,displayTimer=null,lastEstimate=null,presentationUs=null;
+let playerScope=null,lastPlayerScope=null,playerAttempt=null,sourceId=null,presentedFrame=null;
+const guardStatus=document.getElementById('guard-status'),timingStatus=document.getElementById('timing-status');
+const mediaSelection=document.getElementById('media-selection'),mediaMessage=document.getElementById('media-message'),mediaDetails=document.getElementById('media-details');
+let mediaCatalog=null,mediaCatalogRequest=0,mediaIntent=null,preparedMedia=null,mediaGeneration=0,pageClosing=false;
+const staleMessage='Waiting for a current estimate; the previous preview is stale.';
+function clearMotion(){if(displayTimer!==null)clearTimeout(displayTimer);displayTimer=null;display=null;position.value=0;}
+function resetMotion(){clearMotion();lastEstimate=null;presentationUs=null;presentedFrame=null;visibleFrameTickUs=null;futureEstimates=[];lastFutureEstimate=null;if(futureTimer!==null)clearTimeout(futureTimer);futureTimer=null;analysisEstimate.textContent='';}
+function expireMotion(){if(display&&(performance.now()>=display.deadline||(presentationUs!==null&&presentationUs/1e6-display.time>display.maximumAgeMs/1000))){clearMotion();status.textContent=staleMessage;}}
+function scheduleExpiry(value){displayTimer=setTimeout(()=>{if(display!==value)return;expireMotion();if(display===value)scheduleExpiry(value);},Math.max(1,Math.ceil(value.deadline-performance.now())));}
+function scopeHeaders(scope){
+ if(!PAGE_SCOPE||!PAGE_SCOPE.launch_id||!PAGE_SCOPE.page_id||!PAGE_SCOPE.page_capability)throw Error('This page has no native player scope. Open the current preview URL again.');
+ const headers={'Content-Type':'application/octet-stream','X-Pulsar-Launch':PAGE_SCOPE.launch_id,'X-Pulsar-Page':PAGE_SCOPE.page_id,'X-Pulsar-Page-Capability':PAGE_SCOPE.page_capability};
+ if(scope)Object.assign(headers,{'X-Pulsar-Player':scope.player_id,'X-Pulsar-Source':scope.source_id,'X-Pulsar-Generation':String(scope.generation),'X-Pulsar-Player-Capability':scope.player_capability});
+ return headers;
+}
+async function request(route,body,headers,keepalive=false,control=false,timeoutMs=null){const options={method:'POST',headers,body};if(keepalive)options.keepalive=true;else options.signal=AbortSignal.timeout(timeoutMs??(control?500:12000));const r=await fetch(route,options);const data=await r.json();if(!r.ok)throw Error(data.error||'Preview request refused');return data;}
+function post(route,body=new Uint8Array(),scope=playerScope||lastPlayerScope){let headers;try{headers=scopeHeaders(scope);}catch(e){return Promise.reject(e);}const task=chain.then(()=>request(route,body,headers));chain=task.catch(()=>{});return task;}
+function controlPost(route,body=new Uint8Array(),scope=null,keepalive=false){try{return request(route,body,scopeHeaders(scope),keepalive,true);}catch(e){return Promise.reject(e);}}
+function nextGeneration(){generation++;sourceId=preparedMedia?.selection_id||(typeof globalThis.crypto?.randomUUID==='function'?crypto.randomUUID():null);}
+function currentPlayer(scope){return !!scope&&armed&&playerScope===scope&&scope.generation===generation;}
+function stopHeartbeat(scope){stopTiming(scope);stopHandyUpdates(scope);stopHspUpdates(scope);if(scope?.timer!==null&&scope?.timer!==undefined)clearTimeout(scope.timer);if(scope)scope.timer=null;}
+function releasePlayer(scope,keepalive=false){if(!scope)return Promise.resolve();stopHeartbeat(scope);return controlPost('/player/stop',new Uint8Array(),scope,keepalive);}
+function guardMessage(guard){return !guard?.configured?'Handy stop guard: no device linkage configured.':guard.pending?'Handy stop guard: binding pending.':'Handy stop guard: '+(guard.current?'monitoring player loss.':'not current.');}
+function samplePlayer(){
+ if(!presentedFrame)return null;
+ const browser_tick_us=Math.round(performance.now()*1000),playback_rate_milli=Math.round(video.playbackRate*1000);
+ if(!Number.isSafeInteger(browser_tick_us)||browser_tick_us<0||!Number.isInteger(playback_rate_milli)||playback_rate_milli<0||playback_rate_milli>16000)throw Error('Invalid player observation.');
+ return {browser_tick_us,...presentedFrame,playing:!video.paused,seeking:video.seeking,ended:video.ended,visible:document.visibilityState==='visible',playback_rate_milli};
+}
+async function heartbeat(scope){
+ if(!currentPlayer(scope))return;
+ try{
+  const challenge=await controlPost('/player/challenge',new Uint8Array(),scope);
+  if(!currentPlayer(scope))return;
+  if(challenge.pending!==true){
+   if(!Number.isSafeInteger(challenge.sequence)||challenge.sequence<1||typeof challenge.challenge_id!=='string'||!challenge.challenge_id)throw Error('Invalid player challenge.');
+   const sample=samplePlayer();
+   if(sample){const observation=await controlPost('/player/observe',new TextEncoder().encode(JSON.stringify({sequence:challenge.sequence,challenge_id:challenge.challenge_id,sample})),scope);if(!currentPlayer(scope))return;if(observation.current!==true||observation.synchronized!==false)throw Error('Player monitoring is no longer current.');guardStatus.textContent='Handy stop guard: accepted player observation. Synchronization and physical stopping remain unconfirmed.';}
+  }
+  scope.timer=setTimeout(()=>{scope.timer=null;void heartbeat(scope);},scope.heartbeat_interval_ms);
+ }catch(e){if(currentPlayer(scope)){pauseVideo();clear('Player monitoring stopped: '+e.message);}}
+}
+async function registerPlayer(attempt){
+ const result=await controlPost('/player/start',new TextEncoder().encode(JSON.stringify({source_id:attempt.source_id,generation:attempt.generation,time_basis:attempt.time_basis,...(attempt.media_selection_id?{media_selection_id:attempt.media_selection_id}:{})})));
+ const p=result.player;
+ if(!p||p.launch_id!==PAGE_SCOPE.launch_id||p.page_id!==PAGE_SCOPE.page_id||p.source_id!==attempt.source_id||p.generation!==attempt.generation||p.time_basis!==attempt.time_basis||typeof p.player_id!=='string'||!p.player_id||typeof result.player_capability!=='string'||!result.player_capability||!Number.isInteger(result.heartbeat_interval_ms)||result.heartbeat_interval_ms<1||result.heartbeat_interval_ms>1000)throw Error('Native player registration did not match this playback.');
+ const scope={...p,player_capability:result.player_capability,heartbeat_interval_ms:result.heartbeat_interval_ms,timer:null};
+ if(playerAttempt!==attempt||!armed||generation!==attempt.generation){void releasePlayer(scope).catch(()=>{});void post('/stop',new Uint8Array(),scope).catch(()=>{});return null;}
+ playerScope=lastPlayerScope=scope;guardStatus.textContent=guardMessage(result.guard);void heartbeat(scope);beginTiming(scope,result.timing);beginHandy(scope,analysisReader?{configured:false}:result.handy);beginHsp(scope,result.hsp);if(analysisReader&&!scope.timing)throw Error('Lookahead requires current visible-player timing.');return scope;
+}
+function stopTiming(scope){const t=scope?.timing;if(!t)return;t.stopped=true;t.observationCurrent=false;t.probe=null;for(const key of ['timer','deadline','expiry']){if(t[key]!==null)clearTimeout(t[key]);t[key]=null;}}
+function timingUnavailable(scope,message){if(!currentPlayer(scope))return;stopTiming(scope);timingStatus.textContent='Browser timing unavailable: '+message+' No calibrated synchronization is claimed.';if(analysisReader)failAnalysis(analysisReader,'Visible-player timing unavailable: '+message);}
+function timingPost(route,body,scope){try{return request(route,body,scopeHeaders(scope),false,true,route==='/player/timing-status'?3500:500);}catch(e){return Promise.reject(e);}}
+function counter(value){return typeof value==='string'&&/^[1-9][0-9]{0,19}$/.test(value)&&BigInt(value)<=18446744073709551615n;}
+function browserMicros(value){const us=Math.round(value*1000);if(!Number.isFinite(value)||value<0||!Number.isSafeInteger(us)||us<0)throw Error('Invalid browser timing timestamp.');return us;}
+function showTiming(report,historical=false){
+ if(report.qualified!==false||typeof report.current!=='boolean')throw Error('Invalid native timing report.');
+ if(!report.current){timingStatus.textContent='Browser timing is not current. Original history remains inspectable; a fresh explicit playback is required.';return;}
+ const o=report.observation;if(!o){timingStatus.textContent='Browser timing opened; waiting for a fresh frame observation. Unqualified.';return;}
+ const p=o.project_phase;
+ if(typeof o.bracket_width_ns!=='string'||!/^[0-9]+$/.test(o.bracket_width_ns)||!p||typeof p.numerator!=='string'||!/^[-]?[0-9]+$/.test(p.numerator)||typeof p.denominator!=='string'||!/^[1-9][0-9]*$/.test(p.denominator)||!counter(o.sequence))throw Error('Invalid native timing observation.');
+ timingStatus.textContent=(historical?'Inspected original timing report; no measurement loop restarted. ':'')+'Measured callback execution bracket width: '+o.bracket_width_ns+' ns. Declared project phase: '+p.numerator+'/'+p.denominator+' s. Unqualified; no display, source, model, or physical calibration.';
+}
+function beginTiming(scope,configuration){
+ if(!configuration?.configured){timingStatus.textContent='Browser timing unavailable for unbound local files, camera or shared-tab sources.';return;}
+ if(configuration.error){timingStatus.textContent='Browser timing unavailable: '+configuration.error;return;}
+ scope.timing={stopped:false,observationCurrent:false,inflight:false,probe:null,timer:null,deadline:null,expiry:null};void timingProbe(scope);
+}
+async function timingProbe(scope){
+ const t=scope.timing;if(!currentPlayer(scope)||!t||t.stopped||t.inflight||t.probe)return;
+ if(t.inspecting){t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},100);return;}
+ t.inflight=true;const baseline=presentedFrame?.presented_frames??0,sentAt=performance.now();
+ try{
+  const reply=await timingPost('/player/timing-probe',new Uint8Array(),scope);
+  if(!currentPlayer(scope)||t.stopped)return;
+  if(reply.pending===true){timingStatus.textContent='Browser timing opening; no native observation yet.';t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},100);return;}
+  if(!counter(reply.sequence)||typeof reply.probe_id!=='string'||!reply.probe_id||!Number.isInteger(reply.probe_timeout_ms)||reply.probe_timeout_ms<50||reply.probe_timeout_ms>2000||!Number.isInteger(reply.observation_timeout_ms)||reply.observation_timeout_ms<reply.probe_timeout_ms||reply.observation_timeout_ms<100||reply.observation_timeout_ms>5000)throw Error('Invalid native timing probe.');
+  t.probe={sequence:reply.sequence,probe_id:reply.probe_id,baseline:Math.max(baseline,presentedFrame?.presented_frames??0),received_tick_us:browserMicros(performance.now()),sentAt,observationTimeoutMs:reply.observation_timeout_ms};
+  t.deadline=setTimeout(()=>timingUnavailable(scope,'No fresh frame completed the original probe.'),reply.probe_timeout_ms);
+ }catch(e){if(!t.stopped&&scope.timing===t)timingUnavailable(scope,e.message);}finally{t.inflight=false;}
+}
+function timingFrame(scope,now,metadata,sampledAt){
+ const t=scope?.timing,probe=t?.probe;if(!currentPlayer(scope)||!probe||t.stopped||t.inflight)return;
+ try{
+  const callback_tick_us=browserMicros(now),browser_tick_us=browserMicros(sampledAt),media_time_us=Math.round(metadata.mediaTime*1e6),presented_frames=metadata.presentedFrames;
+  if(callback_tick_us<probe.received_tick_us||presented_frames<=probe.baseline)return;
+  if(callback_tick_us>browser_tick_us||!Number.isSafeInteger(media_time_us)||media_time_us<0||!Number.isSafeInteger(presented_frames)||presented_frames<1)throw Error('Invalid fresh callback timing sample.');
+  const frame={sample:{browser_tick_us,media_time_us,presented_frames,playing:!video.paused,seeking:video.seeking,ended:video.ended,visible:document.visibilityState==='visible',playback_rate_milli:Math.round(video.playbackRate*1000)},callback_tick_us,presentation_time_us:metadata.presentationTime===undefined?null:browserMicros(metadata.presentationTime),expected_display_time_us:metadata.expectedDisplayTime===undefined?null:browserMicros(metadata.expectedDisplayTime)};
+  t.probe=null;t.inflight=true;if(t.deadline!==null)clearTimeout(t.deadline);t.deadline=null;
+  void (async()=>{
+   try{
+    const report=await timingPost('/player/timing-observe',new TextEncoder().encode(JSON.stringify({sequence:probe.sequence,probe_id:probe.probe_id,frame})),scope);
+    if(!currentPlayer(scope)||t.stopped)return;
+    if(report.observation?.sequence!==probe.sequence)throw Error('Timing observation sequence differs.');
+    showTiming(report);if(!report.current){stopTiming(scope);if(analysisReader)failAnalysis(analysisReader,'Visible-player timing retired.');return;}t.observationCurrent=true;
+    if(t.expiry!==null)clearTimeout(t.expiry);
+    t.expiry=setTimeout(()=>{t.expiry=null;t.observationCurrent=false;if(currentPlayer(scope)&&!t.stopped){timingStatus.textContent='Browser timing observation expired locally; waiting for a new native observation. Unqualified.';if(analysisReader)failAnalysis(analysisReader,'Original visible-player observation expired.');}},Math.max(0,probe.sentAt+probe.observationTimeoutMs-performance.now()));
+    t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},250);
+   }catch(e){if(!t.stopped&&scope.timing===t)timingUnavailable(scope,e.message);}finally{t.inflight=false;}
+  })();
+ }catch(e){timingUnavailable(scope,e.message);}
+}
+function timingStatusScope(scope){return currentPlayer(scope)||(!armed&&playerScope===null&&lastPlayerScope===scope);}
+let timingInspectionBusy=false;
+document.getElementById('inspect-timing').onclick=async()=>{if(timingInspectionBusy)return;const scope=playerScope||lastPlayerScope;if(!scope){timingStatus.textContent='Register an explicit prepared player to inspect timing.';return;}if(currentPlayer(scope)&&(scope.timing?.inflight||scope.timing?.probe)){timingStatus.textContent='A timing exchange is pending; inspect after it completes.';return;}timingInspectionBusy=true;if(scope.timing)scope.timing.inspecting=true;try{const report=await timingPost('/player/timing-status',new Uint8Array(),scope);if(timingStatusScope(scope)){if(report.pending===true)timingStatus.textContent='Original timing Open remains pending; no observation is claimed.';else showTiming(report,true);}}catch(e){if(timingStatusScope(scope))timingStatus.textContent='Timing status unavailable: '+e.message;}finally{timingInspectionBusy=false;if(scope.timing)scope.timing.inspecting=false;}};
+const handyStatus=document.getElementById('handy-status'),handySelection=document.getElementById('handy-selection');
+let handyInspectedScope=null,handyOriginalAttempted=false,handyActionBusy=false;
+function handyPost(route,body,scope){try{return request(route,body,scopeHeaders(scope),false,true,route==='/player/handy-inspect'||route==='/player/handy-inspect-original'?3500:500);}catch(e){return Promise.reject(e);}}
+function handyCurrentOrRetained(scope){return currentPlayer(scope)||(!armed&&playerScope===null&&lastPlayerScope===scope);}
+function handyButtons(){const scope=playerScope,configured=scope?.handy?.configured===true;document.getElementById('handy-inspect').disabled=!configured||!currentPlayer(scope)||handyActionBusy;document.getElementById('handy-start').disabled=!configured||!currentPlayer(scope)||handyInspectedScope!==scope||handyOriginalAttempted||handyActionBusy||!document.getElementById('handy-environment-ack').checked||!document.getElementById('handy-play-ack').checked||!document.getElementById('handy-online-ack').checked;const retained=scope||lastPlayerScope;document.getElementById('handy-original').disabled=retained?.handy?.configured!==true;document.getElementById('handy-stop').disabled=retained?.handy?.configured!==true;}
+function stopHandyUpdates(scope){if(scope?.handy?.timer!==null&&scope?.handy?.timer!==undefined)clearTimeout(scope.handy.timer);if(scope?.handy)scope.handy.timer=null;handyInspectedScope=null;handyButtons();}
+function beginHandy(scope,configuration){scope.handy={configured:configuration?.configured===true,timer:null,inflight:false};handyInspectedScope=null;for(const id of ['handy-environment-ack','handy-play-ack','handy-online-ack'])document.getElementById(id).checked=false;handyStatus.textContent=scope.handy.configured?'Prepared controls enabled. Inspect the exact controller/source/script before a separate explicit Start.':'Prepared browser playback controls are not configured. Video Play requests no device motion.';handyButtons();}
+function showHandy(value,scope){
+ if(value.state==='released'&&scope?.handy)scope.handy.released=true;
+ if(scope?.handy?.stopRequested&&value.state!=='released'&&value.state!=='stop_pending')value={...value,state:scope.handy.released?'released':'stop_pending',owner_current_at_last_reply:false};
+ if(value.original_request_id!==undefined&&typeof value.original_request_id!=='string')throw Error('Invalid original Start identity.');
+ if(value.original_request_id)handyOriginalAttempted=true;
+ const original=value.original_request_id?'Original Start '+value.original_request_id+'. ':'No original Start is recorded for this player. ';
+ const history=value.history_state?' Transport history: '+value.history_state+'.':'';
+ const alignment=value.alignment?' Native alignment phase ['+value.alignment.phase_earliest_ns+', '+value.alignment.phase_latest_ns+'] ns; selected script '+value.alignment.start_time_ms+' ms; total error '+value.alignment.total_error_ns+' ns.':'';
+ handyStatus.textContent=original+'State: '+(value.state||'unknown')+'.'+history+alignment+(value.issue?' Issue: '+value.issue+'.':'')+' Physical response and stopping remain unconfirmed.';handyButtons();
+}
+async function handyPoll(scope){if(!currentPlayer(scope)||!scope.handy?.configured||scope.handy.inflight)return;scope.handy.inflight=true;try{const value=await handyPost('/player/handy-status',new Uint8Array(),scope);if(currentPlayer(scope))showHandy(value,scope);}catch(e){if(currentPlayer(scope))handyStatus.textContent='Original Start status unavailable: '+e.message;}finally{scope.handy.inflight=false;if(currentPlayer(scope))scope.handy.timer=setTimeout(()=>{scope.handy.timer=null;void handyPoll(scope);},500);}}
+for(const id of ['handy-environment-ack','handy-play-ack','handy-online-ack'])document.getElementById(id).onchange=handyButtons;
+document.getElementById('handy-inspect').onclick=async()=>{const scope=playerScope;if(handyActionBusy||!currentPlayer(scope)||!scope.handy?.configured)return;handyActionBusy=true;handyInspectedScope=null;handyButtons();try{const value=await handyPost('/player/handy-inspect',new Uint8Array(),scope);if(!currentPlayer(scope))return;if(value.selection_checked!==true)throw Error('Prepared selection was not confirmed.');handySelection.textContent=JSON.stringify(value,null,2);handyInspectedScope=scope;handyStatus.textContent='Exact selection inspected. Confirm the displayed browser environment and explicit Start/inspection consents. Engine will recheck current clocks and authority.';}catch(e){if(currentPlayer(scope))handyStatus.textContent='Prepared selection unavailable: '+e.message;}finally{handyActionBusy=false;handyButtons();}};
+document.getElementById('handy-start').onclick=async()=>{const scope=playerScope;if(handyActionBusy||!currentPlayer(scope)||!scope.handy?.configured)return;try{if(handyOriginalAttempted||handyInspectedScope!==scope)throw Error('Inspect the original request or this exact selection; replacement Start is not allowed.');const consent={acknowledge_current_environment:document.getElementById('handy-environment-ack').checked,allow_play:document.getElementById('handy-play-ack').checked,allow_online_inspection:document.getElementById('handy-online-ack').checked};if(!consent.acknowledge_current_environment||!consent.allow_play||!consent.allow_online_inspection)throw Error('Explicit environment, play and ongoing online inspection consent required.');handyOriginalAttempted=true;handyActionBusy=true;handyButtons();const value=await handyPost('/player/handy-start',new TextEncoder().encode(JSON.stringify(consent)),scope);if(currentPlayer(scope))showHandy(value,scope);}catch(e){if(currentPlayer(scope))handyStatus.textContent='Start outcome unavailable: '+e.message+' Inspect ORIGINAL Start; do not submit a replacement.';}finally{handyActionBusy=false;handyButtons();if(currentPlayer(scope)&&handyOriginalAttempted)void handyPoll(scope);}};
+document.getElementById('handy-original').onclick=async()=>{const scope=playerScope||lastPlayerScope;if(handyActionBusy||!scope?.handy?.configured)return;handyActionBusy=true;handyButtons();try{const value=await handyPost('/player/handy-inspect-original',new Uint8Array(),scope);if(handyCurrentOrRetained(scope))showHandy(value,scope);}catch(e){if(handyCurrentOrRetained(scope))handyStatus.textContent='Original Start inspection unavailable: '+e.message;}finally{handyActionBusy=false;handyButtons();}};
+document.getElementById('handy-stop').onclick=async()=>{const scope=playerScope||lastPlayerScope;if(!scope?.handy?.configured)return;scope.handy.stopRequested=true;handyInspectedScope=null;handyButtons();handyStatus.textContent='Stop/release requested for the original Handy operation. Physical stopping remains unconfirmed.';try{const value=await handyPost('/player/handy-stop',new Uint8Array(),scope);if(handyCurrentOrRetained(scope))showHandy(value,scope);}catch(e){if(handyCurrentOrRetained(scope))handyStatus.textContent='Stop/release acknowledgment unavailable: '+e.message+' Inspect ORIGINAL Start; physical stopping remains unconfirmed.';}};
+function releaseShare(){const old=captureStream;captureStream=null;captureBasis=null;if(old){old.getTracks().forEach(t=>t.stop());video.srcObject=null;}}
+const hspStatus=document.getElementById('hsp-status-message'),hspSelection=document.getElementById('hsp-selection'),hspDetails=document.getElementById('hsp-details');
+const hspAcknowledgments=['hsp-prepare-ack','hsp-environment-ack','hsp-online-ack','hsp-play-ack','hsp-continuity-ack'];
+function hspRetained(scope){return currentPlayer(scope)||(!armed&&playerScope===null&&lastPlayerScope===scope);}
+function hspPost(route,scope,consent){try{return request('/player/hsp-'+route,consent?new TextEncoder().encode(JSON.stringify(consent)):new Uint8Array(),scopeHeaders(scope),false,true,['inspect','status','preparation-status','continuity-status'].includes(route)?3500:500);}catch(e){return Promise.reject(e);}}
+function hspChecked(id){return document.getElementById(id).checked===true;}
+function hspButtons(){
+ const scope=playerScope||lastPlayerScope,h=scope?.hsp,v=h?.view,current=currentPlayer(scope),configured=h?.configured===true;
+ const ready=configured&&current&&h.inspected&&!h.busy&&!h.readBusy&&!h.uncertain&&!h.retired&&!h.stopping&&!h.cancelling&&!v?.pending_action;
+ document.getElementById('hsp-inspect').disabled=!configured||!current||h.busy||h.readBusy;
+ document.getElementById('hsp-prepare').disabled=!ready||v?.can_prepare!==true||!hspChecked('hsp-prepare-ack');
+ document.getElementById('hsp-bind').disabled=!ready||v?.can_bind!==true||!hspChecked('hsp-environment-ack')||!hspChecked('hsp-online-ack');
+ document.getElementById('hsp-continuity-enable').disabled=!ready||v?.can_enable_continuity!==true||!hspChecked('hsp-continuity-ack')||!Number.isSafeInteger(v?.continuity_duration_ms)||v.continuity_duration_ms<1;
+ document.getElementById('hsp-play').disabled=!ready||v?.can_play!==true||!hspChecked('hsp-play-ack')||(hspChecked('hsp-continuity-ack')&&v?.continuity?.current!==true);
+ for(const id of ['hsp-status','hsp-preparation-status','hsp-continuity-status'])document.getElementById(id).disabled=!configured||h.readBusy;
+ for(const id of ['hsp-stop','hsp-cancel'])document.getElementById(id).disabled=!configured;
+}
+function stopHspUpdates(scope){
+ const h=scope?.hsp;if(!h)return;if(h.timer!==null)clearTimeout(h.timer);h.timer=null;h.retired=true;h.sequence++;h.inspected=false;h.inspectionPending=false;h.busy=false;
+ if(hspRetained(scope))hspStatus.textContent='Player retired. Inspect the ORIGINAL HSP outcome; Stop and preparation cancel remain available. Physical stopping remains unconfirmed.';hspButtons();
+}
+function beginHsp(scope,configuration){
+ scope.hsp={configured:configuration?.configured===true,view:null,inspected:false,inspectionPending:false,busy:false,readBusy:false,uncertain:false,retired:false,stopping:false,cancelling:false,timer:null,sequence:0};
+ for(const id of hspAcknowledgments)document.getElementById(id).checked=false;
+ hspSelection.textContent='';hspDetails.textContent='';document.getElementById('hsp-continuity-duration').textContent='No bounded HSP continuity duration selected.';
+ hspStatus.textContent=scope.hsp.configured?'HSP controls enabled. Inspect the configured device and current analysis selection before giving consent. Video Play requests no device motion.':'HSP controls are not configured. Video Play requests no device motion.';hspButtons();
+}
+function hspDisplay(value,keys){const out={};if(value&&typeof value==='object')for(const key of keys){const x=value[key];if(x===null||typeof x==='boolean'||(typeof x==='number'&&Number.isSafeInteger(x))||(typeof x==='string'&&x.length<=2048))out[key]=x;}return out;}
+function showHsp(value,scope){
+ if(!value||typeof value.configured!=='boolean'||typeof value.phase!=='string')throw Error('Invalid native HSP view.');
+ const h=scope.hsp;h.view=value;h.configured=value.configured;
+ hspSelection.textContent=JSON.stringify({device:hspDisplay(value.device,['session_id','qualification_id','qualification_revision','label','state']),source:hspDisplay(value.source,['qualification_id','qualification_revision','environment_sha256','model_sha256','state','origin'])},null,2);
+ const preparation=hspDisplay(value.preparation,['request_id','phase','remaining_ms','worker_active','metadata_pending','history_state']);
+ const stream=hspDisplay(value.stream,['request_id','phase','delivered_samples','active_source_generation','metadata_pending','stop_pending']);
+ const continuity=hspDisplay(value.continuity,['request_id','phase','current','generation','worker_active','worker_joined']);
+ const cleanup=hspDisplay(value.cleanup,['trigger','stop_request_id','cancel_request_id']);
+ const previous_lifecycles=Array.isArray(value.previous_lifecycles)?value.previous_lifecycles.slice(-8).map(entry=>hspDisplay(entry,['player_id','prepare_request_id','stream_request_id','play_request_id','enable_request_id','stop_request_id','cancel_request_id','cleanup_trigger','phase'])):[];
+ hspDetails.textContent=JSON.stringify({preparation,stream,continuity,cleanup,previous_lifecycles},null,2);
+ document.getElementById('hsp-continuity-duration').textContent=Number.isSafeInteger(value.continuity_duration_ms)&&value.continuity_duration_ms>0?'Selected bounded HSP continuity: '+value.continuity_duration_ms+' ms. Native selection; inspection does not extend this duration.':'No bounded HSP continuity duration selected.';
+ let text='HSP phase: '+value.phase+'.';
+ if(h.retired)text+=' Player retired; original history only.';
+ if(h.stopping)text+=' Original Stop requested; inspect its joined outcome.';
+ if(h.cancelling)text+=' Original preparation cancellation requested.';
+ if(value.pending_action)text+=' Pending: '+value.pending_action+'.';
+ if(preparation.phase)text+=' Preparation: '+preparation.phase+'.';
+ if(Number.isSafeInteger(preparation.remaining_ms))text+=' Native preparation remaining: '+preparation.remaining_ms+' ms at this observation.';
+ if(preparation.phase==='expired'||preparation.remaining_ms===0)text+=' Expiry requires fresh explicit preparation; no automatic retry.';
+ if(preparation.metadata_pending||stream.metadata_pending)text+=' Native metadata pending; readiness is unconfirmed.';
+ if(stream.phase)text+=' Stream: '+stream.phase+'.';
+ if(stream.stop_pending===true)text+=' Stop acknowledgment pending or unknown.';
+ if(continuity.phase)text+=' Continuity: '+continuity.phase+'.';
+ const cleanupReasons={public_stop:'HSP Stop requested',public_cancel:'preparation cancellation requested',player_retired:'player retired',owner_shutdown:'player service closing',operation_unconfirmed:'original operation unconfirmed',operation_not_dispatched:'original operation was not dispatched'};
+ if(Object.hasOwn(cleanupReasons,cleanup.trigger))text+=' Cleanup: '+cleanupReasons[cleanup.trigger]+'.';
+ if(value.error)text+=' Native refusal or uncertainty: '+String(value.error).slice(0,2048)+'.';
+ hspStatus.textContent=text+' Physical response and stopping remain unconfirmed.';hspButtons();
+}
+function scheduleHsp(scope){
+ const h=scope.hsp;if(h.timer!==null)clearTimeout(h.timer);h.timer=null;
+ if(!currentPlayer(scope)||h.retired||!h.configured||(!h.uncertain&&!h.view?.pending_action&&!h.view?.preparation?.worker_active&&h.view?.can_bind!==true&&!h.view?.stream?.stop_pending&&!['binding','prefilling','playing','observing','transferring','finishing','stopping'].includes(h.view?.phase)))return;
+ h.timer=setTimeout(()=>{h.timer=null;void inspectHsp(scope,'status');},500);
+}
+async function inspectHsp(scope,route){
+ const h=scope?.hsp;if(!h?.configured||h.readBusy||!hspRetained(scope))return;
+ h.readBusy=true;const sequence=h.sequence;if(route==='inspect'){h.inspected=false;h.inspectionPending=true;for(const id of hspAcknowledgments)document.getElementById(id).checked=false;}hspButtons();
+ try{const value=await hspPost(route,scope);if(!hspRetained(scope)||h.sequence!==sequence)return;showHsp(value,scope);if(route==='inspect'||h.inspectionPending){h.inspected=value.selection_checked===true;h.inspectionPending=!h.inspected&&value.pending_action==='inspect';if(h.inspected&&value.can_prepare===true&&!value.pending_action&&!value.stream?.stop_pending){h.stopping=false;h.cancelling=false;}}if(!value.pending_action)h.uncertain=false;}
+ catch(e){if(hspRetained(scope)&&h.sequence===sequence)hspStatus.textContent='Original HSP inspection unavailable: '+e.message+' No new device action was requested.';}
+ finally{h.readBusy=false;if(hspRetained(scope)){hspButtons();scheduleHsp(scope);}}
+}
+async function mutateHsp(route,consent,button){
+ const scope=playerScope,h=scope?.hsp;hspButtons();if(!currentPlayer(scope)||!h?.configured||document.getElementById(button).disabled)return;
+ const sequence=++h.sequence;h.busy=true;h.uncertain=true;if(h.timer!==null)clearTimeout(h.timer);h.timer=null;
+ for(const id of route==='prepare'?['hsp-prepare-ack']:route==='bind'?['hsp-environment-ack','hsp-online-ack']:route==='play'?['hsp-play-ack']:[])document.getElementById(id).checked=false;hspButtons();
+ hspStatus.textContent='Original HSP '+route+' requested. Inspect the original outcome if acknowledgment is unavailable.';
+ try{const value=await hspPost(route,scope,consent);if(!currentPlayer(scope)||h.sequence!==sequence)return;showHsp(value,scope);h.uncertain=!!value.pending_action;}
+ catch(e){if(currentPlayer(scope)&&h.sequence===sequence)hspStatus.textContent='Original HSP '+route+' outcome unavailable: '+e.message+' Inspect ORIGINAL status; no replacement request was sent.';}
+ finally{if(h.sequence===sequence)h.busy=false;if(hspRetained(scope)){hspButtons();scheduleHsp(scope);}}
+}
+async function endHsp(route){
+ const scope=playerScope||lastPlayerScope,h=scope?.hsp;if(!h?.configured)return;
+ const sequence=++h.sequence;h.busy=false;h.uncertain=true;h.inspected=false;h.inspectionPending=false;if(route==='stop')h.stopping=true;else h.cancelling=true;
+ hspStatus.textContent='Original HSP '+route+' requested independently. Physical stopping remains unconfirmed.';hspButtons();
+ try{const value=await hspPost(route,scope);if(hspRetained(scope)&&h.sequence===sequence){showHsp(value,scope);h.uncertain=!!value.pending_action;}}
+ catch(e){if(hspRetained(scope)&&h.sequence===sequence)hspStatus.textContent='Original HSP '+route+' acknowledgment unavailable: '+e.message+' Retry the same original '+route+' or inspect status. Physical stopping remains unconfirmed.';}
+ finally{if(hspRetained(scope)){hspButtons();scheduleHsp(scope);}}
+}
+for(const id of hspAcknowledgments)document.getElementById(id).onchange=hspButtons;
+document.getElementById('hsp-inspect').onclick=()=>inspectHsp(playerScope,'inspect');
+for(const route of ['status','preparation-status','continuity-status'])document.getElementById('hsp-'+route).onclick=()=>inspectHsp(playerScope||lastPlayerScope,route);
+document.getElementById('hsp-prepare').onclick=()=>mutateHsp('prepare',{allow_synchronization:hspChecked('hsp-prepare-ack')},'hsp-prepare');
+document.getElementById('hsp-bind').onclick=()=>mutateHsp('bind',{acknowledge_current_environment:hspChecked('hsp-environment-ack'),allow_online_control:hspChecked('hsp-online-ack')},'hsp-bind');
+document.getElementById('hsp-play').onclick=()=>mutateHsp('play',{allow_play:hspChecked('hsp-play-ack')},'hsp-play');
+document.getElementById('hsp-continuity-enable').onclick=()=>mutateHsp('continuity-enable',{allow_continuity:hspChecked('hsp-continuity-ack')},'hsp-continuity-enable');
+for(const route of ['stop','cancel'])document.getElementById('hsp-'+route).onclick=()=>endHsp(route);
+// pause() queues a media event. Consume only the notifications this page caused,
+// including one delivered after a later explicit Play; user pause still retires.
+let programmaticPauses=0;
+function pauseVideo(){if(!video.paused){programmaticPauses++;video.pause();}}
+function clear(message){stopAnalysis();const scope=playerScope;nextGeneration();const stoppedGeneration=generation;armed=false;epoch=null;playerScope=null;playerAttempt=null;resetMotion();releaseShare();status.textContent=message;guardStatus.textContent='Handy stop guard: released locally; physical stopping is unconfirmed.';timingStatus.textContent='Browser timing retired with this player; original observations confer no current authority.';void releasePlayer(scope).catch(e=>{if(generation===stoppedGeneration)guardStatus.textContent='Handy stop guard release could not be confirmed: '+e.message;});if(scope)post('/stop',new Uint8Array(),scope).catch(e=>{if(generation===stoppedGeneration)status.textContent=message+'\nStop could not be confirmed: '+e.message;});}
+function mediaPost(route,body=null,keepalive=false,scope=null){try{return request(route,body===null?new Uint8Array():new TextEncoder().encode(JSON.stringify(body)),scopeHeaders(scope),keepalive);}catch(e){return Promise.reject(e);}}
+function stopMediaPolling(intent){if(intent?.timer!==null&&intent?.timer!==undefined)clearTimeout(intent.timer);if(intent)intent.timer=null;}
+function preparedSourceMatches(intent){return preparedMedia===intent&&intent.generation===mediaGeneration&&!intent.cancelled&&!pageClosing&&video.getAttribute('src')===intent.url&&video.currentSrc===new URL(intent.url,window.location.href).href;}
+function currentPositionInsideTrim(intent){const us=Math.round(video.currentTime*1e6);return Number.isSafeInteger(us)&&us>=intent.trim_start_us&&us<intent.trim_end_us;}
+function cancelInitialMediaSeek(intent){if(intent.metadataListener)video.removeEventListener('loadedmetadata',intent.metadataListener);if(intent.seekListener)video.removeEventListener('seeked',intent.seekListener);intent.metadataListener=null;intent.seekListener=null;}
+function preparedMediaMessage(intent){return `Byte-bound Engine source ${intent.selection_id} prepared. Declared anchors: browser ${intent.declaration.presentation_anchor_us} µs → source elapsed ${intent.declaration.elapsed_anchor_us} µs. Producer-declared trim: ${intent.trim_start_us}–${intent.trim_end_us} microseconds. ${intent.initialSeekPending?'Waiting for metadata and the initial declared-trim seek.':'Press Play explicitly.'} This is not calibrated or synchronized playback.`;}
+function installPreparedMedia(intent){
+ intent.initialSeekPending=true;intent.initialSeekStarted=false;
+ const settled=()=>{if(!preparedSourceMatches(intent)||!intent.initialSeekStarted||video.readyState<1||video.seeking||!currentPositionInsideTrim(intent))return;intent.initialSeekPending=false;cancelInitialMediaSeek(intent);mediaMessage.textContent=preparedMediaMessage(intent);};
+ const metadata=()=>{
+  if(!preparedSourceMatches(intent)||video.readyState<1||intent.initialSeekStarted)return;
+  intent.initialSeekStarted=true;
+  try{video.currentTime=intent.trim_start_us/1e6;settled();}catch(error){mediaFailure(intent,Error('The initial declared-trim seek could not be completed. Seek inside its range before Play.'));}
+ };
+ intent.metadataListener=metadata;intent.seekListener=settled;video.addEventListener('loadedmetadata',metadata);video.addEventListener('seeked',settled);
+ video.src=intent.url;if(video.readyState>=1)metadata();
+}
+function detachPreparedMedia(intent){if(preparedMedia!==intent)return;cancelInitialMediaSeek(intent);preparedMedia=null;video.removeAttribute('src');video.load();}
+function finishMediaRelease(intent){if(mediaIntent===intent&&intent.released&&!intent.preparing){mediaIntent=null;mediaMessage.textContent='Prepared source released. Select and acknowledge a source before preparing again.';}}
+function mediaFailure(intent,error){if(mediaIntent===intent&&!pageClosing)mediaMessage.textContent='Original source preparation requires inspection: '+error.message+' Inspect or release the original selection; a replacement has not been prepared.';}
+function selectionFrom(report,intent){
+ if(!report||typeof report.selection_id!=='string'||!report.selection_id)throw Error('Native source selection identity is missing.');
+ if(intent.selection_id&&report.selection_id!==intent.selection_id)throw Error('Native source selection identity changed.');
+ intent.selection_id=report.selection_id;
+}
+async function releaseMediaSelection(intent,keepalive=false){
+ const requestedSelection=intent.selection_id;
+ const result=await mediaPost('/media/release',{selection_id:requestedSelection},keepalive);
+ const notDispatched=requestedSelection===null&&intent.selection_id===null&&result?.selection_id===null&&result.not_dispatched===true;
+ if(!notDispatched)selectionFrom(result,intent);
+ if(result.current!==false||result.state!=='cancelled')throw Error('Original media release has not been confirmed.');
+ intent.released=true;finishMediaRelease(intent);return result;
+}
+function retireMedia(message,keepalive=false){
+ const intent=mediaIntent;mediaGeneration++;
+ if(!intent)return Promise.resolve();
+ intent.cancelled=true;stopMediaPolling(intent);detachPreparedMedia(intent);
+ if(!pageClosing)mediaMessage.textContent=message+' Releasing the original Engine source selection…';
+ if(intent.releasePromise&&!keepalive)return intent.releasePromise;
+ const task=releaseMediaSelection(intent,keepalive).catch(error=>{mediaFailure(intent,error);throw error;}).finally(()=>{if(intent.releasePromise===task)intent.releasePromise=null;});intent.releasePromise=task;return task;
+}
+function anchorMicros(id){const value=document.getElementById(id).value.trim();if(!/^\d+$/.test(value)||value.length>19||BigInt(value)>9223372036854775807n)throw Error('Clock anchors must be nonnegative whole microseconds within the signed 64-bit range.');return BigInt(value).toString();}
+function showMediaEntry(){const entry=mediaCatalog?.entries.find(e=>e.entry_id===mediaSelection.value);mediaDetails.textContent=entry?`${entry.label}\nSource version: ${entry.source_version}\nPlacement: ${entry.placement_id}\nImported SHA-256: ${entry.sha256}\nBytes: ${entry.byte_len}\nProducer-declared clock; no calibration or synchronization claim.`:'Select an Engine source and placement.';}
+document.getElementById('refresh-media').onclick=async()=>{
+ if(pageClosing)return;const observed=++mediaCatalogRequest;
+ try{
+  const catalog=await mediaPost('/media/catalog');if(pageClosing||observed!==mediaCatalogRequest)return;
+  if(typeof catalog.catalog_generation!=='string'||!catalog.catalog_generation||!Array.isArray(catalog.entries)||catalog.entries.length>256)throw Error('Invalid native media catalog.');
+  const ids=new Set();for(const entry of catalog.entries){if(!entry||['entry_id','label','source_version','placement_id','sha256','byte_len'].some(k=>typeof entry[k]!=='string')||!entry.entry_id||ids.has(entry.entry_id)||!/^\d+$/.test(entry.byte_len)||!/^[0-9a-f]{64}$/.test(entry.sha256))throw Error('Invalid native media catalog entry.');ids.add(entry.entry_id);}
+  mediaCatalog=catalog;mediaSelection.replaceChildren();for(const entry of catalog.entries){const option=document.createElement('option');option.value=entry.entry_id;option.textContent=entry.label+' — placement '+entry.placement_id;mediaSelection.appendChild(option);}
+  showMediaEntry();if(!mediaIntent)mediaMessage.textContent=`${catalog.entries.length} Engine source placements available. Choose one and explicitly declare its clock anchors.`;
+ }catch(error){if(!pageClosing&&observed===mediaCatalogRequest)mediaMessage.textContent='Media catalog unavailable: '+error.message;}
+};
+mediaSelection.onchange=()=>{document.getElementById('media-clock-ack').checked=false;showMediaEntry();};
+for(const id of ['media-presentation-anchor','media-elapsed-anchor'])document.getElementById(id).oninput=()=>{document.getElementById('media-clock-ack').checked=false;};
+function scheduleMediaStatus(intent){stopMediaPolling(intent);if(mediaIntent===intent&&!intent.cancelled&&!pageClosing)intent.timer=setTimeout(()=>{intent.timer=null;void inspectMedia(intent);},200);}
+async function acceptMediaReport(report,intent,operation){
+ selectionFrom(report,intent);
+ if(mediaIntent!==intent||intent.cancelled||intent.generation!==mediaGeneration||pageClosing){intent.cancelled=true;await releaseMediaSelection(intent,pageClosing);return;}
+ if(operation!==intent.operation)return;
+ if(!['pending','ready','cancelled','failed'].includes(report.state)||typeof report.current!=='boolean')throw Error('Invalid native preparation state.');
+ if(report.state!=='ready'&&report.current)throw Error('Inactive preparation state cannot grant media authority.');
+ if(report.preparation_request_id!==undefined&&typeof report.preparation_request_id!=='string')throw Error('Invalid preparation request identity.');
+ if(intent.preparation_request_id&&report.preparation_request_id&&intent.preparation_request_id!==report.preparation_request_id)throw Error('Original preparation request identity changed.');
+ intent.preparation_request_id=report.preparation_request_id||intent.preparation_request_id;
+ if(report.state==='ready'&&report.current){
+  if(typeof report.url!=='string'||!/^\/media\/[A-Za-z0-9_-]+$/.test(report.url)||!Number.isSafeInteger(report.trim_start_us)||!Number.isSafeInteger(report.trim_end_us)||report.trim_start_us<0||report.trim_end_us<=report.trim_start_us)throw Error('Invalid prepared media URL or declared trim.');
+  if(preparedMedia===intent&&(intent.url!==report.url||intent.trim_start_us!==report.trim_start_us||intent.trim_end_us!==report.trim_end_us))throw Error('Prepared media URL or declared trim changed; release the original selection.');
+  stopMediaPolling(intent);intent.state='ready';intent.current=true;intent.trim_start_us=report.trim_start_us;intent.trim_end_us=report.trim_end_us;
+  if(preparedMedia!==intent){intent.url=report.url;preparedMedia=intent;video.srcObject=null;video.muted=false;installPreparedMedia(intent);}
+  mediaMessage.textContent=preparedMediaMessage(intent);
+ }else if(report.state==='pending'){
+  if(preparedMedia===intent){pauseVideo();clear('Prepared source status is no longer ready. Inspect its original preparation.');detachPreparedMedia(intent);}
+  intent.state='pending';intent.current=false;mediaMessage.textContent='Original Engine source preparation is pending. No playback or device motion started.';scheduleMediaStatus(intent);
+ }else{
+  stopMediaPolling(intent);intent.state=report.state;intent.current=false;
+  if(preparedMedia===intent){pauseVideo();clear('Prepared Engine source is no longer current. Inspect or release its original selection.');detachPreparedMedia(intent);}
+  mediaMessage.textContent='Original source selection '+report.selection_id+' is '+(report.state==='ready'?'no longer current':report.state)+'. '+(typeof report.error==='string'?report.error+' ':'')+'Release it explicitly before preparing another source.';
+ }
+}
+async function inspectMedia(intent=mediaIntent){
+ if(!intent||pageClosing)return;stopMediaPolling(intent);const operation=++intent.operation;
+ try{const result=await mediaPost('/media/status',{selection_id:intent.selection_id});await acceptMediaReport(result,intent,operation);}catch(error){mediaFailure(intent,error);}
+}
+document.getElementById('inspect-media').onclick=()=>inspectMedia();
+document.getElementById('prepare-media').onclick=async()=>{
+ if(pageClosing)return;
+ let intent;
+ try{
+  if(mediaIntent)throw Error('Release the original source preparation before preparing another source.');
+  const entry=mediaCatalog?.entries.find(e=>e.entry_id===mediaSelection.value);if(!entry)throw Error('Refresh and select an Engine source placement first.');
+  if(!document.getElementById('media-clock-ack').checked)throw Error('Explicitly acknowledge the producer-declared clock mapping first.');
+  const body={catalog_generation:mediaCatalog.catalog_generation,entry_id:entry.entry_id,presentation_anchor_us:anchorMicros('media-presentation-anchor'),elapsed_anchor_us:anchorMicros('media-elapsed-anchor'),allow_declared_clock:true};
+  pauseVideo();clear('Preparing Engine source bytes. Play remains explicit.');if(objectURL){URL.revokeObjectURL(objectURL);objectURL=null;}video.removeAttribute('src');video.load();
+  intent={selection_id:null,declaration:body,generation:++mediaGeneration,operation:1,preparing:true,cancelled:false,released:false,current:false,state:'pending',timer:null,releasePromise:null};mediaIntent=intent;
+  mediaMessage.textContent='Preparing the selected Engine bytes and declared clock mapping…';
+  const result=await mediaPost('/media/prepare',body);await acceptMediaReport(result,intent,1);
+ }catch(error){if(intent)mediaFailure(intent,error);else mediaMessage.textContent='Source preparation refused: '+error.message;}
+ finally{if(intent){intent.preparing=false;finishMediaRelease(intent);}}
+};
+document.getElementById('release-media').onclick=()=>{pauseVideo();clear('Prepared source release requested.');return retireMedia('Explicit source release.').catch(()=>{});};
+async function selectCapture(kind){
+ if(capturePending)return;
+ const camera=kind==='camera',label=camera?'Camera':'Browser tab';
+ if(typeof video.requestVideoFrameCallback!=='function'){status.textContent='This browser does not expose video-frame callbacks.';return;}
+ if(camera?!navigator.mediaDevices?.getUserMedia:!navigator.mediaDevices?.getDisplayMedia){status.textContent=label+' capture is unavailable here. Select a local video.';return;}
+ void retireMedia('Switching to unbound capture.').catch(()=>{});
+ capturePending=true;
+ for(const id of ['share-tab','camera'])document.getElementById(id).disabled=true;
+ pauseVideo();clear(camera?'Allow camera video in the browser permission dialog.':'Choose a browser tab in the sharing dialog.');
+ const observed=generation;let selected=null;
+ try{
+  selected=camera?await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480},frameRate:{ideal:15,max:30}},audio:false}):await navigator.mediaDevices.getDisplayMedia({video:{displaySurface:'browser'},audio:false,selfBrowserSurface:'exclude'});
+  const tracks=selected.getVideoTracks();
+  if(observed!==generation){selected.getTracks().forEach(t=>t.stop());return;}
+  if(tracks.length!==1||selected.getTracks().length!==1)throw Error('Exactly one video track and no audio are required.');
+  if(!camera&&tracks[0].getSettings().displaySurface!=='browser')throw Error('Select a browser tab. This preview refuses other or unidentified display surfaces.');
+  if(tracks[0].muted||tracks[0].enabled===false||tracks[0].readyState==='ended')throw Error('Selected capture is unavailable.');
+  captureStream=selected;captureBasis=camera?'camera_capture_presentation':'display_capture_presentation';
+  tracks[0].addEventListener('ended',()=>{if(captureStream===selected){pauseVideo();clear(label+' capture ended.');}});
+  tracks[0].addEventListener('mute',()=>{if(captureStream===selected){pauseVideo();clear(label+' capture became inaccessible. Select capture again explicitly to resume.');}});
+  if(objectURL){URL.revokeObjectURL(objectURL);objectURL=null;}
+  video.srcObject=selected;video.removeAttribute('src');video.muted=true;
+  await video.play();
+  if(captureStream!==selected){selected.getTracks().forEach(t=>t.stop());return;}
+ }catch(e){
+  selected?.getTracks().forEach(t=>t.stop());
+  if((selected!==null&&captureStream===selected)||observed===generation){pauseVideo();clear(label+' capture stopped: '+e.message);}
+ }finally{
+  capturePending=false;
+  for(const id of ['share-tab','camera'])document.getElementById(id).disabled=false;
+ }
+}
+document.getElementById('share-tab').onclick=()=>selectCapture('tab');
+document.getElementById('camera').onclick=()=>selectCapture('camera');
+document.getElementById('stop').onclick=()=>{pauseVideo();clear('Preview stopped.');};
+document.getElementById('file').onchange=e=>{void retireMedia('Switching to an unbound local file.').catch(()=>{});pauseVideo();clear('New video selected. Press Play.');if(objectURL)URL.revokeObjectURL(objectURL);const file=e.target.files[0];objectURL=file?URL.createObjectURL(file):null;video.srcObject=null;video.muted=false;video.src=objectURL||'';};
+function lookaheadSelection(){
+ if(!lookaheadInput.checked)return null;
+ if(!preparedMedia||!preparedSourceMatches(preparedMedia))throw Error('Lookahead requires the current prepared Engine-media URL.');
+ const ms=Number(lookaheadMs.value);if(!Number.isSafeInteger(ms)||ms<1||ms>15000)throw Error('Requested lookahead must be 1..15000 ms.');
+ return {role:'lookahead',...(continuityInput.checked?{continuity:true}:{}),policy:{target_lead_us:ms*1000,minimum_lead_us:Math.max(1,Math.floor(ms*500)),maximum_lead_us:ms*2000}};
+}
+function currentAnalysis(state){return !!state&&analysisReader===state&&!state.retired&&armed&&state.generation===generation&&playerAttempt===state.attempt&&preparedMedia===state.media;}
+function stopAnalysis(){
+ const state=analysisReader;analysisReader=null;futureEstimates=[];lastFutureEstimate=null;if(futureTimer!==null)clearTimeout(futureTimer);futureTimer=null;
+ if(state){state.retired=true;stopContinuation(state);for(const key of ['timer','closeTimer','settlementTimer','drainTimer'])if(state[key]!==null&&state[key]!==undefined)clearTimeout(state[key]);if(state.callback!==null&&typeof analysisVideo.cancelVideoFrameCallback==='function')analysisVideo.cancelVideoFrameCallback(state.callback);for(const [event,listener] of state.listeners)analysisVideo.removeEventListener(event,listener);state.listeners=[];}
+ analysisVideo.pause();analysisVideo.removeAttribute('src');analysisVideo.load();analysisVideo.hidden=true;analysisEstimate.textContent='';
+ lookaheadStatus.textContent='Lookahead is inactive; explicit Play creates a new analysis feed.';
+}
+function failAnalysis(state,message){if(currentAnalysis(state)){pauseVideo();clear('Lookahead stopped: '+message);}}
+function startAnalysis(attempt,selection){
+ const state={attempt,selection,media:preparedMedia,generation,retired:false,ready:false,awaitingSeek:false,feed:null,timer:null,callback:null,listeners:[],lastFrames:0,lastTime:null,inputPhase:'open',inFlight:null,lastSubmitted:null,lastAck:null,captureDeadline:null,continuation:null,continuationCount:0,closeIntent:null,closeTimer:null,settlementTimer:null,drainTimer:null,expectedPause:false};analysisReader=state;
+ const listen=(event,fn)=>{analysisVideo.addEventListener(event,fn);state.listeners.push([event,fn]);};
+ const sourceMatches=()=>analysisVideo.getAttribute('src')===state.media.url&&analysisVideo.currentSrc===new URL(state.media.url,window.location.href).href&&preparedSourceMatches(state.media);
+ const begin=()=>{if(!currentAnalysis(state)||!state.awaitingSeek||analysisVideo.seeking||analysisVideo.readyState<1||!sourceMatches())return;state.awaitingSeek=false;state.ready=true;scheduleAnalysis(state);if(state.timer!==null)clearTimeout(state.timer);state.timer=setTimeout(()=>failAnalysis(state,'Analysis reader produced no original frame.'),5000);Promise.resolve(analysisVideo.play()).catch(e=>failAnalysis(state,'Analysis reader could not play: '+e.message));};
+ listen('loadedmetadata',()=>{if(!currentAnalysis(state))return;try{if(!sourceMatches())throw Error('Analysis reader source differs from the prepared visible source.');const startUs=Math.round(video.currentTime*1e6)+selection.policy.target_lead_us;if(!Number.isSafeInteger(startUs)||startUs<state.media.trim_start_us||startUs>=state.media.trim_end_us)throw Error('The remaining source trim cannot provide the requested lead.');state.awaitingSeek=true;analysisVideo.currentTime=startUs/1e6;if(!analysisVideo.seeking)begin();}catch(e){failAnalysis(state,e.message);}});
+ listen('seeked',begin);
+ listen('seeking',()=>{if(currentAnalysis(state)&&!state.awaitingSeek)failAnalysis(state,'Analysis reader sought outside its original start.');});
+ for(const event of ['pause','ended','ratechange','error'])listen(event,()=>{
+  if(!currentAnalysis(state)||!state.ready)return;
+  if(event==='pause'&&state.expectedPause){state.expectedPause=false;return;}
+  if((event==='pause'||event==='ended')&&naturalAnalysisEnd(state)){void finishAnalysisInput(state,'natural EOF');return;}
+  failAnalysis(state,'Analysis reader '+event+'.');
+ });
+ analysisVideo.muted=true;analysisVideo.hidden=false;analysisVideo.playbackRate=1;analysisVideo.src=state.media.url;analysisVideo.load();
+ state.timer=setTimeout(()=>failAnalysis(state,'Analysis reader did not complete its original metadata/seek startup.'),5000);
+ lookaheadStatus.textContent='Preparing a second reader at the requested lead. Waiting for actual frame timestamps.';
+}
+for(const control of [lookaheadInput,lookaheadMs,continuityInput])control.onchange=()=>{if(armed){pauseVideo();clear('Lookahead selection changed. Press Play explicitly for a new feed.');}};
+function checkAnalysisFeed(report,state,scope){
+ const feed=report.browser?.analysis_feed;
+ if(!feed||feed.role!=='lookahead'||typeof feed.feed_id!=='string'||!feed.feed_id||feed.generation!==generation||feed.capture_epoch!==report.identity?.epoch||!feed.player)throw Error('Native analysis feed identity is absent or changed.');
+ for(const key of ['launch_id','page_id','player_id','source_id','generation','time_basis'])if(feed.player[key]!==scope[key])throw Error('Analysis feed belongs to another visible player.');
+ for(const key of ['target_lead_us','minimum_lead_us','maximum_lead_us'])if(feed.policy?.[key]!==state.selection.policy[key])throw Error('Native lookahead policy changed.');
+ if(state.feed&&(state.feed.feed_id!==feed.feed_id||state.feed.capture_epoch!==feed.capture_epoch))throw Error('Capture continuation requires a new explicit analysis feed.');
+ state.feed=feed;return feed;
+}
+function sameAnalysisSubmission(left,right){
+ if(!left||!right||left.media_us!==right.media_us||!left.observation||!right.observation)return false;
+ return ['feed_id','role','generation','visible_media_us','visible_presented_frames','visible_tick_us','analysis_tick_us','presented_frames'].every(key=>left.observation[key]===right.observation[key]);
+}
+function stopContinuation(state){const c=state?.continuation;if(!c)return;c.retired=true;for(const key of ['timer','timingTimer','probeTimer','expiryTimer'])if(c[key]!==null&&c[key]!==undefined)clearTimeout(c[key]);c.probe=null;if(c.heldOldTiming&&playerScope?.timing)playerScope.timing.inspecting=false;}
+function currentContinuation(state,c){return currentAnalysis(state)&&currentPlayer(c.scope)&&state.continuation===c&&!c.retired;}
+function continuationLater(state,c,action){if(!currentContinuation(state,c))return;c.timer=setTimeout(()=>{c.timer=null;void action();},100);}
+function checkSuccessor(report,state,c){
+ const next=report.browser?.analysis_successor,r=next?.report,feed=next?.feed;
+ if(!next||!r||!feed||next.original_request_id!==r.original_request_id||r.predecessor?.epoch!==c.predecessor||feed.capture_epoch!==r.successor?.identity?.epoch||feed.capture_epoch===c.predecessor)throw Error('Successor report changed its original capture identities.');
+ if(c.prepareId&&c.prepareId!==r.original_request_id)throw Error('Successor preparation request changed.');
+ if(c.feed&&(c.feed.feed_id!==feed.feed_id||c.feed.capture_epoch!==feed.capture_epoch))throw Error('Successor feed identity changed.');
+ for(const key of ['launch_id','page_id','player_id','source_id','generation','time_basis'])if(feed.player?.[key]!==playerScope[key])throw Error('Successor belongs to another visible player.');
+ for(const key of ['target_lead_us','minimum_lead_us','maximum_lead_us'])if(feed.policy?.[key]!==state.selection.policy[key])throw Error('Successor lookahead changed.');
+ c.prepareId=r.original_request_id;c.feed=feed;
+ const lease=r.successor.options?.lease_ms;if(!Number.isInteger(lease)||lease<1||lease>30000)throw Error('Successor capture lease invalid.');
+ const end=c.prepareSentAt+lease;if(c.captureDeadline!==null&&c.captureDeadline!==end)throw Error('Successor deadline changed.');c.captureDeadline=end;
+ return next;
+}
+async function prepareAnalysisContinuation(state,c){
+ if(!currentContinuation(state,c))return;
+ try{
+  if(c.prepareSentAt===null)c.prepareSentAt=performance.now();
+  const report=await post('/analysis/prepare',new Uint8Array(),playerScope);if(!currentContinuation(state,c))return;
+  const next=checkSuccessor(report,state,c);
+  if(next.report.phase==='prepared'){c.phase='boundary';lookaheadStatus.textContent='Successor prepared; the next original analysis frame will be the shared native boundary.';return;}
+  if(next.report.phase!=='preparing')throw Error('Unexpected successor preparation phase.');
+  continuationLater(state,c,()=>prepareAnalysisContinuation(state,c));
+ }catch(e){failAnalysis(state,'Original successor preparation unavailable: '+e.message);}
+}
+async function continuationProbe(state,c){
+ if(!currentContinuation(state,c)||c.probe||c.timingBusy||['reserving','pair','joining'].includes(c.phase))return;
+ c.timingBusy=true;
+ const sentAt=performance.now(),baseline=presentedFrame?.presented_frames??0;
+ try{
+  const reply=await timingPost('/player/timing-next-probe',new Uint8Array(),playerScope);if(!currentContinuation(state,c))return;
+  if(reply.pending===true){c.timingTimer=setTimeout(()=>{c.timingTimer=null;void continuationProbe(state,c);},100);return;}
+  if(!counter(reply.sequence)||typeof reply.probe_id!=='string'||!Number.isInteger(reply.probe_timeout_ms)||reply.probe_timeout_ms<50||reply.probe_timeout_ms>2000||!Number.isInteger(reply.observation_timeout_ms)||reply.observation_timeout_ms<100||reply.observation_timeout_ms>5000)throw Error('Invalid successor timing probe.');
+  c.probe={sequence:reply.sequence,probe_id:reply.probe_id,baseline:Math.max(baseline,presentedFrame?.presented_frames??0),received_tick_us:browserMicros(performance.now()),sentAt,observationTimeoutMs:reply.observation_timeout_ms};
+  c.probeTimer=setTimeout(()=>failAnalysis(state,'Successor timing received no fresh callback.'),reply.probe_timeout_ms);
+ }catch(e){failAnalysis(state,'Successor timing unavailable: '+e.message);}finally{c.timingBusy=false;}
+}
+function continuationTimingFrame(state,now,metadata,sampledAt){
+ const c=state?.continuation,probe=c?.probe;if(!c||!probe||c.timingBusy||!currentContinuation(state,c))return;
+ try{
+  const callback_tick_us=browserMicros(now),browser_tick_us=browserMicros(sampledAt),media_time_us=Math.round(metadata.mediaTime*1e6),presented_frames=metadata.presentedFrames;
+  if(callback_tick_us<probe.received_tick_us||presented_frames<=probe.baseline)return;
+  if(callback_tick_us>browser_tick_us||!Number.isSafeInteger(media_time_us)||media_time_us<0||!Number.isSafeInteger(presented_frames))throw Error('Invalid successor callback observation.');
+  const frame={sample:{browser_tick_us,media_time_us,presented_frames,playing:!video.paused,seeking:video.seeking,ended:video.ended,visible:document.visibilityState==='visible',playback_rate_milli:Math.round(video.playbackRate*1000)},callback_tick_us,presentation_time_us:metadata.presentationTime===undefined?null:browserMicros(metadata.presentationTime),expected_display_time_us:metadata.expectedDisplayTime===undefined?null:browserMicros(metadata.expectedDisplayTime)};
+  c.probe=null;c.timingBusy=true;if(c.probeTimer!==null)clearTimeout(c.probeTimer);c.probeTimer=null;
+  void(async()=>{try{
+   const report=await timingPost('/player/timing-next-observe',new TextEncoder().encode(JSON.stringify({sequence:probe.sequence,probe_id:probe.probe_id,frame})),playerScope);if(!currentContinuation(state,c))return;
+   if(!report.current||report.observation?.sequence!==probe.sequence)throw Error('Successor observation differs or expired.');
+   if(c.expiryTimer!==null)clearTimeout(c.expiryTimer);c.expiryTimer=setTimeout(()=>failAnalysis(state,'Successor timing observation expired.'),Math.max(0,probe.sentAt+probe.observationTimeoutMs-performance.now()));
+   if(c.phase==='timing'){c.phase='preparing';void prepareAnalysisContinuation(state,c);}
+   if(!['reserving','pair','joining'].includes(c.phase))c.timingTimer=setTimeout(()=>{c.timingTimer=null;void continuationProbe(state,c);},250);
+  }catch(e){failAnalysis(state,'Successor observation unavailable: '+e.message);}finally{c.timingBusy=false;}})();
+ }catch(e){failAnalysis(state,e.message);}
+}
+function maybePrepareContinuation(report,state){
+ if(!state.selection.continuity||state.continuation||state.inputPhase!=='open'||report.browser?.analysis_continuity?.prepare_due!==true)return;
+ const c={scope:playerScope,phase:'media',predecessor:epoch,prepareId:null,prepareSentAt:null,captureDeadline:null,feed:null,transferId:null,pairAck:null,pairSent:false,committedReport:null,heldOldTiming:false,timer:null,timingTimer:null,probeTimer:null,expiryTimer:null,probe:null,timingBusy:false,retired:false};state.continuation=c;
+ const inspect=async(first)=>{if(!currentContinuation(state,c))return;try{
+  const media=await mediaPost(first?'/media/continue':'/media/continue-status',{selection_id:state.media.selection_id},false,c.scope);if(!currentContinuation(state,c))return;
+  if(media.selection_id!==state.media.selection_id||!['pending','ready'].includes(media.state))throw Error('Media successor identity or state differs.');
+  if(media.state==='ready'&&media.current){
+   if(media.url!==state.media.url||media.trim_start_us!==state.media.trim_start_us||media.trim_end_us!==state.media.trim_end_us)throw Error('Media successor changed bytes, URL or trim.');
+   await post('/player/timing-next-open',new Uint8Array(),playerScope);if(!currentContinuation(state,c))return;c.phase='timing';void continuationProbe(state,c);
+  }else continuationLater(state,c,()=>inspect(false));
+ }catch(e){failAnalysis(state,'Media continuation unavailable: '+e.message);}};void inspect(true);
+}
+function receiveContinuation(report,state,c){
+ if(!currentContinuation(state,c))return;
+ const transfer=report.browser?.analysis_successor?.transfer??report.browser?.analysis_transfer_completed;
+ if(!transfer)return false;
+ if(transfer.preparation_request_id!==c.prepareId||transfer.predecessor?.epoch!==c.predecessor||transfer.successor?.epoch!==c.feed.capture_epoch||typeof transfer.original_request_id!=='string')throw Error('Transfer report changed original identity.');
+ if(c.transferId&&c.transferId!==transfer.original_request_id)throw Error('Original transfer request changed.');c.transferId=transfer.original_request_id;
+ if(transfer.phase==='aborted')throw Error('Native transfer aborted.');
+ if(transfer.phase==='transferred'){
+  if(!transfer.predecessor_worker_joined||!transfer.predecessor_delivery_settled||!transfer.successor_pair_accepted||report.identity?.epoch!==c.feed.capture_epoch)throw Error('Native transfer did not settle the actual boundary pair.');
+  if(!c.pairAck){c.committedReport=report;c.phase='joining';return false;}
+  stopContinuation(state);state.feed=null;checkAnalysisFeed(report,state,playerScope);epoch=state.feed.capture_epoch;state.captureDeadline=c.captureDeadline;state.lastSubmitted=c.pairAck;state.lastAck=c.pairAck;state.continuation=null;state.continuationCount++;
+  const mediaRequest=report.browser?.analysis_continuity?.media_preparation_request_id;if(typeof mediaRequest!=='string'||!mediaRequest)throw Error('Committed source preparation identity missing.');state.media.preparation_request_id=mediaRequest;
+  stopTiming(playerScope);beginTiming(playerScope,{configured:true});lookaheadStatus.textContent='Capture transfer confirmed; the same visible player continues. Any skipped frames remain gaps.';
+  showAnalysis(report,0,c.pairAck.submitted.media_us,c.pairAck.capturedAt,state);return true;
+ }
+ if(!['boundary_reserved','joining_predecessor','awaiting_successor_pair','ready_for_transfer'].includes(transfer.phase))throw Error('Invalid native transfer phase.');
+ if(!c.pairSent)c.phase='pair';else c.phase='joining';return false;
+}
+async function inspectContinuation(state,c){
+ if(!currentContinuation(state,c))return;
+ try{const report=await post('/analysis/transfer-status',new Uint8Array(),playerScope);if(!currentContinuation(state,c))return;if(receiveContinuation(report,state,c))return;}
+ catch(e){failAnalysis(state,'Original transfer status unavailable: '+e.message);return;}
+ continuationLater(state,c,()=>inspectContinuation(state,c));
+}
+async function reserveContinuationBoundary(state,c){
+ c.phase='reserving';if(c.timingTimer!==null){clearTimeout(c.timingTimer);c.timingTimer=null;}try{const report=await post('/analysis/transfer',new Uint8Array(),playerScope);if(!currentContinuation(state,c))return;receiveContinuation(report,state,c);}
+ catch(e){if(!currentContinuation(state,c))return;lookaheadStatus.textContent='Original transfer dispatch unconfirmed; inspecting the same retained request.';}
+ if(currentContinuation(state,c))continuationLater(state,c,()=>inspectContinuation(state,c));
+}
+function naturalAnalysisEnd(state){
+ return currentAnalysis(state)&&analysisVideo.ended===true&&!analysisVideo.seeking&&!analysisVideo.error&&!analysisVideo.loop&&analysisVideo.playbackRate===1
+  &&Number.isFinite(analysisVideo.duration)&&analysisVideo.duration>0&&Number.isFinite(analysisVideo.currentTime)
+  &&Math.round(analysisVideo.currentTime*1e6)>=state.media.trim_end_us&&Math.round(analysisVideo.duration*1e6)>=state.media.trim_end_us
+  &&preparedSourceMatches(state.media)&&analysisVideo.getAttribute('src')===state.media.url&&analysisVideo.currentSrc===new URL(state.media.url,window.location.href).href;
+}
+function scheduleAnalysisFinishStatus(state){
+ if(!currentAnalysis(state)||!state.closeIntent)return;
+ state.closeTimer=setTimeout(()=>{state.closeTimer=null;void inspectAnalysisFinish(state);},100);
+}
+function receiveAnalysisFinish(report,state){
+ const scope=playerScope;if(!currentAnalysis(state)||!currentPlayer(scope))return;
+ if(report.active!==true)throw Error('Original capture retired while input was draining.');
+ checkAnalysisFeed(report,state,scope);
+ const original=report.browser?.analysis_finish_request_id;
+ if(typeof original!=='string'||!original)throw Error('Native input-close request identity is absent.');
+ if(state.closeIntent.requestId!==null&&state.closeIntent.requestId!==original)throw Error('Native input-close request identity changed.');
+ state.closeIntent.requestId=original;
+ const ack=report.browser?.analysis_last_upload;
+ if(state.lastAck?!sameAnalysisSubmission(ack,state.lastAck.submitted):ack!==null)throw Error('Native final upload changed during input closure.');
+ const close=report.input_close;
+ if(!close){lookaheadStatus.textContent='Original input-close dispatch is unconfirmed; inspecting the same request. Visible playback creates no replacement analysis input.';return;}
+ if(close.original_request_id!==original||!['closing','joining','sealed'].includes(close.phase))throw Error('Original input close aborted or returned an invalid phase.');
+ if(state.inputPhase==='sealed'&&close.phase!=='sealed')throw Error('Native sealed input regressed.');
+ if(close.phase==='sealed'){
+  if(close.worker_joined!==true||close.delivery_settled!==true||!['no_frames','unpaired','accepted','stale','expired'].includes(close.disposition))throw Error('Final input work did not settle successfully.');
+  state.inputPhase='sealed';if(state.settlementTimer!==null)clearTimeout(state.settlementTimer);state.settlementTimer=null;
+  if(report.browser?.analysis_final_result_matches===true){
+   if(!state.lastAck||close.disposition!=='accepted')throw Error('Final estimate has no original submitted frame.');
+   showAnalysis(report,0,state.lastAck.submitted.media_us,state.lastAck.capturedAt,state);
+  }
+  lookaheadStatus.textContent='Analysis input sealed ('+close.disposition+'). Visible playback is consuming only original estimates within their original freshness deadlines.';
+ }else lookaheadStatus.textContent='Analysis input closed; waiting for original CPU work and delivery to settle. Visible playback continues within the original source lease.';
+}
+async function inspectAnalysisFinish(state){
+ if(!currentAnalysis(state)||!state.closeIntent)return;
+ try{const report=await post('/analysis/finish-status',state.closeIntent.body,state.closeIntent.scope);if(!currentAnalysis(state))return;receiveAnalysisFinish(report,state);}
+ catch(e){failAnalysis(state,'Original input-close status unavailable or invalid: '+e.message);return;}
+ if(currentAnalysis(state))scheduleAnalysisFinishStatus(state);
+}
+async function finishAnalysisInput(state,reason){
+ if(!currentAnalysis(state)||state.inputPhase!=='open')return;
+ state.inputPhase='closing';if(state.callback!==null&&typeof analysisVideo.cancelVideoFrameCallback==='function')analysisVideo.cancelVideoFrameCallback(state.callback);state.callback=null;
+ if(state.timer!==null)clearTimeout(state.timer);state.timer=null;
+ if(!analysisVideo.paused){state.expectedPause=true;analysisVideo.pause();}
+ lookaheadStatus.textContent='Analysis reached '+reason+'; waiting for the original submitted frame before closing input.';
+ const began=performance.now(),deadline=Math.min(state.captureDeadline??began+12000,began+12000);
+ state.settlementTimer=setTimeout(()=>{state.settlementTimer=null;failAnalysis(state,'Original input-close settlement deadline elapsed.');},Math.max(1,Math.ceil(deadline-began)));
+ if(state.captureDeadline!==null)state.drainTimer=setTimeout(()=>{state.drainTimer=null;failAnalysis(state,'Original capture lease ended during finite-input drain.');},Math.max(1,Math.ceil(state.captureDeadline-began)));
+ try{
+  if(state.inFlight)await state.inFlight;
+  if(!currentAnalysis(state))return;
+  if(state.continuation){
+   const c=state.continuation;
+   if(['reserving','pair','joining'].includes(c.phase)||c.transferId){
+    if(!c.pairSent)throw Error('EOF cannot manufacture the missing successor boundary pair. Stop is required.');
+    if(c.timer!==null){clearTimeout(c.timer);c.timer=null;}
+    while(currentContinuation(state,c)){
+     if(performance.now()>=deadline)throw Error('Original transfer did not settle before final-input deadline.');
+     const report=await post('/analysis/transfer-status',new Uint8Array(),playerScope);if(!currentAnalysis(state))return;
+     if(receiveContinuation(report,state,c))break;
+     await new Promise(resolve=>setTimeout(resolve,50));
+    }
+   }else{
+    stopContinuation(state);await post('/analysis/cancel-successor',new Uint8Array(),playerScope);if(!currentAnalysis(state))return;state.continuation=null;
+   }
+  }
+  if(!state.feed||!epoch||!currentPlayer(playerScope))throw Error('No original native analysis capture can be closed.');
+  if(state.captureDeadline===null||performance.now()>=state.captureDeadline)throw Error('Original capture lease elapsed before input closure.');
+  if(state.drainTimer===null)state.drainTimer=setTimeout(()=>{state.drainTimer=null;failAnalysis(state,'Original capture lease ended during finite-input drain.');},Math.max(1,Math.ceil(state.captureDeadline-performance.now())));
+  if(state.lastSubmitted&&(!state.lastAck||!sameAnalysisSubmission(state.lastSubmitted.submitted,state.lastAck.submitted)))throw Error('Final submitted frame was not acknowledged; input cannot close.');
+  const value={feed_id:state.feed.feed_id,generation:state.feed.generation,capture_epoch:state.feed.capture_epoch,final_observation:state.lastAck?.submitted??null};
+  state.closeIntent={body:new TextEncoder().encode(JSON.stringify(value)),scope:playerScope,requestId:null};
+  let report=null;try{report=await post('/analysis/finish',state.closeIntent.body,state.closeIntent.scope);}
+  catch(e){if(!currentAnalysis(state))return;lookaheadStatus.textContent='Original input-close reply unavailable: '+e.message+' Inspecting the original request; no replacement was created.';}
+  if(!currentAnalysis(state))return;if(report!==null)receiveAnalysisFinish(report,state);
+  scheduleAnalysisFinishStatus(state);
+ }catch(e){failAnalysis(state,e.message);}
+}
+function scheduleFutureExpiry(){
+ if(futureTimer!==null)clearTimeout(futureTimer);futureTimer=null;if(!futureEstimates.length)return;
+ const original=futureEstimates,deadline=Math.min(...original.map(value=>value.deadline));
+ const timer=setTimeout(()=>{if(futureEstimates!==original||futureTimer!==timer)return;futureTimer=null;promoteFutureEstimate();},Math.max(1,Math.ceil(deadline-performance.now())));futureTimer=timer;
+}
+function showFutureWaiting(expired=false){
+ if(display)return;const next=futureEstimates[0];
+ if(next){const untilVisible=presentationUs===null?Infinity:Math.max(0,Math.ceil(next.time*1e6)-presentationUs)/1000;
+  status.textContent=next.deadline-performance.now()<=untilVisible?'Analysis is running, but this estimate has insufficient freshness margin for visible playback. Shorten the requested lead.':`Analysis is running; waiting for the visible source time (${next.time.toFixed(3)} s).`;
+ }else if(expired)status.textContent='The retained estimate expired before it could be shown. Waiting for a fresh estimate at the visible source time; shorten the requested lead if this persists.';
+ else if(lastFutureEstimate===null)status.textContent='Analysis is running; waiting for a fresh estimate.';
+}
+function promoteFutureEstimate(){
+ if(!analysisReader||(!futureEstimates.length&&lastFutureEstimate===null))return;
+ const now=performance.now(),visible=presentationUs===null?null:presentationUs/1e6;let due=null,expired=false;
+ const pending=[];
+ for(const value of futureEstimates){
+  if(now>=value.deadline||(visible!==null&&visible-value.time>value.maximumAgeMs/1000)){expired=true;continue;}
+  if(visible!==null&&visible>=value.time)due=value;else pending.push(value);
+ }
+ futureEstimates=pending;expireMotion();
+ if(due){clearMotion();display=due;position.value=due.position;status.textContent=`Provisional Stroke at the visible source time: ${(due.position*100).toFixed(1)}%`;scheduleExpiry(due);}
+ if(expired&&!futureEstimates.length&&!due)analysisEstimate.textContent='The retained ahead-of-player estimate expired.';
+ scheduleFutureExpiry();showFutureWaiting(expired);
+}
+function showAnalysis(report,roundTrip,media_us,capturedAt,state){
+ if(!report.active){failAnalysis(state,'Original capture retired; start a new feed explicitly.');return;}
+ const latest=report.inference?.latest,stamp=latest?.result?.payload?.input?.pair?.current_time;
+ const time=stamp&&stamp.denominator>0?stamp.numerator/stamp.denominator:NaN,p=latest?.result?.payload?.position,maxMs=report.options?.policy?.maximum_analysis_age_ns/1e6,age=media_us/1e6-time;
+ if(latest?.fresh!==true||!Number.isFinite(time)||time<0||!Number.isFinite(age)||age<0||!Number.isFinite(p)||p<0||p>1||!Number.isFinite(maxMs)||maxMs<=0){showFutureWaiting();return;}
+ // Repeated or older results never replace their original value or deadline,
+ // even after the original has been displayed or expired out of the queue.
+ if(lastFutureEstimate&&time<=lastFutureEstimate.time){promoteFutureEstimate();return;}
+ // Round only toward older source age; fractional arithmetic must not create
+ // freshness beyond the original capture budget at the visible-time boundary.
+ const sourceAgeUs=media_us-Math.floor(time*1e6),deadline=capturedAt+maxMs-sourceAgeUs/1000;lastFutureEstimate={time,deadline};
+ promoteFutureEstimate();
+ if(deadline<=performance.now()){analysisEstimate.textContent='The retained ahead-of-player estimate expired.';showFutureWaiting(true);return;}
+ if(futureEstimates.length>=MAX_FUTURE_ESTIMATES){failAnalysis(state,'The bounded future-estimate queue is full. No pending estimates were replaced; press Play explicitly for a new feed.');return;}
+ futureEstimates.push({time,position:p,deadline,maximumAgeMs:maxMs});
+ analysisEstimate.textContent=`Ahead-of-player estimate: ${(p*100).toFixed(1)}% at source ${time.toFixed(3)} s. Frame request round trip: ${roundTrip.toFixed(1)} ms. Unqualified.`;
+ promoteFutureEstimate();
+}
+async function submitAnalysisFrame(reader,media_us,capturedAt,state,analysis){
+ if(busy)return;busy=true;const observed=generation,attempt=playerAttempt;
+ try{
+  ctx.drawImage(reader,0,0,64,64);const rgba=ctx.getImageData(0,0,64,64).data,rgb=new Uint8Array(12288);for(let i=0,j=0;i<rgba.length;i+=4){rgb[j++]=rgba[i];rgb[j++]=rgba[i+1];rgb[j++]=rgba[i+2];}
+  const scope=await attempt.promise;if(!scope||observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;
+  if(!epoch){const start={media_us,recording_maximum:recordingMaximum,source_time_basis:scope.time_basis,...(state?{analysis:state.selection}:{})};const report=await post('/start',new TextEncoder().encode(JSON.stringify(start)),scope);if(observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;if(state){checkAnalysisFeed(report,state,scope);const lease=report.options?.lease_ms;if(!Number.isInteger(lease)||lease<1||lease>30000)throw Error('Original capture lease is invalid.');state.captureDeadline=capturedAt+lease;}epoch=report.identity.epoch;}
+  if(observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;
+  const c=state?.continuation,next=!!c&&c.phase==='pair'&&!c.pairSent,feed=next?c.feed:state?.feed;
+  const extra=state?{analysis:{feed_id:feed.feed_id,role:'lookahead',generation:feed.generation,...analysis}}:{};
+  const head=new TextEncoder().encode(JSON.stringify({epoch:next?feed.capture_epoch:epoch,media_us,...extra})+'\n'),body=new Uint8Array(head.length+rgb.length);body.set(head);body.set(rgb,head.length);
+  const submission=state?{submitted:{media_us,observation:{...extra.analysis}},capturedAt}:null;if(state&&!next)state.lastSubmitted=submission;if(next){c.pairSent=true;c.phase='joining';if(scope.timing){scope.timing.inspecting=true;c.heldOldTiming=true;}}
+  const sent=performance.now(),report=await post(next?'/analysis/successor-frame':'/frame',body,scope);if(observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;
+  if(next){const successor=checkSuccessor(report,state,c);if(!sameAnalysisSubmission(successor.last_upload,submission.submitted))throw Error('Successor G acknowledgment differs from original callback.');c.pairAck=submission;if(c.committedReport)receiveContinuation(c.committedReport,state,c);else if(currentContinuation(state,c)&&c.timer===null)continuationLater(state,c,()=>inspectContinuation(state,c));}
+  else if(state){checkAnalysisFeed(report,state,scope);if(!sameAnalysisSubmission(report.browser?.analysis_last_upload,submission.submitted))throw Error('Native frame acknowledgement differs from its original browser observation.');state.lastAck=submission;showAnalysis(report,performance.now()-sent,media_us,capturedAt,state);if(c?.phase==='boundary')await reserveContinuationBoundary(state,c);else maybePrepareContinuation(report,state);}else show(report,performance.now()-sent,media_us,capturedAt);
+ }catch(e){if(observed===generation){pauseVideo();clear('Analysis stopped: '+e.message);}}finally{busy=false;}
+}
+function scheduleAnalysis(state){if(currentAnalysis(state))state.callback=analysisVideo.requestVideoFrameCallback((now,metadata)=>{state.callback=null;return analysisFrame(state,now,metadata);});}
+async function analysisFrame(state,now,metadata){
+ if(!currentAnalysis(state)||!state.ready||state.inputPhase!=='open')return;scheduleAnalysis(state);if(analysisVideo.paused||analysisVideo.seeking)return;
+ const capturedAt=performance.now(),media_us=Math.round(metadata.mediaTime*1e6),presented_frames=metadata.presentedFrames,tick=browserMicros(capturedAt);
+ try{
+  if(!Number.isSafeInteger(media_us)||media_us<0||!Number.isSafeInteger(presented_frames)||presented_frames<1||presented_frames<=state.lastFrames||(state.lastTime!==null&&media_us<=state.lastTime))throw Error('Analysis frame timestamp or counter did not advance.');
+  if(!preparedSourceMatches(state.media)||analysisVideo.getAttribute('src')!==state.media.url||analysisVideo.currentSrc!==new URL(state.media.url,window.location.href).href)throw Error('Analysis and visible prepared sources differ.');
+  if(media_us<state.media.trim_start_us)throw Error('Analysis preceded the original source trim boundary.');if(media_us>=state.media.trim_end_us){void finishAnalysisInput(state,'the original trim end');return;}
+  state.lastFrames=presented_frames;state.lastTime=media_us;if(state.timer!==null)clearTimeout(state.timer);state.timer=null;
+  if(!presentedFrame||visibleFrameTickUs===null||!playerScope?.timing?.observationCurrent)return;
+  if(tick-visibleFrameTickUs<0||tick-visibleFrameTickUs>1000000)throw Error('Visible player frame observation is stale.');
+  const lead=media_us-presentedFrame.media_time_us,p=state.selection.policy;
+  if(lead<p.minimum_lead_us||lead>p.maximum_lead_us)throw Error('Observed frame lead left the original lookahead bounds.');
+  lookaheadStatus.textContent=`Observed frame lead: ${(lead/1000).toFixed(1)} ms. Requested: ${(p.target_lead_us/1000).toFixed(1)} ms; admitted range ${(p.minimum_lead_us/1000).toFixed(1)}–${(p.maximum_lead_us/1000).toFixed(1)} ms. Producer-declared timestamps; see HSP status for device control.`;
+  const c=state.continuation;if(busy||c&&(['reserving','joining'].includes(c.phase)||c.phase==='pair'&&(c.timingBusy||c.probe||playerScope.timing.inflight||playerScope.timing.probe)))return;const pending=submitAnalysisFrame(analysisVideo,media_us,capturedAt,state,{visible_media_us:presentedFrame.media_time_us,visible_presented_frames:presentedFrame.presented_frames,visible_tick_us:visibleFrameTickUs,analysis_tick_us:tick,presented_frames});state.inFlight=pending;try{await pending;}finally{if(state.inFlight===pending)state.inFlight=null;}
+ }catch(e){failAnalysis(state,e.message);}
+}
+video.addEventListener('play',()=>{
+ if(armed)return;
+ if(pageClosing||(mediaIntent&&!mediaIntent.cancelled&&!preparedMedia)){pauseVideo();clear(pageClosing?'Open the current preview URL again.':'Engine source preparation is not ready. Inspect or release its original selection.');return;}
+ if(preparedMedia&&(preparedMedia.initialSeekPending||video.readyState<1||video.seeking||!preparedSourceMatches(preparedMedia))){pauseVideo();clear('Wait for the prepared source metadata and initial declared-trim seek to settle, then press Play explicitly.');return;}
+ if(preparedMedia&&!currentPositionInsideTrim(preparedMedia)){pauseVideo();clear('Seek inside the declared placement trim before pressing Play.');return;}
+ let analysisSelection;try{analysisSelection=lookaheadSelection();}catch(e){pauseVideo();clear(e.message);return;}
+ resetMotion();recordingMaximum=undefined;
+ if(document.getElementById('record').checked){const n=Number(document.getElementById('record-limit').value);if(!Number.isInteger(n)||n<1||n>4096){pauseVideo();clear('Recording limit must be 1..4096.');return;}recordingMaximum=n;}
+ if(video.playbackRate!==1||document.visibilityState!=='visible'){pauseVideo();clear('Preview requires a visible page and normal playback speed.');return;}
+ nextGeneration();epoch=null;
+ if(!sourceId||!PAGE_SCOPE){pauseVideo();clear('A native page scope and secure random player identity are required. Open the current preview URL again.');return;}
+ armed=true;status.textContent='Starting live analysis…';
+ const attempt={generation,source_id:sourceId,time_basis:captureBasis||'source_media_presentation',media_selection_id:preparedMedia?.selection_id,promise:null};playerAttempt=attempt;
+ attempt.promise=registerPlayer(attempt).catch(e=>{if(playerAttempt===attempt&&generation===attempt.generation){pauseVideo();clear('Player start could not be confirmed: '+e.message);}return null;});
+ if(analysisSelection)startAnalysis(attempt,analysisSelection);
+});
+for(const event of ['pause','seeking','ended','ratechange','error'])video.addEventListener(event,()=>{if(event==='pause'&&programmaticPauses>0){programmaticPauses--;return;}clear(event==='seeking'?'Seek stopped analysis. Press Play to start at the new time.':'Preview stopped: '+event);if(event==='seeking'||event==='ratechange')pauseVideo();});
+window.addEventListener('pagehide',()=>{
+ pageClosing=true;void retireMedia('Page closed; media release requested.',true).catch(()=>{});
+ stopAnalysis();const scope=playerScope||lastPlayerScope;nextGeneration();armed=false;epoch=null;playerScope=null;playerAttempt=null;resetMotion();releaseShare();status.textContent='Page hidden; Stop requested.';timingStatus.textContent='Browser timing retired with the closed page.';
+ void releasePlayer(scope,true).catch(()=>{});
+ if(scope)void controlPost('/stop',new Uint8Array(),scope,true).catch(()=>{});
+});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible'){pauseVideo();clear('Hidden page stopped analysis. Press Play explicitly after returning.');}});
+function show(report,roundTrip,media_us,capturedAt){
+ if(!report.active){pauseVideo();clear('Capture retired: '+(report.retirement||'inactive')+(report.inference?.error?.message?' — '+report.inference.error.message:'')+'. Press Play for a fresh capture.');return;}
+ clearMotion();
+ const latest=report.inference?.latest,stamp=latest?.result?.payload?.input?.pair?.current_time;
+ const time=stamp&&stamp.denominator>0?stamp.numerator/stamp.denominator:NaN;
+ const sourceAge=media_us/1e6-time,maximumAgeMs=report.options?.policy?.maximum_analysis_age_ns/1e6,p=latest?.result?.payload?.position;
+ status.textContent=`Inference: ${report.inference?.state||'waiting'}; waiting for a current estimate (missing or older estimates are not displayed).`;
+ if(latest?.fresh!==true||!Number.isFinite(time)||time<0||!Number.isFinite(sourceAge)||sourceAge<0||!Number.isFinite(maximumAgeMs)||maximumAgeMs<=0||!Number.isFinite(p)||p<0||p>1)return;
+ let deadline=capturedAt+maximumAgeMs-sourceAge*1000;
+ if(lastEstimate){if(time<lastEstimate.time)return;if(time===lastEstimate.time)deadline=Math.min(deadline,lastEstimate.deadline);}
+ lastEstimate={time,deadline};
+ if(deadline<=performance.now()||(presentationUs!==null&&presentationUs/1e6-time>maximumAgeMs/1000))return;
+ display={time,deadline,maximumAgeMs};position.value=p;
+ status.textContent=`Provisional Stroke: ${(p*100).toFixed(1)}%\nFrame request round trip: ${roundTrip.toFixed(1)} ms\nCompleted analyses: ${report.inference.completed}`;
+ scheduleExpiry(display);
+}
+async function frame(now,metadata){
+ video.requestVideoFrameCallback(frame);if(!armed||video.paused||video.seeking)return;
+ const capturedAt=performance.now(),media_us=Math.round(metadata.mediaTime*1e6),presented_frames=metadata.presentedFrames;
+ if(!Number.isSafeInteger(media_us)||media_us<0||!Number.isSafeInteger(presented_frames)||presented_frames<0){pauseVideo();clear('Invalid video frame timestamp or counter.');return;}
+ presentedFrame={media_time_us:media_us,presented_frames};visibleFrameTickUs=browserMicros(capturedAt);presentationUs=media_us;expireMotion();promoteFutureEstimate();
+ if(preparedMedia){if(media_us<preparedMedia.trim_start_us){status.textContent='Waiting for the declared placement trim to begin.';return;}if(media_us>=preparedMedia.trim_end_us){pauseVideo();clear('Declared placement trim ended. Seek within its range and press Play explicitly.');return;}}
+ timingFrame(playerScope,now,metadata,capturedAt);continuationTimingFrame(analysisReader,now,metadata,capturedAt);
+ if(analysisReader){const state=analysisReader;if(state.inputPhase==='open'&&state.lastTime!==null&&state.ready){const lead=state.lastTime-media_us,p=state.selection.policy;if(lead<p.minimum_lead_us||lead>p.maximum_lead_us){failAnalysis(state,'Visible playback left the original observed analysis lead bounds.');return;}}return;}
+ await submitAnalysisFrame(video,media_us,capturedAt,null,null);
+}
+const selection=document.getElementById('recording-selection'),recordStatus=document.getElementById('record-status'),details=document.getElementById('record-details');
+let recordingBusy=false;
+function editorPost(){const scope=playerScope||lastPlayerScope,observed=generation;return async(route,body)=>{if(generation!==observed)throw Error('Playback changed during this action. Inspect the retained intent.');const result=await post(route,body,scope);if(generation!==observed)throw Error('Playback changed during this action. Inspect the retained intent.');return result;};}
+async function recordingAction(action){if(recordingBusy)return;recordingBusy=true;const observed=generation;try{await action(editorPost());}catch(e){if(generation===observed)recordStatus.textContent='Recording read/save failed: '+e.message;}finally{recordingBusy=false;}}
+document.getElementById('refresh-recordings').onclick=()=>recordingAction(async post=>{const result=await post('/recordings');selection.replaceChildren();result.recordings.forEach((r,i)=>{const option=document.createElement('option');option.value=r.epoch;option.textContent=`Capture ${i+1}: ${r.unknown?'unavailable':r.total_samples+' estimates'} (${r.unknown?'unknown':r.discarded?'released':r.active?'running':r.exhausted?'partial':'stopped'})`;selection.appendChild(option);});recordStatus.textContent=`${result.recordings.length} retained capture records. These remain unqualified and expire with the Engine boot.`;});
+let recordingRetirementPage=null;
+document.getElementById('read-recording').onclick=()=>recordingAction(async post=>{if(!selection.value)throw Error('Refresh and select a recording first.');const page=await post('/recording-page',new TextEncoder().encode(JSON.stringify({epoch:selection.value,after:0})));recordingRetirementPage=page;document.getElementById('retire-recordings-ack').checked=false;details.textContent=page.samples.map(s=>{const p=s.result.payload,t=p.input.pair.current_time;return `${(t.numerator/t.denominator).toFixed(3)} s   ${(p.position*100).toFixed(1)}%   ${s.evidence}${s.result.status==='cuda_provisional'?' (provisional)':''}`;}).join('\n')||'No retained estimates in this page.';recordStatus.textContent=`Read ${page.samples.length} of ${page.total_samples} retained estimates; ${page.exhausted?'partial recording':'unqualified inference'}.`;});
+document.getElementById('retire-recordings').onclick=()=>recordingAction(async post=>{const p=recordingRetirementPage;if(!p||p.identity.epoch!==selection.value||p.active||p.discarded||!document.getElementById('retire-recordings-ack').checked)throw Error('Read a stopped retained recording and acknowledge record preservation first.');const r=await post('/retire-recordings',new TextEncoder().encode(JSON.stringify({epoch:p.identity.epoch,recording_request_id:p.recording_request_id,acknowledge_preserve_records:true})));recordingRetirementPage=null;document.getElementById('retire-recordings-ack').checked=false;recordStatus.textContent=`Retired ${r.retired.length} playback scopes from the active index. Engine records remain preserved. Refresh active recordings before selecting another playback.`;});
+document.getElementById('recording-history').onclick=()=>recordingAction(async post=>{const h=await post('/recording-history');details.textContent=JSON.stringify(h,null,2);recordStatus.textContent=`${h.recordings.length} retired recording references. Inspection creates no Engine work.`;});
+document.getElementById('save-recording').onclick=()=>recordingAction(async post=>{if(!selection.value)throw Error('Refresh and select a recording first.');const archive=await post('/recording-download',new TextEncoder().encode(JSON.stringify({epoch:selection.value})));const url=URL.createObjectURL(new Blob([JSON.stringify(archive,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='pulsar-inference-record-'+selection.value+'.json';a.click();URL.revokeObjectURL(url);recordStatus.textContent='Saved unqualified inference record. No project commit, funscript export or device playback was started.';});
+const candidateMessage=document.getElementById('candidate-message'),candidateDetails=document.getElementById('candidate-details');
+let candidateBusy=false,reviewedCandidate=null,inspectedExport=null,retirementIntent=null;
+const commitAck=document.getElementById('commit-ack'),commitButton=document.getElementById('commit-candidate');
+commitAck.onchange=()=>{commitButton.disabled=!reviewedCandidate||!commitAck.checked;};
+async function candidateAction(action){if(candidateBusy)return;candidateBusy=true;const observed=generation;try{await action(editorPost());}catch(e){if(generation===observed)candidateMessage.textContent='Candidate action could not be confirmed: '+e.message+' Inspect the retained intent and retry its original request; do not replace it.';}finally{candidateBusy=false;}}
+function showCandidate(c){reviewedCandidate=null;commitAck.checked=false;commitButton.disabled=true;candidateMessage.textContent=`Staged candidate ${c.candidate_id}. ${c.sample_count} estimates, ${c.gaps.length} unavailable intervals. This staging action did not commit, export or start device playback.`;candidateDetails.textContent=`Original staging request: ${c.request_id}\nFirst ${c.samples.length} estimates:\n`+c.samples.map(a=>`${(a.time/1e9).toFixed(3)} s  ${(a.position*100).toFixed(1)}%  ${a.evidence}`).join('\n')+'\nUnavailable intervals:\n'+c.gaps.map(g=>`${(g.start/1e9).toFixed(3)}–${(g.end/1e9).toFixed(3)} s`).join('\n');}
+document.getElementById('stage-candidate').onclick=()=>candidateAction(async post=>{if(!selection.value)throw Error('Refresh and select a retained recording first.');const start=Math.round(Number(document.getElementById('candidate-start').value)*1e9),end=Math.round(Number(document.getElementById('candidate-end').value)*1e9),interval=Math.round(Number(document.getElementById('candidate-interval').value)*1e6);if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||end<=start||!Number.isSafeInteger(interval)||interval<1||interval>1e9)throw Error('Enter a nonempty project range and an interpolation interval up to 1000 ms.');const intent=await post('/prepare-candidate',new TextEncoder().encode(JSON.stringify({epoch:selection.value,range:{start,end},maximum_interpolation_ns:interval})));candidateMessage.textContent='Prepared original request '+intent.request_id+'. Staging uncommitted motion…';showCandidate(await post('/stage-candidate'));});
+document.getElementById('retry-candidate').onclick=()=>candidateAction(async post=>{showCandidate(await post('/stage-candidate'));});
+let candidateRetirementIntent=null;
+document.getElementById('candidate-status').onclick=()=>candidateAction(async post=>{const i=await post('/candidate-status');candidateRetirementIntent=i;document.getElementById('retire-candidate-ack').checked=false;candidateMessage.textContent=`Original staging request: ${i.request_id}; candidate: ${i.candidate_id||'outcome not yet confirmed'}. No replacement request created.`;});
+document.getElementById('retire-candidate').onclick=()=>candidateAction(async post=>{const i=candidateRetirementIntent;if(!i||!i.candidate_id||!i.commit_request_id||i.commit_acknowledged_revision!==i.base_revision+1||!document.getElementById('retire-candidate-ack').checked)throw Error('Inspect the confirmed recording commit and acknowledge history preservation first.');const r=await post('/retire-candidate',new TextEncoder().encode(JSON.stringify({request_id:i.request_id,candidate_id:i.candidate_id,commit_request_id:i.commit_request_id,acknowledged_revision:i.commit_acknowledged_revision,acknowledge_preserve_history:true})));candidateRetirementIntent=null;reviewedCandidate=null;commitAck.checked=false;commitButton.disabled=true;document.getElementById('retire-candidate-ack').checked=false;candidateMessage.textContent=`Retired recording candidate ${r.retired.candidate}. Engine history and recordings remain preserved. Select another stopped playback to stage a new candidate.`;});
+document.getElementById('candidate-history').onclick=()=>candidateAction(async post=>{const h=await post('/candidate-history');candidateDetails.textContent=JSON.stringify(h,null,2);candidateMessage.textContent=`${h.candidates.length} retired recording candidates. Inspection creates no Engine work.`;});
+document.getElementById('review-candidate').onclick=()=>candidateAction(async post=>{const r=await post('/review-candidate');reviewedCandidate=r.commit_ready?r:null;commitAck.checked=false;commitButton.disabled=true;candidateMessage.textContent=`Candidate diagnostics: ${r.diagnostics.issues.length} issues. No review disposition, commit or export performed.`;candidateDetails.textContent=r.diagnostics.issues.map(i=>`${i.code}: ${i.message}`).join('\n')||'No listed diagnostics; model and device qualification remain open.';});
+async function showCommit(post){const c=await post('/commit-candidate');candidateMessage.textContent=`Commit acknowledged at revision ${c.acknowledged_revision}. Current revision ${c.current_revision}; ${c.remaining_gaps} gaps remain. Unqualified motion; no funscript export or device playback started.`;commitAck.checked=false;commitButton.disabled=true;}
+document.getElementById('commit-candidate').onclick=()=>candidateAction(async post=>{if(!reviewedCandidate||!commitAck.checked)throw Error('Review the current candidate and acknowledge replacement first.');const r=reviewedCandidate;const intent=await post('/prepare-commit',new TextEncoder().encode(JSON.stringify({candidate_id:r.candidate_id,base_revision:r.base_revision,program_sha256:r.program_sha256,acknowledge:true})));candidateMessage.textContent='Prepared original commit request '+intent.commit_request_id+'. Committing reviewed proposal…';await showCommit(post);});
+document.getElementById('retry-commit').onclick=()=>candidateAction(async post=>{await showCommit(post);});
+document.getElementById('prepare-gaps').onclick=()=>candidateAction(async post=>{if(!inspectedExport||!inspectedExport.gaps.length)throw Error('Inspect a committed master with gaps first.');if(!document.getElementById('gap-ack').checked)throw Error('Acknowledge authored linear bridges and edge holds first.');const i=await post('/prepare-gaps',new TextEncoder().encode(JSON.stringify({revision:inspectedExport.revision,program_sha256:inspectedExport.program_sha256,gaps:inspectedExport.gaps,acknowledge_linear_edge_hold:true})));candidateMessage.textContent=`Prepared gap intent ${i.request_id}: ${i.gaps.length} authored repairs. Master unchanged; stage and review separately.`;});
+document.getElementById('stage-gaps').onclick=()=>candidateAction(async post=>{const i=await post('/stage-gaps');reviewedCandidate=null;commitAck.checked=false;commitButton.disabled=true;candidateMessage.textContent=`Gap candidate ${i.candidate_id} at base revision ${i.base_revision}. Review diagnostics, then acknowledge a separate commit. Master unchanged.`;});
+let gapRetirementIntent=null;
+document.getElementById('gap-status').onclick=()=>candidateAction(async post=>{const i=await post('/gap-status');gapRetirementIntent=i;document.getElementById('retire-gap-ack').checked=false;candidateMessage.textContent=`Original gap intent ${i.request_id}; candidate ${i.candidate_id||'unconfirmed'}; upload ${i.attempted?'attempted':'not attempted'}. Recovered upload uses the original Begin, lease and Finish identities. ${i.commit_request_id?'Approved original commit request '+i.commit_request_id+'; acknowledged revision '+(i.commit_acknowledged_revision??'unconfirmed')+'. Use Retry original commit request to reconcile it.':'Fresh review is required before a new commit.'} No replacement upload is authorized.`;});
+document.getElementById('retire-gap').onclick=()=>candidateAction(async post=>{const i=gapRetirementIntent;if(!i||!i.candidate_id||!i.commit_request_id||i.commit_acknowledged_revision!==i.base_revision+1||!document.getElementById('retire-gap-ack').checked)throw Error('Inspect the confirmed gap commit and acknowledge history preservation first.');const r=await post('/retire-gap',new TextEncoder().encode(JSON.stringify({request_id:i.request_id,candidate_id:i.candidate_id,commit_request_id:i.commit_request_id,acknowledged_revision:i.commit_acknowledged_revision,acknowledge_preserve_history:true})));gapRetirementIntent=null;reviewedCandidate=null;commitAck.checked=false;commitButton.disabled=true;document.getElementById('retire-gap-ack').checked=false;candidateMessage.textContent=`Retired gap proposal ${r.retired.candidate}. Engine history is preserved. A later master can prepare another explicit gap proposal.`;});
+document.getElementById('gap-history').onclick=()=>candidateAction(async post=>{const h=await post('/gap-history');candidateDetails.textContent=JSON.stringify(h,null,2);candidateMessage.textContent=`${h.proposals.length} retired gap proposals. Inspection creates no Engine work.`;});
+
+document.getElementById('inspect-export').onclick=()=>candidateAction(async post=>{const p=await post('/inspect-export');inspectedExport=p;candidateMessage.textContent=`Inspected committed revision ${p.revision}: ${p.sample_count} Stroke actions, ${p.gaps.length} gaps. Export remains unqualified.`;});
+async function saveScript(post){const p=await post('/download-script');const url=URL.createObjectURL(new Blob([JSON.stringify(p.script,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='pulsar-stroke-revision-'+p.revision+'.funscript';a.click();URL.revokeObjectURL(url);candidateMessage.textContent=`Downloaded neutral Stroke from revision ${p.revision}. Unqualified motion; no device playback started.`;}
+document.getElementById('download-script').onclick=()=>candidateAction(async post=>{if(!inspectedExport)throw Error('Inspect the committed master first.');if(inspectedExport.gaps.length)throw Error('Resolve committed Stroke gaps before export.');const p=await post('/prepare-export',new TextEncoder().encode(JSON.stringify({revision:inspectedExport.revision,program_sha256:inspectedExport.program_sha256})));candidateMessage.textContent='Retained original export request '+p.request_id+'. Preparing download…';await saveScript(post);});
+document.getElementById('export-status').onclick=()=>candidateAction(async post=>{const i=await post('/export-status');retirementIntent=i;candidateMessage.textContent=`Original export request ${i.request_id} for revision ${i.revision}; acknowledged revision ${i.acknowledged_revision??'unconfirmed'}. Inspection creates no export. Use Retry original script download to reconcile it.`;});
+document.getElementById('retire-export').onclick=()=>candidateAction(async post=>{const i=retirementIntent;if(!i||i.acknowledged_revision!==i.revision||!i.output_sha256||!document.getElementById('retire-export-ack').checked)throw Error('Inspect the confirmed original export and acknowledge file preservation first.');const r=await post('/retire-export',new TextEncoder().encode(JSON.stringify({request_id:i.request_id,revision:i.revision,output_sha256:i.output_sha256,acknowledge_preserve_files:true})));retirementIntent=null;inspectedExport=null;document.getElementById('retire-export-ack').checked=false;candidateMessage.textContent=`Retired export intent ${r.retired_request_id}. Files and history preserved. Inspect the committed master before preparing another export.`;});
+document.getElementById('export-history').onclick=()=>candidateAction(async post=>{const r=await post('/export-history');const selection=document.getElementById('export-history-selection');selection.replaceChildren();r.exports.forEach(e=>{const option=document.createElement('option');option.value=e.request_id;option.textContent=`Revision ${e.revision}: ${e.request_id}`;selection.appendChild(option);});candidateMessage.textContent=`${r.exports.length} retained export records. History inspection creates no publication.`;});
+document.getElementById('history-download').onclick=()=>candidateAction(async post=>{const id=document.getElementById('export-history-selection').value;if(!id)throw Error('Refresh and select retained history first.');const p=await post('/history-download',new TextEncoder().encode(JSON.stringify({request_id:id})));const url=URL.createObjectURL(new Blob([JSON.stringify(p.script,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='pulsar-stroke-revision-'+p.revision+'.funscript';a.click();URL.revokeObjectURL(url);candidateMessage.textContent=`Downloaded retained Stroke from revision ${p.revision}. Original export replay; no new publication or device playback.`;});
+document.getElementById('retry-export').onclick=()=>candidateAction(async post=>{await saveScript(post);});
+if(typeof video.requestVideoFrameCallback!=='function'){for(const id of ['file','share-tab','camera'])document.getElementById(id).disabled=true;status.textContent='This browser does not expose video-frame callbacks.';}else video.requestVideoFrameCallback(frame);
+</script></html>

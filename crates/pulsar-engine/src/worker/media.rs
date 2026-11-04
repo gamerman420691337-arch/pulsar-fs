@@ -1,11 +1,12 @@
 //! Native media decoding adapter. Invoked only inside the isolated worker role.
 
 use anyhow::{bail, Context, Result};
+use pulsar_protocol::{ExactSeconds, SourceTimestamp};
 use serde::Deserialize;
 use std::io::Read;
 use std::path::Path;
-use std::process::{Child, Command, Stdio};
-use std::sync::mpsc::{self, Receiver};
+use std::process::{Command, Stdio};
+use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 const MAX_PROBE_BYTES: usize = 32 * 1024 * 1024;
@@ -214,6 +215,7 @@ fn decode_command(tool: &Path, source: &Path, threads: u16) -> Command {
             "-v",
             "error",
             "-nostdin",
+            "-xerror",
             "-filter_threads",
             "1",
             "-threads",
@@ -238,126 +240,122 @@ fn decode_command(tool: &Path, source: &Path, threads: u16) -> Command {
     command
 }
 
+#[derive(Clone, Copy)]
+pub struct FrameTransform<'a> {
+    pub width: u32,
+    pub height: u32,
+    pub filter: &'a str,
+}
+#[derive(Clone, Copy)]
+pub struct SnapshotFrame {
+    pub index: usize,
+    pub source_time: SourceTimestamp,
+}
+
 pub fn extract(
     tool: &Path,
     source: &Path,
-    frame_index: usize,
+    frame: SnapshotFrame,
     width: u32,
     height: u32,
     threads: u16,
     deadline: Instant,
 ) -> Result<Vec<u8>> {
-    let expected = frame_bytes(width, height)?;
+    extract_filtered(
+        tool,
+        source,
+        frame,
+        FrameTransform {
+            width,
+            height,
+            filter: &format!("scale={width}:{height}"),
+        },
+        threads,
+        deadline,
+    )
+}
+pub fn extract_filtered(
+    tool: &Path,
+    source: &Path,
+    frame: SnapshotFrame,
+    transform: FrameTransform<'_>,
+    threads: u16,
+    deadline: Instant,
+) -> Result<Vec<u8>> {
+    let FrameTransform {
+        width,
+        height,
+        filter,
+    } = transform;
+    frame_bytes(width, height)?;
     let mut command = decode_command(tool, source, threads);
     command.args([
-        "-vf",
-        &format!("select=eq(n\\,{frame_index}),scale={width}:{height}"),
-        "-frames:v",
-        "1",
-        "-f",
-        "rawvideo",
-        "-pix_fmt",
-        "rgb24",
-        "pipe:1",
+        "-v", "quiet", "-copyts", "-vf",
+        &format!("select=eq(n\\,{}),{filter},format=rgb24", frame.index),
+        "-frames:v", "1", "-enc_time_base", "demux", "-c:v", "rawvideo", "-f", "tee",
+        "[f=rawvideo:flush_packets=1]pipe:1|[f=framehash:hash=sha256:avoid_negative_ts=disabled:flush_packets=1]pipe:2",
     ]);
-    let bytes = bounded_output(command, expected, deadline)?;
-    if bytes.len() != expected {
-        bail!("decoded frame byte count differs from declared dimensions");
+    let mut decoder = super::timestamped_decode::TimestampedDecoder::start(
+        command,
+        Stdio::null(),
+        width,
+        height,
+        deadline,
+        std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+    )?;
+    let decoded = decoder
+        .next()?
+        .context("decoder ended before the indexed snapshot frame")?;
+    if decoded.ordinal != 0
+        || ExactSeconds::from_source(decoded.source_time)
+            .checked_cmp(ExactSeconds::from_source(frame.source_time))?
+            != std::cmp::Ordering::Equal
+    {
+        bail!("decoded snapshot timestamp differs from indexed source frame");
     }
-    Ok(bytes)
+    if decoder.next()?.is_some() {
+        bail!("snapshot decoder returned more than one frame");
+    }
+    Ok(decoded.pixels)
 }
 
-pub struct Decoder {
-    child: Child,
-    receiver: Option<Receiver<Result<Option<Vec<u8>>, std::io::Error>>>,
-    deadline: Instant,
-}
-
+pub struct Decoder(super::timestamped_decode::TimestampedDecoder);
 impl Decoder {
-    pub fn new(
+    pub fn new_filtered(
         tool: &Path,
         source: &Path,
-        width: u32,
-        height: u32,
+        transform: FrameTransform<'_>,
         stride: u32,
         threads: u16,
         deadline: Instant,
     ) -> Result<Self> {
+        let FrameTransform {
+            width,
+            height,
+            filter,
+        } = transform;
         if stride == 0 {
             bail!("source sampling stride must be positive");
         }
-        let expected = frame_bytes(width, height)?;
+        frame_bytes(width, height)?;
         let mut command = decode_command(tool, source, threads);
         command.args([
-            "-vf",
-            &format!("select=not(mod(n\\,{stride})),scale={width}:{height}"),
-            "-f",
-            "rawvideo",
-            "-pix_fmt",
-            "rgb24",
-            "pipe:1",
+            "-v", "quiet", "-copyts", "-vf",
+            &format!("select=not(mod(n\\,{stride})),{filter},format=rgb24"),
+            "-enc_time_base", "demux", "-c:v", "rawvideo", "-f", "tee",
+            "[f=rawvideo:flush_packets=1]pipe:1|[f=framehash:hash=sha256:avoid_negative_ts=disabled:flush_packets=1]pipe:2",
         ]);
-        let mut child = command
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .context("failed to launch video decoder")?;
-        let mut stdout = child.stdout.take().context("decoder stdout unavailable")?;
-        let (sender, receiver) = mpsc::sync_channel(2);
-        std::thread::spawn(move || loop {
-            let mut bytes = vec![0; expected];
-            let result = match stdout.read(&mut bytes[..1]) {
-                Ok(0) => Ok(None),
-                Ok(_) => stdout.read_exact(&mut bytes[1..]).map(|_| Some(bytes)),
-                Err(error) => Err(error),
-            };
-            let finished = !matches!(result, Ok(Some(_)));
-            if sender.send(result).is_err() || finished {
-                break;
-            }
-        });
-        Ok(Self {
-            child,
-            receiver: Some(receiver),
+        Ok(Self(super::timestamped_decode::TimestampedDecoder::start(
+            command,
+            Stdio::null(),
+            width,
+            height,
             deadline,
-        })
+            std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        )?))
     }
-
-    pub fn next(&mut self) -> Result<Option<Vec<u8>>> {
-        let timeout = self
-            .deadline
-            .checked_duration_since(Instant::now())
-            .context("video decoder deadline exceeded")?;
-        let result = self
-            .receiver
-            .as_ref()
-            .context("decoder closed")?
-            .recv_timeout(timeout)
-            .context("video decoder deadline or read failure")??;
-        if result.is_none() {
-            loop {
-                if let Some(status) = self.child.try_wait()? {
-                    if !status.success() {
-                        bail!("video decoder failed with {status}");
-                    }
-                    break;
-                }
-                if Instant::now() >= self.deadline {
-                    bail!("video decoder exit deadline exceeded");
-                }
-                std::thread::sleep(Duration::from_millis(5));
-            }
-        }
-        Ok(result)
-    }
-}
-
-impl Drop for Decoder {
-    fn drop(&mut self) {
-        self.receiver.take();
-        let _ = self.child.kill();
-        let _ = self.child.wait();
+    pub fn next(&mut self) -> Result<Option<super::timestamped_decode::TimestampedRgbFrame>> {
+        self.0.next()
     }
 }
 

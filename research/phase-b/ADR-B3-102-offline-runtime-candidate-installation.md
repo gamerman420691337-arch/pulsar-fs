@@ -1,0 +1,11 @@
+# ADR B3-102: offline runtime candidate installation
+
+Status: implemented; final verification recorded in the checkpoint. Scope: Linux x86-64 local host installation, not final distribution qualification.
+
+Problem: assembling a package is not a first-party offline installation flow. Manual directory copying can expose incomplete contents in the final destination, and integrity failures must never replace a working installation.
+
+Decision: add runtime-install SOURCE NEW_DESTINATION to the clients grammar and intercept it in the trusted executable before Engine configuration/discovery. The clients neither import the Engine nor write installation files. The host API uses held no-follow directory descriptors, a bounded captured manifest and a finite schema-1 Linux runtime-candidate file membership. Stream each declared regular asset through a 64 KiB buffer, enforcing declared length, SHA-256, stable metadata and a ten-minute between-operation deadline. Keep candidate qualification false and optional assistant approval separate.
+
+Publish all files and original manifest bytes into a private owned stage, flush files/directories, then rename with RENAME_NOREPLACE through the held destination parent. Refuse existing or concurrently created destinations. A failed final parent sync explicitly reports uncertain published durability. Ordinary integrity failures remove only the generated stage; process death can leave an unpublished stage for explicit inspection. Retry uses a new stage, never silently deleting unknown prior stages. Automatic orphan management, updates/rollback, signed distribution, first-launch archive extraction, Complete generation assets and OS/vendor qualification remain independent required work.
+
+Use an existing owned destination parent that other users cannot write. No runtime loading, network, inference, model selection, Engine/project state or user credential installation occurs. This imports a declared unqualified candidate with exact bytes, not a signed or rights-qualified package. Final ELF/runtime compatibility remains the supplier/candidate execution and platform gates. Component bounds admit at most 32 GiB for the assistant model, 1 GiB for each other supported file and 64 GiB in total; these are this format's intake limits, not an approved Core/Complete download-size ceiling.

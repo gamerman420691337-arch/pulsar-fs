@@ -1,0 +1,13 @@
+# Descriptor-bound benchmark runner capture
+
+The benchmark supervisor now avoids rewriting executable data when the host supports native copy-on-write cloning. Capture uses the already-open source descriptor, verifies the captured file's exact bytes, and preserves private, synchronized executable publication. Unsupported cloning retains the bounded-copy path. Other clone I/O errors refuse without retrying through a full copy.
+
+The [evidence packet](evidence/roadmap-2026-10-01/runner-reflink-capture/) retains the failing native regression before the change, ten passing supervisor cases after it, and 308 archive/live source readbacks. Only `scripts/benchmark-process.mjs` and its test changed from the preceding portable-CUDA subject. All 180 Rust production-source records remain identical; preceding Rust/native gate results retain their original subjects rather than being relabeled as new executions.
+
+The complete configured application campaign finished with 104 passes, four failures and no skips out of 108 cases, with all 33 executable/metadata identities unchanged. The failed cases were CLI live inference, native encoded-source launch, persistent CPU inference and an old-reader manual-protection startup deadline. The benchmark and reader-startup cases that failed in the preceding campaign passed in this run; their earlier causes remain unproven. The actual 262,210,706-byte runner captured in approximately 199 ms and passed an independent byte/hash readback. This single observation is not a speed guarantee. All 230 structural checks pass. See the [partial validation record](evidence/roadmap-2026-10-01/runner-reflink-capture/validation.json).
+
+The preceding diagnostic packet retains an actual Btrfs allocation wait during runner copying, disk-write throttling on ext4, intermittent old-reader startup failures, successful standalone controls and an invalid long-path diagnostic contrast. These observations do not establish that this optimization repairs all previous failures. The new clone path still performs blocking host operations; bounded host-I/O supervision and broader engine/resource/crash qualification remain open. Production GPU admission, model/media quality, Handy and human/platform/release acceptance remain independent gates.
+
+See [ADR B3-037](../research/phase-b/ADR-B3-037-descriptor-bound-runner-capture.md).
+
+The unchanged focused live/native-source file subsequently passed all four cases without skips in approximately 18 seconds, with owned-process wait/I/O observations retained. This does not explain or repair the two failures from that file in the complete campaign; application qualification remains PARTIAL.

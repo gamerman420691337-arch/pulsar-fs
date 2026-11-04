@@ -23,9 +23,12 @@ pub struct ProjectSnapshot {
     pub motion: MotionDescriptor,
     pub program: Arc<MotionProgram>,
     pub sources: Vec<SourceSummary>,
+    pub placements: Vec<SourcePlacement>,
 }
 #[derive(Clone, Debug, Serialize)]
 pub struct CandidateSnapshot {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_interval: Option<TimeRange>,
     pub candidate_id: CandidateId,
     pub project_id: ProjectId,
     pub base_revision: RevisionId,
@@ -38,22 +41,129 @@ pub struct CandidateSnapshot {
 #[derive(Clone, Serialize)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub enum ResponseBody {
-    PackageImport(pulsar_protocol::PackageImportStatus),
+    MediaProbe(Box<wire::MediaProbeReport>),
+    NativeImagePreparation(Box<wire::NativeImagePreparationStatus>),
+    NativeImagePreparationLimits(Box<wire::NativeImagePreparationLimits>),
+    AssistantStartResolution(Box<pulsar_protocol::AssistantStartResolution>),
+    AssistantEditRecipes(Vec<pulsar_protocol::AssistantEditRecipe>),
+    AssistantTargets(Box<pulsar_protocol::AssistantTargetCatalog>),
+    AssistantProfiles(Vec<pulsar_protocol::AssistantProfile>),
+    AssistantImage(Box<pulsar_protocol::AssistantImageContext>),
+    Assistant(Box<pulsar_protocol::AssistantReport>),
+    AssistantAttempts(Vec<pulsar_protocol::AssistantReport>),
+    WasmEditorInfo(pulsar_protocol::WasmEditorInfo),
+    WasmEdit(Box<pulsar_protocol::WasmEditReport>),
+    WasmStartResolution(Box<pulsar_protocol::WasmStartResolution>),
+    WasmEditCatalog(pulsar_protocol::WasmEditCatalog),
+    WasmArchivePage(pulsar_protocol::WasmArchivePage),
+    WasmEditArchived(Box<pulsar_protocol::WasmEditReport>),
+    WasmEditRemoved(Box<pulsar_protocol::WasmEditReport>),
+    LiveCapture(Box<pulsar_protocol::LiveCaptureReport>),
+    BrowserAnalysisSuccessor(Box<pulsar_protocol::BrowserAnalysisSuccessorReport>),
+    BrowserAnalysisTransfer(Box<pulsar_protocol::BrowserAnalysisTransferReport>),
+    LiveRecordingPage(Box<pulsar_protocol::LiveRecordingPage>),
+    LiveCudaEvidenceRemoval(pulsar_protocol::LiveCudaEvidenceRemoval),
+    LiveCudaEvidencePage(pulsar_protocol::LiveCudaEvidencePage),
+    RetainedLiveCudaEvidence(Box<pulsar_protocol::RetainedLiveCudaEvidence>),
+    LiveCaptureLimits(pulsar_protocol::LiveCaptureLimits),
+    BrowserMediaCatalog(Box<pulsar_protocol::BrowserMediaCatalog>),
+    BrowserMediaPreparation(Box<pulsar_protocol::BrowserMediaPreparationReport>),
+    BrowserTiming(Box<pulsar_protocol::BrowserTimingReport>),
+    BrowserTimingProbe(Box<pulsar_protocol::BrowserTimingProbe>),
+    HandyHspSourceQualification(Box<pulsar_protocol::HandyHspSourceQualificationReport>),
+    HandyHspSourceQualificationSaved(Box<pulsar_protocol::HandyHspSourceQualificationReceipt>),
+    HandyBrowserStartQualification(Box<pulsar_protocol::HandyBrowserStartQualificationReport>),
+    HandyBrowserStartQualificationSaved(
+        Box<pulsar_protocol::HandyBrowserStartQualificationReceipt>,
+    ),
+    HandyBrowserPlayback(Box<pulsar_protocol::HandyBrowserPlaybackReport>),
+    MotionRetimeReceipt(Box<pulsar_protocol::MotionRetimeReceipt>),
+    ArchivedMotionRetimeReceipt(Box<pulsar_protocol::ArchivedMotionRetimeReceipt>),
+    ArchivedGeneration(Box<pulsar_protocol::ArchivedGenerationReport>),
+    CandidateImageOrigin(Box<pulsar_protocol::CandidateImageOriginReport>),
+    CandidateImageOriginPixels(Box<pulsar_protocol::CandidateImageOriginPixels>),
+    ModelPackSelection(Box<pulsar_protocol::ModelPackSelectionReport>),
+    ModelPackWithdrawal(Box<pulsar_protocol::ModelPackWithdrawalReport>),
+    ModelPack(pulsar_protocol::ModelPackReport),
+    ModelCatalog(pulsar_protocol::ModelCatalogReport),
+    ModelPackCatalog(Box<pulsar_protocol::ModelPackCatalogReport>),
+    ModelPackStaging(pulsar_protocol::ModelPackStagingReport),
+    ModelPackDiscard(pulsar_protocol::ModelPackDiscardReport),
+    HandyInspection(pulsar_protocol::HandyInspection),
+    HandyStrokeScript(Box<pulsar_protocol::HandyStrokeScript>),
+    HandyHosting(Box<pulsar_protocol::HandyHostingReport>),
+    HandySetupInspection(Box<pulsar_protocol::HandySetupInspection>),
+    HandyProgramCorrelation(Box<pulsar_protocol::HandyProgramCorrelation>),
+    HandyPlaybackPreparation(Box<pulsar_protocol::HandyPlaybackPreparation>),
+    HandyController(Box<pulsar_protocol::HandyControllerReceipt>),
+    HandyServerClock(Box<pulsar_protocol::HandyServerClockObservation>),
+    HandyDeviceTiming(Box<pulsar_protocol::HandyDeviceTimingInspection>),
+    HandyClockSync(Box<pulsar_protocol::HandyClockSyncStatus>),
+    HandyPlayback(Box<pulsar_protocol::HandyPlaybackStatus>),
+    HandyHspLive(Box<pulsar_protocol::HandyHspLiveStatus>),
+    HandyHspContinuity(Box<pulsar_protocol::HandyHspContinuityStatus>),
+    HandyHspPreparation(Box<pulsar_protocol::HandyHspPreparationStatus>),
+    HandyHsp(Box<pulsar_protocol::HandyHspStatus>),
+    HandyStop(Box<pulsar_protocol::HandyStopStatus>),
+    HandyContinuousTiming(Box<pulsar_protocol::HandyContinuousTimingObservation>),
+    HandyPlayerGuard(Box<pulsar_protocol::HandyPlayerGuardReport>),
+    HandyPlayerChallenge(Box<pulsar_protocol::HandyPlayerChallenge>),
+    HandyRecoveryPlan(Box<pulsar_protocol::HandyRecoveryPlan>),
+    HandyRecovery(Box<pulsar_protocol::HandyRecoveryStatus>),
+    HandyPlaybackClock(Box<pulsar_protocol::HandyPlaybackClockObservation>),
+    HandyPlaybackRetirement(Box<pulsar_protocol::HandyPlaybackRetirement>),
+    HandySetupStatus(Box<pulsar_protocol::HandySetupStatus>),
+    HandySetupCancellation(Box<pulsar_protocol::HandySetupCancellation>),
+    HandyQualificationContext(Box<pulsar_protocol::HandyQualificationContext>),
+    HandyQualification(Box<pulsar_protocol::HandyQualificationReport>),
+    HandyQualificationSaved(Box<pulsar_protocol::HandyQualificationReceipt>),
+    HandySession(Box<pulsar_protocol::HandyConnectionSession>),
+    HandySessions(Box<pulsar_protocol::HandyConnectionCatalog>),
+    HandyRegistrationSaved(Box<pulsar_protocol::HandyRegistrationReceipt>),
+    HandyRegistrationResolution(Box<pulsar_protocol::HandyRegistrationResolution>),
+    HandyRegistrations(Box<pulsar_protocol::HandyRegistrationCatalog>),
+    HandyRegisteredInspection(Box<pulsar_protocol::HandyRegisteredInspection>),
+    StashDiscovery(StashDiscovery),
+    StashPlan(StashPlan),
+    StashScan(Box<StashScanReceipt>),
+    StashTag(Box<StashTagReceipt>),
+    StashBatch(StashBatchReport),
+    LibraryBatch(LibraryBatchReport),
+    LibraryBatchCatalog(LibraryBatchCatalog),
+    LibraryBatchReleased(LibraryBatchReleaseReceipt),
+    StashSourceCaptured(Box<StashSourceCapture>),
+    StashScriptExported(Box<StashScriptExport>),
+    StashPublication(Box<StashPublicationObservation>),
+    InferenceCatalog(InferenceCatalog),
+    InferenceEnvironment(Box<pulsar_protocol::InferenceEnvironmentReport>),
+    InferenceEquivalenceStatus(Box<pulsar_protocol::InferenceEquivalenceStatus>),
+    InferenceEquivalenceList(Box<pulsar_protocol::InferenceEquivalencePage>),
+    InferenceEquivalenceSaved(Box<pulsar_protocol::InferenceEquivalenceReceipt>),
+    DeviceMotionExported {
+        path: PathBuf,
+        revision: RevisionId,
+        gain: f64,
+        profile_sha256: String,
+        master_sha256: String,
+    },
+    PackageImport(Box<pulsar_protocol::PackageImportStatus>),
     PackageUpload(pulsar_protocol::PackageUploadLease),
     PackageUploadAbandoned {
         lease_id: pulsar_protocol::PackageUploadId,
     },
 
-    PackageExport(PackageExportStatus),
-    PackageDownload(PackageDownloadLease),
+    PackageExport(Box<PackageExportStatus>),
+    PackageDownload(Box<PackageDownloadLease>),
     PackageDownloadPending(PackageDownloadPending),
     PackageDownloadAbandoned {
         lease_id: PackageDownloadId,
     },
-    Project(ProjectSnapshot),
+    Project(Box<ProjectSnapshot>),
     Job(JobSnapshot),
-    Candidate(CandidateSnapshot),
+    JobAttempts(Box<JobAttemptPage>),
+    Candidate(Box<CandidateSnapshot>),
     Diagnostics(DiagnosticsReport),
+    ReviewStatus(pulsar_protocol::ReviewStatus),
     Transfer(TransferLease),
     TransferAbandoned {
         lease_id: TransferId,
@@ -70,7 +180,8 @@ pub enum ResponseBody {
         revision: RevisionId,
         axis: Axis,
     },
-    Preview(PreviewResult),
+    ModelPackPreview(Box<pulsar_protocol::ModelPackPreviewResult>),
+    Preview(Box<PreviewResult>),
     Capabilities(Capabilities),
     Events(EventPage),
     Paired {
@@ -82,22 +193,122 @@ pub enum ResponseBody {
 impl std::fmt::Debug for ResponseBody {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
+            Self::MediaProbe(_) => "MediaProbe",
+            Self::AssistantStartResolution(_) => "AssistantStartResolution",
+            Self::AssistantEditRecipes(_) => "AssistantEditRecipes",
+            Self::AssistantTargets(_) => "AssistantTargets",
+            Self::AssistantProfiles(_) => "AssistantProfiles",
+            Self::AssistantImage(_) => "AssistantImage",
+            Self::Assistant(_) => "Assistant",
+            Self::AssistantAttempts(_) => "AssistantAttempts",
+            Self::WasmEditorInfo(_) => "WasmEditorInfo",
+            Self::WasmEdit(_) => "WasmEdit",
+            Self::WasmStartResolution(_) => "WasmStartResolution",
+            Self::WasmEditCatalog(_) => "WasmEditCatalog",
+            Self::WasmArchivePage(_) => "WasmArchivePage",
+            Self::WasmEditArchived(_) => "WasmEditArchived",
+            Self::WasmEditRemoved(_) => "WasmEditRemoved",
+            Self::StashScriptExported(_) => "StashScriptExported",
+            Self::StashPublication(_) => "StashPublication",
+            Self::StashSourceCaptured(_) => "StashSourceCaptured",
+            Self::StashBatch(_) => "StashBatch",
+            Self::LibraryBatchReleased(_) => "LibraryBatchReleased",
+            Self::LibraryBatch(_) => "LibraryBatch",
+            Self::LibraryBatchCatalog(_) => "LibraryBatchCatalog",
+            Self::StashTag(_) => "StashTag",
+            Self::StashScan(_) => "StashScan",
+            Self::StashPlan(_) => "StashPlan",
+            Self::MotionRetimeReceipt(_) => "MotionRetimeReceipt",
+            Self::ArchivedGeneration(_) => "ArchivedGeneration",
+            Self::CandidateImageOrigin(_) => "CandidateImageOrigin",
+            Self::CandidateImageOriginPixels(_) => "CandidateImageOriginPixels",
+            Self::ArchivedMotionRetimeReceipt(_) => "ArchivedMotionRetimeReceipt",
+            Self::ModelPackSelection(_) => "ModelPackSelection",
+            Self::ModelPackWithdrawal(_) => "ModelPackWithdrawal",
+            Self::ModelPack(_) => "ModelPack",
+            Self::ModelPackCatalog(_) => "ModelPackCatalog",
+            Self::ModelCatalog(_) => "ModelCatalog",
+            Self::ModelPackStaging(_) => "ModelPackStaging",
+            Self::ModelPackDiscard(_) => "ModelPackDiscard",
+            Self::LiveCapture(_) => "LiveCapture",
+            Self::LiveRecordingPage(_) => "LiveRecordingPage",
+            Self::LiveCudaEvidenceRemoval(_) => "LiveCudaEvidenceRemoval",
+            Self::LiveCudaEvidencePage(_) => "LiveCudaEvidencePage",
+            Self::RetainedLiveCudaEvidence(_) => "RetainedLiveCudaEvidence",
+            Self::LiveCaptureLimits(_) => "LiveCaptureLimits",
+            Self::BrowserMediaCatalog(_) => "BrowserMediaCatalog",
+            Self::BrowserMediaPreparation(_) => "BrowserMediaPreparation",
+            Self::BrowserAnalysisSuccessor(_) => "BrowserAnalysisSuccessor",
+            Self::BrowserAnalysisTransfer(_) => "BrowserAnalysisTransfer",
+            Self::BrowserTiming(_) => "BrowserTiming",
+            Self::BrowserTimingProbe(_) => "BrowserTimingProbe",
+            Self::HandyHspSourceQualification(_) => "HandyHspSourceQualification",
+            Self::HandyBrowserStartQualification(_) => "HandyBrowserStartQualification",
+            Self::HandyHspSourceQualificationSaved(_) => "HandyHspSourceQualificationSaved",
+            Self::HandyBrowserStartQualificationSaved(_) => "HandyBrowserStartQualificationSaved",
+            Self::HandyBrowserPlayback(_) => "HandyBrowserPlayback",
+            Self::HandySession(_) => "HandySession",
+            Self::HandySessions(_) => "HandySessions",
+            Self::HandySetupInspection(_) => "HandySetupInspection",
+            Self::HandyProgramCorrelation(_) => "HandyProgramCorrelation",
+            Self::HandyPlaybackPreparation(_) => "HandyPlaybackPreparation",
+            Self::HandyPlaybackClock(_) => "HandyPlaybackClock",
+            Self::HandyClockSync(_) => "HandyClockSync",
+            Self::HandyPlayback(_) => "HandyPlayback",
+            Self::HandyHspLive(_) => "HandyHspLive",
+            Self::HandyHspContinuity(_) => "HandyHspContinuity",
+            Self::HandyHspPreparation(_) => "HandyHspPreparation",
+            Self::HandyHsp(_) => "HandyHsp",
+            Self::HandyStop(_) => "HandyStop",
+            Self::HandyContinuousTiming(_) => "HandyContinuousTiming",
+            Self::HandyPlayerGuard(_) => "HandyPlayerGuard",
+            Self::HandyPlayerChallenge(_) => "HandyPlayerChallenge",
+            Self::HandyRecoveryPlan(_) => "HandyRecoveryPlan",
+            Self::HandyRecovery(_) => "HandyRecovery",
+            Self::HandyDeviceTiming(_) => "HandyDeviceTiming",
+            Self::HandyServerClock(_) => "HandyServerClock",
+            Self::HandyController(_) => "HandyController",
+            Self::HandyPlaybackRetirement(_) => "HandyPlaybackRetirement",
+            Self::HandySetupStatus(_) => "HandySetupStatus",
+            Self::HandySetupCancellation(_) => "HandySetupCancellation",
+            Self::HandyQualificationContext(_) => "HandyQualificationContext",
+            Self::HandyQualification(_) => "HandyQualification",
+            Self::HandyQualificationSaved(_) => "HandyQualificationSaved",
+            Self::HandyHosting(_) => "HandyHosting",
+            Self::HandyStrokeScript(_) => "HandyStrokeScript",
+            Self::HandyInspection(_) => "HandyInspection",
+            Self::HandyRegistrationSaved(_) => "HandyRegistrationSaved",
+            Self::HandyRegistrationResolution(_) => "HandyRegistrationResolution",
+            Self::HandyRegistrations(_) => "HandyRegistrations",
+            Self::HandyRegisteredInspection(_) => "HandyRegisteredInspection",
+            Self::StashDiscovery(_) => "StashDiscovery",
             Self::Project(_) => "Project",
             Self::Job(_) => "Job",
+            Self::JobAttempts(_) => "JobAttempts",
             Self::Candidate(_) => "Candidate",
+            Self::ReviewStatus(_) => "ReviewStatus",
             Self::Diagnostics(_) => "Diagnostics",
             Self::Transfer(_) => "Transfer",
             Self::TransferAbandoned { .. } => "TransferAbandoned",
             Self::Source { .. } => "Source",
             Self::Exported { .. } => "Exported",
             Self::AxisExported { .. } => "AxisExported",
+            Self::ModelPackPreview(_) => "ModelPackPreview",
             Self::Preview(_) => "Preview",
             Self::Capabilities(_) => "Capabilities",
+            Self::InferenceCatalog(_) => "InferenceCatalog",
+            Self::InferenceEnvironment(_) => "InferenceEnvironment",
+            Self::InferenceEquivalenceStatus(_) => "InferenceEquivalenceStatus",
+            Self::InferenceEquivalenceList(_) => "InferenceEquivalenceList",
+            Self::InferenceEquivalenceSaved(_) => "InferenceEquivalenceSaved",
+            Self::DeviceMotionExported { .. } => "DeviceMotionExported",
             Self::Events(_) => "Events",
             Self::Paired { .. } => "Paired { credentials: [REDACTED] }",
             Self::PackageImport(_) => "PackageImport",
             Self::PackageUpload(_) => "PackageUpload",
             Self::PackageUploadAbandoned { .. } => "PackageUploadAbandoned",
+            Self::NativeImagePreparation(_) => "NativeImagePreparation",
+            Self::NativeImagePreparationLimits(_) => "NativeImagePreparationLimits",
             Self::Ack => "Ack",
             Self::PackageExport(_) => "PackageExport",
             Self::PackageDownload(_) => "PackageDownload",
@@ -126,7 +337,56 @@ impl BulkIo for wire::BulkClient {
         Ok(wire::BulkClient::download(self, offset, byte_len)?)
     }
 }
+/// Original edit-upload identity. Unknown outcomes retain this state for exact retry.
+#[derive(Clone, Debug, Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct RetainedEditUpload {
+    pub project: ProjectId,
+    pub revision: RevisionId,
+    pub begin_request: RequestId,
+    pub finish_request: RequestId,
+    pub byte_len: u64,
+    pub sha256: String,
+    pub label: String,
+    pub lease: Option<TransferLease>,
+    pub finalization_attempted: bool,
+}
+impl RetainedEditUpload {
+    pub(crate) fn new(
+        project: ProjectId,
+        revision: RevisionId,
+        program: &MotionProgram,
+        label: String,
+    ) -> Result<Self> {
+        let bytes = bounded_json(&EditValuesProgram::from_program_values(program)?)?;
+        ensure!(
+            !label.is_empty() && label.len() <= 1024,
+            "edit label length refused"
+        );
+        Ok(Self {
+            project,
+            revision,
+            begin_request: crate::session::new_request_id(),
+            finish_request: crate::session::new_request_id(),
+            byte_len: bytes.len() as u64,
+            sha256: format!("{:x}", Sha256::digest(&bytes)),
+            label,
+            lease: None,
+            finalization_attempted: false,
+        })
+    }
+}
 pub(crate) trait MotionIo {
+    fn control_identified(
+        &mut self,
+        _request: RequestId,
+        _command: Command,
+        _project: ProjectId,
+        _revision: Option<RevisionId>,
+    ) -> Result<wire::ResponseBody> {
+        bail!("this motion transport cannot preserve original request identity")
+    }
+
     fn control(
         &mut self,
         command: Command,
@@ -151,6 +411,128 @@ impl MotionCache {
         io: &mut impl MotionIo,
     ) -> Result<ResponseBody> {
         Ok(match response {
+            wire::ResponseBody::MediaProbe(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|p| p == &value.project_id),
+                    "Media probe project mismatch"
+                );
+                ResponseBody::MediaProbe(value)
+            }
+            wire::ResponseBody::NativeImagePreparation(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|p| p == &value.report.intent.project),
+                    "Native preparation project mismatch"
+                );
+                ResponseBody::NativeImagePreparation(value)
+            }
+            wire::ResponseBody::NativeImagePreparationLimits(value) => {
+                value.validate()?;
+                ResponseBody::NativeImagePreparationLimits(value)
+            }
+            wire::ResponseBody::AssistantStartResolution(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_some_and(|p| p == &value.project_id),
+                    "Assistant resolution project differs"
+                );
+                ResponseBody::AssistantStartResolution(value)
+            }
+            wire::ResponseBody::AssistantEditRecipes(value) => {
+                anyhow::ensure!(value.len() <= 12, "recipe catalog exceeds bounds");
+                for recipe in &value {
+                    recipe.validate()?;
+                }
+                ResponseBody::AssistantEditRecipes(value)
+            }
+            wire::ResponseBody::AssistantTargets(value) => {
+                value.validate().map_err(anyhow::Error::from)?;
+                ResponseBody::AssistantTargets(value)
+            }
+            wire::ResponseBody::AssistantImage(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_some_and(|p| p == &value.project_id),
+                    "Prepared image project differs"
+                );
+                ResponseBody::AssistantImage(value)
+            }
+            wire::ResponseBody::AssistantProfiles(value) => {
+                ensure!(value.len() <= 8, "Assistant profile catalog exceeds bound");
+                for profile in &value {
+                    profile.validate()?;
+                }
+                ResponseBody::AssistantProfiles(value)
+            }
+            wire::ResponseBody::Assistant(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|p| p == &value.project_id),
+                    "Assistant project differs"
+                );
+                ResponseBody::Assistant(value)
+            }
+            wire::ResponseBody::AssistantAttempts(value) => {
+                ensure!(
+                    value.len() <= 128,
+                    "Assistant attempt catalog exceeds bound"
+                );
+                for report in &value {
+                    report.validate()?;
+                    ensure!(
+                        expected_project.is_none_or(|p| p == &report.project_id),
+                        "Assistant catalog project differs"
+                    );
+                }
+                ResponseBody::AssistantAttempts(value)
+            }
+            wire::ResponseBody::WasmEditorInfo(value) => ResponseBody::WasmEditorInfo(value),
+            wire::ResponseBody::WasmStartResolution(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|p| p == &value.project_id),
+                    "WASM start resolution project differs"
+                );
+                ResponseBody::WasmStartResolution(value)
+            }
+            wire::ResponseBody::WasmEdit(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|p| p == &value.project_id),
+                    "WASM edit response project mismatch"
+                );
+                ResponseBody::WasmEdit(value)
+            }
+            wire::ResponseBody::WasmArchivePage(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|p| p == &value.project_id),
+                    "WASM archive history project mismatch"
+                );
+                ResponseBody::WasmArchivePage(value)
+            }
+            wire::ResponseBody::WasmEditCatalog(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|p| p == &value.project_id),
+                    "WASM catalog project mismatch"
+                );
+                ResponseBody::WasmEditCatalog(value)
+            }
+            wire::ResponseBody::WasmEditArchived(value) => {
+                value.validate()?;
+                ResponseBody::WasmEditArchived(value)
+            }
+            wire::ResponseBody::WasmEditRemoved(value) => {
+                value.validate()?;
+                ensure!(
+                    value.state.is_unsuccessful_terminal()
+                        && expected_project.is_none_or(|p| p == &value.project_id),
+                    "WASM removal response mismatch"
+                );
+                ResponseBody::WasmEditRemoved(value)
+            }
             wire::ResponseBody::Project(snapshot) => {
                 snapshot.validate()?;
                 ensure!(
@@ -162,14 +544,18 @@ impl MotionCache {
                     revision: snapshot.revision,
                 };
                 let program = self.program(&snapshot.motion, &binding, io)?;
-                ResponseBody::Project(ProjectSnapshot {
-                    project_id: snapshot.project_id,
-                    revision: snapshot.revision,
-                    name: snapshot.name,
-                    sources: snapshot.sources,
-                    motion: snapshot.motion,
-                    program,
-                })
+                ResponseBody::Project(
+                    (ProjectSnapshot {
+                        project_id: snapshot.project_id,
+                        revision: snapshot.revision,
+                        name: snapshot.name,
+                        sources: snapshot.sources,
+                        placements: snapshot.placements,
+                        motion: snapshot.motion,
+                        program,
+                    })
+                    .into(),
+                )
             }
             wire::ResponseBody::Candidate(snapshot) => {
                 snapshot.validate()?;
@@ -194,15 +580,19 @@ impl MotionCache {
                             snapshot.candidate_id
                         )
                     })?;
-                ResponseBody::Candidate(CandidateSnapshot {
-                    candidate_id: snapshot.candidate_id,
-                    project_id: snapshot.project_id,
-                    base_revision: snapshot.base_revision,
-                    job_id: snapshot.job_id,
-                    review: snapshot.review,
-                    motion: snapshot.motion,
-                    program,
-                })
+                ResponseBody::Candidate(
+                    (CandidateSnapshot {
+                        project_interval: snapshot.project_interval,
+                        candidate_id: snapshot.candidate_id,
+                        project_id: snapshot.project_id,
+                        base_revision: snapshot.base_revision,
+                        job_id: snapshot.job_id,
+                        review: snapshot.review,
+                        motion: snapshot.motion,
+                        program,
+                    })
+                    .into(),
+                )
             }
             wire::ResponseBody::PackageExport(value) => ResponseBody::PackageExport(value),
             wire::ResponseBody::PackageDownload(value) => ResponseBody::PackageDownload(value),
@@ -218,6 +608,15 @@ impl MotionCache {
                 ResponseBody::PackageUploadAbandoned { lease_id }
             }
             wire::ResponseBody::Job(value) => ResponseBody::Job(value),
+            wire::ResponseBody::JobAttempts(value) => ResponseBody::JobAttempts(value),
+            wire::ResponseBody::ReviewStatus(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|id| id == &value.project_id),
+                    "Review response project mismatch"
+                );
+                ResponseBody::ReviewStatus(value)
+            }
             wire::ResponseBody::Diagnostics(value) => ResponseBody::Diagnostics(value),
             wire::ResponseBody::Transfer(value) => ResponseBody::Transfer(value),
             wire::ResponseBody::TransferAbandoned { lease_id } => {
@@ -238,8 +637,453 @@ impl MotionCache {
                 revision,
                 axis,
             },
+            wire::ResponseBody::ModelPackPreview(value) => {
+                value.validate()?;
+                ResponseBody::ModelPackPreview(value)
+            }
             wire::ResponseBody::Preview(value) => ResponseBody::Preview(value),
             wire::ResponseBody::Capabilities(value) => ResponseBody::Capabilities(value),
+            wire::ResponseBody::LiveRecordingPage(value) => {
+                value.validate()?;
+                ResponseBody::LiveRecordingPage(value)
+            }
+            wire::ResponseBody::LiveCapture(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|id| id == &value.identity.project),
+                    "Capture response project mismatch"
+                );
+                ResponseBody::LiveCapture(value)
+            }
+            wire::ResponseBody::LiveCudaEvidenceRemoval(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|id| id == &value.project_id),
+                    "Retained CUDA removal project mismatch"
+                );
+                ResponseBody::LiveCudaEvidenceRemoval(value)
+            }
+            wire::ResponseBody::LiveCudaEvidencePage(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|id| id == &value.project),
+                    "Retained CUDA listing project mismatch"
+                );
+                ResponseBody::LiveCudaEvidencePage(value)
+            }
+            wire::ResponseBody::RetainedLiveCudaEvidence(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|id| id == &value.identity.project),
+                    "Retained CUDA evidence project mismatch"
+                );
+                ResponseBody::RetainedLiveCudaEvidence(value)
+            }
+            wire::ResponseBody::LiveCaptureLimits(value) => ResponseBody::LiveCaptureLimits(value),
+            wire::ResponseBody::BrowserMediaCatalog(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|id| id == &value.project_id),
+                    "Browser media catalog project mismatch"
+                );
+                ResponseBody::BrowserMediaCatalog(value)
+            }
+            wire::ResponseBody::BrowserAnalysisSuccessor(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project == Some(&value.predecessor.project),
+                    "Browser analysis successor project differs"
+                );
+                ResponseBody::BrowserAnalysisSuccessor(value)
+            }
+            wire::ResponseBody::BrowserAnalysisTransfer(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project == Some(&value.predecessor.project),
+                    "Browser analysis transfer project differs"
+                );
+                ResponseBody::BrowserAnalysisTransfer(value)
+            }
+            wire::ResponseBody::BrowserMediaPreparation(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|id| id == &value.project_id),
+                    "Browser media preparation project mismatch"
+                );
+                ResponseBody::BrowserMediaPreparation(value)
+            }
+            wire::ResponseBody::BrowserTiming(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|id| id == &value.binding.project_id),
+                    "Browser timing project mismatch"
+                );
+                ResponseBody::BrowserTiming(value)
+            }
+            wire::ResponseBody::BrowserTimingProbe(value) => {
+                value.validate()?;
+                ResponseBody::BrowserTimingProbe(value)
+            }
+            wire::ResponseBody::HandyHspSourceQualification(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|id| id == &value.manifest.subject.project_id),
+                    "Browser dossier project mismatch"
+                );
+                ResponseBody::HandyHspSourceQualification(value)
+            }
+            wire::ResponseBody::HandyHspSourceQualificationSaved(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project
+                        .is_none_or(|id| id == &value.report.manifest.subject.project_id),
+                    "Browser dossier receipt project mismatch"
+                );
+                ResponseBody::HandyHspSourceQualificationSaved(value)
+            }
+            wire::ResponseBody::HandyBrowserStartQualification(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|id| id == &value.manifest.subject.project_id),
+                    "Browser dossier project mismatch"
+                );
+                ResponseBody::HandyBrowserStartQualification(value)
+            }
+            wire::ResponseBody::HandyBrowserStartQualificationSaved(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project
+                        .is_none_or(|id| id == &value.report.manifest.subject.project_id),
+                    "Browser dossier receipt project mismatch"
+                );
+                ResponseBody::HandyBrowserStartQualificationSaved(value)
+            }
+            wire::ResponseBody::HandyBrowserPlayback(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|id| id == &value.project_id),
+                    "Browser playback project mismatch"
+                );
+                ResponseBody::HandyBrowserPlayback(value)
+            }
+            wire::ResponseBody::InferenceCatalog(value) => ResponseBody::InferenceCatalog(value),
+            wire::ResponseBody::InferenceEnvironment(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none() && expected_candidate.is_none(),
+                    "Inference environment observation requires global scope"
+                );
+                ResponseBody::InferenceEnvironment(value)
+            }
+            wire::ResponseBody::InferenceEquivalenceStatus(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none(),
+                    "Inference equivalence status requires global scope"
+                );
+                ResponseBody::InferenceEquivalenceStatus(value)
+            }
+            wire::ResponseBody::InferenceEquivalenceList(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none(),
+                    "Inference equivalence list requires global scope"
+                );
+                ResponseBody::InferenceEquivalenceList(value)
+            }
+            wire::ResponseBody::InferenceEquivalenceSaved(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none(),
+                    "Inference equivalence receipt requires global scope"
+                );
+                ResponseBody::InferenceEquivalenceSaved(value)
+            }
+            wire::ResponseBody::StashScriptExported(value) => {
+                ResponseBody::StashScriptExported(value)
+            }
+            wire::ResponseBody::StashPublication(value) => ResponseBody::StashPublication(value),
+            wire::ResponseBody::StashSourceCaptured(value) => {
+                ResponseBody::StashSourceCaptured(value)
+            }
+            wire::ResponseBody::StashBatch(value) => ResponseBody::StashBatch(value),
+            wire::ResponseBody::LibraryBatchReleased(value) => {
+                ResponseBody::LibraryBatchReleased(value)
+            }
+            wire::ResponseBody::LibraryBatch(value) => ResponseBody::LibraryBatch(value),
+            wire::ResponseBody::LibraryBatchCatalog(value) => {
+                ResponseBody::LibraryBatchCatalog(value)
+            }
+            wire::ResponseBody::StashTag(value) => ResponseBody::StashTag(value),
+            wire::ResponseBody::StashScan(value) => ResponseBody::StashScan(value),
+            wire::ResponseBody::StashPlan(value) => ResponseBody::StashPlan(value),
+            wire::ResponseBody::CandidateImageOriginPixels(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|id| id == &value.report.project_id),
+                    "Image pixels response project mismatch"
+                );
+                ensure!(
+                    expected_candidate.is_none_or(|id| id == &value.report.candidate_id),
+                    "Image pixels response candidate mismatch"
+                );
+                ResponseBody::CandidateImageOriginPixels(value)
+            }
+            wire::ResponseBody::CandidateImageOrigin(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|id| id == &value.project_id),
+                    "Image origin response project mismatch"
+                );
+                ensure!(
+                    expected_candidate.is_none_or(|id| id == &value.candidate_id),
+                    "Image origin response candidate mismatch"
+                );
+                ResponseBody::CandidateImageOrigin(value)
+            }
+            wire::ResponseBody::ArchivedGeneration(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|id| id == &value.project_id),
+                    "Archived generation response project mismatch"
+                );
+                ResponseBody::ArchivedGeneration(value)
+            }
+            wire::ResponseBody::ArchivedMotionRetimeReceipt(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_none_or(|id| id == &value.project_id),
+                    "Archival retiming response project mismatch"
+                );
+                ResponseBody::ArchivedMotionRetimeReceipt(value)
+            }
+            wire::ResponseBody::MotionRetimeReceipt(value) => {
+                value.validate()?;
+                ResponseBody::MotionRetimeReceipt(value)
+            }
+            wire::ResponseBody::ModelPackCatalog(value) => {
+                value.validate()?;
+                ResponseBody::ModelPackCatalog(value)
+            }
+            wire::ResponseBody::ModelCatalog(value) => {
+                value.validate()?;
+                ResponseBody::ModelCatalog(value)
+            }
+            wire::ResponseBody::ModelPackDiscard(value) => {
+                value.validate()?;
+                ResponseBody::ModelPackDiscard(value)
+            }
+            wire::ResponseBody::ModelPackStaging(value) => {
+                value.validate()?;
+                ResponseBody::ModelPackStaging(value)
+            }
+            wire::ResponseBody::ModelPackWithdrawal(value) => {
+                value.validate()?;
+                ResponseBody::ModelPackWithdrawal(value)
+            }
+            wire::ResponseBody::ModelPackSelection(value) => {
+                value.validate()?;
+                ResponseBody::ModelPackSelection(value)
+            }
+            wire::ResponseBody::ModelPack(value) => {
+                value.validate()?;
+                ResponseBody::ModelPack(value)
+            }
+            wire::ResponseBody::HandyRegistrationResolution(value) => {
+                value.validate()?;
+                ResponseBody::HandyRegistrationResolution(value)
+            }
+            wire::ResponseBody::HandyRegistrationSaved(value) => {
+                value.validate()?;
+                ResponseBody::HandyRegistrationSaved(value)
+            }
+            wire::ResponseBody::HandyRegistrations(value) => {
+                value.validate()?;
+                ResponseBody::HandyRegistrations(value)
+            }
+            wire::ResponseBody::HandyRegisteredInspection(value) => {
+                value.validate()?;
+                ResponseBody::HandyRegisteredInspection(value)
+            }
+            wire::ResponseBody::HandySession(value) => {
+                value.validate()?;
+                ResponseBody::HandySession(value)
+            }
+            wire::ResponseBody::HandySessions(value) => {
+                value.validate()?;
+                ResponseBody::HandySessions(value)
+            }
+            wire::ResponseBody::HandySetupCancellation(value) => {
+                value.validate()?;
+                ResponseBody::HandySetupCancellation(value)
+            }
+            wire::ResponseBody::HandySetupStatus(value) => {
+                value.validate()?;
+                ResponseBody::HandySetupStatus(value)
+            }
+            wire::ResponseBody::HandyPlaybackClock(value) => {
+                value.validate()?;
+                ResponseBody::HandyPlaybackClock(value)
+            }
+            wire::ResponseBody::HandyClockSync(value) => {
+                value.validate()?;
+                ResponseBody::HandyClockSync(value)
+            }
+            wire::ResponseBody::HandyRecoveryPlan(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_some_and(|p| p == &value.project_id),
+                    "Handy recovery plan project differs"
+                );
+                ResponseBody::HandyRecoveryPlan(value)
+            }
+            wire::ResponseBody::HandyRecovery(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_some_and(|p| p == &value.project_id),
+                    "Handy recovery history project differs"
+                );
+                ResponseBody::HandyRecovery(value)
+            }
+            wire::ResponseBody::HandyContinuousTiming(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_some_and(|project| project == &value.controller.project_id),
+                    "continuous timing project differs"
+                );
+                ResponseBody::HandyContinuousTiming(value)
+            }
+            wire::ResponseBody::HandyPlayerGuard(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project
+                        .is_some_and(|project| project == &value.binding.controller.project_id),
+                    "Handy player guard project differs"
+                );
+                ResponseBody::HandyPlayerGuard(value)
+            }
+            wire::ResponseBody::HandyPlayerChallenge(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_some(),
+                    "Handy player challenge requires project scope"
+                );
+                ResponseBody::HandyPlayerChallenge(value)
+            }
+            wire::ResponseBody::HandyHspLive(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project == Some(&value.project_id),
+                    "Handy HSP live project differs"
+                );
+                ResponseBody::HandyHspLive(value)
+            }
+            wire::ResponseBody::HandyHspContinuity(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project == Some(&value.project_id),
+                    "Handy HSP continuity project differs"
+                );
+                ResponseBody::HandyHspContinuity(value)
+            }
+            wire::ResponseBody::HandyHspPreparation(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_some_and(|p| p == &value.project_id),
+                    "Handy HSP preparation project differs"
+                );
+                ResponseBody::HandyHspPreparation(value)
+            }
+            wire::ResponseBody::HandyHsp(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_some_and(|p| p == &value.project_id),
+                    "Handy HSP stream project differs"
+                );
+                ResponseBody::HandyHsp(value)
+            }
+            wire::ResponseBody::HandyStop(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_some_and(|p| p == &value.project_id),
+                    "Handy stop history project differs"
+                );
+                ResponseBody::HandyStop(value)
+            }
+            wire::ResponseBody::HandyPlayback(value) => {
+                value.validate()?;
+                ensure!(
+                    expected_project.is_some_and(|p| p == &value.project_id),
+                    "Handy playback history project differs"
+                );
+                ResponseBody::HandyPlayback(value)
+            }
+            wire::ResponseBody::HandyDeviceTiming(value) => {
+                value.validate()?;
+                ResponseBody::HandyDeviceTiming(value)
+            }
+            wire::ResponseBody::HandyServerClock(value) => {
+                value.validate()?;
+                ResponseBody::HandyServerClock(value)
+            }
+            wire::ResponseBody::HandyController(value) => {
+                value.validate()?;
+                ResponseBody::HandyController(value)
+            }
+            wire::ResponseBody::HandyPlaybackPreparation(value) => {
+                value.validate()?;
+                ResponseBody::HandyPlaybackPreparation(value)
+            }
+            wire::ResponseBody::HandyPlaybackRetirement(value) => {
+                value.validate()?;
+                ResponseBody::HandyPlaybackRetirement(value)
+            }
+            wire::ResponseBody::HandyProgramCorrelation(value) => {
+                value.validate()?;
+                ResponseBody::HandyProgramCorrelation(value)
+            }
+            wire::ResponseBody::HandySetupInspection(value) => {
+                value.validate()?;
+                ResponseBody::HandySetupInspection(value)
+            }
+            wire::ResponseBody::HandyQualificationContext(value) => {
+                value.validate()?;
+                ResponseBody::HandyQualificationContext(value)
+            }
+            wire::ResponseBody::HandyQualification(value) => {
+                value.validate()?;
+                ResponseBody::HandyQualification(value)
+            }
+            wire::ResponseBody::HandyQualificationSaved(value) => {
+                value.validate()?;
+                ResponseBody::HandyQualificationSaved(value)
+            }
+            wire::ResponseBody::HandyHosting(value) => {
+                value.validate()?;
+                ResponseBody::HandyHosting(value)
+            }
+            wire::ResponseBody::HandyStrokeScript(value) => {
+                value.validate()?;
+                ResponseBody::HandyStrokeScript(value)
+            }
+            wire::ResponseBody::HandyInspection(value) => {
+                value.validate()?;
+                ResponseBody::HandyInspection(value)
+            }
+            wire::ResponseBody::StashDiscovery(value) => ResponseBody::StashDiscovery(value),
+            wire::ResponseBody::DeviceMotionExported {
+                path,
+                revision,
+                gain,
+                profile_sha256,
+                master_sha256,
+            } => ResponseBody::DeviceMotionExported {
+                path,
+                revision,
+                gain,
+                profile_sha256,
+                master_sha256,
+            },
             wire::ResponseBody::Events(value) => ResponseBody::Events(value),
             wire::ResponseBody::Paired {
                 session,
@@ -342,6 +1186,125 @@ impl MotionCache {
         Ok(program)
     }
 
+    pub(crate) fn upload_edit_retained(
+        &mut self,
+        intent: &mut RetainedEditUpload,
+        program: &MotionProgram,
+        io: &mut impl MotionIo,
+        checkpoint: &mut impl FnMut(&RetainedEditUpload) -> Result<()>,
+    ) -> Result<CandidateSnapshot> {
+        let bytes = bounded_json(&EditValuesProgram::from_program_values(program)?)?;
+        ensure!(
+            bytes.len() as u64 == intent.byte_len
+                && format!("{:x}", Sha256::digest(&bytes)) == intent.sha256,
+            "retained edit bytes changed; original upload identity cannot be replaced"
+        );
+        checkpoint(intent)?;
+        if !intent.finalization_attempted {
+            if intent.lease.is_none() {
+                let started = Instant::now();
+                let wire::ResponseBody::Transfer(lease) = io.control_identified(
+                    intent.begin_request.clone(),
+                    Command::BeginEditUpload {
+                        byte_len: intent.byte_len,
+                        sha256: intent.sha256.clone(),
+                        label: intent.label.clone(),
+                    },
+                    intent.project.clone(),
+                    Some(intent.revision),
+                )?
+                else {
+                    bail!("retained edit admission response differs");
+                };
+                // A replay can already have accepted bytes. Validate identity before opening bulk.
+                lease.validate()?;
+                let mut initial = lease.clone();
+                initial.accepted_prefix = 0;
+                validate_lease(
+                    &initial,
+                    io.bulk_endpoint(),
+                    &intent.project,
+                    TransferDirection::Upload,
+                    intent.byte_len,
+                    &intent.sha256,
+                )?;
+                transfer_deadline(&lease, started)?;
+                intent.lease = Some(lease);
+                checkpoint(intent)?;
+            }
+            let original = intent.lease.as_ref().context("retained lease absent")?;
+            let started = Instant::now();
+            let wire::ResponseBody::Transfer(lease) = io.control(
+                Command::TransferStatus {
+                    lease_id: original.lease_id.clone(),
+                },
+                intent.project.clone(),
+                None,
+            )?
+            else {
+                bail!("retained upload status differs");
+            };
+            lease.validate()?;
+            let mut initial = lease.clone();
+            initial.accepted_prefix = 0;
+            validate_lease(
+                &initial,
+                io.bulk_endpoint(),
+                &intent.project,
+                TransferDirection::Upload,
+                intent.byte_len,
+                &intent.sha256,
+            )?;
+            ensure!(
+                lease.lease_id == original.lease_id && lease.engine_epoch == original.engine_epoch,
+                "retained upload lease or Engine boot changed"
+            );
+            let deadline = transfer_deadline(&lease, started)?;
+            let offset = usize::try_from(lease.accepted_prefix)?;
+            intent.lease = Some(lease.clone());
+            checkpoint(intent)?;
+            if offset < bytes.len() {
+                let mut bulk = io.open_bulk(&lease, deadline)?;
+                let mut accepted = offset;
+                for chunk in bytes[offset..].chunks(MAX_ARTIFACT_CHUNK_BYTES) {
+                    ensure!(Instant::now() < deadline, "retained upload lease expired");
+                    let next = bulk.upload(accepted as u64, chunk)?;
+                    accepted += chunk.len();
+                    ensure!(
+                        next == accepted as u64,
+                        "retained upload acknowledgement differs"
+                    );
+                }
+            }
+            // Set before dispatch: retry finalization directly, including after Engine restart.
+            intent.finalization_attempted = true;
+            checkpoint(intent)?;
+        }
+        let lease = intent
+            .lease
+            .as_ref()
+            .context("retained finalization lease absent")?;
+        let response = io.control_identified(
+            intent.finish_request.clone(),
+            Command::FinishEditUpload {
+                lease_id: lease.lease_id.clone(),
+            },
+            intent.project.clone(),
+            Some(intent.revision),
+        )?;
+        let wire::ResponseBody::Candidate(candidate) = &response else {
+            bail!("retained edit finalization response differs");
+        };
+        ensure!(
+            candidate.project_id == intent.project && candidate.base_revision == intent.revision,
+            "retained edit candidate scope differs"
+        );
+        match self.hydrate(response, Some(&intent.project), None, io)? {
+            ResponseBody::Candidate(c) => Ok(*c),
+            _ => unreachable!(),
+        }
+    }
+
     pub(crate) fn upload_edit(
         &mut self,
         project: ProjectId,
@@ -418,7 +1381,7 @@ impl MotionCache {
             _ => bail!("Unexpected edit finalization response; no commit was requested"),
         }
         match self.hydrate(response, Some(&project), None, io)? {
-            ResponseBody::Candidate(candidate) => Ok(candidate),
+            ResponseBody::Candidate(candidate) => Ok(*candidate),
             _ => unreachable!(),
         }
     }
@@ -703,21 +1666,25 @@ mod transfer_tests {
                 }
                 Command::FinishEditUpload { .. } => {
                     let id = CandidateId::new("candidate").unwrap();
-                    wire::ResponseBody::Candidate(wire::CandidateSnapshot {
-                        candidate_id: id.clone(),
-                        project_id: project(),
-                        base_revision: RevisionId::new(1),
-                        motion: fixture_descriptor(
-                            &self.program,
-                            MotionBinding::Candidate {
-                                project_id: project(),
-                                candidate_id: id,
-                                base_revision: RevisionId::new(1),
-                            },
-                        ),
-                        job_id: None,
-                        review: Vec::new(),
-                    })
+                    wire::ResponseBody::Candidate(
+                        (wire::CandidateSnapshot {
+                            project_interval: None,
+                            candidate_id: id.clone(),
+                            project_id: project(),
+                            base_revision: RevisionId::new(1),
+                            motion: fixture_descriptor(
+                                &self.program,
+                                MotionBinding::Candidate {
+                                    project_id: project(),
+                                    candidate_id: id,
+                                    base_revision: RevisionId::new(1),
+                                },
+                            ),
+                            job_id: None,
+                            review: Vec::new(),
+                        })
+                        .into(),
+                    )
                 }
                 Command::AbandonTransfer { lease_id } => {
                     wire::ResponseBody::TransferAbandoned { lease_id }
@@ -738,6 +1705,248 @@ mod transfer_tests {
         fn bulk_endpoint(&self) -> &Path {
             &self.endpoint
         }
+    }
+
+    struct RetainedIo {
+        inner: MockIo,
+        lease: Option<TransferLease>,
+        ids: Vec<(RequestId, Command)>,
+        lose_begin: bool,
+        lose_finish: bool,
+        invalid_prefix: bool,
+    }
+    impl RetainedIo {
+        fn new() -> Self {
+            Self {
+                inner: MockIo::new(),
+                lease: None,
+                ids: vec![],
+                lose_begin: false,
+                lose_finish: false,
+                invalid_prefix: false,
+            }
+        }
+    }
+    impl MotionIo for RetainedIo {
+        fn control_identified(
+            &mut self,
+            id: RequestId,
+            cmd: Command,
+            scope: ProjectId,
+            revision: Option<RevisionId>,
+        ) -> Result<wire::ResponseBody> {
+            self.ids.push((id, cmd.clone()));
+            let response = self.inner.control(cmd.clone(), scope, revision)?;
+            if let wire::ResponseBody::Transfer(lease) = &response {
+                self.lease = Some(lease.clone());
+            }
+            if matches!(cmd, Command::BeginEditUpload { .. }) && self.lose_begin {
+                self.lose_begin = false;
+                bail!("lost Begin acknowledgement");
+            }
+            if matches!(cmd, Command::FinishEditUpload { .. }) && self.lose_finish {
+                self.lose_finish = false;
+                bail!("lost Finish acknowledgement");
+            }
+            Ok(response)
+        }
+        fn control(
+            &mut self,
+            cmd: Command,
+            scope: ProjectId,
+            revision: Option<RevisionId>,
+        ) -> Result<wire::ResponseBody> {
+            if matches!(cmd, Command::TransferStatus { .. }) {
+                let mut lease = self.lease.clone().unwrap();
+                lease.accepted_prefix = if self.invalid_prefix {
+                    lease.byte_len + 1
+                } else {
+                    self.inner.uploaded.borrow().len() as u64
+                };
+                return Ok(wire::ResponseBody::Transfer(lease));
+            }
+            self.inner.control(cmd, scope, revision)
+        }
+        fn open_bulk(
+            &mut self,
+            lease: &TransferLease,
+            deadline: Instant,
+        ) -> Result<Box<dyn BulkIo>> {
+            self.inner.open_bulk(lease, deadline)
+        }
+        fn bulk_endpoint(&self) -> &Path {
+            self.inner.bulk_endpoint()
+        }
+    }
+    #[test]
+    fn environment_hydration_validates_global_report_without_transfer_io() {
+        let report = crate::inference_equivalence::environment_tests::report;
+        let wire_report = || wire::ResponseBody::InferenceEnvironment(Box::new(report()));
+        let mut io = MockIo::new();
+        let mut cache = MotionCache::default();
+        let hydrated = cache.hydrate(wire_report(), None, None, &mut io).unwrap();
+        assert!(matches!(&hydrated, ResponseBody::InferenceEnvironment(_)));
+        assert_eq!(format!("{hydrated:?}"), "InferenceEnvironment");
+        assert!(cache
+            .hydrate(wire_report(), Some(&project()), None, &mut io)
+            .is_err());
+        assert!(cache
+            .hydrate(
+                wire_report(),
+                None,
+                Some(&CandidateId::new("candidate").unwrap()),
+                &mut io
+            )
+            .is_err());
+        let mut invalid = report();
+        invalid.profile_sha256 = "0".repeat(64);
+        assert!(cache
+            .hydrate(
+                wire::ResponseBody::InferenceEnvironment(Box::new(invalid)),
+                None,
+                None,
+                &mut io
+            )
+            .is_err());
+        let mut invalid = report();
+        invalid.runtime_dependency_closure_verified = true;
+        assert!(cache
+            .hydrate(
+                wire::ResponseBody::InferenceEnvironment(Box::new(invalid)),
+                None,
+                None,
+                &mut io
+            )
+            .is_err());
+        assert!(io.commands.is_empty());
+        assert_eq!(io.opens, 0);
+    }
+
+    #[test]
+    fn equivalence_page_hydration_validates_global_observation_without_transfer_io() {
+        let page = |report_only| {
+            wire::ResponseBody::InferenceEquivalenceList(Box::new(InferenceEquivalencePage {
+                entries: vec![],
+                next_after: None,
+                report_only,
+            }))
+        };
+        let mut io = MockIo::new();
+        let mut cache = MotionCache::default();
+        let hydrated = cache.hydrate(page(true), None, None, &mut io).unwrap();
+        assert!(matches!(
+            &hydrated,
+            ResponseBody::InferenceEquivalenceList(_)
+        ));
+        assert_eq!(format!("{hydrated:?}"), "InferenceEquivalenceList");
+        let project_error = cache
+            .hydrate(page(true), Some(&project()), None, &mut io)
+            .unwrap_err();
+        assert!(project_error.to_string().contains("requires global scope"));
+        assert!(cache.hydrate(page(false), None, None, &mut io).is_err());
+        assert_eq!(io.opens, 0);
+        assert!(io.commands.is_empty());
+    }
+
+    #[test]
+    fn retained_upload_recovers_lost_begin_chunk_and_finish_without_replacement() {
+        for loss in 0..3 {
+            let p = program();
+            let mut io = RetainedIo::new();
+            let mut cache = MotionCache::default();
+            let mut intent =
+                RetainedEditUpload::new(project(), RevisionId::new(1), &p, "retained edit".into())
+                    .unwrap();
+            match loss {
+                0 => io.lose_begin = true,
+                1 => io.inner.bad_ack = true,
+                _ => io.lose_finish = true,
+            }
+            assert!(cache
+                .upload_edit_retained(&mut intent, &p, &mut io, &mut |_| Ok(()))
+                .is_err());
+            io.inner.bad_ack = false;
+            let c = cache
+                .upload_edit_retained(&mut intent, &p, &mut io, &mut |_| Ok(()))
+                .unwrap();
+            assert_eq!(c.program.as_ref(), &p);
+            assert_eq!(
+                io.inner.uploaded.borrow().as_slice(),
+                bounded_json(&EditValuesProgram::from_program_values(&p).unwrap()).unwrap()
+            );
+            for (id, cmd) in &io.ids {
+                assert_eq!(
+                    id,
+                    if matches!(cmd, Command::BeginEditUpload { .. }) {
+                        &intent.begin_request
+                    } else {
+                        &intent.finish_request
+                    }
+                );
+            }
+            assert!(!io
+                .inner
+                .commands
+                .iter()
+                .any(|c| matches!(c, Command::AbandonTransfer { .. })));
+            let ids = io.ids.len();
+            let mut changed = intent.clone();
+            changed.sha256 = "b".repeat(64);
+            assert!(cache
+                .upload_edit_retained(&mut changed, &p, &mut io, &mut |_| Ok(()))
+                .is_err());
+            assert_eq!(io.ids.len(), ids);
+        }
+    }
+    #[test]
+    fn checkpoint_failure_prevents_admission_bulk_or_finalization() {
+        for cut in 0..3 {
+            let p = program();
+            let mut io = RetainedIo::new();
+            let mut intent = RetainedEditUpload::new(
+                project(),
+                RevisionId::new(1),
+                &p,
+                "checkpoint edit".into(),
+            )
+            .unwrap();
+            let mut cache = MotionCache::default();
+            let result = cache.upload_edit_retained(&mut intent, &p, &mut io, &mut |state| {
+                if (cut == 0 && state.lease.is_none())
+                    || (cut == 1 && state.lease.is_some())
+                    || (cut == 2 && state.finalization_attempted)
+                {
+                    bail!("checkpoint publication failed");
+                }
+                Ok(())
+            });
+            assert!(result.is_err());
+            assert!(!io
+                .ids
+                .iter()
+                .any(|(_, c)| matches!(c, Command::FinishEditUpload { .. })));
+            if cut == 0 {
+                assert!(io.ids.is_empty());
+            }
+            if cut < 2 {
+                assert_eq!(io.inner.opens, 0);
+            }
+        }
+    }
+
+    #[test]
+    fn retained_upload_rejects_invalid_progress_before_bulk() {
+        let p = program();
+        let mut io = RetainedIo::new();
+        io.invalid_prefix = true;
+        let mut intent =
+            RetainedEditUpload::new(project(), RevisionId::new(1), &p, "retained edit".into())
+                .unwrap();
+        assert!(MotionCache::default()
+            .upload_edit_retained(&mut intent, &p, &mut io, &mut |_| Ok(()))
+            .is_err());
+        assert_eq!(io.inner.opens, 0);
+        assert!(!intent.finalization_attempted);
     }
 
     #[test]
@@ -861,5 +2070,36 @@ mod transfer_tests {
             cache.entries.len() <= 8,
             "byte bounds alone do not bound cache metadata"
         );
+    }
+    #[test]
+    fn archive_history_hydration_refuses_foreign_scope_without_motion_transfer() {
+        let mut io = MockIo::new();
+        let mut cache = MotionCache::default();
+        let mut page = wire::WasmArchivePage {
+            project_id: project(),
+            after: None,
+            limit: 32,
+            operations: vec![],
+            next: None,
+        };
+        cache
+            .hydrate(
+                wire::ResponseBody::WasmArchivePage(page.clone()),
+                Some(&project()),
+                None,
+                &mut io,
+            )
+            .unwrap();
+        page.project_id = ProjectId::new("foreign").unwrap();
+        assert!(cache
+            .hydrate(
+                wire::ResponseBody::WasmArchivePage(page),
+                Some(&project()),
+                None,
+                &mut io
+            )
+            .is_err());
+        assert_eq!(io.opens, 0);
+        assert!(io.commands.is_empty());
     }
 }
