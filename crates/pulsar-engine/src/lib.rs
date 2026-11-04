@@ -29,6 +29,12 @@ pub use runtime_install::{
     RuntimeArchiveStageInspection, RuntimeStageInspection, RuntimeStageState, RuntimeUpdateReport,
 };
 mod authority;
+mod device_control_session;
+pub use device_control_session::{
+    DEFAULT_AMPLITUDE_CAP_PERCENT, DEFAULT_DEVICE_SESSION_LIFETIME_NS, DeviceControlSession,
+    DeviceMotionCaps, LimitedMotion, MAX_DEVICE_SESSION_LIFETIME_NS, SessionAuthority,
+    SessionRefusal,
+};
 pub mod benchmark;
 mod browser_fallback_history;
 mod browser_fallback_reader;

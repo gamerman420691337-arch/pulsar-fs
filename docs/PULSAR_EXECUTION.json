@@ -835,8 +835,8 @@
       "id": "M5-CONDUCT",
       "milestone": "M5",
       "criterion": "MDP-01, PIPE-01/PIPE-02, DCS-01..09 and RPA-07: a single user-visible device-control toggle creates a bounded session with fixed caps, expiry and an always-available ungated stop; presentation and playback keep separate timing admissions; a model cannot create, renew or extend a session, and a model cannot substitute script bytes between approval and dispatch.",
-      "previous_boundary": "Not implemented. The Engine already exposes motion primitives (prepare/start/stop Handy playback, HSP live streaming) over an authenticated Unix socket; there is no session gate, no model-facing surface and no MCP server. The toggle contract and its caps are recorded in docs/PULSAR_ASSISTANT_TOOL_SURFACE.md and spec E.7. No tool dispatched, no device actuated.",
-      "implementation": "not_implemented",
+      "previous_boundary": "The session gate exists as a pure pulsar-engine module with 14 tests: open requires SessionAuthority::UserSurface, lifetime is bounded by a hard one-hour ceiling and refused otherwise, expiry is evaluated per submission, renewal is user-only and can never revive a stopped or expired session or pull expiry inward, stop is unconditional and idempotent, motion is reduced by amplitude cap, usable-travel confinement and optional rate limiting with a visible limited flag, out-of-range positions refuse, and owner/project/device/content-class scope is checked. NOT YET WIRED: no device command consults the gate, so playback is not currently gated end-to-end. No desktop toggle, no MCP surface, no device actuation, and no retained receipt for this source.",
+      "implementation": "partial",
       "verification": "not_requalified",
       "acceptance": "open",
       "next_proof": "Implement the session gate and verify through actual CLI/desktop consumers: toggle creation and expiry, capped motion, stop mid-stream, disarm on device/Engine loss, refusal with no session active, and that no tool can create or renew one.",
@@ -847,7 +847,8 @@
         "crates/pulsar-engine/src/handy_hsp_live.rs",
         "crates/pulsar-engine/src/live_captures.rs",
         "crates/pulsar-clients/src/browser_live.rs",
-        "docs/PULSAR_ASSISTANT_TOOL_SURFACE.md"
+        "docs/PULSAR_ASSISTANT_TOOL_SURFACE.md",
+        "crates/pulsar-engine/src/device_control_session.rs"
       ]
     },
     {
