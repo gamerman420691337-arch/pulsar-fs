@@ -104,7 +104,7 @@ pub mod session;
 
 use anyhow::{bail, Context, Result};
 use clap::{CommandFactory, Parser};
-use cli::{Cli, Commands, ModelCommands, ProjectCommands};
+use cli::{Cli, Commands, ModelCommands, ProjectCommands, RoleplayCommands};
 use pulsar_protocol::*;
 pub use session::{EngineApi, SessionClient};
 use std::{
@@ -135,6 +135,7 @@ pub fn command_needs_engine(args: &[OsString]) -> bool {
             cli.command,
             Some(
                 Commands::Completions { .. }
+                    | Commands::Roleplay { .. }
                     | Commands::ReferenceSetCreate { .. }
                     | Commands::ReferenceSetInspect { .. }
                     | Commands::LibraryAxes { .. }
@@ -304,6 +305,7 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
         return run_gui(endpoint.to_owned(), bootstrap.to_owned());
     };
     match command {
+        Commands::Roleplay { command } => run_roleplay_command(command),
         Commands::JobAttempts {project,job,after_attempt,limit} => {
             let mut client=SessionClient::connect(endpoint,bootstrap)?;
             print_response(client.execute(Command::JobAttempts {job_id:JobId::new(job)?,after_attempt:after_attempt.map(AttemptId::new).transpose()?,limit},Some(ProjectId::new(project)?),None)?)
@@ -2102,6 +2104,82 @@ struct LibraryEntry {
     video: PathBuf,
     script: PathBuf,
     has_script: bool,
+}
+
+/// Wall-clock nanoseconds for local consent bookkeeping. Consent timestamps are
+/// recorded, not compared across machines.
+fn consent_now_ns() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .and_then(|elapsed| u64::try_from(elapsed.as_nanos()).ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(1)
+}
+
+fn consent_class(value: &str) -> Result<ContentClass> {
+    Ok(match value {
+        "general" => ContentClass::General,
+        "mature" => ContentClass::Mature,
+        "explicit" => ContentClass::Explicit,
+        other => anyhow::bail!("unknown content class: {other}"),
+    })
+}
+
+/// Local roleplay consent operations: no Engine contact, no inference, no device.
+fn run_roleplay_command(command: RoleplayCommands) -> Result<()> {
+    let now = consent_now_ns();
+    match command {
+        RoleplayCommands::Create { path } => {
+            roleplay_consent_state::create(&path, &RoleplayConsentDocument::least_permissive())?;
+            print_json(&roleplay_consent_state::status(&path, now)?)
+        }
+        RoleplayCommands::Attest { path } => {
+            roleplay_consent_state::attest(&path, now)?;
+            print_json(&roleplay_consent_state::status(&path, now)?)
+        }
+        RoleplayCommands::WithdrawAttestation { path } => {
+            roleplay_consent_state::withdraw_attestation(&path, now)?;
+            print_json(&roleplay_consent_state::status(&path, now)?)
+        }
+        RoleplayCommands::Consent {
+            path,
+            participant,
+            class,
+        } => {
+            roleplay_consent_state::grant(
+                &path,
+                ParticipantRef::new(participant)?,
+                consent_class(&class)?,
+                now,
+            )?;
+            print_json(&roleplay_consent_state::status(&path, now)?)
+        }
+        RoleplayCommands::Revoke { path, participant } => {
+            roleplay_consent_state::revoke(&path, &ParticipantRef::new(participant)?, now)?;
+            print_json(&roleplay_consent_state::status(&path, now)?)
+        }
+        RoleplayCommands::Escalate { path, class } => {
+            roleplay_consent_state::escalate(&path, consent_class(&class)?, now)?;
+            print_json(&roleplay_consent_state::status(&path, now)?)
+        }
+        RoleplayCommands::Provider {
+            path,
+            local,
+            remote,
+        } => {
+            let provider = match (local, remote) {
+                (true, None) => ProviderScope::local(),
+                (false, Some(reference)) => ProviderScope::remote(ProviderRef::new(reference)?),
+                _ => anyhow::bail!("provider requires exactly one of --local or --remote PROVIDER"),
+            };
+            roleplay_consent_state::switch_provider(&path, provider, now)?;
+            print_json(&roleplay_consent_state::status(&path, now)?)
+        }
+        RoleplayCommands::Status { path } => {
+            print_json(&roleplay_consent_state::status(&path, now)?)
+        }
+    }
 }
 
 fn print_json(value: &impl serde::Serialize) -> Result<()> {

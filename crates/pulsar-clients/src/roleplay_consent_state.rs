@@ -9,7 +9,7 @@
 //! Consent withdrawal and revocation are ordinary writes here. They are never
 //! gated on approval, because a stop or a withdrawal that needs consent is not one.
 use super::*;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::Path;
 
 /// Bound on the retained document, matching the private declaration store.
@@ -17,7 +17,13 @@ pub const MAX_CONSENT_DOCUMENT_BYTES: usize = 32 * 1024;
 
 /// Load and validate the retained consent document.
 pub fn load(path: &Path) -> Result<RoleplayConsentDocument> {
-    let document: RoleplayConsentDocument = assistant_client::load_private(path)?;
+    if !path.exists() {
+        anyhow::bail!(
+            "consent document absent: create one with `pulsar roleplay create` at an absolute private path"
+        );
+    }
+    let document: RoleplayConsentDocument = assistant_client::load_private(path)
+        .with_context(|| format!("consent document unavailable: {}", path.display()))?;
     document.validate()?;
     Ok(document)
 }
@@ -154,6 +160,10 @@ pub fn withdraw_attestation(path: &Path, now_ns: u64) -> Result<RoleplayConsentD
 }
 
 /// Record one participant's consent to the declared class and scope.
+///
+/// A current adult attestation is required first: consent to an adult session is
+/// not recorded before the 18+ step, so a document cannot accumulate consent that
+/// no attestation ever accompanied.
 pub fn grant(
     path: &Path,
     participant: ParticipantRef,
@@ -161,6 +171,9 @@ pub fn grant(
     now_ns: u64,
 ) -> Result<RoleplayConsentDocument> {
     mutate(path, |document| {
+        document
+            .admit_roleplay(now_ns)
+            .map_err(|refusal| refusal.error())?;
         document
             .session
             .grant(participant, content_class, now_ns)
@@ -352,6 +365,28 @@ mod tests {
         assert!(summary.effect_admitted);
         assert_eq!(summary.effect_refusal, None);
         assert_eq!(summary.participants.len(), 1);
+    }
+
+    #[test]
+    fn consent_is_refused_before_the_adult_attestation() {
+        let directory = scratch();
+        let path = document_path(&directory);
+        create(&path, &RoleplayConsentDocument::least_permissive()).unwrap();
+        let error =
+            grant(&path, participant("operator"), ContentClass::General, 1_000).unwrap_err();
+        assert!(
+            error.to_string().contains("adult attestation"),
+            "consent is not recorded before the 18+ step: {error}"
+        );
+        assert!(load(&path).unwrap().session.participants.is_empty());
+    }
+
+    #[test]
+    fn an_absent_document_reports_an_actionable_error() {
+        let directory = scratch();
+        let path = document_path(&directory);
+        let error = load(&path).unwrap_err();
+        assert!(error.to_string().contains("pulsar roleplay create"));
     }
 
     #[test]

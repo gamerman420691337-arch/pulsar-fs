@@ -76,8 +76,96 @@ pub struct LibraryGenerationOptions {
     pub source_sample_stride: u32,
 }
 
+/// Bounded, normalized, absolute path for a private consent document.
+pub(crate) fn parse_private_document_path(value: &str) -> Result<PathBuf, String> {
+    use std::path::Component;
+    let path = PathBuf::from(value);
+    let normalized: PathBuf = path.components().collect();
+    if !path.is_absolute()
+        || value.len() > 4096
+        || value.contains('\0')
+        || path
+            .components()
+            .any(|part| matches!(part, Component::ParentDir))
+        || path.as_os_str() != normalized.as_os_str()
+    {
+        return Err(
+            "consent document requires a bounded normalized absolute path without traversal".into(),
+        );
+    }
+    Ok(path)
+}
+
+/// Local roleplay consent and adult attestation operations.
+///
+/// Nothing here starts inference, selects a device or plays motion. Consent is
+/// recorded locally; the attestation it carries is an assertion, never
+/// verification.
+#[derive(Debug, Subcommand)]
+pub enum RoleplayCommands {
+    /// Create a new least-permissive, local-scope consent document.
+    Create {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+    },
+    /// Record the local 18+ attestation. This is not identity verification.
+    Attest {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+    },
+    /// Withdraw the attestation. Ungated and immediate.
+    WithdrawAttestation {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+    },
+    /// Record one participant's consent to the declared class and scope.
+    Consent {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+        #[arg(long)]
+        participant: String,
+        #[arg(long, value_parser = ["general", "mature", "explicit"])]
+        class: String,
+    },
+    /// Revoke a participant's consent. Ungated and immediate.
+    Revoke {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+        #[arg(long)]
+        participant: String,
+    },
+    /// Escalate the declared content class, clearing every prior consent.
+    Escalate {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+        #[arg(long, value_parser = ["general", "mature", "explicit"])]
+        class: String,
+    },
+    /// Switch between local and remote processing, clearing every prior consent.
+    Provider {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+        /// Process entirely on this machine.
+        #[arg(long)]
+        local: bool,
+        /// Opaque owner-configured provider reference for remote processing.
+        #[arg(long, conflicts_with = "local")]
+        remote: Option<String>,
+    },
+    /// Print the redacted consent status without changing anything.
+    Status {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+    },
+}
+
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    /// Record, inspect and withdraw roleplay consent and adult attestation.
+    Roleplay {
+        #[command(subcommand)]
+        command: RoleplayCommands,
+    },
     /// Inspect local attempt declarations and observed completion without retrying.
     JobAttempts {
         #[arg(long)]
