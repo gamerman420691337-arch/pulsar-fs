@@ -734,7 +734,7 @@ safety model is tool allowlisting.
 | RPA-01 | C | The assistant MUST support a multi-turn, local, in-product roleplay conversation over a fixed, deny-by-default tool allowlist. Anything absent from the allowlist is refused. |
 | RPA-02 | C | Tool calls MUST be typed, schema-versioned and validated by the Engine. Conversational text MUST NOT be parsed as a command. No tool accepts a filesystem path, URL, credential, model declaration or executable job originating in model output. |
 | RPA-03 | C | Tools are partitioned into read, author, effect and stop classes. Author-class output is a candidate only; the existing separate approvals, review and commit remain required before any effect. |
-| RPA-04 | C | Every effect-class call requires a fresh, single-use, digest-bound human approval that discloses the concrete consequence: the exact subject, device, expected duration, travel range and declared dynamics limits. Approval is bound to tool, argument digest, project, revision, session and originating attempt, and is invalidated by changed arguments, changed revision, withdrawn profile or Engine restart. |
+| RPA-04 | **superseded by DCS-01..08** | Every effect-class call required a fresh, single-use, digest-bound human approval. Owner direction 2026-11-04 replaced per-call approval for device control with a bounded, visible device-control session, because per-call approval made ordinary use unusable. The single-use approval remains required for commit, publication and export, which are not live effects. |
 | RPA-05 | C | Stop-class calls (device stop, media pause) MUST be executable without approval at any time, including while an opposing approval is pending or an effect is in flight. |
 | RPA-06 | C | Untrusted content reaching the model as context — media metadata, subtitle text, imported `.funscript` comments, project and library names — MUST be treated as data. It MAY influence authored candidates and MUST NEVER satisfy an effect-class approval. |
 | RPA-07 | C | The assistant MUST NOT become a timing authority. Script playback MUST compose existing timing admission, controller lease, player guard and stop behaviour, and MUST NOT mint or extend any of them. |
@@ -829,3 +829,28 @@ models be reachable by an optional user-initiated download pinned to an exact ha
 | PROV-04 | C | A redistributable declaration MUST carry an actual licence identifier. A licence MUST be derived from the pinned upstream base, never from an uploader's tag: one reviewed upload tags `license: gemma` over an Apache-2.0 base. |
 | PROV-05 | C | A download manifest MUST refuse a non-HTTPS source, a source containing credentials, a traversal or dotfile name, a malformed hash and an unbounded size. A changed artifact at the source MUST refuse rather than install. |
 | PROV-06 | D | Setup SHOULD offer a single reviewed action that applies a tier-appropriate profile for the user's hardware with the licensed default, and a separate action for a user-supplied or user-fetched model. |
+
+### E.7 Owner answer, 2026-11-04: one toggle, not one approval per action
+
+Per-call approval was judged unusable friction for ordinary use. The owner directed a
+single, simple control the user turns on, after which the assistant moves the device
+directly. This supersedes RPA-04 for device effects only. Commit, publication, export
+and protection unlock keep their single-use approvals.
+
+| ID | Status | Requirement |
+| --- | --- | --- |
+| DCS-01 | C | Device control MUST be a single user-visible toggle. Turning it on creates a bounded device-control session; turning it off stops motion and disarms immediately. |
+| DCS-02 | C | Only the user may create, renew or end a session. No tool, model output, remote provider or automation may create or extend one, and a session never survives Engine restart or application relaunch. |
+| DCS-03 | C | A session MUST have a bounded lifetime and expire without user action. Renewal requires a fresh user action. |
+| DCS-04 | C | Stop MUST be available at all times as a single control, MUST NOT require approval, MUST work while motion is in flight, and MUST work when the model is mid-stream or unresponsive. |
+| DCS-05 | C | A session MUST carry enforced limits fixed at its creation: device, travel range, amplitude cap, maximum rate and content class. Motion outside the caps MUST be limited rather than executed as requested, and the limiting MUST be visible. |
+| DCS-06 | C | The session state MUST be visible continuously while it is on, including its expiry, and MUST NOT be hideable behind a modal or a collapsed panel. |
+| DCS-07 | C | Losing the device, the Engine or the network MUST end or suspend the session and leave playback disarmed. Reconnection MUST NOT restore it without a fresh toggle (SAFE-01/02 unchanged). |
+| DCS-08 | D | Proposed defaults: 20-minute lifetime, amplitude cap 70% of the device's usable range, one device per session, and stop presented as a persistent control in every view while a session is active. |
+| DCS-09 | C | Within an active session the assistant MUST be able to submit motion directly, without per-action approval. Authoring a retained script for later use remains the separate candidate/commit path. |
+
+The risk this accepts is explicit. A session is a standing grant: while it is on, a
+prompt-injected or manipulated model can move the device without further confirmation.
+The offsetting controls are the lifetime bound, the fixed caps, the always-available
+stop, user-only creation, no persistence, and disarm-on-loss. Opening a session is the
+informed-consent moment that per-action approval was simulating badly.

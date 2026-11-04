@@ -61,18 +61,41 @@ Three classes, mirroring ADR 0012. `stop` is never gated.
 0-100 — which is the funscript contract the app already exports. It does not accept a
 path, a URL or an executable.
 
-### Effect — requires human approval, per call
+### Effect — allowed while the user's control toggle is on
 
-| Tool | Maps to | Approval |
+There is no per-call approval. The user turns on **AI control** once; the assistant then
+moves the device directly inside the limits fixed at that moment.
+
+| Tool | Maps to | Behaviour |
 | --- | --- | --- |
-| `pulsar_play_script` | `PrepareHandyPlayback` → `StartHandyPlayback` | returns `approval_required` with a pending id; the user confirms in the app |
-| `pulsar_play_live` | `PlayHandyHspLive` | same |
-| `pulsar_stop` | `StopHandyHspLive`, `CancelHandyPlayback` | **never gated** |
-| `pulsar_present_media` | player surface | same as play |
+| `pulsar_motion` | `PlayHandyHspLive` stream / `StartHandyPlayback` | submit motion now; refused when no session is active |
+| `pulsar_stop` | `StopHandyHspLive`, `CancelHandyPlayback` | **always allowed**, even with no session and mid-stream |
+| `pulsar_status` | `HandyPlaybackStatus`, session state | device, session, expiry and active limits |
+| `pulsar_present_media` | player surface | same session gate as motion |
 
-The MCP server **must not** be able to satisfy its own approval. A pending id is
-single-use, digest-bound to the exact actions and revision, expires, and dies on
-Engine restart. A model that replays an old pending id gets a refusal, not motion.
+`pulsar_motion` takes the same bounded action list the app already exports — `[{at_ms,
+pos}]` with `pos` in 0-100, or a single `{pos, duration_ms}` for immediate movement. It
+accepts no path, URL or executable, and the Engine limits it to the session caps rather
+than trusting the request.
+
+The tool surface is deliberately small. A model that has to choose between six tools to
+say "move" will use them badly; four tools with one way to move is the abstraction.
+
+## The session the toggle creates
+
+| Property | Rule |
+| --- | --- |
+| Created by | the user, from a single visible control |
+| Lifetime | bounded (default 20 minutes), expires without action |
+| Limits | device, travel range, amplitude cap, maximum rate, content class — fixed at creation |
+| Visibility | expiry and state always on screen while active |
+| Ended by | the toggle, stop, device loss, Engine restart, or expiry |
+| Never | created, renewed or extended by a tool, model, or remote provider |
+
+While a session is on, a manipulated model can move the device without a further prompt.
+That is the accepted trade: the moment of informed consent is opening the session, not
+confirming each stroke. The controls that make it defensible are the lifetime bound, the
+enforced caps, the always-available stop, user-only creation and no persistence.
 
 ## Non-goals and refusals
 
@@ -95,12 +118,13 @@ which is more to qualify and more to get wrong.
 
 ## Work required
 
-1. Engine-side consent and approval enforcement (needed by both this and the broker).
-2. `pulsar-mcp` crate: stdio MCP server over the existing `SessionClient`.
-3. Pending-approval store with single-use, digest-bound ids and app confirmation.
+1. Engine-side session gate and consent enforcement (shared with the broker).
+2. Device-control session state: bounded lifetime, fixed caps, disarm on loss.
+3. `pulsar-mcp` crate: stdio MCP server over the existing `SessionClient`.
 4. Tool schemas and refusal encoding; no free-form argument passthrough.
-5. Desktop panel surfacing pending approvals and the active toolset.
-6. Native tests for refusals, expiry, replay and stop-during-pending.
+5. Desktop control: the toggle, the persistent stop, and visible expiry/limits.
+6. Native tests for expiry, stop-mid-stream, session loss, capped motion and
+   refusal when no session is active.
 
 ## Unqualified
 

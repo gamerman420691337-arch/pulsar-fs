@@ -359,3 +359,48 @@ It does not assert that a user's own download is lawful; that relationship is be
 the user and the rightsholder. It does not audit the source's handling or availability
 after pinning. And it does not resolve the moderation question (DSP-02) or the
 provider question (CLD-05).
+
+## Decision record: the control toggle replaces per-call approval, 2026-11-04
+
+The design above required a fresh single-use approval for every effect-class call. The
+owner judged that unusable, correctly: a roleplay session is continuous motion, and
+confirming each movement destroys the experience it exists to serve. Per-call approval
+was a safety pattern borrowed from one-shot actions (commit, export, publication) where
+it belongs, misapplied to a continuous one.
+
+It is replaced, for device effects only, by a **device-control session** the user turns
+on with a single toggle.
+
+### What replaces it
+
+The user opens a session from one visible control. While it is on, the assistant moves
+the device directly inside limits fixed at that moment: device, travel range, amplitude
+cap, maximum rate and content class. The session has a bounded lifetime, expires without
+action, and shows its remaining time continuously. Stop is a single control that is
+always present, never gated, and works mid-stream. Ending the session, losing the device,
+an Engine restart or expiry all leave playback disarmed, and no reconnect restores it
+without a fresh toggle.
+
+### Why this is defensible rather than a hole
+
+Three of the original gates remain untouched: age attestation, per-participant consent to
+a content class and disclosure scope, and user-only authority. What changes is granularity
+— consent is given once to a bounded, visible, revocable session instead of repeatedly to
+individual strokes.
+
+The accepted residual risk is stated plainly: while a session is active, a manipulated or
+prompt-injected model can move the device without a further confirmation. The mitigations
+are the lifetime bound, enforced caps that limit rather than execute out-of-range motion,
+an always-available stop, user-only creation, no persistence, and disarm on any loss.
+
+### What still requires an explicit single-use approval
+
+Commit, publication, export, protection unlock, model installation and any settings
+mutation keep their existing approval paths. These are one-shot, durable and auditable,
+which is exactly where a per-action confirmation earns its friction.
+
+### Consequences
+
+`RPA-04` is superseded for live device effects by `DCS-01..09`. The tool surface collapses
+to four tools with one way to move, because a small surface is itself a safety property:
+a model choosing among six overlapping tools will use them badly.

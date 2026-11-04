@@ -834,12 +834,12 @@
     {
       "id": "M5-CONDUCT",
       "milestone": "M5",
-      "criterion": "MDP-01, PIPE-01/PIPE-02 and RPA-07: assistant-initiated media presentation and script playback compose existing timing admission, controller lease, player guard and stop behaviour without minting authority; presentation and playback keep separate timing admissions and a model cannot substitute script bytes between approval and dispatch.",
-      "previous_boundary": "Not implemented. The Engine already exposes the motion and authoring primitives (prepare/start/stop Handy playback, HSP live streaming, candidate commit and .funscript export) over an authenticated Unix socket, and the CLI reaches them; there is no model-facing surface and no MCP server. The tool contract (read / author / effect / stop classes, single-use digest-bound approvals, no self-approval) is recorded in docs/PULSAR_ASSISTANT_TOOL_SURFACE.md; no tool has been dispatched and no device actuated.",
+      "criterion": "MDP-01, PIPE-01/PIPE-02, DCS-01..09 and RPA-07: a single user-visible device-control toggle creates a bounded session with fixed caps, expiry and an always-available ungated stop; presentation and playback keep separate timing admissions; a model cannot create, renew or extend a session, and a model cannot substitute script bytes between approval and dispatch.",
+      "previous_boundary": "Not implemented. The Engine already exposes motion primitives (prepare/start/stop Handy playback, HSP live streaming) over an authenticated Unix socket; there is no session gate, no model-facing surface and no MCP server. The toggle contract and its caps are recorded in docs/PULSAR_ASSISTANT_TOOL_SURFACE.md and spec E.7. No tool dispatched, no device actuated.",
       "implementation": "not_implemented",
       "verification": "not_requalified",
       "acceptance": "open",
-      "next_proof": "Expose bounded presentation and playback tools through the broker; verify that approvals cannot mint timing, that stop and disconnect disarming still hold, and that presentation and playback keep separate admissions.",
+      "next_proof": "Implement the session gate and verify through actual CLI/desktop consumers: toggle creation and expiry, capped motion, stop mid-stream, disarm on device/Engine loss, refusal with no session active, and that no tool can create or renew one.",
       "evidence": [],
       "source_refs": [
         "docs/adr/0012-in-product-roleplay-assistant.md",
