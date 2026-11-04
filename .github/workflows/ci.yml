@@ -79,6 +79,7 @@ jobs:
           if [[ "$RUNNER_OS" != Windows ]]; then
             run_fast pulsar-protocol unix_local_connection_is_bounded_verified_and_bidirectional
             run_fast pulsar-protocol deadline_stream_
+            run_fast pulsar-clients reference_
           fi
           if [[ "$RUNNER_OS" == Linux ]]; then
             run_fast pulsar-clients source_cleanup
