@@ -19,6 +19,7 @@ pub use assistant_settings::{
     AssistantHostReply, AssistantHostRequest, AssistantHostService, AssistantHostSetup,
 };
 mod bundled_models;
+mod handy_bench;
 pub mod cli;
 pub mod library_axis_inventory;
 mod library_generation;
@@ -1624,6 +1625,11 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
             let report=handy_panel::inspect(&mut client, bootstrap.parent().context("missing private engine directory")?, inspection)?;
             print_response(ResponseBody::HandyInspection(report))
         }
+        Commands::HandyBenchPlay {script_url,funscript,video,lead_ms,seconds,api_key_env,connection_key_env,allow_unqualified_play} => {
+            anyhow::ensure!(allow_unqualified_play,"Bench playback requires --allow-unqualified-play; this path bypasses qualification entirely");
+            handy_bench::play(handy_bench::PlayRequest{script_url,funscript,video,lead_ms,seconds,api_key_env,connection_key_env})
+        }
+        Commands::HandyBenchStop {api_key_env,connection_key_env} => handy_bench::stop(&api_key_env,&connection_key_env),
         Commands::Bench => unsupported("hardware benchmark campaign (B/C qualification adapter)"),
         Commands::Play { .. } => unsupported("physical playback; no qualified driver, stopping bound, or admission is established by this build"),
         Commands::Stash { command:cli::StashCommands::ListMissing {limit,url,api_key,api_key_env} } => {

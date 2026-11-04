@@ -1,7 +1,10 @@
 //! Explicit remote configuration; declarations and observations are not motion proof.
 use crate::*;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+// Firmware reports settings beyond the pinned schema (lead_pitch, ticks_per_rot,
+// x_cw_is_forward). Unknown fields are ignored while every declared field stays
+// required and validated below, so a newer firmware cannot make the Engine refuse
+// to start against its own retained state.
 pub struct HandySliderSettings {
     pub x_limit_start: f64,
     pub x_limit_stop: f64,
@@ -22,6 +25,14 @@ pub struct HandySliderSettings {
     pub overclock_enabled: bool,
     pub x_inverse_motor: bool,
     pub x_inverse_hall: bool,
+    /// Reported by Handy 2 Pro firmware 4.3.0 and later; absent from the pinned
+    /// v3 schema. Declared so observed values are retained rather than dropped.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub x_cw_is_forward: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lead_pitch: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ticks_per_rot: Option<f64>,
 }
 impl HandySliderSettings {
     pub fn validate(&self) -> Result<(), ProtocolError> {

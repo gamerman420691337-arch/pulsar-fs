@@ -1674,6 +1674,39 @@ pub enum Commands {
         command: ModelCommands,
     },
     Bench,
+    /// UNQUALIFIED bench playback: play an already-hosted Handy HSSP script. Bypasses
+    /// qualification, the device journal, the controller lease and clock sync.
+    HandyBenchPlay {
+        /// https URL of a script already hosted for the Handy (see handy-host-stroke).
+        #[arg(long, conflicts_with = "funscript")]
+        script_url: Option<String>,
+        /// Local .funscript to convert and upload to the vendor's public hosting.
+        #[arg(long)]
+        funscript: Option<PathBuf>,
+        /// Optional local video started together with device playback.
+        #[arg(long)]
+        video: Option<PathBuf>,
+        /// How far ahead of the play command the device start is scheduled.
+        #[arg(long, default_value_t = 800)]
+        lead_ms: u64,
+        /// Auto-stop after this many seconds.
+        #[arg(long, default_value_t = 20)]
+        seconds: u64,
+        #[arg(long, default_value = "HANDY_API_KEY")]
+        api_key_env: String,
+        #[arg(long, default_value = "HANDY_CONNECTION_KEY")]
+        connection_key_env: String,
+        /// Explicit acknowledgement that this path is unqualified and attended only.
+        #[arg(long, required = true)]
+        allow_unqualified_play: bool,
+    },
+    /// Request a stop on the bench path. Not proof of physical stopping.
+    HandyBenchStop {
+        #[arg(long, default_value = "HANDY_API_KEY")]
+        api_key_env: String,
+        #[arg(long, default_value = "HANDY_CONNECTION_KEY")]
+        connection_key_env: String,
+    },
     Completions {
         shell: clap_complete::Shell,
     },
