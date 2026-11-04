@@ -12,7 +12,12 @@ expected_revision=b86d2f07542b29ab099aed34fd6b6d1b2fd4b81c
 [[ ! -e $build_root ]]
 [[ $(timeout 10 git -C "$source_root" rev-parse HEAD) == "$expected_revision" ]]
 [[ -z $(timeout 10 git -C "$source_root" status --porcelain) ]]
-# One portable binary that still dispatches to a vectorised backend at runtime.
+# Single static binary with a Haswell-class ISA baseline. The previous build turned
+# every vector extension off, which made decode bandwidth-bound and slow. Multi-variant
+# runtime dispatch (GGML_CPU_ALL_VARIANTS) requires GGML_BACKEND_DL, which requires
+# shared libraries and therefore breaks single-file delivery; that path stays open but
+# is not taken here. AVX2/FMA/F16C cover every x86-64 CPU since 2013, which the 16 GB
+# memory floor already implies.
 # The previous build disabled every ISA extension, so decode ran several times slower
 # than the host allows; that cost, not model size, is what made assistant latency fail.
 timeout 120 cmake -S "$source_root" -B "$build_root" -G Ninja \
@@ -21,7 +26,9 @@ timeout 120 cmake -S "$source_root" -B "$build_root" -G Ninja \
   -DCMAKE_CXX_FLAGS="-march=x86-64 -mtune=generic" -DCMAKE_EXE_LINKER_FLAGS=-static \
   -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF -DGGML_OPENMP=OFF \
   -DGGML_BLAS=OFF -DGGML_CUDA=OFF -DGGML_VULKAN=OFF -DGGML_SYCL=OFF \
-  -DGGML_CPU_ALL_VARIANTS=ON -DGGML_BACKEND_DL=ON \
+  -DGGML_CPU_ALL_VARIANTS=OFF -DGGML_BACKEND_DL=OFF \
+  -DGGML_SSE42=ON -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON -DGGML_BMI2=ON \
+  -DGGML_AVX512=OFF -DGGML_AVX512_VBMI=OFF -DGGML_AVX512_VNNI=OFF -DGGML_AVX512_BF16=OFF \
   -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_SERVER=OFF \
   -DLLAMA_BUILD_APP=OFF -DLLAMA_BUILD_UI=OFF -DLLAMA_BUILD_TOOLS=ON \
   -DLLAMA_OPENSSL=OFF -DLLAMA_SUBPROCESS=OFF

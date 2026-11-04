@@ -835,7 +835,7 @@
       "id": "M5-CONDUCT",
       "milestone": "M5",
       "criterion": "MDP-01, PIPE-01/PIPE-02 and RPA-07: assistant-initiated media presentation and script playback compose existing timing admission, controller lease, player guard and stop behaviour without minting authority; presentation and playback keep separate timing admissions and a model cannot substitute script bytes between approval and dispatch.",
-      "previous_boundary": "Device playback and the browser/desktop players are human-driven UI paths with separate timing admissions. No bounded assistant control surface and no presentation tool exist.",
+      "previous_boundary": "Not implemented. The Engine already exposes the motion and authoring primitives (prepare/start/stop Handy playback, HSP live streaming, candidate commit and .funscript export) over an authenticated Unix socket, and the CLI reaches them; there is no model-facing surface and no MCP server. The tool contract (read / author / effect / stop classes, single-use digest-bound approvals, no self-approval) is recorded in docs/PULSAR_ASSISTANT_TOOL_SURFACE.md; no tool has been dispatched and no device actuated.",
       "implementation": "not_implemented",
       "verification": "not_requalified",
       "acceptance": "open",
@@ -846,7 +846,8 @@
         "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
         "crates/pulsar-engine/src/handy_hsp_live.rs",
         "crates/pulsar-engine/src/live_captures.rs",
-        "crates/pulsar-clients/src/browser_live.rs"
+        "crates/pulsar-clients/src/browser_live.rs",
+        "docs/PULSAR_ASSISTANT_TOOL_SURFACE.md"
       ]
     },
     {
@@ -1850,6 +1851,21 @@
         "CPU-BUILD"
       ],
       "exit": "Implement local revocable 18+ attestation with an explicit non-verification statement, per-participant consent records binding content class and processing scope, consent-clearing local/remote scope switches, unconditional revocation that terminates in-flight effect and leaves playback disarmed, refusal of inferred or inherited consent, and pseudonymous non-transmitted participant and provider references. Verify through actual CLI and desktop consumers with retained refusal cases.",
+      "evidence": []
+    },
+    {
+      "id": "MCP-TOOL-SURFACE",
+      "title": "Expose the allowlisted assistant tools as a local MCP server",
+      "parents": [
+        "M3-ROLEPLAY",
+        "M5-CONDUCT"
+      ],
+      "state": "planned",
+      "owner": "Codex",
+      "depends_on": [
+        "ROLEPLAY-BROKER"
+      ],
+      "exit": "Build pulsar-mcp as a stdio MCP server over the existing SessionClient: read tools pass through, author tools return candidates, effect tools return a single-use digest-bound approval that only the desktop can confirm, and stop is never gated. Verify refusals, expiry, replay and stop-during-pending natively; no device actuation is claimed.",
       "evidence": []
     }
   ],
