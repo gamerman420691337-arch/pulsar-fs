@@ -801,7 +801,7 @@
       "id": "M3-ROLEPLAY",
       "milestone": "M3",
       "criterion": "RPA-01 through RPA-12: multi-turn roleplay, local by default and remote only under a consented scope, over a deny-by-default tool allowlist with effect-class single-use approvals gated on a current 18+ attestation and every present participant's consent, unconditional stop, and preserved timing, disarm and memory boundaries.",
-      "previous_boundary": "Only one-shot assistant attempts exist: 4096 bytes of user text, engine-built context, no history, and separate generation/edit approvals over a narrow proposal set. No tool broker, no effect-class tool and no conversation state exist.",
+      "previous_boundary": "In-product roleplay is not implemented. Its execution prerequisite now exists: the assistant model-artifact ceiling is 8 GiB (was 2 GiB), worker memory may be declared to 12 GiB, prompt budgets are 64 KiB system / 16 KiB user with a 256 KiB encoded cap, and a profile may declare context tokens, output tokens, GPU layer offload and a sampler. Absent a declaration the historical pinned behaviour (2048 context, scope-derived output, CPU-only, temp 0/seed 42) is preserved byte for byte. The assistant runtime build now uses GGML_CPU_ALL_VARIANTS with GGML_BACKEND_DL instead of disabling every ISA extension. No tool broker, conversation state, effect approval, desktop surface or measured model latency exists; no receipt recorded for this source.",
       "implementation": "not_implemented",
       "verification": "not_requalified",
       "acceptance": "open",
