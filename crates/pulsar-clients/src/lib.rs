@@ -114,6 +114,12 @@ use std::{
 
 pub use desktop::PulsarDesktop;
 mod assistant_client;
+mod roleplay_consent_state;
+pub use roleplay_consent_state::{
+    attest, create as create_consent, escalate as escalate_consent, grant as grant_consent,
+    load as load_consent, replace as replace_consent, revoke as revoke_consent, status as consent_status,
+    switch_provider as switch_consent_provider, withdraw_attestation,
+};
 mod assistant_edit_intent;
 mod assistant_generation_intent;
 mod assistant_panel;

@@ -853,7 +853,7 @@
       "id": "M3-CONSENT",
       "milestone": "M3",
       "criterion": "AGE/CNS/CLS/DSP/CLD: local revocable 18+ attestation without any verification claim, per-participant consent bound to an explicit content class and processing scope, consent-clearing scope switches, unconditional revocation that terminates in-flight effect, no inferred consent, AI self-disclosure, and no transmitted participant data.",
-      "previous_boundary": "A pure pulsar-protocol domain layer now exists: content classes with a least-permissive default, local/remote provider scopes with exactly-one validation, pseudonymous participant and provider references, a non-verification adult attestation with withdrawal, retained per-participant consent records binding class and scope with sorted-document validation, unconditional idempotent revocation, escalation and scope switching that clear prior consent, and admit_roleplay/admit_effect refusal paths, covered by 24 unit tests. No Engine wiring, persistence, CLI/desktop surface, transcript handling or actual remote provider exists, and no retained receipt has been recorded.",
+      "previous_boundary": "Two layers exist. The pure pulsar-protocol domain layer holds content classes with a least-permissive default, local/remote provider scopes, pseudonymous participant and provider references, a non-verification adult attestation with withdrawal, per-participant consent records binding class and scope, unconditional idempotent revocation, escalation and scope switching that clear prior consent, a retained document type, and admit_roleplay/admit_effect refusal paths (24 tests). The pulsar-clients custody layer adds create/replace with an owned-parent check, single-link mode-0600 target verification, symlink refusal, atomic temp-and-rename replacement, bounded size, tampered-document refusal on load, and ungated revoke/withdraw operations (10 tests). No CLI or desktop surface, Engine enforcement, transcript handling or real remote provider exists, and no retained evidence receipt has been recorded for this source.",
       "implementation": "partial",
       "verification": "not_requalified",
       "acceptance": "open",
@@ -864,7 +864,8 @@
         "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
         "crates/pulsar-engine/src/authority.rs",
         "crates/pulsar-protocol/src/lib.rs",
-        "crates/pulsar-protocol/src/roleplay_consent.rs"
+        "crates/pulsar-protocol/src/roleplay_consent.rs",
+        "crates/pulsar-clients/src/roleplay_consent_state.rs"
       ]
     }
   ],

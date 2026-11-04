@@ -325,6 +325,11 @@ impl RoleplaySessionConsent {
         self.declared_provider.validate()?;
         for record in &self.participants {
             record.validate()?;
+            // A revoked record is history: it keeps the class and scope that were
+            // actually consented to, which need not match the current declaration.
+            if record.revoked() {
+                continue;
+            }
             if record.content_class != self.declared_class {
                 return Err(ProtocolError::invalid(
                     "consent record class differs from the declared class",
@@ -529,6 +534,112 @@ impl RoleplaySessionConsent {
         }
         Ok(())
     }
+}
+
+/// One locally retained roleplay consent document.
+///
+/// The attestation travels with the session it was given for, so a consent record
+/// can never be presented without the adult attestation that accompanied it. The
+/// document is local safety state: not a project artifact, evidence receipt or
+/// diagnostic attachment (CNS-07).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RoleplayConsentDocument {
+    pub schema_version: u16,
+    pub session: RoleplaySessionConsent,
+    pub attestation: Option<AgeAttestation>,
+}
+
+impl RoleplayConsentDocument {
+    pub fn new(session: RoleplaySessionConsent) -> Self {
+        Self {
+            schema_version: CONSENT_SCHEMA_VERSION,
+            session,
+            attestation: None,
+        }
+    }
+
+    /// A fresh session: local scope, least permissive class.
+    pub fn least_permissive() -> Self {
+        Self::new(RoleplaySessionConsent::declare(
+            ContentClass::least_permissive(),
+        ))
+    }
+
+    pub fn validate(&self) -> Result<(), ProtocolError> {
+        if self.schema_version != CONSENT_SCHEMA_VERSION {
+            return Err(ProtocolError::invalid(
+                "roleplay consent document version differs",
+            ));
+        }
+        self.session.validate()?;
+        if let Some(attestation) = &self.attestation {
+            attestation.validate()?;
+        }
+        Ok(())
+    }
+
+    pub fn attest(&mut self, now_ns: u64) {
+        self.attestation = Some(AgeAttestation::new(now_ns));
+    }
+
+    pub fn withdraw_attestation(&mut self, now_ns: u64) {
+        if let Some(attestation) = &mut self.attestation {
+            attestation.withdraw(now_ns);
+        }
+    }
+
+    pub fn admit_roleplay(&self, now_ns: u64) -> Result<(), ConsentRefusal> {
+        self.session
+            .admit_roleplay(self.attestation.as_ref(), now_ns)
+    }
+
+    pub fn admit_effect(&self, now_ns: u64) -> Result<(), ConsentRefusal> {
+        self.session.admit_effect(self.attestation.as_ref(), now_ns)
+    }
+
+    /// Redacted operational view: class, scope and local references only.
+    pub fn summary(&self, now_ns: u64) -> ConsentSummary {
+        let effect = self.admit_effect(now_ns);
+        ConsentSummary {
+            content_class: self.session.declared_class,
+            remote: self.session.declared_provider.is_remote(),
+            participants: self
+                .session
+                .participants
+                .iter()
+                .map(|record| ParticipantSummary {
+                    reference: record.participant.as_str().to_string(),
+                    revoked: record.revoked(),
+                })
+                .collect(),
+            attested: self
+                .attestation
+                .as_ref()
+                .is_some_and(|attestation| attestation.current_at(now_ns)),
+            roleplay_admitted: self.admit_roleplay(now_ns).is_ok(),
+            effect_refusal: effect.err().map(ConsentRefusal::label),
+            effect_admitted: effect.is_ok(),
+        }
+    }
+}
+
+/// Redacted operational view of a consent document.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct ConsentSummary {
+    pub content_class: ContentClass,
+    pub remote: bool,
+    pub participants: Vec<ParticipantSummary>,
+    pub attested: bool,
+    pub roleplay_admitted: bool,
+    pub effect_admitted: bool,
+    pub effect_refusal: Option<&'static str>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct ParticipantSummary {
+    pub reference: String,
+    pub revoked: bool,
 }
 
 #[cfg(test)]
