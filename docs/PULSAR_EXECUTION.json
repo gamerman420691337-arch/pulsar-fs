@@ -800,12 +800,12 @@
     {
       "id": "M3-ROLEPLAY",
       "milestone": "M3",
-      "criterion": "RPA-01 through RPA-12: multi-turn local roleplay over a deny-by-default tool allowlist with effect-class single-use approvals, unconditional stop, and preserved timing, disarm and memory boundaries.",
+      "criterion": "RPA-01 through RPA-12: multi-turn local roleplay over a deny-by-default tool allowlist with effect-class single-use approvals gated on a current 18+ attestation and every present participant's consent, unconditional stop, and preserved timing, disarm and memory boundaries.",
       "previous_boundary": "Only one-shot assistant attempts exist: 4096 bytes of user text, engine-built context, no history, and separate generation/edit approvals over a narrow proposal set. No tool broker, no effect-class tool and no conversation state exist.",
       "implementation": "not_implemented",
       "verification": "not_requalified",
       "acceptance": "open",
-      "next_proof": "Implement and verify the tool broker, class split, digest-bound single-use approvals, unconditional stop, budgets and transcript exclusion through actual CLI/desktop consumers; retain refusal cases for every denied capability.",
+      "next_proof": "Implement and verify the tool broker, class split, digest-bound single-use approvals, unconditional stop, budgets and transcript exclusion through actual CLI/desktop consumers; retain refusal cases for every denied capability and for missing attestation or absent participant consent.",
       "evidence": [],
       "source_refs": [
         "docs/adr/0012-in-product-roleplay-assistant.md",
@@ -818,12 +818,12 @@
     {
       "id": "M4-IMAGEGEN",
       "milestone": "M4",
-      "criterion": "IMG-01/IMG-02: local image generation as an explicit output modality with its own model and pack decision, redistribution review, output-storage contract, synthetic attribution and generated-imagery safety policy.",
+      "criterion": "IMG-01 through IMG-03: local image generation delivered as an optional pack with its own model and redistribution review, output-storage contract, synthetic attribution and generated-imagery safety policy; Core and Complete remain complete without it.",
       "previous_boundary": "Image support is input-only: PrepareAssistantImage decodes one frame for image-conditioned creative synthesis and image_generation_origin records that approval provenance. No image-output endpoint, model or pack exists.",
       "implementation": "not_implemented",
       "verification": "not_requalified",
       "acceptance": "open",
-      "next_proof": "Decide IMG-01 scope (launch, Core or optional pack), select and license a model, implement a bounded generate endpoint with synthetic attribution and storage custody, and verify it through an actual consumer.",
+      "next_proof": "Select a redistributable model for the optional pack, implement a bounded image.generate endpoint with synthetic attribution and storage custody, verify generation, storage and explicit pack-absence refusal through an actual consumer.",
       "evidence": [],
       "source_refs": [
         "docs/adr/0012-in-product-roleplay-assistant.md",
@@ -847,6 +847,23 @@
         "crates/pulsar-engine/src/handy_hsp_live.rs",
         "crates/pulsar-engine/src/live_captures.rs",
         "crates/pulsar-clients/src/browser_live.rs"
+      ]
+    },
+    {
+      "id": "M3-CONSENT",
+      "milestone": "M3",
+      "criterion": "AGE/CNS/CLS/DSP: local revocable 18+ attestation without any verification claim, per-participant consent bound to an explicit content class, unconditional revocation that terminates in-flight effect, no inferred consent, AI self-disclosure, and no transmitted participant data.",
+      "previous_boundary": "No age, consent, content-class or disclosure concept exists. The assistant has one operator, one-shot attempts and no second-participant authority; nothing prevents an operator's approval from being treated as consent for everyone present.",
+      "implementation": "not_implemented",
+      "verification": "not_requalified",
+      "acceptance": "open",
+      "next_proof": "Implement and verify the consent authority through actual CLI and desktop consumers: attestation gating, per-participant consent, class-bounded sessions, unconditional revocation terminating in-flight effect, refusal of inferred or inherited consent, and non-transmission of participant data.",
+      "evidence": [],
+      "source_refs": [
+        "docs/adr/0012-in-product-roleplay-assistant.md",
+        "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
+        "crates/pulsar-engine/src/authority.rs",
+        "crates/pulsar-protocol/src/lib.rs"
       ]
     }
   ],
@@ -1784,9 +1801,10 @@
       "state": "planned",
       "owner": "Codex",
       "depends_on": [
-        "CPU-BUILD"
+        "CPU-BUILD",
+        "CONSENT-AUTHORITY"
       ],
-      "exit": "Implement the typed tool broker with read/author/effect/stop classes, digest-bound single-use effect approvals that disclose the concrete consequence, unconditional stop, per-turn and per-session budgets, local bounded conversation state excluded from evidence and logs, and explicit refusal for every denied capability. Verify through actual CLI and desktop consumers, not authored callbacks alone.",
+      "exit": "Implement the typed tool broker with read/author/effect/stop classes, digest-bound single-use effect approvals that disclose the concrete consequence and require current attestation plus every participant's consent, unconditional stop, per-turn and per-session budgets, local bounded conversation state excluded from evidence and logs, and explicit refusal for every denied capability. Verify through actual CLI and desktop consumers, not authored callbacks alone.",
       "evidence": []
     },
     {
@@ -1805,7 +1823,7 @@
     },
     {
       "id": "IMAGE-OUTPUT",
-      "title": "Decide and implement local image generation as an output modality",
+      "title": "Implement local image generation as an optional pack",
       "parents": [
         "M4-IMAGEGEN"
       ],
@@ -1814,7 +1832,21 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Record the IMG-01 scope decision, select a redistributable model and pack, and implement a bounded image.generate endpoint with synthetic attribution, output custody and a safety policy. Verify generation, storage and refusal paths through an actual consumer; no observed-content attribution may be claimed.",
+      "exit": "Select a redistributable model, define the optional pack and its redistribution review, and implement a bounded image.generate endpoint with synthetic attribution, output custody and a safety policy. Verify generation, storage and explicit pack-absence refusal through an actual consumer; Core and Complete must still pass without the pack.",
+      "evidence": []
+    },
+    {
+      "id": "CONSENT-AUTHORITY",
+      "title": "Build the age, participant-consent and content-class authority",
+      "parents": [
+        "M3-CONSENT"
+      ],
+      "state": "planned",
+      "owner": "Codex",
+      "depends_on": [
+        "CPU-BUILD"
+      ],
+      "exit": "Implement local revocable 18+ attestation with an explicit non-verification statement, per-participant consent records bound to a declared content class, unconditional revocation that terminates in-flight effect and leaves playback disarmed, refusal of inferred or inherited consent, and pseudonymous non-transmitted participant references. Verify through actual CLI and desktop consumers with retained refusal cases.",
       "evidence": []
     }
   ],

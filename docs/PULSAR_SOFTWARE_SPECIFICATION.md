@@ -765,3 +765,32 @@ safety model is tool allowlisting.
 | RPA-OPEN-03 | Roleplay content policy: moderation scope, AI disclosure, participant consent, age policy | No current provision exists in Sections 1 through 17; required before any effect-class tool ships. |
 | RPA-OPEN-04 | Transcript retention, deletion and export-exclusion defaults | Define alongside RPA-11; SEC-03 addresses telemetry, not conversations. |
 | RPA-OPEN-05 | Whether an approved effect survives a page refresh or Engine restart | Default is no; invoking a prior receipt as current authority contradicts existing doctrine. |
+
+### E.4 Owner answers, 2026-11-04: optional image pack, 18+ and participant consent
+
+Recorded by the product owner in direct response to E.3. These items supersede the
+open status of RPA-OPEN-01 and part of RPA-OPEN-03 while retaining Section 1's
+requirement-status discipline. No existing requirement is relaxed.
+
+| ID | Status | Requirement |
+| --- | --- | --- |
+| IMG-03 | C | Local image generation is an **optional pack**. It MUST NOT be a launch modality or a Core/Complete requirement. Core and Complete MUST function fully without it, and its absence MUST refuse explicitly rather than substitute another path or claim the capability. |
+| AGE-01 | C | Roleplay and any mature or explicit content class require a local, explicit, revocable **18+ attestation** with its recorded timestamp. |
+| AGE-02 | C | The application MUST NOT represent that attestation as identity or age **verification**, and MUST NOT collect, store or transmit identity documents. |
+| AGE-03 | D | Withdrawing the attestation immediately disables roleplay and every effect-class tool while retaining the historical record of what already occurred. |
+| CNS-01 | C | An effect-class tool MUST require the consent of **every human participant present in the session**, not only the operator. Consent is per participant and per content class. |
+| CNS-02 | C | A retained consent record MUST identify the local participant reference, declared content class, scope, time and revocation state. Consent is a **precondition, not authority**: it does not replace the single-use digest-bound approval and neither substitutes for the other. |
+| CNS-03 | C | Consent MUST be revocable at any time by any participant, without approval and without the operator's cooperation. Revocation MUST terminate in-flight effect-class work and MUST leave playback disarmed until every present participant consents again. |
+| CNS-04 | C | Consent MUST NOT be inferred from continued participation, silence, a prior session, a saved profile or an existing approval. Each session requires fresh consent from each participant. |
+| CNS-05 | C | Escalation to a more explicit content class requires fresh consent from every participant. The session's declared class bounds the tool allowlist and the model context. |
+| CNS-06 | C | Participant references MUST be local pseudonymous identifiers, consistent with SEC-01 and DEV-04. Participant data MUST NOT be transmitted. |
+| CNS-07 | D | Consent records are local safety state and SHOULD be excluded from evidence receipts, diagnostics and exported logs, as transcripts are under RPA-11. |
+| CLS-01 | C | Every roleplay session declares an explicit content class and defaults to the least permissive class. |
+| CLS-02 | D | Proposed classes: `general`, `mature`, `explicit`. Mature and explicit require a current 18+ attestation. |
+| DSP-01 | C | The assistant MUST declare itself as an AI participant for the whole session and MUST NOT claim to be human. |
+| DSP-02 | V | Moderation scope and rules for NSFW roleplay content remain unresolved. |
+| DSP-03 | V | This specification asserts no legal compliance and no age verification. Jurisdictional and app-store distribution rules are a packaging decision requiring separate qualification. |
+
+Gates: M3-CONSENT carries AGE/CNS/CLS/DSP; M3-ROLEPLAY carries the broker and
+conversation; M4-IMAGEGEN is scoped to the optional pack; M5-CONDUCT carries
+presentation and playback composition.

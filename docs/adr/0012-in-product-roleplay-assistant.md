@@ -175,3 +175,85 @@ with consequence disclosure, and transcript handling carry the rest. Requirement
 are recorded as RPA/TOOL items in the specification amendment, and three acceptance
 gates (M3-ROLEPLAY, M4-IMAGEGEN, M5-CONDUCT) are added to the execution ledger. The
 25 original gates are unchanged and no existing acceptance criterion is relaxed.
+
+## Decision record: owner answers, 2026-11-04
+
+Two open items were answered directly by the product owner:
+
+- **RPA-OPEN-01 resolved:** local image generation is an **optional pack**. It is
+  not a launch modality, is not part of Core, and neither Core nor Complete may
+  require it. Its absence is an explicit refusal, never a silent substitute or a
+  metadata-only claim.
+- **RPA-OPEN-03 partly resolved:** the product is **18+**; **every participant must
+  consent**; roleplay is **frequently NSFW**, so explicit content is a first-class
+  supported class rather than an edge case.
+
+### Why "participant consent" changes the design
+
+An effect-class tool moves a physical device against a human body. With one
+operator, consent and approval collapse into the same person and a single-click
+approval is sufficient. The owner's requirement introduces a **second authority**:
+in a shared or partnered session the person being affected may not be the person
+operating the application. The application therefore cannot treat "the operator
+clicked play" as consent for everyone present.
+
+Three independent gates must all hold before any effect-class tool runs, and no two
+of them may substitute for each other:
+
+1. **Age attestation** — a local 18+ attestation exists and is current.
+2. **Consent** — every participant present in the session has consented to the
+   session's declared content class, and none has revoked.
+3. **Approval** — the existing single-use, digest-bound approval for this exact
+   call.
+
+Note the vocabulary discipline this repository already uses elsewhere: a consent
+record is evidence of agreement, not authority. It is the analogue of a
+qualification dossier — its presence does not establish playback permission, it
+only removes a precondition.
+
+### Age attestation
+
+The application **cannot and must not claim identity or age verification**. It
+records a local, explicit, revocable owner attestation with its timestamp, and says
+so in plain language. Storing, transmitting or checking identity documents is out of
+scope and would contradict SEC-01. A claim of "verified 18+" would be exactly the
+kind of fabricated acceptance this roadmap forbids.
+
+### Consent cannot be inferred
+
+Continued participation is not consent. Silence is not consent. A saved profile, a
+previous session, an unchanged content class, or the fact that a partner approved
+the same action yesterday are not consent. Each session requires fresh consent from
+each participant, because informed consent is specific to the content class and the
+occasion.
+
+### Revocation is unconditional
+
+Consent withdrawal is treated like stop: it must be executable at any time by any
+participant, without approval and without the operator's cooperation. Revocation
+terminates in-flight effect-class work, leaves playback disarmed, and cannot be
+reversed by an approval that was already granted. A session where one participant
+has revoked cannot return to effect-class tools until every present participant
+consents again.
+
+### Content classes bound the model, not just the tools
+
+Consent must be *informed* to mean anything, so a session declares an explicit
+content class and both the tool allowlist and the model context are bounded by it.
+Escalating to a more explicit class requires fresh consent from every participant.
+This mirrors GEN-05, where reinterpretation of visible motion requires an explicit
+creative instruction rather than being assumed from context.
+
+### Disclosure
+
+The assistant declares itself as an AI participant for the whole session and does
+not claim to be human. This is cheap and it is the one disclosure that makes the
+rest coherent.
+
+### What this decision does not settle
+
+Moderation of NSFW roleplay content, the exact content-class taxonomy beyond three
+proposed names, transcript retention (RPA-OPEN-04), and any jurisdictional or
+app-store compliance claim remain open. This specification asserts no legal
+compliance and no age verification; platform distribution rules are a packaging
+decision that must be qualified separately before any store submission.
