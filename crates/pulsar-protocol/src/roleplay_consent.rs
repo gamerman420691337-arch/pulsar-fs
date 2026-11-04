@@ -1,14 +1,18 @@
-//! Roleplay consent, age attestation and content-class authority.
+//! Roleplay consent, age attestation, content-class and disclosure authority.
 //!
 //! A consent record is evidence of agreement. It is never playback authority: it
-//! removes a precondition and nothing more. Two independent authorities must both
-//! hold before an effect-class tool may run, and neither substitutes for the other:
-//! the operator's single-use approval, and every present participant's consent to
-//! the session's declared content class. Both additionally require a current adult
-//! attestation, which is recorded and never represented as verification.
+//! removes a precondition and nothing more. Three independent things must all hold
+//! before an effect-class tool may run, and none substitutes for another: the
+//! operator's single-use approval, every present participant's consent to the
+//! declared content class *and* processing scope, and a current adult attestation.
+//! The attestation is recorded and never represented as verification.
 //!
-//! This module is pure. It performs no I/O, holds no clock, and stores no
-//! participant identity beyond a local pseudonymous reference.
+//! Consent covers where the conversation is processed as well as what it may
+//! contain. Talking to a local model and sending the same conversation to a remote
+//! provider are different disclosures, so switching scope clears consent.
+//!
+//! This module is pure. It performs no I/O, holds no clock, and stores no identity
+//! beyond a local pseudonymous reference and an opaque provider reference.
 use crate::*;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -45,41 +49,89 @@ impl ContentClass {
     }
 }
 
-/// Local, pseudonymous participant reference.
+macro_rules! opaque_ref {
+    ($name:ident, $label:literal) => {
+        /// Local, pseudonymous reference. Deliberately carries no name, mailbox,
+        /// date of birth, endpoint, credential or document.
+        #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+        #[serde(try_from = "String", into = "String")]
+        pub struct $name(String);
+        impl $name {
+            pub fn new(value: impl Into<String>) -> Result<Self, ProtocolError> {
+                let value = value.into();
+                crate::motion::validate_opaque_id(&value, $label)?;
+                Ok(Self(value))
+            }
+            pub fn as_str(&self) -> &str {
+                &self.0
+            }
+        }
+        impl TryFrom<String> for $name {
+            type Error = ProtocolError;
+            fn try_from(value: String) -> Result<Self, Self::Error> {
+                Self::new(value)
+            }
+        }
+        impl From<$name> for String {
+            fn from(value: $name) -> Self {
+                value.0
+            }
+        }
+        impl fmt::Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                self.0.fmt(f)
+            }
+        }
+    };
+}
+opaque_ref!(ParticipantRef, "participant reference");
+opaque_ref!(ProviderRef, "provider reference");
+
+/// Where a session's conversation is processed.
 ///
-/// Deliberately carries no name, mailbox, date of birth or document. The
-/// application must not collect or transmit participant identity.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(try_from = "String", into = "String")]
-pub struct ParticipantRef(String);
-
-impl ParticipantRef {
-    pub fn new(value: impl Into<String>) -> Result<Self, ProtocolError> {
-        let value = value.into();
-        crate::motion::validate_opaque_id(&value, "participant reference")?;
-        Ok(Self(value))
-    }
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
+/// Exactly one scope is declared. A remote scope names an opaque configured
+/// provider; no URL, endpoint or key is accepted here or from model output.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProviderScope {
+    /// Processed entirely on this machine.
+    pub local: bool,
+    /// Opaque reference to an owner-configured remote provider.
+    pub remote_provider: Option<ProviderRef>,
 }
 
-impl TryFrom<String> for ParticipantRef {
-    type Error = ProtocolError;
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::new(value)
+impl ProviderScope {
+    /// Fully local processing. The only scope available offline.
+    pub fn local() -> Self {
+        Self {
+            local: true,
+            remote_provider: None,
+        }
     }
-}
 
-impl From<ParticipantRef> for String {
-    fn from(value: ParticipantRef) -> Self {
-        value.0
+    /// Remote processing through one configured provider.
+    pub fn remote(provider: ProviderRef) -> Self {
+        Self {
+            local: false,
+            remote_provider: Some(provider),
+        }
     }
-}
 
-impl fmt::Display for ParticipantRef {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+    pub fn validate(&self) -> Result<(), ProtocolError> {
+        // Exactly one scope: local with no provider, or remote with one provider.
+        if self.local != self.remote_provider.is_none() {
+            return Err(ProtocolError::invalid(
+                "provider scope must declare exactly one of local or remote",
+            ));
+        }
+        if let Some(provider) = &self.remote_provider {
+            ProviderRef::new(provider.as_str())?;
+        }
+        Ok(())
+    }
+
+    pub fn is_remote(&self) -> bool {
+        self.remote_provider.is_some()
     }
 }
 
@@ -137,16 +189,17 @@ impl AgeAttestation {
     }
 }
 
-/// One participant's consent to the session's declared content class.
+/// One participant's consent to the session's declared content class and scope.
 ///
-/// Consent is specific to a class and to an occasion. There is no constructor
-/// that grants consent without both the participant and the class, and nothing
-/// inherits a record from a prior session or an existing approval.
+/// Consent is specific to a class, a disclosure scope and an occasion. There is no
+/// constructor that grants consent without all three, and nothing inherits a record
+/// from a prior session, an existing approval or a profile.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConsentRecord {
     pub participant: ParticipantRef,
     pub content_class: ContentClass,
+    pub provider: ProviderScope,
     pub granted_at_ns: u64,
     pub revoked_at_ns: Option<u64>,
 }
@@ -154,6 +207,7 @@ pub struct ConsentRecord {
 impl ConsentRecord {
     pub fn validate(&self) -> Result<(), ProtocolError> {
         crate::motion::validate_opaque_id(self.participant.as_str(), "consent participant")?;
+        self.provider.validate()?;
         if self.granted_at_ns == 0
             || self
                 .revoked_at_ns
@@ -177,12 +231,14 @@ pub enum ConsentRefusal {
     AdultAttestationNotYetValid,
     ConsentAbsent,
     ConsentRevoked,
+    RemoteDisclosureUnconsented,
     ContentClassEscalation,
     ContentClassRegression,
+    ProviderScopeUnchanged,
 }
 
 impl ConsentRefusal {
-    /// Bounded diagnostic label; never includes participant text.
+    /// Bounded diagnostic label; never includes participant or provider text.
     pub const fn label(self) -> &'static str {
         match self {
             Self::AdultAttestationMissing => "adult_attestation_missing",
@@ -190,8 +246,10 @@ impl ConsentRefusal {
             Self::AdultAttestationNotYetValid => "adult_attestation_not_yet_valid",
             Self::ConsentAbsent => "consent_absent",
             Self::ConsentRevoked => "consent_revoked",
+            Self::RemoteDisclosureUnconsented => "remote_disclosure_unconsented",
             Self::ContentClassEscalation => "content_class_escalation",
             Self::ContentClassRegression => "content_class_regression",
+            Self::ProviderScopeUnchanged => "provider_scope_unchanged",
         }
     }
 
@@ -206,20 +264,24 @@ impl ConsentRefusal {
             }
             Self::ConsentAbsent => "a present participant has not consented".to_string(),
             Self::ConsentRevoked => "a present participant revoked consent".to_string(),
+            Self::RemoteDisclosureUnconsented => {
+                "a present participant has not consented to remote processing".to_string()
+            }
             Self::ContentClassEscalation => {
                 "the requested content class was not consented to".to_string()
             }
             Self::ContentClassRegression => {
                 "the requested content class is below the declared class".to_string()
             }
+            Self::ProviderScopeUnchanged => "the declared provider scope is unchanged".to_string(),
         }
     }
 
     pub fn error(self) -> ProtocolError {
         let code = match self {
-            Self::ContentClassEscalation | Self::ContentClassRegression => {
-                ErrorCode::RequestConflict
-            }
+            Self::ContentClassEscalation
+            | Self::ContentClassRegression
+            | Self::ProviderScopeUnchanged => ErrorCode::RequestConflict,
             _ => ErrorCode::Forbidden,
         };
         ProtocolError::new(code, self.message())
@@ -233,16 +295,23 @@ pub struct RoleplaySessionConsent {
     pub schema_version: u16,
     /// Declared content class. Bounds both tools and model context.
     pub declared_class: ContentClass,
+    /// Declared processing scope. Bounds where the conversation may be sent.
+    pub declared_provider: ProviderScope,
     /// Sorted strictly ascending by participant reference; never duplicated.
     pub participants: Vec<ConsentRecord>,
 }
 
 impl RoleplaySessionConsent {
-    /// A new session always starts at the least permissive class.
+    /// A new session always starts local and at the least permissive class.
     pub fn declare(declared_class: ContentClass) -> Self {
+        Self::declare_with(declared_class, ProviderScope::local())
+    }
+
+    pub fn declare_with(declared_class: ContentClass, declared_provider: ProviderScope) -> Self {
         Self {
             schema_version: CONSENT_SCHEMA_VERSION,
             declared_class,
+            declared_provider,
             participants: Vec::new(),
         }
     }
@@ -253,11 +322,17 @@ impl RoleplaySessionConsent {
         {
             return Err(ProtocolError::invalid("roleplay consent document differs"));
         }
+        self.declared_provider.validate()?;
         for record in &self.participants {
             record.validate()?;
             if record.content_class != self.declared_class {
                 return Err(ProtocolError::invalid(
                     "consent record class differs from the declared class",
+                ));
+            }
+            if record.provider != self.declared_provider {
+                return Err(ProtocolError::invalid(
+                    "consent record scope differs from the declared scope",
                 ));
             }
         }
@@ -271,7 +346,7 @@ impl RoleplaySessionConsent {
         Ok(())
     }
 
-    /// Record one participant's consent to the declared class.
+    /// Record one participant's consent to the declared class and scope.
     ///
     /// A participant cannot consent to a class the session has not declared; the
     /// session must escalate first, which clears every existing consent.
@@ -284,6 +359,7 @@ impl RoleplaySessionConsent {
         if content_class != self.declared_class {
             return Err(ConsentRefusal::ContentClassEscalation.error());
         }
+        let provider = self.declared_provider.clone();
         match self
             .participants
             .binary_search_by(|record| record.participant.cmp(&participant))
@@ -300,6 +376,7 @@ impl RoleplaySessionConsent {
                 *record = ConsentRecord {
                     participant,
                     content_class,
+                    provider,
                     granted_at_ns: now_ns,
                     revoked_at_ns: None,
                 };
@@ -317,6 +394,7 @@ impl RoleplaySessionConsent {
                     ConsentRecord {
                         participant,
                         content_class,
+                        provider,
                         granted_at_ns: now_ns,
                         revoked_at_ns: None,
                     },
@@ -360,12 +438,37 @@ impl RoleplaySessionConsent {
             return Err(ConsentRefusal::ContentClassRegression.error());
         }
         self.declared_class = content_class;
+        self.clear_consent(now_ns);
+        Ok(())
+    }
+
+    /// Move the session between local and remote processing.
+    ///
+    /// Every existing consent is cleared: talking to a local model is not consent
+    /// to disclose the same conversation to a third party, and returning to local
+    /// processing is a new declaration rather than a restoration of old consent.
+    pub fn switch_provider(
+        &mut self,
+        provider: ProviderScope,
+        now_ns: u64,
+    ) -> Result<(), ProtocolError> {
+        provider
+            .validate()
+            .map_err(|_| ConsentRefusal::ProviderScopeUnchanged.error())?;
+        if provider == self.declared_provider {
+            return Err(ConsentRefusal::ProviderScopeUnchanged.error());
+        }
+        self.declared_provider = provider;
+        self.clear_consent(now_ns);
+        Ok(())
+    }
+
+    fn clear_consent(&mut self, now_ns: u64) {
         for record in &mut self.participants {
             if record.revoked_at_ns.is_none() {
                 record.revoked_at_ns = Some(now_ns.max(record.granted_at_ns));
             }
         }
-        Ok(())
     }
 
     /// Roleplay itself requires a current adult attestation, whatever the class.
@@ -392,7 +495,7 @@ impl RoleplaySessionConsent {
     }
 
     /// The effect-class precondition: current attestation and every participant's
-    /// unrevoked consent for the declared class.
+    /// unrevoked consent for the declared class and processing scope.
     ///
     /// Passing this does not authorise anything. The single-use approval for the
     /// exact call is still required and is tracked separately.
@@ -409,8 +512,19 @@ impl RoleplaySessionConsent {
             if record.revoked() {
                 return Err(ConsentRefusal::ConsentRevoked);
             }
-            if record.content_class != self.declared_class || record.granted_at_ns > now_ns {
-                return Err(ConsentRefusal::ConsentAbsent);
+            if record.content_class != self.declared_class
+                || record.granted_at_ns > now_ns
+                || record.provider != self.declared_provider
+            {
+                return Err(
+                    if record.provider != self.declared_provider
+                        && self.declared_provider.is_remote()
+                    {
+                        ConsentRefusal::RemoteDisclosureUnconsented
+                    } else {
+                        ConsentRefusal::ConsentAbsent
+                    },
+                );
             }
         }
         Ok(())
@@ -425,6 +539,10 @@ mod tests {
         ParticipantRef::new(id).unwrap()
     }
 
+    fn provider(id: &str) -> ProviderRef {
+        ProviderRef::new(id).unwrap()
+    }
+
     fn attested(now: u64) -> AgeAttestation {
         AgeAttestation::new(now)
     }
@@ -436,11 +554,11 @@ mod tests {
     }
 
     #[test]
-    fn a_new_session_starts_least_permissive() {
-        assert_eq!(
-            RoleplaySessionConsent::declare(ContentClass::least_permissive()).declared_class,
-            ContentClass::General
-        );
+    fn a_new_session_starts_least_permissive_and_local() {
+        let session = RoleplaySessionConsent::declare(ContentClass::least_permissive());
+        assert_eq!(session.declared_class, ContentClass::General);
+        assert_eq!(session.declared_provider, ProviderScope::local());
+        assert!(!session.declared_provider.is_remote());
     }
 
     #[test]
@@ -605,11 +723,12 @@ mod tests {
 
     #[test]
     fn consent_documents_carry_no_identity_fields() {
-        // A guard against later additions: a consent record may name only a local
-        // pseudonymous reference, a class, and its timestamps.
+        // A guard against later additions: a consent record may name only local
+        // pseudonymous references, a class, a scope and its timestamps.
         let record = ConsentRecord {
             participant: participant("operator"),
             content_class: ContentClass::Mature,
+            provider: ProviderScope::local(),
             granted_at_ns: 10,
             revoked_at_ns: None,
         };
@@ -622,6 +741,7 @@ mod tests {
                 "content_class",
                 "granted_at_ns",
                 "participant",
+                "provider",
                 "revoked_at_ns"
             ]
         );
@@ -655,6 +775,7 @@ mod tests {
             ConsentRefusal::AdultAttestationMissing,
             ConsentRefusal::ConsentRevoked,
             ConsentRefusal::ContentClassEscalation,
+            ConsentRefusal::RemoteDisclosureUnconsented,
         ] {
             assert!(
                 refusal
@@ -665,5 +786,89 @@ mod tests {
             );
             assert!(!refusal.message().contains("operator"));
         }
+    }
+
+    #[test]
+    fn switching_to_remote_requires_fresh_disclosure_consent() {
+        let mut session = session(ContentClass::Mature);
+        assert_eq!(session.admit_effect(Some(&attested(10)), 100), Ok(()));
+
+        session
+            .switch_provider(ProviderScope::remote(provider("provider-a")), 80)
+            .unwrap();
+        // Local consent does not authorise remote disclosure.
+        assert_eq!(
+            session.admit_effect(Some(&attested(10)), 100),
+            Err(ConsentRefusal::ConsentRevoked)
+        );
+
+        session
+            .grant(participant("operator"), ContentClass::Mature, 90)
+            .unwrap();
+        assert_eq!(session.admit_effect(Some(&attested(10)), 100), Ok(()));
+        assert_eq!(
+            session.participants[0].provider,
+            ProviderScope::remote(provider("provider-a"))
+        );
+    }
+
+    #[test]
+    fn switching_back_to_local_also_clears_consent() {
+        let mut session = RoleplaySessionConsent::declare_with(
+            ContentClass::Mature,
+            ProviderScope::remote(provider("provider-a")),
+        );
+        session
+            .grant(participant("operator"), ContentClass::Mature, 10)
+            .unwrap();
+        assert_eq!(session.admit_effect(Some(&attested(10)), 100), Ok(()));
+
+        session.switch_provider(ProviderScope::local(), 20).unwrap();
+        assert_eq!(
+            session.admit_effect(Some(&attested(10)), 100),
+            Err(ConsentRefusal::ConsentRevoked)
+        );
+    }
+
+    #[test]
+    fn an_unchanged_provider_scope_is_refused_rather_than_silently_accepted() {
+        let mut session = session(ContentClass::Mature);
+        let error = session
+            .switch_provider(ProviderScope::local(), 30)
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::RequestConflict);
+    }
+
+    #[test]
+    fn a_record_for_another_scope_fails_validation_and_cannot_admit() {
+        let mut session = session(ContentClass::Mature);
+        session.participants[0].provider = ProviderScope::remote(provider("provider-a"));
+        assert!(session.validate().is_err(), "mismatched scope is refused");
+        assert!(session.admit_effect(Some(&attested(10)), 100).is_err());
+    }
+
+    #[test]
+    fn ambiguous_or_empty_provider_scopes_are_rejected() {
+        let both = ProviderScope {
+            local: true,
+            remote_provider: Some(provider("provider-a")),
+        };
+        assert!(both.validate().is_err());
+        let neither = ProviderScope {
+            local: false,
+            remote_provider: None,
+        };
+        assert!(neither.validate().is_err());
+        assert!(ProviderScope::local().validate().is_ok());
+        assert!(ProviderScope::remote(provider("provider-a"))
+            .validate()
+            .is_ok());
+    }
+
+    #[test]
+    fn a_provider_reference_cannot_be_a_url() {
+        // Opaque identifiers only; a URL or credential never becomes a scope.
+        assert!(ProviderRef::new("https://example.invalid/v1").is_err());
+        assert!(ProviderRef::new("configured-provider-a").is_ok());
     }
 }

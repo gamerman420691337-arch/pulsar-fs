@@ -794,3 +794,19 @@ requirement-status discipline. No existing requirement is relaxed.
 Gates: M3-CONSENT carries AGE/CNS/CLS/DSP; M3-ROLEPLAY carries the broker and
 conversation; M4-IMAGEGEN is scoped to the optional pack; M5-CONDUCT carries
 presentation and playback composition.
+
+### E.5 Owner answers, 2026-11-04: pipeline shape and remote providers
+
+| ID | Status | Requirement |
+| --- | --- | --- |
+| PIPE-01 | C | The roleplay pipeline is: chat turn, author-class proposal, existing approval/review/commit, prepared Stroke script, per-call play approval, existing timing admission, device. A model MUST NOT emit a playable script directly or substitute different bytes between approval and dispatch. |
+| PIPE-02 | C | Media presentation and device playback MUST retain separate timing admissions. A stalled or unbound player MUST NOT become device authority, and a positional script MUST NOT claim the player's clock. |
+| CLD-01 | C | Local processing is the default and the only mode available offline. No advertised Core capability may depend on a remote provider. |
+| CLD-02 | C | Remote roleplay processing is permitted only as an explicit per-session exception to SEC-01, after the owner configures a provider and **every participant consents to remote disclosure** in addition to their content-class consent. |
+| CLD-03 | C | A configured provider MUST be an opaque reference. Neither model output nor any tool may supply a URL, endpoint, credential or key. |
+| CLD-04 | C | Switching between local and remote processing clears existing consent; consent for local processing is not consent for remote disclosure. Consent records MUST record which scope they were granted for. |
+| CLD-05 | V | Which providers may be configured, whether any is bundled or approved, provider-side retention, jurisdiction and moderation remain unresolved. The application MUST NOT claim to audit a remote provider's handling. |
+
+SEC-01 is not repealed. E.5 records a narrow, disclosed, consent-gated exception for
+remote roleplay processing; offline local operation remains the contract for all
+advertised Core and Complete capability.

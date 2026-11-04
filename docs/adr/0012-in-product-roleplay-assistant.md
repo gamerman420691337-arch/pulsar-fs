@@ -257,3 +257,60 @@ proposed names, transcript retention (RPA-OPEN-04), and any jurisdictional or
 app-store compliance claim remain open. This specification asserts no legal
 compliance and no age verification; platform distribution rules are a packaging
 decision that must be qualified separately before any store submission.
+
+## Decision record: the pipeline and remote models, 2026-11-04
+
+The owner described the intended end-to-end flow:
+
+> chat with a local **or cloud** RP model; the model produces funscripts; the script
+> goes to the Pulsar player; it plays on whichever device is attached (Handy or
+> other). The roleplay is often NSFW.
+
+### The pipeline
+
+The flow maps onto existing admission without inventing a scripting shortcut. A
+model never emits a playable file; it emits bounded, validated proposals, and a human
+moves them through the ordinary path:
+
+```
+chat turn
+  → author-class proposal (patterns / edit recipe / generation intent)
+  → human approval + candidate review + commit          [existing M2 path]
+  → prepared Stroke script                              [existing preparation]
+  → script.play  → media.present                        [class E, per-call approval]
+  → timing admission → controller lease → device        [existing M5 machinery]
+```
+
+Two invariants this pipeline must not break. First, the prepared script is the one
+reviewed and committed; a model cannot substitute different bytes between approval
+and dispatch. Second, presenting media and playing a device keep **separate** timing
+admissions, so a stalled player never silently becomes device authority and a
+positional script never claims the player's clock.
+
+### Cloud models suspend SEC-01 for one disclosed scope
+
+SEC-01 requires Core generation and assistant functionality to remain local and
+available offline. A cloud roleplay model transmits the conversation off the
+machine, so SEC-01 cannot simply stand. The owner's direction is accepted as a
+**narrow, explicitly disclosed, per-session exception**, not a weakening of the
+offline guarantee:
+
+- Local remains the default and the only mode available offline. Nothing in Core's
+  advertised capability depends on a remote provider.
+- Remote processing requires the owner to configure a provider explicitly and
+  requires **every participant's** consent for remote disclosure, in addition to the
+  content-class consent they already give.
+- A configured provider is an opaque reference. No tool, and no model output, may
+  supply a URL, endpoint or key.
+- Switching between local and remote is a consent-clearing event: consent to talk to
+  a local model is not consent to send the same conversation to a third party.
+
+This is the same structure the specification already uses for device transmission
+(DEV-04): the disclosure is permitted, and it is never implicit.
+
+### What this decision does not settle
+
+Which provider(s) may be configured, whether any provider is bundled or approved,
+retention on the provider side, jurisdiction, and the moderation question (DSP-02)
+all remain open. The application cannot audit a remote provider's handling and must
+not claim that it does.

@@ -800,7 +800,7 @@
     {
       "id": "M3-ROLEPLAY",
       "milestone": "M3",
-      "criterion": "RPA-01 through RPA-12: multi-turn local roleplay over a deny-by-default tool allowlist with effect-class single-use approvals gated on a current 18+ attestation and every present participant's consent, unconditional stop, and preserved timing, disarm and memory boundaries.",
+      "criterion": "RPA-01 through RPA-12: multi-turn roleplay, local by default and remote only under a consented scope, over a deny-by-default tool allowlist with effect-class single-use approvals gated on a current 18+ attestation and every present participant's consent, unconditional stop, and preserved timing, disarm and memory boundaries.",
       "previous_boundary": "Only one-shot assistant attempts exist: 4096 bytes of user text, engine-built context, no history, and separate generation/edit approvals over a narrow proposal set. No tool broker, no effect-class tool and no conversation state exist.",
       "implementation": "not_implemented",
       "verification": "not_requalified",
@@ -834,7 +834,7 @@
     {
       "id": "M5-CONDUCT",
       "milestone": "M5",
-      "criterion": "MDP-01 and RPA-07: assistant-initiated media presentation and script playback compose existing timing admission, controller lease, player guard and stop behaviour without minting authority; presenting media never grants device authority.",
+      "criterion": "MDP-01, PIPE-01/PIPE-02 and RPA-07: assistant-initiated media presentation and script playback compose existing timing admission, controller lease, player guard and stop behaviour without minting authority; presentation and playback keep separate timing admissions and a model cannot substitute script bytes between approval and dispatch.",
       "previous_boundary": "Device playback and the browser/desktop players are human-driven UI paths with separate timing admissions. No bounded assistant control surface and no presentation tool exist.",
       "implementation": "not_implemented",
       "verification": "not_requalified",
@@ -852,8 +852,8 @@
     {
       "id": "M3-CONSENT",
       "milestone": "M3",
-      "criterion": "AGE/CNS/CLS/DSP: local revocable 18+ attestation without any verification claim, per-participant consent bound to an explicit content class, unconditional revocation that terminates in-flight effect, no inferred consent, AI self-disclosure, and no transmitted participant data.",
-      "previous_boundary": "A pure pulsar-protocol domain layer now exists: content classes with a least-permissive default, pseudonymous participant references, a non-verification adult attestation with withdrawal, retained per-participant consent records with sorted-document validation, unconditional idempotent revocation, escalation that clears prior consent, and admit_roleplay/admit_effect refusal paths, covered by 18 unit tests. No Engine wiring, persistence, CLI/desktop surface, transcript handling or multi-participant session exists, and no retained receipt has been recorded for the current source.",
+      "criterion": "AGE/CNS/CLS/DSP/CLD: local revocable 18+ attestation without any verification claim, per-participant consent bound to an explicit content class and processing scope, consent-clearing scope switches, unconditional revocation that terminates in-flight effect, no inferred consent, AI self-disclosure, and no transmitted participant data.",
+      "previous_boundary": "A pure pulsar-protocol domain layer now exists: content classes with a least-permissive default, local/remote provider scopes with exactly-one validation, pseudonymous participant and provider references, a non-verification adult attestation with withdrawal, retained per-participant consent records binding class and scope with sorted-document validation, unconditional idempotent revocation, escalation and scope switching that clear prior consent, and admit_roleplay/admit_effect refusal paths, covered by 24 unit tests. No Engine wiring, persistence, CLI/desktop surface, transcript handling or actual remote provider exists, and no retained receipt has been recorded.",
       "implementation": "partial",
       "verification": "not_requalified",
       "acceptance": "open",
@@ -1847,7 +1847,7 @@
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Implement local revocable 18+ attestation with an explicit non-verification statement, per-participant consent records bound to a declared content class, unconditional revocation that terminates in-flight effect and leaves playback disarmed, refusal of inferred or inherited consent, and pseudonymous non-transmitted participant references. Verify through actual CLI and desktop consumers with retained refusal cases.",
+      "exit": "Implement local revocable 18+ attestation with an explicit non-verification statement, per-participant consent records binding content class and processing scope, consent-clearing local/remote scope switches, unconditional revocation that terminates in-flight effect and leaves playback disarmed, refusal of inferred or inherited consent, and pseudonymous non-transmitted participant and provider references. Verify through actual CLI and desktop consumers with retained refusal cases.",
       "evidence": []
     }
   ],
