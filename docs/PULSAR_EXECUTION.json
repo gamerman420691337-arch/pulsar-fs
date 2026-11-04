@@ -853,8 +853,8 @@
       "id": "M3-CONSENT",
       "milestone": "M3",
       "criterion": "AGE/CNS/CLS/DSP: local revocable 18+ attestation without any verification claim, per-participant consent bound to an explicit content class, unconditional revocation that terminates in-flight effect, no inferred consent, AI self-disclosure, and no transmitted participant data.",
-      "previous_boundary": "No age, consent, content-class or disclosure concept exists. The assistant has one operator, one-shot attempts and no second-participant authority; nothing prevents an operator's approval from being treated as consent for everyone present.",
-      "implementation": "not_implemented",
+      "previous_boundary": "A pure pulsar-protocol domain layer now exists: content classes with a least-permissive default, pseudonymous participant references, a non-verification adult attestation with withdrawal, retained per-participant consent records with sorted-document validation, unconditional idempotent revocation, escalation that clears prior consent, and admit_roleplay/admit_effect refusal paths, covered by 18 unit tests. No Engine wiring, persistence, CLI/desktop surface, transcript handling or multi-participant session exists, and no retained receipt has been recorded for the current source.",
+      "implementation": "partial",
       "verification": "not_requalified",
       "acceptance": "open",
       "next_proof": "Implement and verify the consent authority through actual CLI and desktop consumers: attestation gating, per-participant consent, class-bounded sessions, unconditional revocation terminating in-flight effect, refusal of inferred or inherited consent, and non-transmission of participant data.",
@@ -863,7 +863,8 @@
         "docs/adr/0012-in-product-roleplay-assistant.md",
         "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
         "crates/pulsar-engine/src/authority.rs",
-        "crates/pulsar-protocol/src/lib.rs"
+        "crates/pulsar-protocol/src/lib.rs",
+        "crates/pulsar-protocol/src/roleplay_consent.rs"
       ]
     }
   ],
@@ -1841,7 +1842,7 @@
       "parents": [
         "M3-CONSENT"
       ],
-      "state": "planned",
+      "state": "in_progress",
       "owner": "Codex",
       "depends_on": [
         "CPU-BUILD"
