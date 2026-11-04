@@ -678,6 +678,7 @@ fn native_authenticated_prepared_image_start_retains_source_and_rejects_stale_pi
     crate::create_assistant_policy(
         &setup_config,
         crate::AssistantPolicySetup {
+            tier: AssistantHardwareTier::Workstation,
             execution: None,
             output: policy_path.clone(),
             runtime,

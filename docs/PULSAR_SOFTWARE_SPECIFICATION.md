@@ -810,3 +810,22 @@ presentation and playback composition.
 SEC-01 is not repealed. E.5 records a narrow, disclosed, consent-gated exception for
 remote roleplay processing; offline local operation remains the contract for all
 advertised Core and Complete capability.
+
+### E.6 Owner answers, 2026-11-04: hardware tiers and model provenance
+
+The owner directed that assistant capability scale with the machine rather than with a
+single global ceiling, that the shipped default be a licensed model, and that other
+models be reachable by an optional user-initiated download pinned to an exact hash.
+
+| ID | Status | Requirement |
+| --- | --- | --- |
+| TIE-01 | C | Assistant ceilings MUST be selected per hardware tier, not fixed for every machine. A 16 GB-class machine MUST NOT be held to workstation limits, and a workstation MUST NOT be held to laptop limits. |
+| TIE-02 | C | The tier is chosen by the build or by an explicit owner declaration. It MUST NOT be raised silently: an undeclared profile defaults to the most restrictive tier. |
+| TIE-03 | D | Proposed tiers and ceilings. `constrained`: 16 GB system memory, <= 8 GB graphics; model 8 GiB, worker 12 GiB, context 32,768. `standard`: 32 GB, up to 16 GB graphics; model 16 GiB, worker 24 GiB, context 65,536. `workstation`: 64 GB+ with 24 GB+ graphics; model 32 GiB, worker 48 GiB, context 131,072. These are declaration bounds, not reservations, and not measured guarantees. |
+| TIE-04 | C | The protocol retains one outermost envelope. A tier narrows it; a declaration beyond the selected tier MUST refuse with the tier named. |
+| PROV-01 | C | The shipped default assistant model MUST be permissively licensed and redistributable. Shipping a default with unknown or non-commercial terms is prohibited. |
+| PROV-02 | C | A model whose author granted no licence, or granted only non-commercial terms, MUST NEVER be packaged, mirrored, vendored or redistributed by Pulsar. |
+| PROV-03 | C | Such a model MAY be offered as an optional, explicitly user-initiated download from the author's own source, pinned to an exact revision, file name, SHA-256 and byte length. Pulsar provides the pointer, not the bytes. |
+| PROV-04 | C | A redistributable declaration MUST carry an actual licence identifier. A licence MUST be derived from the pinned upstream base, never from an uploader's tag: one reviewed upload tags `license: gemma` over an Apache-2.0 base. |
+| PROV-05 | C | A download manifest MUST refuse a non-HTTPS source, a source containing credentials, a traversal or dotfile name, a malformed hash and an unbounded size. A changed artifact at the source MUST refuse rather than install. |
+| PROV-06 | D | Setup SHOULD offer a single reviewed action that applies a tier-appropriate profile for the user's hardware with the licensed default, and a separate action for a user-supplied or user-fetched model. |

@@ -314,3 +314,48 @@ Which provider(s) may be configured, whether any provider is bundled or approved
 retention on the provider side, jurisdiction, and the moderation question (DSP-02)
 all remain open. The application cannot audit a remote provider's handling and must
 not claim that it does.
+
+## Decision record: hardware tiers and model provenance, 2026-11-04
+
+Two owner directions are recorded here. First, assistant capability scales with the
+machine: a workstation with 24 GB of graphics memory and 64 GB of system memory
+should not be limited by a ceiling chosen for a 16 GB laptop, and a 16 GB machine
+should not be handed a budget it cannot honour. Second, the shipped default must be
+a licensed model, while other models remain reachable through an optional,
+user-initiated download pinned to an exact hash rather than through Pulsar
+redistributing them.
+
+### Tiers narrow one envelope
+
+The protocol keeps a single outermost envelope so no declaration can be unbounded.
+A tier narrows it: `constrained` (8 GiB model, 12 GiB worker, 32,768 context),
+`standard` (16/24/65,536) and `workstation` (32/48/131,072). An undeclared policy
+defaults to `constrained`, so a missing setting can only ever under-grant. A
+declaration beyond the selected tier refuses and names the tier it needed.
+
+The tier is a build or owner decision, not a hardware probe result that silently
+widens limits. Detection may *suggest* a tier; the recorded declaration is what
+admits work.
+
+### Provenance is a legal boundary, not a preference
+
+A model with no declared licence is not free to use: the author granted nothing, and
+shipping it would exercise reproduction, derivation and distribution rights that were
+never licensed. Worse, most such models are merges or fine-tunes of upstream bases
+whose terms travel with them regardless of what the model card says.
+
+So Pulsar splits the two cases explicitly:
+
+- `Redistributable` carries a licence identifier and may be packaged.
+- `UserInitiated` may carry a licence or none, and is **never packaged**. The user
+  fetches the exact pinned bytes from the author's own source.
+
+The default model is `Redistributable`. A manifest for anything else can never be
+treated as a pack, which is enforced in the type rather than by review.
+
+### What this deliberately does not do
+
+It does not assert that a user's own download is lawful; that relationship is between
+the user and the rightsholder. It does not audit the source's handling or availability
+after pinning. And it does not resolve the moderation question (DSP-02) or the
+provider question (CLD-05).

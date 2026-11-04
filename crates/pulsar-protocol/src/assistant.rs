@@ -145,16 +145,198 @@ impl AssistantVisionInput {
 ///
 /// Raised from 2 GiB so a 7B-8B 4-bit GGUF (~4.5-5 GB) fits. This is a bound on the
 /// declaration, not a reservation: admission still has to fit the memory budget.
-pub const MAX_ASSISTANT_MODEL_BYTES: u64 = 8 * 1024 * 1024 * 1024;
+pub const MAX_ASSISTANT_MODEL_BYTES: u64 = 32 * 1024 * 1024 * 1024;
 /// Largest assistant worker memory declaration. Admission bounds remain separate.
-pub const MAX_ASSISTANT_WORKER_MEMORY_BYTES: u64 = 12 * 1024 * 1024 * 1024;
+pub const MAX_ASSISTANT_WORKER_MEMORY_BYTES: u64 = 48 * 1024 * 1024 * 1024;
 pub const MIN_ASSISTANT_CONTEXT_TOKENS: u32 = 512;
-pub const MAX_ASSISTANT_CONTEXT_TOKENS: u32 = 32_768;
+pub const MAX_ASSISTANT_CONTEXT_TOKENS: u32 = 131_072;
 pub const MAX_ASSISTANT_OUTPUT_TOKENS: u32 = 4_096;
 pub const MAX_ASSISTANT_GPU_LAYERS: u16 = 999;
 pub const MAX_ASSISTANT_SYSTEM_CONTEXT_BYTES: usize = 64 * 1024;
 pub const MAX_ASSISTANT_USER_REQUEST_BYTES: usize = 16 * 1024;
 pub const MAX_ASSISTANT_WORKER_REQUEST_BYTES: u64 = 256 * 1024;
+
+/// Hardware class an assistant profile is admitted under.
+///
+/// The protocol carries the outermost envelope; a tier narrows it to what the
+/// machine can actually run. A build or an owner declaration selects the tier,
+/// so a 16 GB laptop is never held to a workstation's limits and a 24 GB VRAM /
+/// 64 GB RAM workstation is never held to a laptop's.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AssistantHardwareTier {
+    /// 16 GB system memory, integrated or <= 8 GB discrete graphics.
+    #[default]
+    Constrained,
+    /// 32 GB system memory, up to 16 GB graphics memory.
+    Standard,
+    /// 64 GB+ system memory with 24 GB+ graphics memory.
+    Workstation,
+}
+
+/// Declared ceilings for one tier. Design defaults, not measured guarantees.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AssistantTierCaps {
+    pub max_model_bytes: u64,
+    pub max_worker_memory_bytes: u64,
+    pub max_context_tokens: u32,
+    pub max_gpu_layers: u16,
+}
+
+impl AssistantHardwareTier {
+    pub const fn caps(self) -> AssistantTierCaps {
+        let gib = 1024 * 1024 * 1024;
+        match self {
+            Self::Constrained => AssistantTierCaps {
+                max_model_bytes: 8 * gib,
+                max_worker_memory_bytes: 12 * gib,
+                max_context_tokens: 32_768,
+                max_gpu_layers: 128,
+            },
+            Self::Standard => AssistantTierCaps {
+                max_model_bytes: 16 * gib,
+                max_worker_memory_bytes: 24 * gib,
+                max_context_tokens: 65_536,
+                max_gpu_layers: 256,
+            },
+            Self::Workstation => AssistantTierCaps {
+                max_model_bytes: 32 * gib,
+                max_worker_memory_bytes: 48 * gib,
+                max_context_tokens: 131_072,
+                max_gpu_layers: 999,
+            },
+        }
+    }
+
+    /// Smallest tier whose ceilings admit this declaration.
+    pub fn required_for(
+        model_bytes: u64,
+        worker_memory_bytes: u64,
+        execution: Option<&AssistantExecutionLimits>,
+    ) -> Self {
+        for tier in [Self::Constrained, Self::Standard, Self::Workstation] {
+            let caps = tier.caps();
+            let fits = model_bytes <= caps.max_model_bytes
+                && worker_memory_bytes <= caps.max_worker_memory_bytes
+                && execution.is_none_or(|execution| {
+                    execution.context_tokens <= caps.max_context_tokens
+                        && execution.gpu_layers <= caps.max_gpu_layers
+                });
+            if fits {
+                return tier;
+            }
+        }
+        Self::Workstation
+    }
+}
+
+/// How a model becomes available to Pulsar.
+///
+/// The distinction is a legal one, not a convenience: Pulsar may redistribute a
+/// permissively licensed artifact, but a model whose author granted nothing is
+/// never shipped. It may still be fetched by the user's own explicit action from
+/// the author's source, pinned to an exact content hash.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub enum AssistantModelProvenance {
+    /// Pulsar may redistribute this artifact as an optional pack.
+    Redistributable {
+        /// SPDX identifier or the exact licence name, as declared by the source.
+        licence: String,
+    },
+    /// Never packaged or mirrored. Fetched only by an explicit user action.
+    UserInitiated {
+        /// Declared licence, when the author published one at all.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        licence: Option<String>,
+    },
+}
+
+impl AssistantModelProvenance {
+    pub fn is_redistributable(&self) -> bool {
+        matches!(self, Self::Redistributable { .. })
+    }
+
+    pub fn validate(&self) -> Result<(), ProtocolError> {
+        fn slug(value: &str) -> bool {
+            !value.trim().is_empty()
+                && value.len() <= 128
+                && value.chars().all(|c| {
+                    c.is_ascii_alphanumeric() || matches!(c, '-' | '.' | '+' | ' ' | '(' | ')')
+                })
+        }
+        match self {
+            Self::Redistributable { licence } if !slug(licence) => Err(ProtocolError::invalid(
+                "redistributable model requires a declared licence",
+            )),
+            Self::UserInitiated {
+                licence: Some(licence),
+            } if !slug(licence) => Err(ProtocolError::invalid("declared model licence differs")),
+            _ => Ok(()),
+        }
+    }
+}
+
+/// One pinned, user-initiated model download.
+///
+/// Nothing here installs anything: a manifest is a declaration that the user may
+/// fetch these exact bytes from this exact source. The hash is mandatory so a
+/// later substitution at the source is refused rather than executed.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AssistantModelDownload {
+    pub schema_version: u16,
+    pub display_name: String,
+    /// HTTPS source owned by the artifact's author. No credentials, no redirects
+    /// invented by Pulsar.
+    pub source: String,
+    /// Exact upstream revision, pinned.
+    pub revision: String,
+    pub file_name: String,
+    pub sha256: String,
+    pub byte_len: u64,
+    pub provenance: AssistantModelProvenance,
+    /// Smallest hardware tier that can serve this artifact.
+    pub tier_floor: AssistantHardwareTier,
+}
+
+impl AssistantModelDownload {
+    pub fn validate(&self) -> Result<(), ProtocolError> {
+        self.provenance.validate()?;
+        let display = self.display_name.trim();
+        if self.schema_version != 1
+            || display.is_empty()
+            || self.display_name.len() > 128
+            || self.display_name.contains('\0')
+            || !self.source.starts_with("https://")
+            || self.source.len() > 2048
+            || self.source.contains('@')
+            || self.source.contains('\0')
+            || self.source.chars().any(|c| c.is_whitespace())
+            || self.revision.trim().is_empty()
+            || self.revision.len() > 128
+            || self.file_name.is_empty()
+            || self.file_name.len() > 255
+            || !self
+                .file_name
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+            || self.file_name.starts_with('.')
+            || self.sha256.len() != 64
+            || !self.sha256.chars().all(|c| c.is_ascii_hexdigit())
+            || self.byte_len == 0
+            || self.byte_len > MAX_ASSISTANT_MODEL_BYTES
+        {
+            return Err(ProtocolError::invalid("assistant model download differs"));
+        }
+        Ok(())
+    }
+
+    /// A redistributable artifact may be packaged; anything else may not.
+    pub fn may_be_packaged(&self) -> bool {
+        self.provenance.is_redistributable()
+    }
+}
 
 /// Sampling declaration for one assistant profile.
 ///
@@ -1708,5 +1890,143 @@ mod execution_limit_tests {
         let mut over = request(1024, None);
         over.system_context = "s".repeat(MAX_ASSISTANT_SYSTEM_CONTEXT_BYTES + 1);
         assert!(over.validate().is_err());
+    }
+}
+
+#[cfg(test)]
+mod hardware_tier_tests {
+    use super::*;
+
+    fn download() -> AssistantModelDownload {
+        AssistantModelDownload {
+            schema_version: 1,
+            display_name: "Cydonia 24B v4.1 Q4_K_M".into(),
+            source: "https://huggingface.co/TheDrummer/Cydonia-24B-v4.1/resolve/abc/file.gguf"
+                .into(),
+            revision: "abc123".into(),
+            file_name: "cydonia-24b-v4.1.Q4_K_M.gguf".into(),
+            sha256: "a".repeat(64),
+            byte_len: 14 * 1024 * 1024 * 1024,
+            provenance: AssistantModelProvenance::UserInitiated { licence: None },
+            tier_floor: AssistantHardwareTier::Standard,
+        }
+    }
+
+    #[test]
+    fn tiers_widen_monotonically() {
+        let constrained = AssistantHardwareTier::Constrained.caps();
+        let standard = AssistantHardwareTier::Standard.caps();
+        let workstation = AssistantHardwareTier::Workstation.caps();
+        assert!(constrained.max_model_bytes < standard.max_model_bytes);
+        assert!(standard.max_model_bytes < workstation.max_model_bytes);
+        assert!(constrained.max_context_tokens < standard.max_context_tokens);
+        assert!(standard.max_context_tokens < workstation.max_context_tokens);
+        assert_eq!(
+            AssistantHardwareTier::default(),
+            AssistantHardwareTier::Constrained,
+            "an undeclared policy must not inherit workstation limits"
+        );
+    }
+
+    #[test]
+    fn the_smallest_admitting_tier_is_reported() {
+        let small = AssistantHardwareTier::required_for(
+            2 * 1024 * 1024 * 1024,
+            2 * 1024 * 1024 * 1024,
+            None,
+        );
+        assert_eq!(small, AssistantHardwareTier::Constrained);
+
+        // 14 GiB: a 24B at Q4 fits the standard model ceiling but not the constrained one.
+        let big = AssistantHardwareTier::required_for(
+            14 * 1024 * 1024 * 1024,
+            16 * 1024 * 1024 * 1024,
+            None,
+        );
+        assert_eq!(big, AssistantHardwareTier::Standard);
+
+        let huge = AssistantHardwareTier::required_for(
+            20 * 1024 * 1024 * 1024,
+            24 * 1024 * 1024 * 1024,
+            None,
+        );
+        assert_eq!(huge, AssistantHardwareTier::Workstation);
+    }
+
+    #[test]
+    fn a_workstation_may_declare_a_long_context_a_constrained_build_cannot() {
+        let execution = AssistantExecutionLimits::roleplay(131_072, 60);
+        execution
+            .validate()
+            .expect("workstation-shaped limits are valid");
+        let model = 14 * 1024 * 1024 * 1024;
+        let memory = 16 * 1024 * 1024 * 1024;
+        assert_eq!(
+            AssistantHardwareTier::required_for(model, memory, Some(&execution)),
+            AssistantHardwareTier::Workstation
+        );
+    }
+
+    #[test]
+    fn a_model_without_a_granted_licence_is_never_packaged() {
+        let user_initiated = download();
+        user_initiated.validate().unwrap();
+        assert!(!user_initiated.may_be_packaged());
+        assert!(!user_initiated.provenance.is_redistributable());
+
+        let bundled = AssistantModelDownload {
+            provenance: AssistantModelProvenance::Redistributable {
+                licence: "Apache-2.0".into(),
+            },
+            ..download()
+        };
+        assert!(bundled.may_be_packaged());
+    }
+
+    #[test]
+    fn a_redistributable_declaration_requires_an_actual_licence_slug() {
+        assert!(AssistantModelProvenance::Redistributable {
+            licence: "  ".into()
+        }
+        .validate()
+        .is_err());
+        assert!(AssistantModelProvenance::Redistributable {
+            licence: "cc-by-nc-4.0".into()
+        }
+        .validate()
+        .is_ok());
+    }
+
+    #[test]
+    fn a_manifest_pins_the_bytes_and_refuses_unsafe_sources() {
+        download().validate().expect("pinned manifest is valid");
+
+        let mut plain = download();
+        plain.source = "http://example.invalid/file.gguf".into();
+        assert!(plain.validate().is_err(), "https only");
+
+        let mut credential = download();
+        credential.source = "https://user:pw@example.invalid/file.gguf".into();
+        assert!(credential.validate().is_err(), "no credentials in a source");
+
+        let mut traversal = download();
+        traversal.file_name = "../escape.gguf".into();
+        assert!(traversal.validate().is_err());
+
+        let mut dotfile = download();
+        dotfile.file_name = ".hidden".into();
+        assert!(dotfile.validate().is_err());
+
+        let mut unpinned = download();
+        unpinned.sha256 = "nothex".into();
+        assert!(unpinned.validate().is_err(), "the hash is mandatory");
+
+        let mut empty = download();
+        empty.byte_len = 0;
+        assert!(empty.validate().is_err());
+
+        let mut oversized = download();
+        oversized.byte_len = MAX_ASSISTANT_MODEL_BYTES + 1;
+        assert!(oversized.validate().is_err());
     }
 }
