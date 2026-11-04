@@ -4,7 +4,7 @@
 
 The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue and milestone ledger.
 
-Reconciled **2026-10-30**. Roadmap **INCOMPLETE**; autonomous runner observation **active**.
+Reconciled **2026-11-04**. Roadmap **INCOMPLETE**; autonomous runner observation **active**.
 
 **Working tree: UNVERIFIED.** Full Linux Engine CI improved from 228 failures to 37 with no identity-unavailable messages; confinement and symlink failures remain. Full Windows and macOS failures and qualification gates remain open.
 

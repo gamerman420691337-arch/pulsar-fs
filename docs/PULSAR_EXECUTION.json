@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "reconciled_on": "2026-10-30",
+  "reconciled_on": "2026-11-04",
   "timezone": "America/New_York",
   "full_roadmap": "incomplete",
   "runner_state": "active",
@@ -20,6 +20,10 @@
     {
       "path": "docs/PULSAR_MAJOR_ROADMAP.md",
       "role": "M1–M8 scope and acceptance obligations"
+    },
+    {
+      "path": "docs/adr/0012-in-product-roleplay-assistant.md",
+      "role": "In-product roleplay assistant and allowlisted tool-surface decision"
     }
   ],
   "archive": {
@@ -791,6 +795,58 @@
       "source_refs": [
         "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
         "assurance/README.md"
+      ]
+    },
+    {
+      "id": "M3-ROLEPLAY",
+      "milestone": "M3",
+      "criterion": "RPA-01 through RPA-12: multi-turn local roleplay over a deny-by-default tool allowlist with effect-class single-use approvals, unconditional stop, and preserved timing, disarm and memory boundaries.",
+      "previous_boundary": "Only one-shot assistant attempts exist: 4096 bytes of user text, engine-built context, no history, and separate generation/edit approvals over a narrow proposal set. No tool broker, no effect-class tool and no conversation state exist.",
+      "implementation": "not_implemented",
+      "verification": "not_requalified",
+      "acceptance": "open",
+      "next_proof": "Implement and verify the tool broker, class split, digest-bound single-use approvals, unconditional stop, budgets and transcript exclusion through actual CLI/desktop consumers; retain refusal cases for every denied capability.",
+      "evidence": [],
+      "source_refs": [
+        "docs/adr/0012-in-product-roleplay-assistant.md",
+        "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
+        "crates/pulsar-engine/src/authority.rs",
+        "crates/pulsar-protocol/src/lib.rs",
+        "crates/pulsar-clients/src/assistant_client.rs"
+      ]
+    },
+    {
+      "id": "M4-IMAGEGEN",
+      "milestone": "M4",
+      "criterion": "IMG-01/IMG-02: local image generation as an explicit output modality with its own model and pack decision, redistribution review, output-storage contract, synthetic attribution and generated-imagery safety policy.",
+      "previous_boundary": "Image support is input-only: PrepareAssistantImage decodes one frame for image-conditioned creative synthesis and image_generation_origin records that approval provenance. No image-output endpoint, model or pack exists.",
+      "implementation": "not_implemented",
+      "verification": "not_requalified",
+      "acceptance": "open",
+      "next_proof": "Decide IMG-01 scope (launch, Core or optional pack), select and license a model, implement a bounded generate endpoint with synthetic attribution and storage custody, and verify it through an actual consumer.",
+      "evidence": [],
+      "source_refs": [
+        "docs/adr/0012-in-product-roleplay-assistant.md",
+        "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
+        "crates/pulsar-protocol/src/image_generation_origin.rs"
+      ]
+    },
+    {
+      "id": "M5-CONDUCT",
+      "milestone": "M5",
+      "criterion": "MDP-01 and RPA-07: assistant-initiated media presentation and script playback compose existing timing admission, controller lease, player guard and stop behaviour without minting authority; presenting media never grants device authority.",
+      "previous_boundary": "Device playback and the browser/desktop players are human-driven UI paths with separate timing admissions. No bounded assistant control surface and no presentation tool exist.",
+      "implementation": "not_implemented",
+      "verification": "not_requalified",
+      "acceptance": "open",
+      "next_proof": "Expose bounded presentation and playback tools through the broker; verify that approvals cannot mint timing, that stop and disconnect disarming still hold, and that presentation and playback keep separate admissions.",
+      "evidence": [],
+      "source_refs": [
+        "docs/adr/0012-in-product-roleplay-assistant.md",
+        "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
+        "crates/pulsar-engine/src/handy_hsp_live.rs",
+        "crates/pulsar-engine/src/live_captures.rs",
+        "crates/pulsar-clients/src/browser_live.rs"
       ]
     }
   ],
@@ -1717,6 +1773,48 @@
         "ASSISTANT-CONTENTION"
       ],
       "exit": "Every applicable specification/test gate has current subject-bound evidence and required human/release disposition; no percentage or test count substitutes for coverage.",
+      "evidence": []
+    },
+    {
+      "id": "ROLEPLAY-BROKER",
+      "title": "Build the deny-by-default assistant tool broker and roleplay conversation state",
+      "parents": [
+        "M3-ROLEPLAY"
+      ],
+      "state": "planned",
+      "owner": "Codex",
+      "depends_on": [
+        "CPU-BUILD"
+      ],
+      "exit": "Implement the typed tool broker with read/author/effect/stop classes, digest-bound single-use effect approvals that disclose the concrete consequence, unconditional stop, per-turn and per-session budgets, local bounded conversation state excluded from evidence and logs, and explicit refusal for every denied capability. Verify through actual CLI and desktop consumers, not authored callbacks alone.",
+      "evidence": []
+    },
+    {
+      "id": "BOUNDED-MEDIA",
+      "title": "Expose bounded media presentation and script playback tools",
+      "parents": [
+        "M5-CONDUCT"
+      ],
+      "state": "planned",
+      "owner": "Codex + rendered-workflow operator",
+      "depends_on": [
+        "BROWSER-DEMO"
+      ],
+      "exit": "Add media.present/media.pause over an application-owned local-file player and script.play over existing preparation, timing admission, controller lease and stop guard. Verify that no approval mints or extends timing, that stop works while an effect is in flight, that disconnect leaves playback disarmed until explicit user resumption, and that presentation and playback keep separate admissions.",
+      "evidence": []
+    },
+    {
+      "id": "IMAGE-OUTPUT",
+      "title": "Decide and implement local image generation as an output modality",
+      "parents": [
+        "M4-IMAGEGEN"
+      ],
+      "state": "planned",
+      "owner": "Product owner + Codex",
+      "depends_on": [
+        "CPU-BUILD"
+      ],
+      "exit": "Record the IMG-01 scope decision, select a redistributable model and pack, and implement a bounded image.generate endpoint with synthetic attribution, output custody and a safety policy. Verify generation, storage and refusal paths through an actual consumer; no observed-content attribution may be claimed.",
       "evidence": []
     }
   ],

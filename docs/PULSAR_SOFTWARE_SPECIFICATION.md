@@ -714,3 +714,54 @@ Revision 0.2 records the post-audit approval to make the Fast execution-path sco
 - The suggested 2x CPU Fast engineering target, 12 GB application-memory cap, macOS DMG format, and tighter rapid-motion phase thresholds were not independently approved as hard numeric or packaging requirements.
 - Historical repository findings remain in Appendix A and Stage 0. They are not newly verified current-state facts or completed remediation.
 - Future decisions should append a source-backed row and update the affected requirement. Superseded decisions should retain their source and explicit replacement rather than disappearing from the record.
+
+## Appendix E. Owner decision 2026-11-04 — in-product roleplay assistant
+
+Source: product-owner direction recorded in ADR 0012. This appendix adds
+requirements; it does not weaken, renumber or reinterpret Sections 1 through 17 or
+Appendices A through D. Where an item below conflicts with EDIT-05 or SAFE-01/02, the
+earlier requirement retains authority and the tool is not implemented as described.
+
+The owner directed that the bundled local assistant additionally hold a multi-turn
+roleplay conversation and act through an allowlisted tool set: author funscripts,
+execute funscripts on a device, generate images, and play video or audio. The stated
+safety model is tool allowlisting.
+
+### E.1 Assistant and tool requirements
+
+| ID | Status | Requirement |
+| --- | --- | --- |
+| RPA-01 | C | The assistant MUST support a multi-turn, local, in-product roleplay conversation over a fixed, deny-by-default tool allowlist. Anything absent from the allowlist is refused. |
+| RPA-02 | C | Tool calls MUST be typed, schema-versioned and validated by the Engine. Conversational text MUST NOT be parsed as a command. No tool accepts a filesystem path, URL, credential, model declaration or executable job originating in model output. |
+| RPA-03 | C | Tools are partitioned into read, author, effect and stop classes. Author-class output is a candidate only; the existing separate approvals, review and commit remain required before any effect. |
+| RPA-04 | C | Every effect-class call requires a fresh, single-use, digest-bound human approval that discloses the concrete consequence: the exact subject, device, expected duration, travel range and declared dynamics limits. Approval is bound to tool, argument digest, project, revision, session and originating attempt, and is invalidated by changed arguments, changed revision, withdrawn profile or Engine restart. |
+| RPA-05 | C | Stop-class calls (device stop, media pause) MUST be executable without approval at any time, including while an opposing approval is pending or an effect is in flight. |
+| RPA-06 | C | Untrusted content reaching the model as context — media metadata, subtitle text, imported `.funscript` comments, project and library names — MUST be treated as data. It MAY influence authored candidates and MUST NEVER satisfy an effect-class approval. |
+| RPA-07 | C | The assistant MUST NOT become a timing authority. Script playback MUST compose existing timing admission, controller lease, player guard and stop behaviour, and MUST NOT mint or extend any of them. |
+| RPA-08 | C | SAFE-01/02 are unchanged: after disconnect or reconnection, playback remains disarmed until the **user** explicitly resumes. No assistant action, approval or tool call may serve as that consent. |
+| RPA-09 | C | DEV-04 is unchanged: device play approval is not permission to transmit source media, prompts or derived content. No allowlisted tool may move content off the machine. |
+| RPA-10 | C | MEM-01/MEM-02 are unchanged: an assistant request may pause and checkpoint offline generation, while live device playback remains protected from that handoff. |
+| RPA-11 | C | Conversation state MUST be local, per-project, bounded and separately retained. It MUST be excluded from evidence receipts, diagnostics, support bundles and exported logs, and MUST NOT be written into a project master. |
+| RPA-12 | C | Per-turn and per-session tool-call budgets, encoding-size limits and single-pending-approval limits MUST be enforced by refusal, never by silent truncation. |
+| TOOL-01 | D | Proposed default budgets: 4 calls per turn, 32 per session, 8 KiB per tool-call encoding, at most one pending effect approval. |
+| TOOL-02 | D | Proposed allowlist for launch: `project.summary`, `review.explain`, `catalog.list`, `motion.propose_patterns`, `generation.propose`, `edit.propose_recipe`, `target.select`, `commit.propose`, `script.play`, `device.stop`, `device.status`, `media.present`, `media.pause`, `image.generate`. |
+| TOOL-03 | C | The following are refused regardless of approval: shell or process execution, filesystem paths, network fetches, credential access, assistant profile or model registration, protection unlock, project export/import, package publication, Stash publication, update installation, and settings mutation outside a tool's declared fields. |
+| TOOL-04 | D | Error and diagnostic output SHOULD identify the tool, class and refusal reason without reproducing conversation text or arguments. |
+
+### E.2 New capability requiring its own qualification
+
+| ID | Status | Requirement |
+| --- | --- | --- |
+| IMG-01 | C | Local image generation is a new output modality, not an exposure of the existing image-conditioned creative path. It requires its own model/pack decision, redistribution review under SEC-08, output-storage contract and generated-imagery safety policy before implementation. |
+| IMG-02 | C | Generated images MUST retain observed/inferred/synthetic attribution consistent with GEN-06 and MUST NOT be presented as observed source content. |
+| MDP-01 | D | Assistant media presentation controls an application-owned player over local files only. Presentation grants no device authority, and a presenting player and a script-playing device retain separate timing admissions. |
+
+### E.3 Open items added by this decision
+
+| ID | Open item | Resolution path |
+| --- | --- | --- |
+| RPA-OPEN-01 | Whether local image generation is a launch modality, a Core capability or an optional pack | Pack/model selection, SEC-08 redistribution review and the 16 GB memory budget must be decided together. |
+| RPA-OPEN-02 | Which interactive model profile serves roleplay, and its memory/latency floor | Measure candidate profiles against OPEN-01/OPEN-02 caps; the pinned 0.6B Q8 assistant fails 1 of 8 authored intents and does not approach interactive latency. |
+| RPA-OPEN-03 | Roleplay content policy: moderation scope, AI disclosure, participant consent, age policy | No current provision exists in Sections 1 through 17; required before any effect-class tool ships. |
+| RPA-OPEN-04 | Transcript retention, deletion and export-exclusion defaults | Define alongside RPA-11; SEC-03 addresses telemetry, not conversations. |
+| RPA-OPEN-05 | Whether an approved effect survives a page refresh or Engine restart | Default is no; invoking a prior receipt as current authority contradicts existing doctrine. |
