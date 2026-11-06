@@ -1,0 +1,278 @@
+//! The Handy REST v3 client for HSP (Handy Streaming Protocol) playback.
+//!
+//! The device plays timed points from its own buffer, so playback does not depend on
+//! cloud round-trip time (~0.4-1 s per call). Authentication: the application key
+//! (`HANDY_API_KEY`) is used only to issue a client token; device endpoints take
+//! `Authorization: Bearer <token>` plus `X-Connection-Key`.
+//!
+//! Safety: the device keeps playing whatever is buffered after a disconnect or crash,
+//! so callers must only preload a short window ahead of the play position.
+
+use anyhow::{anyhow, bail, Context, Result};
+use serde_json::{json, Value};
+use std::time::{Duration, Instant};
+
+const BASE: &str = "https://www.handyfeeling.com/api/handy-rest/v3";
+/// Re-issue the cached token when less than this remains.
+const TOKEN_MARGIN: Duration = Duration::from_secs(120);
+const TOKEN_TTL_SECS: u64 = 3600;
+/// Maximum points per `/hsp/add` request.
+pub const MAX_ADD_POINTS: usize = 100;
+
+/// Estimate of the Handy server clock, anchored to a host instant.
+#[derive(Debug, Clone, Copy)]
+pub struct ServerClock {
+    server_ms: u64,
+    anchor: Instant,
+    pub rtt_ms: u64,
+}
+
+impl ServerClock {
+    pub fn now_ms(&self) -> u64 {
+        self.server_ms + self.anchor.elapsed().as_millis() as u64
+    }
+}
+
+pub struct HspClient {
+    agent: ureq::Agent,
+    api_key: String,
+    conn_key: String,
+    token: Option<(String, Instant)>,
+}
+
+impl HspClient {
+    pub fn new(api_key: &str, conn_key: &str) -> Self {
+        let agent: ureq::Agent = ureq::config::Config::builder()
+            .timeout_global(Some(Duration::from_secs(15)))
+            .max_redirects(0)
+            .build()
+            .into();
+        Self {
+            agent,
+            api_key: api_key.trim().to_string(),
+            conn_key: conn_key.trim().to_string(),
+            token: None,
+        }
+    }
+
+    fn token(&mut self) -> Result<String> {
+        if let Some((tok, expires)) = &self.token {
+            if Instant::now() + TOKEN_MARGIN < *expires {
+                return Ok(tok.clone());
+            }
+        }
+        let url = format!("{BASE}/auth/token/issue?to={}&ttl={TOKEN_TTL_SECS}", self.conn_key);
+        let body = self
+            .agent
+            .get(&url)
+            .header("X-Api-Key", &self.api_key)
+            .header("Accept", "application/json")
+            .call()
+            .map_err(|_| anyhow!("Handy token issue failed (check HANDY_API_KEY and connection key)"))?
+            .into_body()
+            .read_to_string()?;
+        let val: Value = serde_json::from_str(&body)?;
+        let tok = val["result"]["token"]
+            .as_str()
+            .filter(|t| !t.is_empty())
+            .ok_or_else(|| anyhow!("Handy token response had no token"))?
+            .to_string();
+        self.token = Some((tok.clone(), Instant::now() + Duration::from_secs(TOKEN_TTL_SECS)));
+        Ok(tok)
+    }
+
+    fn call(&mut self, method: &str, path: &str, body: Option<Value>) -> Result<Value> {
+        for attempt in 0..2 {
+            let token = self.token()?;
+            let url = format!("{BASE}{path}");
+            let result = match (method, &body) {
+                ("GET", _) => self
+                    .agent
+                    .get(&url)
+                    .header("Authorization", &format!("Bearer {token}"))
+                    .header("X-Connection-Key", &self.conn_key)
+                    .call(),
+                (_, Some(b)) => self
+                    .agent
+                    .put(&url)
+                    .header("Authorization", &format!("Bearer {token}"))
+                    .header("X-Connection-Key", &self.conn_key)
+                    .header("Content-Type", "application/json")
+                    .send(serde_json::to_vec(b)?),
+                (_, None) => self
+                    .agent
+                    .put(&url)
+                    .header("Authorization", &format!("Bearer {token}"))
+                    .header("X-Connection-Key", &self.conn_key)
+                    .send_empty(),
+            };
+            match result {
+                Ok(resp) => {
+                    let text = resp.into_body().read_to_string()?;
+                    if text.trim().is_empty() {
+                        return Ok(Value::Null);
+                    }
+                    let val: Value = serde_json::from_str(&text)
+                        .with_context(|| format!("Handy {path}: invalid JSON response"))?;
+                    if let Some(err) = val.get("error").filter(|e| !e.is_null()) {
+                        bail!("Handy {path} returned error: {err}");
+                    }
+                    return Ok(val);
+                }
+                Err(ureq::Error::StatusCode(401)) if attempt == 0 => {
+                    self.token = None;
+                }
+                Err(ureq::Error::StatusCode(code)) => bail!("Handy {method} {path} failed: HTTP {code}"),
+                Err(e) => bail!("Handy {method} {path} failed: {e}"),
+            }
+        }
+        unreachable!()
+    }
+
+    pub fn connected(&mut self) -> Result<bool> {
+        let v = self.call("GET", "/connected", None)?;
+        Ok(v["result"]["connected"].as_bool().unwrap_or(false))
+    }
+
+    pub fn mode(&mut self) -> Result<i64> {
+        let v = self.call("GET", "/mode", None)?;
+        v["result"]["mode"].as_i64().ok_or_else(|| anyhow!("Handy /mode response had no mode"))
+    }
+
+    /// HSP is device mode 4.
+    pub fn ensure_hsp_mode(&mut self) -> Result<()> {
+        if self.mode()? != 4 {
+            self.call("PUT", "/mode", Some(json!({ "mode": 4 })))?;
+            if self.mode()? != 4 {
+                bail!("Handy did not enter HSP mode (mode 4)");
+            }
+        }
+        Ok(())
+    }
+
+    pub fn state(&mut self) -> Result<Value> {
+        Ok(self.call("GET", "/hsp/state", None)?["result"].clone())
+    }
+
+    /// Best-of-N server clock estimate (lowest round trip wins).
+    pub fn server_clock(&mut self, samples: usize) -> Result<ServerClock> {
+        let mut best: Option<ServerClock> = None;
+        for _ in 0..samples.max(1) {
+            let t0 = Instant::now();
+            let v = self.call("GET", "/servertime", None)?;
+            let rtt = t0.elapsed();
+            let server_ms = v["server_time"].as_u64().ok_or_else(|| anyhow!("Handy /servertime had no server_time"))?;
+            let half = rtt / 2;
+            let clock = ServerClock {
+                server_ms: server_ms + half.as_millis() as u64,
+                anchor: Instant::now(),
+                rtt_ms: rtt.as_millis() as u64,
+            };
+            if best.map_or(true, |b| clock.rtt_ms < b.rtt_ms) {
+                best = Some(clock);
+            }
+        }
+        best.ok_or_else(|| anyhow!("no server clock samples"))
+    }
+
+    pub fn setup(&mut self, stream_id: u32) -> Result<()> {
+        if stream_id == 0 {
+            bail!("stream id must be nonzero");
+        }
+        self.call("PUT", "/hsp/setup", Some(json!({ "stream_id": stream_id })))?;
+        Ok(())
+    }
+
+    /// Append a chunk. `tail` is the absolute zero-based stream index of the chunk's last point.
+    pub fn add(&mut self, points: &[(u32, u8)], tail: u32) -> Result<()> {
+        if points.is_empty() || points.len() > MAX_ADD_POINTS {
+            bail!("HSP add needs 1..={MAX_ADD_POINTS} points");
+        }
+        let pts: Vec<Value> = points.iter().map(|&(t, x)| json!({ "t": t, "x": x })).collect();
+        self.call(
+            "PUT",
+            "/hsp/add",
+            Some(json!({ "points": pts, "tail_point_stream_index": tail, "flush": false })),
+        )?;
+        Ok(())
+    }
+
+    /// Play from `start_ms` of script time, aligned to the given server-clock estimate.
+    pub fn play(&mut self, start_ms: i32, clock: &ServerClock) -> Result<()> {
+        self.call(
+            "PUT",
+            "/hsp/play",
+            Some(json!({
+                "start_time": start_ms,
+                "server_time": clock.now_ms(),
+                "playback_rate": 1.0,
+                "pause_on_starving": false,
+                "loop": false
+            })),
+        )?;
+        Ok(())
+    }
+
+    pub fn stop(&mut self) -> Result<()> {
+        self.call("PUT", "/hsp/stop", None)?;
+        Ok(())
+    }
+}
+
+/// Convert script actions to device points: sorted, strictly increasing in time, limited to
+/// `max_speed` (units/s, 100 units = full stroke) and mapped into `[min_pct, max_pct]`.
+/// Speed limiting moves toward each target as far as the time gap allows, so the device
+/// never receives a stroke faster than the limit.
+pub fn build_points(actions: &[(i64, i32)], max_speed: f32, min_pct: f32, max_pct: f32) -> Vec<(u32, u8)> {
+    let mut sorted: Vec<(i64, i32)> = actions.iter().copied().filter(|&(t, _)| t >= 0).collect();
+    sorted.sort_by_key(|&(t, _)| t);
+    sorted.dedup_by(|b, a| {
+        if a.0 == b.0 {
+            a.1 = b.1; // keep the later value at a repeated time
+            true
+        } else {
+            false
+        }
+    });
+
+    let span = (max_pct - min_pct).max(0.0);
+    let mut out = Vec::with_capacity(sorted.len());
+    let mut prev: Option<(i64, f32)> = None;
+    for (t, pos) in sorted {
+        let mut p = (pos.clamp(0, 100)) as f32;
+        if let Some((pt, pp)) = prev {
+            let max_delta = max_speed * (t - pt) as f32 / 1000.0;
+            p = p.clamp(pp - max_delta, pp + max_delta);
+        }
+        prev = Some((t, p));
+        let x = (min_pct + p / 100.0 * span).round().clamp(0.0, 100.0) as u8;
+        out.push((t as u32, x));
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn speed_limit_caps_stroke_rate() {
+        // 100 units in 100 ms is 1000 u/s; limit 300 u/s allows 30 units.
+        let pts = build_points(&[(0, 0), (100, 100)], 300.0, 0.0, 100.0);
+        assert_eq!(pts, vec![(0, 0), (100, 30)]);
+    }
+
+    #[test]
+    fn slow_strokes_pass_unchanged() {
+        let pts = build_points(&[(0, 0), (1000, 100), (2000, 0)], 300.0, 0.0, 100.0);
+        assert_eq!(pts, vec![(0, 0), (1000, 100), (2000, 0)]);
+        let ok = build_points(&[(0, 0), (500, 100)], 300.0, 0.0, 100.0);
+        assert_eq!(ok, vec![(0, 0), (500, 100)]);
+    }
+
+    #[test]
+    fn range_mapping_and_dedup() {
+        let pts = build_points(&[(0, 0), (500, 50), (500, 100)], 1000.0, 10.0, 90.0);
+        assert_eq!(pts, vec![(0, 10), (500, 90)]);
+    }
+}

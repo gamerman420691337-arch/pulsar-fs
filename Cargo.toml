@@ -28,6 +28,7 @@ rfd = "0.15"
 tungstenite = { version = "0.24", default-features = false, features = ["handshake"] }
 ureq = "3.4"
 serialport = "4.10"
+ctrlc = "3"
 
 [features]
 default = []

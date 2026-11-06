@@ -2,6 +2,7 @@
 
 pub mod buttplug;
 pub mod handy;
+pub mod handy_hsp;
 pub mod serial;
 pub mod tcode;
 pub mod vr;

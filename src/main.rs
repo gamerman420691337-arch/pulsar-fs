@@ -289,9 +289,22 @@ enum Commands {
         #[arg(long, default_value_t = 115200)]
         baud: u32,
 
-        /// Handy connection key for Wi-Fi streaming
-        #[arg(long)]
+        /// Stream to The Handy via HSP. Give the connection key, or pass the flag bare to read
+        /// HANDY_CONNECTION_KEY (the application key is read from HANDY_API_KEY).
+        #[arg(long, num_args = 0..=1, default_missing_value = "")]
         handy: Option<String>,
+
+        /// Maximum stroke speed sent to the Handy, in units/s (100 units = full stroke)
+        #[arg(long, default_value_t = 300.0)]
+        max_speed: f32,
+
+        /// Lowest stroke position the Handy may reach, in percent
+        #[arg(long, default_value_t = 0.0)]
+        stroke_min: f32,
+
+        /// Highest stroke position the Handy may reach, in percent
+        #[arg(long, default_value_t = 100.0)]
+        stroke_max: f32,
 
         /// Buttplug.io / Intiface Central WebSocket URL (default: ws://127.0.0.1:12345)
         #[arg(long)]
@@ -449,9 +462,16 @@ fn main() -> Result<()> {
             serial,
             baud,
             handy,
+            max_speed,
+            stroke_min,
+            stroke_max,
             buttplug,
         }) => {
-            run_play(&video, script.as_deref(), serial, baud, handy, buttplug)?;
+            if let Some(h) = handy {
+                run_play_handy(&video, script.as_deref(), &h, max_speed, stroke_min, stroke_max)?;
+            } else {
+                run_play(&video, script.as_deref(), serial, baud, None, buttplug)?;
+            }
         }
         Some(Commands::Scan {
             folder,
@@ -1681,6 +1701,126 @@ fn run_completions(shell: clap_complete::Shell) -> Result<()> {
     use clap_complete::generate;
     let mut cmd = Cli::command();
     generate(shell, &mut cmd, "pulsar", &mut std::io::stdout());
+    Ok(())
+}
+
+/// Play a funscript on The Handy using HSP: the device plays from its own buffer, and only a
+/// short window ahead of the play position is ever loaded, so a crash or disconnect stops
+/// motion within `AHEAD_MS`. Ctrl+C sends a stop. The power switch remains the real stop.
+fn run_play_handy(
+    video: &Path,
+    script: Option<&Path>,
+    conn_key: &str,
+    max_speed: f32,
+    stroke_min: f32,
+    stroke_max: f32,
+) -> Result<()> {
+    use crate::sync::handy_hsp::{build_points, HspClient, MAX_ADD_POINTS};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    const AHEAD_MS: u64 = 5000;
+
+    let script_path = match script {
+        Some(s) => s.to_path_buf(),
+        None => {
+            let candidate = video.with_extension("funscript");
+            if !candidate.is_file() {
+                anyhow::bail!("No funscript specified or found for video '{}'.", video.display());
+            }
+            candidate
+        }
+    };
+    let conn_key = if conn_key.trim().is_empty() {
+        std::env::var("HANDY_CONNECTION_KEY").context("HANDY_CONNECTION_KEY is not set")?
+    } else {
+        conn_key.to_string()
+    };
+    let api_key = std::env::var("HANDY_API_KEY").context("HANDY_API_KEY is not set (run under `secrets run --`)")?;
+
+    let funscript = Funscript::load(&script_path)
+        .with_context(|| format!("Failed to load funscript from {}", script_path.display()))?;
+    let raw: Vec<(i64, i32)> = funscript.actions.iter().map(|a| (a.at, a.pos)).collect();
+    let points = build_points(&raw, max_speed, stroke_min, stroke_max);
+    if points.len() < 2 {
+        anyhow::bail!("Funscript needs at least two actions.");
+    }
+    let end_ms = points.last().map(|p| p.0 as u64).unwrap_or(0);
+
+    println!("Pulsar Handy player (HSP)");
+    println!("Media:   {}", video.display());
+    println!("Script:  {} ({} actions -> {} points, {:.1}s)", script_path.display(), raw.len(), points.len(), end_ms as f64 / 1000.0);
+    println!("Limits:  speed <= {max_speed} units/s, stroke {stroke_min}-{stroke_max}%, preload {}s", AHEAD_MS / 1000);
+
+    let stop_flag = Arc::new(AtomicBool::new(false));
+    {
+        let flag = stop_flag.clone();
+        ctrlc::set_handler(move || flag.store(true, Ordering::SeqCst)).context("Failed to install Ctrl+C handler")?;
+    }
+
+    let mut hsp = HspClient::new(&api_key, &conn_key);
+    if !hsp.connected()? {
+        anyhow::bail!("The Handy is not connected.");
+    }
+    hsp.ensure_hsp_mode()?;
+    let _ = hsp.stop(); // clear anything left over from a prior session
+    let stream_id = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs() as u32).max(1);
+    hsp.setup(stream_id)?;
+
+    // Send points in chunks no further ahead than `until_ms` of script time.
+    let mut sent = 0usize;
+    let load = |hsp: &mut HspClient, until_ms: u64, sent: &mut usize| -> Result<()> {
+        while *sent < points.len() && (points[*sent].0 as u64) <= until_ms {
+            let end = (*sent + MAX_ADD_POINTS).min(points.len());
+            let mut stop_at = *sent;
+            while stop_at < end && (points[stop_at].0 as u64) <= until_ms {
+                stop_at += 1;
+            }
+            hsp.add(&points[*sent..stop_at], (stop_at - 1) as u32)?;
+            *sent = stop_at;
+        }
+        Ok(())
+    };
+    load(&mut hsp, AHEAD_MS, &mut sent)?;
+    let st = hsp.state()?;
+    let on_device = st["points"].as_u64().unwrap_or(0);
+    if on_device != sent as u64 {
+        anyhow::bail!("Handy reports {on_device} buffered points but {sent} were sent; not starting.");
+    }
+    let clock = hsp.server_clock(3)?;
+    println!("Server clock: best round trip {} ms", clock.rtt_ms);
+
+    println!("Starting playback... Ctrl+C stops.");
+    let t0 = Instant::now();
+    hsp.play(0, &clock)?;
+    let mut audio_player = crate::audio::AudioPlayer::default();
+    audio_player.play_at(video, 0, 1.0);
+
+    let result = (|| -> Result<()> {
+        loop {
+            if stop_flag.load(Ordering::SeqCst) {
+                println!("\nInterrupted.");
+                return Ok(());
+            }
+            let elapsed = t0.elapsed().as_millis() as u64;
+            if elapsed > end_ms + 500 {
+                return Ok(());
+            }
+            if sent < points.len() && (points[sent].0 as u64) <= elapsed + AHEAD_MS {
+                load(&mut hsp, elapsed + AHEAD_MS, &mut sent)?;
+            }
+            print!("\r[Playing] {:>6.2}s / {:.2}s | points sent {}/{}", elapsed as f64 / 1000.0, end_ms as f64 / 1000.0, sent, points.len());
+            let _ = std::io::stdout().flush();
+            std::thread::sleep(Duration::from_millis(100));
+        }
+    })();
+
+    audio_player.stop();
+    let stopped = hsp.stop();
+    println!();
+    result?;
+    stopped.context("Final stop command failed - use the power switch")?;
+    println!("Playback finished; stop sent.");
     Ok(())
 }
 
