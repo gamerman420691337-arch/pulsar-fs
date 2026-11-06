@@ -1,0 +1,37 @@
+{
+  "project_id": "fixture-project",
+  "sync_request_id": "sync-fixture",
+  "history": {
+    "record_id": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "original_controller": {
+      "acquisition_request_id": "acquire-fixture",
+      "controller_id": "fixture-controller",
+      "preparation_request_id": "prepare-fixture",
+      "preparation_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "project_id": "fixture-project",
+      "revision": 1,
+      "engine_epoch": "fixture-boot",
+      "device_session": "fixture-device-session",
+      "device_id": "fixture-device",
+      "generation": 0,
+      "duration_ms": 1000,
+      "deadline_boottime_ns": 2000000000,
+      "state": "active",
+      "armed": true,
+      "physical_stop_pending": false,
+      "playback_enabled": false
+    },
+    "preparation_qualification": {
+      "dossier_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "revision": 2
+    },
+    "setup_record_id": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "user_offset_before": {
+      "offset_ms": 0
+    },
+    "state": "prepared",
+    "acknowledgment": null
+  },
+  "synchronization_verified": false,
+  "playback_enabled": false
+}

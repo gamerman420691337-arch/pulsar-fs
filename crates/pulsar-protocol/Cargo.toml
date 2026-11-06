@@ -8,7 +8,8 @@ description = "Bounded, versioned Pulsar client and worker contracts"
 [dependencies]
 pulsar-core = { path = "../pulsar-core" }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+# Native numeric results participate in exact cross-process transcript identity.
+serde_json = { version = "1.0", features = ["float_roundtrip"] }
 sha2 = "0.10"
 interprocess = "2.4.4"
 

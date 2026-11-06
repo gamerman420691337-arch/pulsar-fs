@@ -1,0 +1,17 @@
+# Explicit live epoch continuation
+
+`live-capture continue PROJECT REVISION PREDECESSOR OPTIONS --request-id ID` admits a fresh bounded capture epoch for the same source. SDK callers use `ContinueLiveCapture` through the authenticated control channel. Limits advertise `epoch_continuation` separately from acquisition and physical dispatch.
+
+Admission requires the same actor, project, current revision and engine boot, an active predecessor, and fresh Read/ImportSource/Generate grants. Source format/intake limits, model/profile and scheduling policy must remain unchanged. The caller explicitly supplies a later source anchor and its exact project correspondence; presentation time resets to the successor's local lease origin. [Exact project anchors](PULSAR_EXACT_LIVE_PROJECT_PHASE.md) now preserve fractional nanosecond phase across ordinary frame rates; integer/exact-anchor disagreement and changed phase refuse. The `continue-at` command derives the full successor declaration under engine authority from an original rational source anchor. A new source, changed preprocessing or policy requires a distinct start.
+
+All fallible admission and pixel reservation happen before predecessor retirement. The receipt commits before publication. Receipt failure leaves the predecessor active and rolls back request identity. Publication supersedes the predecessor under the authority locks, signals its shared cancellation and removes its runtime and latest estimate. Old workers retain their original absolute deadlines and bounded resources until reaped. No native process I/O or join occurs under authority locks.
+
+The successor preserves source identity but receives a fresh epoch, local clock origin, runtime, native attempt and model attempt. No frame pair or estimate crosses the boundary. Frames before the new source anchor refuse. Encoded segments must contain original advancing absolute PTS; independently reset timestamps cannot be relabeled as source continuity. Reported continuation facts retain the predecessor identity, clock, elapsed admission tick and last frame. This tick precedes publication; it is not measured hardware cutover or a gap-free acquisition claim.
+
+An exact request replay returns the current successor or its retired receipt without rearming. A changed payload conflicts. Stopped, expired, revoked or absent predecessors cannot create a fresh successor through a new continuation request. A failed predecessor worker callback is fenced to its original epoch and cannot retire its successor.
+
+The authored native tests cover handoff while the producer is still open, refusal of old input and an unaffected fresh successor. Two NUT segments with original absolute PTS pass through the shipped CLI, confined native decoder and fresh persistent CPU analysis. Pair identities, clocks and completion facts remain scoped to the successor. This is functional wiring evidence using an authored model, not model quality, hardware clock calibration or Handy qualification.
+
+Direct continuous camera acquisition, automatic segment production, measured acquisition gaps, player buffering, physical command scheduling and full source/device/platform/human/release qualification remain required. The current bounded epoch handoff does not extend an existing native worker or establish uninterrupted source capture.
+
+Evidence: [retained validation](evidence/roadmap-2026-10-01/live-epoch-continuation/validation.json).

@@ -1,0 +1,807 @@
+{
+  "format_version": 1,
+  "run_id": "run-c7ee1411-0cc9-4f83-827d-8e48916fb5b5",
+  "prepared_at_machine_utc": "2026-09-12T21:57:54.075Z",
+  "workspace_relative": "research/phase-b/historical-execution/.scratch/run-c7ee1411-0cc9-4f83-827d-8e48916fb5b5",
+  "fixture_sha256": "1ed992a14efd8479a770703a6da848d1cc2562b86142cbb9c169af59751fa68b",
+  "baseline": {
+    "files": [
+      {
+        "path": "Cargo.toml",
+        "sha256": "256b9361d7af60415613e2230fdc2b7da2a807bd64a9fbf0e69578964b01a446",
+        "byte_len": 1099
+      },
+      {
+        "path": "main.rs",
+        "sha256": "7fe35877ccae9040206f39f58cc1876b67b26596c64331fb3055384c0217853b",
+        "byte_len": 67987
+      },
+      {
+        "path": "src/audio.rs",
+        "sha256": "4479fb0e0750665fdd627eff6e4c33d15e48d9b5a7e8dfa3c67a3b1483db54e0",
+        "byte_len": 19997
+      },
+      {
+        "path": "src/audio/spectral.rs",
+        "sha256": "ca32d7cddd56c97169f57c0089b4ad15598c22d9667256bfbe5b48335550b2e8",
+        "byte_len": 29266
+      },
+      {
+        "path": "src/batch/detector.rs",
+        "sha256": "ab3b2eb46b2bf014eb3a58f60dfecabeb1c4d8e4dd9e2ee0be31243f33736f26",
+        "byte_len": 17519
+      },
+      {
+        "path": "src/batch/mod.rs",
+        "sha256": "45fb380460fba9f04a6a85ab3e13ffb3747ffba1cc04327604c59ef2042ffb42",
+        "byte_len": 357
+      },
+      {
+        "path": "src/batch/queue.rs",
+        "sha256": "c066310914db20167ca046876169e3518f67b1b3d2790a6642f9833a0ed262da",
+        "byte_len": 25411
+      },
+      {
+        "path": "src/funscript.rs",
+        "sha256": "9e1a9abc34115255c70b94d2cbdfd80eaa08f9bd804e54cf8f4f4908caa061c5",
+        "byte_len": 29201
+      },
+      {
+        "path": "src/gui/app.rs",
+        "sha256": "a8c7174de1401e90dec2dd371220fdc7a8ce20826a111f3a4783c91293983bf2",
+        "byte_len": 246306
+      },
+      {
+        "path": "src/gui/live_recorder.rs",
+        "sha256": "31851a747b0457031453802601a18d85a793553fb165fd4f6560483e32575f3a",
+        "byte_len": 13709
+      },
+      {
+        "path": "src/gui/mod.rs",
+        "sha256": "602f485a25d6a010258ac0be11e2f840fc920e8d6ba13a6284d4f577e7867e39",
+        "byte_len": 715
+      },
+      {
+        "path": "src/gui/rig_simulator.rs",
+        "sha256": "6b6f17a12a992b9cb518ddf5687f1817397affc83c5513c4d1b5a5557b081f00",
+        "byte_len": 6859
+      },
+      {
+        "path": "src/gui/timeline.rs",
+        "sha256": "bdc495f349d093f2543e3b431c850edc8ff653ce134f8bf890ad5c18367611e0",
+        "byte_len": 51170
+      },
+      {
+        "path": "src/kinematics/device.rs",
+        "sha256": "f08c15971eb62fc851e2db1c83ffe6a6507773bce8792d005226a43abd642798",
+        "byte_len": 9099
+      },
+      {
+        "path": "src/kinematics/mod.rs",
+        "sha256": "1c5d863947f627316c761bf05fc1e6329c1803fd0d6cf20efeb229adb27af832",
+        "byte_len": 519
+      },
+      {
+        "path": "src/kinematics/rig.rs",
+        "sha256": "cdffc8f50b9e01d4918dac6fa5c4f0a302b4047e032879bb3fa3f7dacd323557",
+        "byte_len": 10581
+      },
+      {
+        "path": "src/kinematics/scurve.rs",
+        "sha256": "e2e04d3d009655a6d55726af32d7e8490f2c41e85beebfd35eab36bcff5dbc2b",
+        "byte_len": 8130
+      },
+      {
+        "path": "src/kinematics/thermal.rs",
+        "sha256": "644bd2017e6d39bbfed2a517b7d21ceaab5964288a317eb53c0f2d31bd10f81a",
+        "byte_len": 4817
+      },
+      {
+        "path": "src/neural/hypothesis.rs",
+        "sha256": "e622fb8c5dda0dc35bd82f1382b9653bc21b45a03341fbcfb8d3b3bec66adc8a",
+        "byte_len": 11082
+      },
+      {
+        "path": "src/neural/mod.rs",
+        "sha256": "941440cdf8b9acfebf0dd3daec1df4d84b271dbcabbb0584fa753361ca24b0f7",
+        "byte_len": 8611
+      },
+      {
+        "path": "src/neural/model_manager.rs",
+        "sha256": "e825e7d38be2ee7a07bdfa3756eec7d9c5c2d37b74994989d13df6367a0ee7ee",
+        "byte_len": 17998
+      },
+      {
+        "path": "src/neural/pipeline.rs",
+        "sha256": "9d8d3e977c132c8947d1e912c58c6132d9c09efb8acb261c01e2994f9aa547a9",
+        "byte_len": 17413
+      },
+      {
+        "path": "src/neural/point_tracker.rs",
+        "sha256": "f44197e8b214460d50f17f2d04297b53474ed9f39d17d601b4ecb6be5c570c67",
+        "byte_len": 17581
+      },
+      {
+        "path": "src/neural/pose.rs",
+        "sha256": "b889d1a83e7a28cabd4839124d5f2184f006e793880f534a43b797e6286cc4c8",
+        "byte_len": 4111
+      },
+      {
+        "path": "src/neural/router.rs",
+        "sha256": "b60236164cc8a6f99168c7a8c5b84ca4fe439469bf2dc2b55127021480f228e0",
+        "byte_len": 14514
+      },
+      {
+        "path": "src/neural/sam.rs",
+        "sha256": "d10145186c434052720d811d63702faea0bb49405f48a084a98cd44eb31e27ab",
+        "byte_len": 7633
+      },
+      {
+        "path": "src/neural/tracker.rs",
+        "sha256": "29a12510f846dda98859d806983e5e8489bf54062abdde8dc15c85a7a0897086",
+        "byte_len": 19543
+      },
+      {
+        "path": "src/neural/yolo.rs",
+        "sha256": "b80f19c6b6e5528843ead390649afc4e4f9819487ef2578280dfc051c35f457b",
+        "byte_len": 6282
+      },
+      {
+        "path": "src/neural/yolo26.rs",
+        "sha256": "fad06dd98c2918dbed601ee3a65fd99262d96b462559be71d1fdb0602df5512e",
+        "byte_len": 15980
+      },
+      {
+        "path": "src/plugin/engine.rs",
+        "sha256": "1346064af93bf610e2bf58d369e09f49fa662f7aae6da88f541ef111236b3741",
+        "byte_len": 10094
+      },
+      {
+        "path": "src/plugin/mod.rs",
+        "sha256": "3dae8ca2041eccd794de24304342bb7a622107d547e0160afceadb0556568e29",
+        "byte_len": 237
+      },
+      {
+        "path": "src/signal.rs",
+        "sha256": "e5b5dd62788c4d5a1d22da47513ab8c4735221f5e3f6131d9f65e300e326e8ab",
+        "byte_len": 18594
+      },
+      {
+        "path": "src/stash/client.rs",
+        "sha256": "0ccbb44e03ad5036eeca19616ea48a0c0cfe2e7a02182a5db4e914b2587e4d4e",
+        "byte_len": 9237
+      },
+      {
+        "path": "src/stash/mod.rs",
+        "sha256": "0bb084bf0216cc64169a9f002bf7c06e564e86cf420f574a63f12318609d9892",
+        "byte_len": 225
+      },
+      {
+        "path": "src/sync/buttplug.rs",
+        "sha256": "8ad7714566aac8b6b4d3948e2dce7fdd158e05872cd9e00cfd36f44e9eb255d7",
+        "byte_len": 18326
+      },
+      {
+        "path": "src/sync/handy.rs",
+        "sha256": "7bc85a1c8ac9e947a2d311e4d62aed378d740230550d070fbd617192f5ca7d75",
+        "byte_len": 16679
+      },
+      {
+        "path": "src/sync/mod.rs",
+        "sha256": "1e0fb4b495f1e23ae818cb4fa87f224fd9ad61fc5a0eac747f07eb02547a075e",
+        "byte_len": 643
+      },
+      {
+        "path": "src/sync/serial.rs",
+        "sha256": "a14d0c13b433732eae0566c27e5e90a9eae9c889711eaf7adb8ca671ee506ac2",
+        "byte_len": 6561
+      },
+      {
+        "path": "src/sync/tcode.rs",
+        "sha256": "f62dc4efde26499f5ceba5d2e8c2a56265881080d89506459ea19051389662e7",
+        "byte_len": 3380
+      },
+      {
+        "path": "src/sync/vr.rs",
+        "sha256": "0f626d6e8b413a5d39a10ab709bde15c20891634f99c461e1c39be203cad14e0",
+        "byte_len": 7969
+      },
+      {
+        "path": "src/tracking.rs",
+        "sha256": "4c5c4baf0531f40f18163c3e04c005e7ac5a3533315f5e728606ec298d4cc6f3",
+        "byte_len": 26161
+      },
+      {
+        "path": "src/video.rs",
+        "sha256": "82b798df65e41a51f5460ebb73543213e6bd90b332a232fc9bd8e46f5510d239",
+        "byte_len": 15123
+      }
+    ],
+    "sha256": "04f242a0562983cc6e9efeefd7384809cf8d7e03f20eed72274c0169cff64bbb"
+  },
+  "appended_modules": [
+    {
+      "file": "src/neural/yolo.rs",
+      "sha256": "593e52c648b3dd9da6fb72dca4988c4d2785a01e7b6cfbfea7eda16d3bb66954",
+      "byte_len": 1313,
+      "tests": [
+        "m1_reject_negative_box_extent",
+        "m1_reject_nonfinite_geometry_and_scores",
+        "m1_clipped_box_center_matches_visible_bounds",
+        "m1_unknown_class_does_not_panic",
+        "m1_zero_classes_cannot_create_detection"
+      ],
+      "decode": "one JSON.parse; append exact UTF-8 value; no secondary unescaping"
+    },
+    {
+      "file": "src/neural/yolo26.rs",
+      "sha256": "e5be520eda4347e3a18b8015afea33eb8ec447dc05fdd329e1926aa081b2291a",
+      "byte_len": 806,
+      "tests": [
+        "m1_direct_rejects_reversed_corners",
+        "m1_direct_clips_corners_without_guessing_center_format",
+        "m1_direct_rejects_nonfinite_score"
+      ],
+      "decode": "one JSON.parse; append exact UTF-8 value; no secondary unescaping"
+    },
+    {
+      "file": "src/neural/tracker.rs",
+      "sha256": "0b57d26c35df8e1f41c7f8ee9c3e021f07f2b04a539e41e822a4afd50d9e39b3",
+      "byte_len": 1850,
+      "tests": [
+        "m1_flow_advances_box_and_center_together",
+        "m1_scene_cut_clears_old_targets_and_points",
+        "m1_confidence_change_does_not_replace_spatial_match",
+        "m1_missing_detection_ages_without_flow"
+      ],
+      "decode": "one JSON.parse; append exact UTF-8 value; no secondary unescaping"
+    },
+    {
+      "file": "src/neural/point_tracker.rs",
+      "sha256": "333431cd309efc6b67b0e39fd5930a437b6e2c8e5d0839465e8a2614971d7eba",
+      "byte_len": 1071,
+      "tests": [
+        "m1_degenerate_boxes_do_not_seed_points",
+        "m1_zero_requested_mask_points_do_not_panic",
+        "m1_forward_flow_is_not_its_own_backward_flow"
+      ],
+      "decode": "one JSON.parse; append exact UTF-8 value; no secondary unescaping"
+    },
+    {
+      "file": "src/signal.rs",
+      "sha256": "df8dacce43be6080b496491570406914ad7b4b76b2d8668ca2c0a7b7a046a2ad",
+      "byte_len": 1320,
+      "tests": [
+        "m1_constant_displacement_never_invents_stroke",
+        "m1_monotonic_decreasing_motion_keeps_direction",
+        "m1_trailing_pause_does_not_add_reversal",
+        "m1_keyframe_reduction_preserves_both_pause_boundaries"
+      ],
+      "decode": "one JSON.parse; append exact UTF-8 value; no secondary unescaping"
+    },
+    {
+      "file": "src/tracking.rs",
+      "sha256": "5040c31f74915295b5e7d3161b96685cf90931bde01e1fe5ebe2d9d93a3bba0d",
+      "byte_len": 339,
+      "tests": [
+        "m1_equal_area_resize_updates_flow_geometry"
+      ],
+      "decode": "one JSON.parse; append exact UTF-8 value; no secondary unescaping"
+    }
+  ],
+  "cases": [
+    {
+      "identity": "neural::yolo::m1_regression_tests::m1_reject_negative_box_extent",
+      "preserved_file": "src/neural/yolo.rs",
+      "original_test_name": "m1_reject_negative_box_extent",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "detector_rejects_rank_count_and_negative_geometry",
+          "detector_rejects_nonfinite_even_below_threshold",
+          "detector_clips_endpoints_and_recomputes_center",
+          "detector_drops_fully_outside_and_validates_classes"
+        ],
+        "limit": "Declared tensor geometry; category correspondence, not identical legacy API."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "neural::yolo::m1_regression_tests::m1_reject_nonfinite_geometry_and_scores",
+      "preserved_file": "src/neural/yolo.rs",
+      "original_test_name": "m1_reject_nonfinite_geometry_and_scores",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "detector_rejects_rank_count_and_negative_geometry",
+          "detector_rejects_nonfinite_even_below_threshold",
+          "detector_clips_endpoints_and_recomputes_center",
+          "detector_drops_fully_outside_and_validates_classes"
+        ],
+        "limit": "Declared tensor geometry; category correspondence, not identical legacy API."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "neural::yolo::m1_regression_tests::m1_clipped_box_center_matches_visible_bounds",
+      "preserved_file": "src/neural/yolo.rs",
+      "original_test_name": "m1_clipped_box_center_matches_visible_bounds",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "detector_rejects_rank_count_and_negative_geometry",
+          "detector_rejects_nonfinite_even_below_threshold",
+          "detector_clips_endpoints_and_recomputes_center",
+          "detector_drops_fully_outside_and_validates_classes"
+        ],
+        "limit": "Declared tensor geometry; category correspondence, not identical legacy API."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "neural::yolo::m1_regression_tests::m1_unknown_class_does_not_panic",
+      "preserved_file": "src/neural/yolo.rs",
+      "original_test_name": "m1_unknown_class_does_not_panic",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "detector_rejects_rank_count_and_negative_geometry",
+          "detector_rejects_nonfinite_even_below_threshold",
+          "detector_clips_endpoints_and_recomputes_center",
+          "detector_drops_fully_outside_and_validates_classes"
+        ],
+        "limit": "Declared tensor geometry; category correspondence, not identical legacy API."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "neural::yolo::m1_regression_tests::m1_zero_classes_cannot_create_detection",
+      "preserved_file": "src/neural/yolo.rs",
+      "original_test_name": "m1_zero_classes_cannot_create_detection",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "detector_rejects_rank_count_and_negative_geometry",
+          "detector_rejects_nonfinite_even_below_threshold",
+          "detector_clips_endpoints_and_recomputes_center",
+          "detector_drops_fully_outside_and_validates_classes"
+        ],
+        "limit": "Declared tensor geometry; category correspondence, not identical legacy API."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "neural::yolo26::m1_regression_tests::m1_direct_rejects_reversed_corners",
+      "preserved_file": "src/neural/yolo26.rs",
+      "original_test_name": "m1_direct_rejects_reversed_corners",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "detector_rows_contract_rejects_fractional_class_and_bad_shape"
+        ],
+        "limit": "Explicit pixel-corner layout differs from old normalized direct-output API."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "neural::yolo26::m1_regression_tests::m1_direct_clips_corners_without_guessing_center_format",
+      "preserved_file": "src/neural/yolo26.rs",
+      "original_test_name": "m1_direct_clips_corners_without_guessing_center_format",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "detector_rows_contract_rejects_fractional_class_and_bad_shape"
+        ],
+        "limit": "Explicit pixel-corner layout differs from old normalized direct-output API."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "neural::yolo26::m1_regression_tests::m1_direct_rejects_nonfinite_score",
+      "preserved_file": "src/neural/yolo26.rs",
+      "original_test_name": "m1_direct_rejects_nonfinite_score",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "detector_rows_contract_rejects_fractional_class_and_bad_shape"
+        ],
+        "limit": "Explicit pixel-corner layout differs from old normalized direct-output API."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "neural::tracker::m1_regression_tests::m1_flow_advances_box_and_center_together",
+      "preserved_file": "src/neural/tracker.rs",
+      "original_test_name": "m1_flow_advances_box_and_center_together",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "tracker_keeps_identity_with_permuted_detections_and_moves_boxes",
+          "tracker_prediction_translates_box_not_only_center",
+          "tracker_counts_skipped_frames_when_expiring",
+          "tracker_cut_retires_identity_even_for_same_geometry"
+        ],
+        "limit": "Velocity prediction is not historical dense-flow box propagation."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "neural::tracker::m1_regression_tests::m1_scene_cut_clears_old_targets_and_points",
+      "preserved_file": "src/neural/tracker.rs",
+      "original_test_name": "m1_scene_cut_clears_old_targets_and_points",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "tracker_keeps_identity_with_permuted_detections_and_moves_boxes",
+          "tracker_prediction_translates_box_not_only_center",
+          "tracker_counts_skipped_frames_when_expiring",
+          "tracker_cut_retires_identity_even_for_same_geometry"
+        ],
+        "limit": "Velocity prediction is not historical dense-flow box propagation."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "neural::tracker::m1_regression_tests::m1_confidence_change_does_not_replace_spatial_match",
+      "preserved_file": "src/neural/tracker.rs",
+      "original_test_name": "m1_confidence_change_does_not_replace_spatial_match",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "tracker_keeps_identity_with_permuted_detections_and_moves_boxes",
+          "tracker_prediction_translates_box_not_only_center",
+          "tracker_counts_skipped_frames_when_expiring",
+          "tracker_cut_retires_identity_even_for_same_geometry"
+        ],
+        "limit": "Velocity prediction is not historical dense-flow box propagation."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "neural::tracker::m1_regression_tests::m1_missing_detection_ages_without_flow",
+      "preserved_file": "src/neural/tracker.rs",
+      "original_test_name": "m1_missing_detection_ages_without_flow",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "tracker_keeps_identity_with_permuted_detections_and_moves_boxes",
+          "tracker_prediction_translates_box_not_only_center",
+          "tracker_counts_skipped_frames_when_expiring",
+          "tracker_cut_retires_identity_even_for_same_geometry"
+        ],
+        "limit": "Velocity prediction is not historical dense-flow box propagation."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "neural::point_tracker::m1_regression_tests::m1_degenerate_boxes_do_not_seed_points",
+      "preserved_file": "src/neural/point_tracker.rs",
+      "original_test_name": "m1_degenerate_boxes_do_not_seed_points",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "flow_independent_reverse_pass_accepts_translation",
+          "flow_rejects_shape_mismatch_and_nonfinite_points",
+          "flow_budgets_and_config_are_checked"
+        ],
+        "limit": "Independently reversed images replace a single-forward cycle-error oracle."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "neural::point_tracker::m1_regression_tests::m1_zero_requested_mask_points_do_not_panic",
+      "preserved_file": "src/neural/point_tracker.rs",
+      "original_test_name": "m1_zero_requested_mask_points_do_not_panic",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "flow_independent_reverse_pass_accepts_translation",
+          "flow_rejects_shape_mismatch_and_nonfinite_points",
+          "flow_budgets_and_config_are_checked"
+        ],
+        "limit": "Independently reversed images replace a single-forward cycle-error oracle."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "neural::point_tracker::m1_regression_tests::m1_forward_flow_is_not_its_own_backward_flow",
+      "preserved_file": "src/neural/point_tracker.rs",
+      "original_test_name": "m1_forward_flow_is_not_its_own_backward_flow",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "flow_independent_reverse_pass_accepts_translation",
+          "flow_rejects_shape_mismatch_and_nonfinite_points",
+          "flow_budgets_and_config_are_checked"
+        ],
+        "limit": "Independently reversed images replace a single-forward cycle-error oracle."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "signal::m1_regression_tests::m1_constant_displacement_never_invents_stroke",
+      "preserved_file": "src/signal.rs",
+      "original_test_name": "m1_constant_displacement_never_invents_stroke",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-engine/src/worker/good_tests.rs",
+        "tests": [],
+        "limit": "Earlier actual-worker synthetic hold/direction/plateau/pause-anchor checks; exact current names not asserted or rerun here."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "signal::m1_regression_tests::m1_monotonic_decreasing_motion_keeps_direction",
+      "preserved_file": "src/signal.rs",
+      "original_test_name": "m1_monotonic_decreasing_motion_keeps_direction",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-engine/src/worker/good_tests.rs",
+        "tests": [],
+        "limit": "Earlier actual-worker synthetic hold/direction/plateau/pause-anchor checks; exact current names not asserted or rerun here."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "signal::m1_regression_tests::m1_trailing_pause_does_not_add_reversal",
+      "preserved_file": "src/signal.rs",
+      "original_test_name": "m1_trailing_pause_does_not_add_reversal",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-engine/src/worker/good_tests.rs",
+        "tests": [],
+        "limit": "Earlier actual-worker synthetic hold/direction/plateau/pause-anchor checks; exact current names not asserted or rerun here."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "signal::m1_regression_tests::m1_keyframe_reduction_preserves_both_pause_boundaries",
+      "preserved_file": "src/signal.rs",
+      "original_test_name": "m1_keyframe_reduction_preserves_both_pause_boundaries",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-engine/src/worker/good_tests.rs",
+        "tests": [],
+        "limit": "Earlier actual-worker synthetic hold/direction/plateau/pause-anchor checks; exact current names not asserted or rerun here."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    },
+    {
+      "identity": "tracking::m1_regression_tests::m1_equal_area_resize_updates_flow_geometry",
+      "preserved_file": "src/tracking.rs",
+      "original_test_name": "m1_equal_area_resize_updates_flow_geometry",
+      "current_contract_related_coverage": {
+        "file": "crates/pulsar-core/tests/perception.rs",
+        "tests": [
+          "flow_rejects_shape_mismatch_and_nonfinite_points",
+          "flow_budgets_and_config_are_checked"
+        ],
+        "limit": "Explicit buffer geometry replaces mutable legacy flow geometry; category correspondence only."
+      },
+      "current_contract_execution": "not_run_by_this_campaign"
+    }
+  ],
+  "prepared_files": [
+    {
+      "path": "Cargo.toml",
+      "sha256": "1d826b1650a45318ad2edac408154cfded724c4c02036fc7e963cc17d0b17a8a",
+      "byte_len": 1248
+    },
+    {
+      "path": "src/audio/spectral.rs",
+      "sha256": "ca32d7cddd56c97169f57c0089b4ad15598c22d9667256bfbe5b48335550b2e8",
+      "byte_len": 29266
+    },
+    {
+      "path": "src/audio.rs",
+      "sha256": "4479fb0e0750665fdd627eff6e4c33d15e48d9b5a7e8dfa3c67a3b1483db54e0",
+      "byte_len": 19997
+    },
+    {
+      "path": "src/batch/detector.rs",
+      "sha256": "ab3b2eb46b2bf014eb3a58f60dfecabeb1c4d8e4dd9e2ee0be31243f33736f26",
+      "byte_len": 17519
+    },
+    {
+      "path": "src/batch/mod.rs",
+      "sha256": "45fb380460fba9f04a6a85ab3e13ffb3747ffba1cc04327604c59ef2042ffb42",
+      "byte_len": 357
+    },
+    {
+      "path": "src/batch/queue.rs",
+      "sha256": "c066310914db20167ca046876169e3518f67b1b3d2790a6642f9833a0ed262da",
+      "byte_len": 25411
+    },
+    {
+      "path": "src/funscript.rs",
+      "sha256": "9e1a9abc34115255c70b94d2cbdfd80eaa08f9bd804e54cf8f4f4908caa061c5",
+      "byte_len": 29201
+    },
+    {
+      "path": "src/gui/app.rs",
+      "sha256": "a8c7174de1401e90dec2dd371220fdc7a8ce20826a111f3a4783c91293983bf2",
+      "byte_len": 246306
+    },
+    {
+      "path": "src/gui/live_recorder.rs",
+      "sha256": "31851a747b0457031453802601a18d85a793553fb165fd4f6560483e32575f3a",
+      "byte_len": 13709
+    },
+    {
+      "path": "src/gui/mod.rs",
+      "sha256": "602f485a25d6a010258ac0be11e2f840fc920e8d6ba13a6284d4f577e7867e39",
+      "byte_len": 715
+    },
+    {
+      "path": "src/gui/rig_simulator.rs",
+      "sha256": "6b6f17a12a992b9cb518ddf5687f1817397affc83c5513c4d1b5a5557b081f00",
+      "byte_len": 6859
+    },
+    {
+      "path": "src/gui/timeline.rs",
+      "sha256": "bdc495f349d093f2543e3b431c850edc8ff653ce134f8bf890ad5c18367611e0",
+      "byte_len": 51170
+    },
+    {
+      "path": "src/kinematics/device.rs",
+      "sha256": "f08c15971eb62fc851e2db1c83ffe6a6507773bce8792d005226a43abd642798",
+      "byte_len": 9099
+    },
+    {
+      "path": "src/kinematics/mod.rs",
+      "sha256": "1c5d863947f627316c761bf05fc1e6329c1803fd0d6cf20efeb229adb27af832",
+      "byte_len": 519
+    },
+    {
+      "path": "src/kinematics/rig.rs",
+      "sha256": "cdffc8f50b9e01d4918dac6fa5c4f0a302b4047e032879bb3fa3f7dacd323557",
+      "byte_len": 10581
+    },
+    {
+      "path": "src/kinematics/scurve.rs",
+      "sha256": "e2e04d3d009655a6d55726af32d7e8490f2c41e85beebfd35eab36bcff5dbc2b",
+      "byte_len": 8130
+    },
+    {
+      "path": "src/kinematics/thermal.rs",
+      "sha256": "644bd2017e6d39bbfed2a517b7d21ceaab5964288a317eb53c0f2d31bd10f81a",
+      "byte_len": 4817
+    },
+    {
+      "path": "src/main.rs",
+      "sha256": "7fe35877ccae9040206f39f58cc1876b67b26596c64331fb3055384c0217853b",
+      "byte_len": 67987
+    },
+    {
+      "path": "src/neural/hypothesis.rs",
+      "sha256": "e622fb8c5dda0dc35bd82f1382b9653bc21b45a03341fbcfb8d3b3bec66adc8a",
+      "byte_len": 11082
+    },
+    {
+      "path": "src/neural/mod.rs",
+      "sha256": "941440cdf8b9acfebf0dd3daec1df4d84b271dbcabbb0584fa753361ca24b0f7",
+      "byte_len": 8611
+    },
+    {
+      "path": "src/neural/model_manager.rs",
+      "sha256": "e825e7d38be2ee7a07bdfa3756eec7d9c5c2d37b74994989d13df6367a0ee7ee",
+      "byte_len": 17998
+    },
+    {
+      "path": "src/neural/pipeline.rs",
+      "sha256": "9d8d3e977c132c8947d1e912c58c6132d9c09efb8acb261c01e2994f9aa547a9",
+      "byte_len": 17413
+    },
+    {
+      "path": "src/neural/point_tracker.rs",
+      "sha256": "2c7fee487125e768438eb49424a99744cad934e9f8b124087060f01365784492",
+      "byte_len": 18652
+    },
+    {
+      "path": "src/neural/pose.rs",
+      "sha256": "b889d1a83e7a28cabd4839124d5f2184f006e793880f534a43b797e6286cc4c8",
+      "byte_len": 4111
+    },
+    {
+      "path": "src/neural/router.rs",
+      "sha256": "b60236164cc8a6f99168c7a8c5b84ca4fe439469bf2dc2b55127021480f228e0",
+      "byte_len": 14514
+    },
+    {
+      "path": "src/neural/sam.rs",
+      "sha256": "d10145186c434052720d811d63702faea0bb49405f48a084a98cd44eb31e27ab",
+      "byte_len": 7633
+    },
+    {
+      "path": "src/neural/tracker.rs",
+      "sha256": "f4b4240f919807dd75b0d24bb20b19060f7322560fa64fd155a31038d01bb3ef",
+      "byte_len": 21393
+    },
+    {
+      "path": "src/neural/yolo.rs",
+      "sha256": "6737d8562f9c0933db0bb2485ce76fdfb4b18be9402ce5283d1a91312170f493",
+      "byte_len": 7595
+    },
+    {
+      "path": "src/neural/yolo26.rs",
+      "sha256": "50fbbf8edb499204da1665ca5da4abe2ef38629c895a39b80b6d1360cfa09f6c",
+      "byte_len": 16786
+    },
+    {
+      "path": "src/plugin/engine.rs",
+      "sha256": "1346064af93bf610e2bf58d369e09f49fa662f7aae6da88f541ef111236b3741",
+      "byte_len": 10094
+    },
+    {
+      "path": "src/plugin/mod.rs",
+      "sha256": "3dae8ca2041eccd794de24304342bb7a622107d547e0160afceadb0556568e29",
+      "byte_len": 237
+    },
+    {
+      "path": "src/signal.rs",
+      "sha256": "82957cf2269df7218d7ef1761cac28cf6b8f606473d435f2a209171cbfa671e3",
+      "byte_len": 19914
+    },
+    {
+      "path": "src/stash/client.rs",
+      "sha256": "0ccbb44e03ad5036eeca19616ea48a0c0cfe2e7a02182a5db4e914b2587e4d4e",
+      "byte_len": 9237
+    },
+    {
+      "path": "src/stash/mod.rs",
+      "sha256": "0bb084bf0216cc64169a9f002bf7c06e564e86cf420f574a63f12318609d9892",
+      "byte_len": 225
+    },
+    {
+      "path": "src/sync/buttplug.rs",
+      "sha256": "8ad7714566aac8b6b4d3948e2dce7fdd158e05872cd9e00cfd36f44e9eb255d7",
+      "byte_len": 18326
+    },
+    {
+      "path": "src/sync/handy.rs",
+      "sha256": "7bc85a1c8ac9e947a2d311e4d62aed378d740230550d070fbd617192f5ca7d75",
+      "byte_len": 16679
+    },
+    {
+      "path": "src/sync/mod.rs",
+      "sha256": "1e0fb4b495f1e23ae818cb4fa87f224fd9ad61fc5a0eac747f07eb02547a075e",
+      "byte_len": 643
+    },
+    {
+      "path": "src/sync/serial.rs",
+      "sha256": "a14d0c13b433732eae0566c27e5e90a9eae9c889711eaf7adb8ca671ee506ac2",
+      "byte_len": 6561
+    },
+    {
+      "path": "src/sync/tcode.rs",
+      "sha256": "f62dc4efde26499f5ceba5d2e8c2a56265881080d89506459ea19051389662e7",
+      "byte_len": 3380
+    },
+    {
+      "path": "src/sync/vr.rs",
+      "sha256": "0f626d6e8b413a5d39a10ab709bde15c20891634f99c461e1c39be203cad14e0",
+      "byte_len": 7969
+    },
+    {
+      "path": "src/tracking.rs",
+      "sha256": "49e978562e145aedbc5cf968203f8ab7661d61626d1bf30de61afe17f7f4f0e8",
+      "byte_len": 26500
+    },
+    {
+      "path": "src/video.rs",
+      "sha256": "82b798df65e41a51f5460ebb73543213e6bd90b332a232fc9bd8e46f5510d239",
+      "byte_len": 15123
+    }
+  ],
+  "manifest_delta": [
+    "Package/bin/default-run renamed to pulsar-historical20 to avoid overwriting current Pulsar.",
+    "Preserved root main.rs restored byte-identically at src/main.rs.",
+    "ORT same requested version; default-features=false with std,ndarray,load-dynamic instead of binary download.",
+    "Independent empty workspace declaration.",
+    "Original legacy Cargo.lock absent; experimental offline resolution recorded if generated."
+  ],
+  "qualification_limits": [
+    "Full preserved production files unchanged before exact appended test modules; no extracted convenient functions or stubbed implementation.",
+    "Experimental isolation manifest differs from historical default build; dependency differences and hashes are retained.",
+    "No original legacy Cargo.lock was preserved; generated offline lock is not a recovered historical lock.",
+    "Current-contract relationships are category evidence, not rerun or one-to-one closure.",
+    "Historical single-forward zero-cycle oracle is semantically superseded by independently solved reverse flow.",
+    "No model/runtime inference, private media, GPU, device actuation, or B1 completion is claimed."
+  ]
+}

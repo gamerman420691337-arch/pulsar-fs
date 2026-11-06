@@ -1,0 +1,129 @@
+{
+  "input_sha256": "cab940b13355d5baa46264753dd45f1e4aeee18e22d6ff6e289ed8abf4a5b96a",
+  "request_id": "import-original",
+  "report": {
+    "dossier_id": "0bd45f59c6e745783ba133aba545ff9aa234de6b5d2b603eb2a03564c278b76f",
+    "revision": 1,
+    "state": "pending",
+    "manifest": {
+      "subject": {
+        "schema_version": 1,
+        "origin": "synthetic",
+        "unit_label": "synthetic native fixture; no physical qualification",
+        "device_id": "qualification-fixture",
+        "registration_revision": 1,
+        "registration_binding_sha256": "75e00904e6f528ffeea0480b696b975252bec1e9a1788e416e360235d48ed3e9",
+        "identity": {
+          "firmware": "4.0.16",
+          "model_number": 2,
+          "model_name": "H02",
+          "model_variant": 0,
+          "session_id": "synthetic-not-observed",
+          "firmware_status": 0
+        },
+        "context": {
+          "schema_version": 1,
+          "control_image": {
+            "artifact_id": "3a0b54f2dc1a50a8d30658918b120057d5735316bf82db2f06bd63039ea2209b",
+            "sha256": "3a0b54f2dc1a50a8d30658918b120057d5735316bf82db2f06bd63039ea2209b",
+            "byte_len": 175122998
+          },
+          "platform": "linux/x86_64/7.2.9-1-cachyos",
+          "transport": "handy-rest-v3-hssp.9ad90e385ff1bf5f454a9af5f02862ca6cb064654b30df873d7d7389198cb684"
+        },
+        "profile": {
+          "dynamics": {
+            "axes": [
+              {
+                "axis": "stroke",
+                "unit": "mm",
+                "minimum": 0.0,
+                "maximum": 100.0,
+                "max_velocity": 1000000.0,
+                "max_acceleration": 1000000.0,
+                "max_jerk": 1000000.0
+              }
+            ],
+            "coupled": [],
+            "minimum_gain": 0.0
+          },
+          "minimum_segment_ms": 10,
+          "maximum_step_percent": 20,
+          "minimum_position_percent": 10,
+          "maximum_position_percent": 90,
+          "maximum_command_age_ns": 1000000,
+          "maximum_clock_uncertainty_ns": 1000000,
+          "drift_ppm": 10,
+          "stopping_bound_ns": null
+        }
+      },
+      "evidence": [
+        {
+          "kind": "travel_and_dynamics",
+          "identity": {
+            "artifact_id": "45da6bedf9a64a14be99a4734c46bb151543e807e1e2784f1328705b27d919a4",
+            "sha256": "45da6bedf9a64a14be99a4734c46bb151543e807e1e2784f1328705b27d919a4",
+            "byte_len": 43
+          }
+        },
+        {
+          "kind": "native_curve_and_quantization",
+          "identity": {
+            "artifact_id": "6a8ac298e7dd9fe29c33a721b44f1e09025a141577cc818880764c0debdcba10",
+            "sha256": "6a8ac298e7dd9fe29c33a721b44f1e09025a141577cc818880764c0debdcba10",
+            "byte_len": 53
+          }
+        },
+        {
+          "kind": "timing_and_synchronization",
+          "identity": {
+            "artifact_id": "5c478e8ac0ee88bd9c557d65e7a051e997643a2f23d6ddcf40e394cc2e4f034a",
+            "sha256": "5c478e8ac0ee88bd9c557d65e7a051e997643a2f23d6ddcf40e394cc2e4f034a",
+            "byte_len": 50
+          }
+        },
+        {
+          "kind": "stop",
+          "identity": {
+            "artifact_id": "06acfe358f9a39563cb6861332e3b8b31496117f8e0243f5ace27b87395aa4fa",
+            "sha256": "06acfe358f9a39563cb6861332e3b8b31496117f8e0243f5ace27b87395aa4fa",
+            "byte_len": 28
+          }
+        },
+        {
+          "kind": "disconnect",
+          "identity": {
+            "artifact_id": "00541acd8d28abeda36596be6f3778dacb984a602f8beef2850447c5f975c95b",
+            "sha256": "00541acd8d28abeda36596be6f3778dacb984a602f8beef2850447c5f975c95b",
+            "byte_len": 34
+          }
+        },
+        {
+          "kind": "controller_loss",
+          "identity": {
+            "artifact_id": "0c06a6048ec45c8f33ae32484bcbbbff7f50dcb7c2abfdc9f2e2f8f324730335",
+            "sha256": "0c06a6048ec45c8f33ae32484bcbbbff7f50dcb7c2abfdc9f2e2f8f324730335",
+            "byte_len": 39
+          }
+        },
+        {
+          "kind": "engine_death",
+          "identity": {
+            "artifact_id": "0d9bf91ea08d0353ff23594345953eda45974937c64b353e9fa1e3ed5239c39e",
+            "sha256": "0d9bf91ea08d0353ff23594345953eda45974937c64b353e9fa1e3ed5239c39e",
+            "byte_len": 36
+          }
+        },
+        {
+          "kind": "emergency_procedure",
+          "identity": {
+            "artifact_id": "c80ba8dcfbc041af216c6548fe4b006d0b25f67550e0dc63d527db995df77655",
+            "sha256": "c80ba8dcfbc041af216c6548fe4b006d0b25f67550e0dc63d527db995df77655",
+            "byte_len": 43
+          }
+        }
+      ]
+    },
+    "decision": null
+  }
+}

@@ -1,0 +1,2127 @@
+{
+  "schema_version": 1,
+  "reconciled_on": "2026-11-06",
+  "timezone": "America/New_York",
+  "full_roadmap": "incomplete",
+  "runner_state": "paused",
+  "authority": [
+    {
+      "path": "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
+      "role": "Product requirements and numeric acceptance contract"
+    },
+    {
+      "path": "docs/PULSAR_ARCHITECTURE_DECISIONS.md",
+      "role": "Recorded product-owner and architecture decisions"
+    },
+    {
+      "path": "docs/PULSAR_ARCHITECTURE_FIRST_EXECUTION_PLAN.md",
+      "role": "Architecture-first Phase A/B/C execution principles"
+    },
+    {
+      "path": "docs/PULSAR_MAJOR_ROADMAP.md",
+      "role": "M1–M8 scope and acceptance obligations"
+    }
+  ],
+  "archive": {
+    "gate_ledger": "docs/PULSAR_MILESTONE_HISTORY_BEFORE_DASHBOARD.md",
+    "status_history": "docs/PULSAR_STATUS_HISTORY_BEFORE_DASHBOARD.md",
+    "original_gate_ledger_sha256": "4632e9da03de2fac2e86c6d6464e70f8de337ef849efaf4562edf84a8a4d5b90"
+  },
+  "working_tree": {
+    "build_state": "unverified",
+    "evidence": "EV-BROWSER-TIMING-DIAG-BUILD-001",
+    "scope": "Protocol, Engine and client library test targets compile with zero errors; CPU archive and full native two-clone roundtrip/refusal campaign pass on the current Engine source.",
+    "active_work": "BROWSER-DEMO",
+    "failure_summary": "Development snapshot preserved while roadmap execution is paused. Latest client edits add redacted timing failure phase/class/protocol-code diagnostics and start explicit-continuity successor preparation at one quarter of the lease after CPU Ready. Focused and serial client checks have retained results, but the current rendered continuity path and physical Handy operation are unverified. All acceptance gates remain open.",
+    "source_stamp": [
+      {
+        "path": "CONTEXT.md",
+        "sha256": "27cde74f042f82caa954e77c3d9690d69b463984ed2d3dbdb2a221f9dd7811b2"
+      },
+      {
+        "path": "Cargo.lock",
+        "sha256": "aa188c1b3a3d02838c7e839964833d5e9cf90abcac3839db1dbc7ddf95d323e2"
+      },
+      {
+        "path": "Cargo.toml",
+        "sha256": "ad3de9613ced19e495ee7f6f7f221a15d190a26af6cab70e2c5a2f25207bea6f"
+      },
+      {
+        "path": "crates/pulsar-clients/Cargo.toml",
+        "sha256": "78b6426a86ecf50deabc88a6375e4502c3a4f750b6f47fb3fc6fb2790ba09f10"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_captured_cpu_tests.rs",
+        "sha256": "d80d73cc9fee461ca783e8d4b608e04970b127a32c0011da58ee81586aa5b373"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_live.rs",
+        "sha256": "c6d4fc26c61aad351be732e1c5ef6ba1980867c66d3b783cdb350cb5a2d556f3"
+      },
+      {
+        "path": "crates/pulsar-clients/src/project_package_import.rs",
+        "sha256": "1a5f9d3b7c20bb558672307c5ed8ce9d35718256d48884ca691547d42ba4f733"
+      },
+      {
+        "path": "crates/pulsar-engine/Cargo.toml",
+        "sha256": "d95f8bc1ff9dbcf45242d0b00d9b80cdeff76709744f9517a88e4894cf895bfa"
+      },
+      {
+        "path": "crates/pulsar-engine/src/authority.rs",
+        "sha256": "255bb25879891a7e93bc7ac6d6d8329ff37277b4868da0157baa5fe6554b2c25"
+      },
+      {
+        "path": "crates/pulsar-engine/src/browser_media.rs",
+        "sha256": "85550b13c2398b7f24125b84ffce3ea268b54d933485748798e7b49b62f6c5bf"
+      },
+      {
+        "path": "crates/pulsar-engine/src/browser_timing.rs",
+        "sha256": "0de9f4879722cd273c08b3dea7c9641241c6480197c5c9703845fb23e2a1f2cf"
+      },
+      {
+        "path": "crates/pulsar-engine/src/confinement.rs",
+        "sha256": "353468954a21f9db9450d5eebcee815c903d394156fe84a27d08bbfaa9f04508"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cpu_runtime_db.rs",
+        "sha256": "65ba579a91cb3954213e80ed27c20af1d6127a1012a839db3f7955d83bc19693"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_browser_continuity_fixture.rs",
+        "sha256": "30c9f6f7559ebf1542dccf877179be568623102a68b6aeebe6084adb76d8c842"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_live_cpu_native_tests.rs",
+        "sha256": "284eca30a91643859afd2f8b66d4bcc1d555683c1fc38e30f7b2453ee9f87284"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_live_cpu_tail_tests.rs",
+        "sha256": "487c5ee00eb0f24ce63eeab750a502fd8f0c587fe0e77bd5638db58686766c9c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_source_qualification_tests.rs",
+        "sha256": "eda25a12096b734a21d50b59a4249d3394f009518a87aba38339011111fa137a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_capture_basis_read_order_native_tests.rs",
+        "sha256": "340db756fad2577e7fb13e9725ccacc0c2f1ebb9a8e33e8fe339aec37e0c245d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_capture_delivery_tests.rs",
+        "sha256": "8dcdc14b9623ac7bb27400d3145cc47cb320de1349053de89251eee826836bd9"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
+        "sha256": "50e7cdd4d4c991f3cbcc81865c667c87a7eb291e3761351e5bf3b64df16922f4"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_cpu_native_tests.rs",
+        "sha256": "12719658f99bfe074b8f1f61aac2c80607adce060e2bdd12d9b6ef78a71481e2"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_cpu_reader_native_tests.rs",
+        "sha256": "d8b0186a7de4737a050c6e43129b926a5094755f331105b240c8e63fb486bc49"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_live.rs",
+        "sha256": "70469f256edbb45720428dd59238826eae1c2b2d8c124d220095459e76675770"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_live_continuity.rs",
+        "sha256": "d001a17336393caa650c084e3ed2db7103f2b63b79d57f06ad1692ab183defdd"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_live_cpu_tests.rs",
+        "sha256": "02551b67eaaa1502e78a547b2bf1a8f5716f8a344825319525c9063e0cff9aaf"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_source_qualification.rs",
+        "sha256": "3e457a747e16d3ecf6e0e59ca2585f006baf6de64013657c68935f6ddc7c62f9"
+      },
+      {
+        "path": "crates/pulsar-engine/src/inference_fallback_reader.rs",
+        "sha256": "762c4232d70cf7536d8287f29101990b906dbb8c98e35e33abd7f03ff7138fac"
+      },
+      {
+        "path": "crates/pulsar-engine/src/inference_fallback_store.rs",
+        "sha256": "a29ccbdeb7e321c220e91af9efb38427ad8d9c281795a5a2b949c101e44fbae5"
+      },
+      {
+        "path": "crates/pulsar-engine/src/lib.rs",
+        "sha256": "ca0e58ea0cf4cb1b7f62969137970fde655b98151cab7fd4ba25dbefed915910"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_clock.rs",
+        "sha256": "c7ea922e348411e235239c5869b999ff9513272233aea46aac180fd1d6774fef"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_cpu.rs",
+        "sha256": "97982b0ecb64d0cff1d896435ba28e38ab3366fa80f911ca78a2afe3c94afe71"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_inference.rs",
+        "sha256": "656ab41263ea0861239e9a1a256b05cf8d16e557e358f7ff2299fcfffa0e0975"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_successor.rs",
+        "sha256": "da39429a848c063f1cf8a5b9c2cf30569e2aba9632fb3b8e690bf8730fa8e7be"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_captures.rs",
+        "sha256": "15b7f6492b6f2265293f998c8c5c0594dbbf4b985b1b78fdcc2f9136a32505dd"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cpu_history.rs",
+        "sha256": "40f59038350d6e48290b49bfe3b7c7c2b328354d901d75cb42dcc22648664766"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cpu_history_tests.rs",
+        "sha256": "1affc4926c693f892c268ae44c8dc6515f8b1838494b1d89281bce0646297e8d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cpu_hsp_history_tests.rs",
+        "sha256": "0e305f0367de400ec2d500036ce805091d3eaef1fa59b78b93aadca53b0722ae"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cpu_mounts.rs",
+        "sha256": "6d50d309a8f8939dbe2bac39d1a687ce5053f2c49a551d4f905fe633cd466873"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cpu_reader.rs",
+        "sha256": "06f0cdcff48240800bfd3286fe09531a5ae50f9f40981ac987c4ba6c1d76d3e1"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cuda_capture_db.rs",
+        "sha256": "c694066199bcae5a8a941895edfb033bf48301935b56681097a1bf08ba07581b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cuda_evidence_db.rs",
+        "sha256": "11a13fb9e331e3fc813829a04bb21884ceece516deb07ff731ae809fdf64cf7d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_frames.rs",
+        "sha256": "b1ca051f8b7513cc143df4d78a232f314b636a8d259bfe5f44389f8ea329f34c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_inference.rs",
+        "sha256": "404ab2ab8c3b20c3e17eb62abd0c3377e8463ad5dde508da14cb836040dc0c2d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_recording.rs",
+        "sha256": "b5549552c0441536fb52c486b7f59476b7e5e5713dc94918ded0a840c3d61402"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_recording_candidate.rs",
+        "sha256": "abca2da83949c55e81d59b349e4de3f877bdfd5c70d4191cf856ede784774484"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_staging.rs",
+        "sha256": "752768850038bf5e99903642ee4b64f206acc653b30427cc6eec34c572033962"
+      },
+      {
+        "path": "crates/pulsar-engine/src/model_pack_withdrawal.rs",
+        "sha256": "12a1ed5ca72a0c1d5d04b957b209ac421ade1bc4c3d57d331f8a94015aa380f8"
+      },
+      {
+        "path": "crates/pulsar-engine/src/native_capture.rs",
+        "sha256": "85c65fcdad1a245e5c8a599891580baf0f47d941ef090824b6b18cf9d3b93644"
+      },
+      {
+        "path": "crates/pulsar-engine/src/native_capture_retirement_assets_tests.rs",
+        "sha256": "ef24a07a7a86433f60327dd5e27beb0aa4e0347a1f5207be4920680be29ff017"
+      },
+      {
+        "path": "crates/pulsar-engine/src/portable_cpu_archives.rs",
+        "sha256": "eb6ea6b11cb766adae00b47b83091bf2000dbb713dad899d1145dd3144872013"
+      },
+      {
+        "path": "crates/pulsar-engine/src/portable_wasm_db.rs",
+        "sha256": "7423d50b0862a47c6899a2cd03109103b89b34c4edb11cfaed731e03def13c22"
+      },
+      {
+        "path": "crates/pulsar-engine/src/project_package_exports.rs",
+        "sha256": "9a1aa7e674afcffa01fd4e1e34f7bdc32b28080ae83b6e3affe8da9b1bd8ee1b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/project_package_import_plan.rs",
+        "sha256": "2e35e6aa8077f03698e1f6f55818495507b8742a4668f59c5645dd382823ed13"
+      },
+      {
+        "path": "crates/pulsar-engine/src/project_package_imports.rs",
+        "sha256": "baf7b010e17405afe4eab3132a51321409640793199870e7536ac708986329db"
+      },
+      {
+        "path": "crates/pulsar-engine/src/project_package_storage.rs",
+        "sha256": "bbc721c472fe095e297fd3f6d0d3e70d717259fbcc08fb366dc81ab763e16102"
+      },
+      {
+        "path": "crates/pulsar-engine/src/project_packages.rs",
+        "sha256": "2b66285608c5d621b8157c3631af8d93d19136b5d91fd70567928ea8f0727d17"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/annotated_portable_tests.rs",
+        "sha256": "2b9fd173cc8cc9596a63783636389d8c41af64c637eedd54f25645893088fd7d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/live_stream.rs",
+        "sha256": "c687cd85fc0d6c4ac01e5edc23b44ddd234061304d7113b60c42a482b4b6c71f"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/mod.rs",
+        "sha256": "bd1802f09ff3c67c84520a93991226546dc69d96b9183da5524f4eaf36b4c82d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker_cgroup_creation.rs",
+        "sha256": "ad7422f647a83ccfdf24699ebbc893b19c9a1010c9162cf9f9c90e9def8e3a95"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker_entry.rs",
+        "sha256": "ec7c8a307d013cc7850cb9a0181666db0d319705fade436ede14175b23321eee"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker_retirement.rs",
+        "sha256": "607128f0a6013bac1e14779116d8f4dd385013b5ea8e71c0d5d779d06fa4f27d"
+      },
+      {
+        "path": "crates/pulsar-protocol/Cargo.toml",
+        "sha256": "8f04a2999cc7f8d878eae6f730782886ab14526d774bfa93e7540e5857296fa0"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/browser_analysis.rs",
+        "sha256": "a12c8da7d34261a3a5703e13deb9e62dedbe7362fb7dcf765dfd06147ad57c95"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/browser_analysis_input.rs",
+        "sha256": "830b1ff08338fd22568c79621fe2c0445944c43ae2032792bc58c821cee9279f"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/browser_media.rs",
+        "sha256": "0777dffeedb2e9cf127e01bd3f720315c067bdda1e9f1a403efe0cd6b206a12d"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/browser_timing.rs",
+        "sha256": "b538919c4eafd77030ccb98d5ad9df3ce3ad557f109d5d31ac8443a37ed3a700"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_hsp_source_qualification.rs",
+        "sha256": "f3d078950676572de2fd81f4e440986102ab3edd16bc9cd31ae97ce2001e8203"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/lib.rs",
+        "sha256": "5695681c893f2b1f6007ae324502bcdea44f8b03ca629c6043e69f83aa918371"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/live_capture.rs",
+        "sha256": "11d2afddc3302132bf77289b147ff47ff3f24eda6a96944add1e844eee58c2c4"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/live_cpu.rs",
+        "sha256": "c532734b1a37a841ff4d4a8e9b62e684127faad9d54d76183d645d878b582d6d"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/live_inference.rs",
+        "sha256": "23bc169fe03de5774e4ae56adf96b4f79ba13ca43db9e0d995d057e885c6eec9"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/live_recording_assembly.rs",
+        "sha256": "917ab0ecb0229cb753f1d95ec0defa456edd7f041d87765b5f26ef438bb086a0"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/project_package.rs",
+        "sha256": "74ffee22863aec8881e37db7e301bec583fdc20eeb6ad7a3cd5c637d071774af"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/project_package_format.rs",
+        "sha256": "14eedb7448ac6c6d85f5f929f4ba316784fc18ee089b09644060fc39673ffbc8"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/project_package_import_operations.rs",
+        "sha256": "523b91a38c80c6438927dd42f1af225dd8689b115b73a5814e71f774310153f4"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/project_package_operations.rs",
+        "sha256": "eb141fb78cd383b3fb7a0396ee11543294d4cabc65178b319e6b45539f10d541"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_timing.rs",
+        "sha256": "efbeec278b4628acbd3c8cceffb0cbdb97c8c40a06ddfc405bd8fc4388c92161"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_timing_tests.rs",
+        "sha256": "a11305c264e637946910ffabc95eb8422b0507a1af7a99c032595212a1b56c8f"
+      }
+    ]
+  },
+  "last_verified": {
+    "evidence": [
+      "EV-STARTUP",
+      "EV-CPU-LIVE"
+    ],
+    "scope": "Pinned pre-format15 checkpoints, not a passing result for the current working tree.",
+    "metric_refs": {
+      "engine_passed": {
+        "evidence": "EV-STARTUP",
+        "pointer": [
+          "checks",
+          "engine_suite",
+          "passed"
+        ]
+      },
+      "engine_ignored": {
+        "evidence": "EV-STARTUP",
+        "pointer": [
+          "checks",
+          "engine_suite",
+          "ignored"
+        ]
+      },
+      "clients_passed": {
+        "evidence": "EV-CPU-LIVE",
+        "pointer": [
+          "checks",
+          "protocol_client_suites",
+          "clients_passed"
+        ]
+      },
+      "clients_ignored": {
+        "evidence": "EV-CPU-LIVE",
+        "pointer": [
+          "checks",
+          "protocol_client_suites",
+          "clients_ignored"
+        ]
+      },
+      "protocol_passed": {
+        "evidence": "EV-CPU-LIVE",
+        "pointer": [
+          "checks",
+          "protocol_client_suites",
+          "protocol_passed"
+        ]
+      }
+    }
+  },
+  "milestones": [
+    {
+      "id": "M1",
+      "title": "baseline and stroke correctness foundation"
+    },
+    {
+      "id": "M2",
+      "title": "shared generation and editable projects"
+    },
+    {
+      "id": "M3",
+      "title": "adaptive quality tiers and local assistance"
+    },
+    {
+      "id": "M4",
+      "title": "multimodal and six-axis generation"
+    },
+    {
+      "id": "M5",
+      "title": "live scheduling and devices"
+    },
+    {
+      "id": "M6",
+      "title": "portable editions, vendors and platforms"
+    },
+    {
+      "id": "M7",
+      "title": "Public Preview"
+    },
+    {
+      "id": "M8",
+      "title": "Stable and comparative qualification"
+    }
+  ],
+  "gates": [
+    {
+      "id": "M1-GEOMETRY",
+      "milestone": "M1",
+      "criterion": "Model-specific decode, coordinates, crop/projection transforms, real preview/generation consumers and stable target identity. Trace exact tensors, pixels, PTS, model and source identities.",
+      "previous_boundary": "Authored geometry/worker contracts have regression coverage. Revalidate real source/model/view consumers; a green helper test does not prove faithful tracking.",
+      "implementation": "partial",
+      "verification": "not_requalified",
+      "acceptance": "open",
+      "next_proof": "Recheck pinned model/source/view through real preview and generation; retain tensor/pixel/PTS and target-identity comparisons.",
+      "evidence": [],
+      "source_refs": [
+        "crates/pulsar-core/src/perception.rs",
+        "crates/pulsar-engine/src/worker/media.rs"
+      ]
+    },
+    {
+      "id": "M1-MOTION",
+      "milestone": "M1",
+      "criterion": "Preserve pauses/shallow excursions, prevent invented flat-signal strokes and amplitude expansion, retain timestamp/identity/reacquisition boundaries.",
+      "previous_boundary": "Deterministic invariants are separate from real-media correctness. Compare independently checked references and retain missing/extra/reversal/travel errors.",
+      "implementation": "partial",
+      "verification": "not_requalified",
+      "acceptance": "open",
+      "next_proof": "Compare pauses, shallow motion, reversals and missing/extra travel against independent aligned references.",
+      "evidence": [],
+      "source_refs": [
+        "crates/pulsar-core/src/perception.rs",
+        "crates/pulsar-engine/src/worker/media.rs"
+      ]
+    },
+    {
+      "id": "M1-DATA",
+      "milestone": "M1",
+      "criterion": "Source-matched target/view annotations, checked script alignment, curated category coverage and independent held-out scoring.",
+      "previous_boundary": "User reports no existing annotations. Live references are permitted for training; sterile references are evaluation-only. Do not fabricate labels or promote optimizer fitting into useful quality.",
+      "implementation": "partial",
+      "verification": "awaiting_external",
+      "acceptance": "open",
+      "next_proof": "Create and independently check source-matched view/target labels and script timing; freeze training and held-out splits.",
+      "evidence": [],
+      "source_refs": [
+        "crates/pulsar-core/src/perception.rs",
+        "crates/pulsar-engine/src/worker/media.rs"
+      ]
+    },
+    {
+      "id": "M2-DOMAIN",
+      "milestone": "M2",
+      "criterion": "Shared GUI/CLI/batch/live motion semantics, neutral six-axis master, timestamp/clock provenance, source/candidate identity and explicit uncertainty.",
+      "previous_boundary": "Validate the same operation through actual consumers; detached staging or helper output is insufficient.",
+      "implementation": "partial",
+      "verification": "checkpoint_partial",
+      "acceptance": "open",
+      "next_proof": "Exercise identical editing/generation semantics through shipped CLI, desktop and browser, including stale/revoked requests.",
+      "evidence": [
+        "EV-CPU-LIVE",
+        "EV-BROWSER-DEMO-RENDERED-001",
+        "EV-BROWSER-PLAYER-002",
+        "EV-BROWSER-DEMO-BUILD-002",
+        "EV-BROWSER-DEMO-CONTINUITY-002"
+      ],
+      "source_refs": [
+        "crates/pulsar-engine/src/authority.rs",
+        "crates/pulsar-engine/src/project_packages.rs",
+        "crates/pulsar-clients/src/desktop.rs"
+      ]
+    },
+    {
+      "id": "M2-EDITS",
+      "milestone": "M2",
+      "criterion": "Protected edits, explicit unlock/replacement, candidate review/commit, rebase, undo/redo and restart preservation.",
+      "previous_boundary": "Authored edit/recovery contracts and selected native desktop scenarios exist. Broader crash, storage, rendered workflow and human effort remain independent.",
+      "implementation": "partial",
+      "verification": "not_requalified",
+      "acceptance": "open",
+      "next_proof": "Complete rendered edit/review/commit/undo/restart and crash/storage fault scenarios against preserved user work.",
+      "evidence": [],
+      "source_refs": [
+        "crates/pulsar-engine/src/authority.rs",
+        "crates/pulsar-engine/src/project_packages.rs",
+        "crates/pulsar-clients/src/desktop.rs"
+      ]
+    },
+    {
+      "id": "M2-INTERCHANGE",
+      "milestone": "M2",
+      "criterion": "Revision-bound native project migration, per-axis result/partial status, standard funscript export, archival exact receipt recovery and Stash publication without replacing existing work.",
+      "previous_boundary": "Preserve old models/pipeline provenance and source-time semantics; damaged/unknown schemas must refuse explicit recovery.",
+      "implementation": "in_progress",
+      "verification": "checkpoint_partial",
+      "acceptance": "open",
+      "next_proof": "Verify rendered sterile browser acquisition, source clocks, recording/export and stop/reconnect/fault lifecycle; then complete actual Stash mapping/publication and remaining interchange acceptance.",
+      "evidence": [
+        "EV-PORTABLE-BUILD",
+        "EV-RESTART",
+        "EV-CPU-BUILD-003",
+        "EV-CPU-ARCHIVE-003",
+        "EV-CPU-WORKTREE-003",
+        "EV-CPU-ARCHIVE-CURRENT",
+        "EV-CPU-ROUNDTRIP-CURRENT"
+      ],
+      "source_refs": [
+        "crates/pulsar-engine/src/authority.rs",
+        "crates/pulsar-engine/src/project_packages.rs",
+        "crates/pulsar-clients/src/desktop.rs"
+      ]
+    },
+    {
+      "id": "M3-MODELS",
+      "milestone": "M3",
+      "criterion": "Real pinned Fast/Default/Maximum pipelines, model-specific adapters and actual active provider disclosure; no placeholder substitution.",
+      "previous_boundary": "Distinct bounded visual-detector Fast/Default/Maximum plans execute with a pinned CPU model and candidate-bound receipts. This does not select useful default models, establish quality/speed floors, cover other input families or qualify GPU vendors. Rebenchmark permitted candidates before targeted fitting.",
+      "implementation": "partial",
+      "verification": "checkpoint_partial",
+      "acceptance": "open",
+      "next_proof": "Select distributable useful models; measure complete quality, speed and memory for every advertised tier/provider.",
+      "evidence": [
+        "EV-FALLBACK",
+        "EV-CPU-LIVE"
+      ],
+      "source_refs": [
+        "crates/pulsar-engine/src/inference_fallback_execution.rs",
+        "crates/pulsar-engine/src/cpu_runtime_db.rs"
+      ]
+    },
+    {
+      "id": "M3-ASSISTANT",
+      "milestone": "M3",
+      "criterion": "Local structured target/settings/review/edit proposals, current owner/project/revision binding, separate approval and protected undoable effects.",
+      "previous_boundary": "Actual pinned Qwen3 proposal/status gates and authored effect/recovery tests are scoped evidence. Bundled/default assistant selection and useful task quality remain open.",
+      "implementation": "partial",
+      "verification": "not_requalified",
+      "acceptance": "open",
+      "next_proof": "Qualify useful offline defaults and approved target/settings/review/edit tasks through actual clients.",
+      "evidence": [],
+      "source_refs": [
+        "crates/pulsar-engine/src/inference_fallback_execution.rs",
+        "crates/pulsar-engine/src/cpu_runtime_db.rs"
+      ]
+    },
+    {
+      "id": "M3-MEMORY",
+      "milestone": "M3",
+      "criterion": "MEM-01/MEM-02 and TEST-13: real generation pause/checkpoint, assistant response, resumed job and protected live playback under contention.",
+      "previous_boundary": "Logical admission loans, exact-handle retirement and automatic release-driven retry have tests. A separate pinned YOLO11/Qwen3 CPU run pauses and automatically completes the same job from its unchanged initial input basis. First-attempt inference before pause, partial progress, GPU/native/live continuity and whole-application peaks remain open.",
+      "implementation": "partial",
+      "verification": "checkpoint_partial",
+      "acceptance": "open",
+      "next_proof": "Verify partial-progress pause/resume and assistant/live coexistence on actual CPU/GPU workloads with whole-application peaks.",
+      "evidence": [
+        "EV-RETIREMENT"
+      ],
+      "source_refs": [
+        "crates/pulsar-engine/src/inference_fallback_execution.rs",
+        "crates/pulsar-engine/src/cpu_runtime_db.rs"
+      ]
+    },
+    {
+      "id": "M4-INPUTS",
+      "milestone": "M4",
+      "criterion": "All specified file/stream/audio/text/still-image-plus-prompt/script input families; clear unsupported/undecodable/partial results.",
+      "previous_boundary": "Qualify a finite container/codec/scheme/script matrix and prompt handling through shipped consumers. Core baseline coverage must work without optional packs.",
+      "implementation": "partial",
+      "verification": "not_requalified",
+      "acceptance": "open",
+      "next_proof": "Run the full specified media/codec/scheme/script/prompt matrix through shipped consumers and baseline offline assets.",
+      "evidence": [],
+      "source_refs": [
+        "crates/pulsar-core/src/synthesis.rs",
+        "crates/pulsar-core/src/device.rs"
+      ]
+    },
+    {
+      "id": "M4-PRECEDENCE",
+      "milestone": "M4",
+      "criterion": "Faithful visual motion takes precedence over conflicting rhythm; creative reinterpretation requires explicit intent.",
+      "previous_boundary": "Keep faithful scoring separate from the agreed creative rubric, timing/pattern constraints and correction effort.",
+      "implementation": "partial",
+      "verification": "not_requalified",
+      "acceptance": "open",
+      "next_proof": "Evaluate faithful visual motion versus conflicting rhythm; score creative intent separately.",
+      "evidence": [],
+      "source_refs": [
+        "crates/pulsar-core/src/synthesis.rs",
+        "crates/pulsar-core/src/device.rs"
+      ]
+    },
+    {
+      "id": "M4-AXES",
+      "milestone": "M4",
+      "criterion": "Neutral six-axis outputs, VR/stereo/projection handling, explicit per-channel lineage, observability and limitations.",
+      "previous_boundary": "Secondary-axis quality and creative metrics require their own criteria and independent evaluation. Missing axes cannot silently truncate prior scripts.",
+      "implementation": "partial",
+      "verification": "not_requalified",
+      "acceptance": "open",
+      "next_proof": "Establish per-axis observability, secondary-axis/creative scoring and physical six-axis qualification.",
+      "evidence": [],
+      "source_refs": [
+        "crates/pulsar-core/src/synthesis.rs",
+        "crates/pulsar-core/src/device.rs"
+      ]
+    },
+    {
+      "id": "M5-LIVE",
+      "milestone": "M5",
+      "criterion": "GPU fastest-preset live six-axis; CPU best-effort bounded latest-frame queues, skipped analysis and visible actual delay without stale backlog.",
+      "previous_boundary": "Measure capture-to-command, presentation synchronization, physical lag, sustained throughput and jitter separately. The 200 ms target's statistical definition remains open; buffered mode does not repair overload.",
+      "implementation": "partial",
+      "verification": "checkpoint_partial",
+      "acceptance": "open",
+      "next_proof": "Close explicit Stop/reconnect and cleanup-deadline behavior with retained outcome inspection; preserve the failed predecessor counterevidence, then diagnose startup stall and measure actual device timing.",
+      "evidence": [
+        "EV-LIVE-CORE",
+        "EV-BROWSER",
+        "EV-STARTUP",
+        "EV-BROWSER-DEMO-RENDERED-001",
+        "EV-BROWSER-PLAYER-002",
+        "EV-BROWSER-DEMO-BUILD-002",
+        "EV-BROWSER-DEMO-CONTINUITY-002",
+        "EV-BROWSER-TIMING-DIAG-BUILD-001",
+        "EV-BROWSER-TIMING-DIAG-TEST-001"
+      ],
+      "source_refs": [
+        "crates/pulsar-engine/src/live_captures.rs",
+        "crates/pulsar-engine/src/handy_hsp_live.rs",
+        "crates/pulsar-clients/src/browser_live.rs"
+      ]
+    },
+    {
+      "id": "M5-DEVICE",
+      "milestone": "M5",
+      "criterion": "Handy/Handy 2 online and offline BLE, upload consent, arming/disarming, stop/expiry/authority-loss behavior and stale command handling.",
+      "previous_boundary": "Handy 2 Pro is selected; firmware and encrypted credential setup are unavailable. Codec/RPC fixtures do not prove physical response, stop or synchronization.",
+      "implementation": "partial",
+      "verification": "awaiting_external",
+      "acceptance": "open",
+      "next_proof": "Identify Handy 2 Pro firmware, configure encrypted credential references and obtain authorized physical sync/stop observations; BLE remains separate.",
+      "evidence": [],
+      "source_refs": [
+        "crates/pulsar-engine/src/live_captures.rs",
+        "crates/pulsar-engine/src/handy_hsp_live.rs",
+        "crates/pulsar-clients/src/browser_live.rs"
+      ]
+    },
+    {
+      "id": "M5-ADAPTATION",
+      "milestone": "M5",
+      "criterion": "MOT-02 through MOT-05: neutral master preserved, timing preserved, amplitude/dynamics/coupled-axis limits enforced and inability disclosed.",
+      "previous_boundary": "Use qualified device-specific travel/velocity/acceleration/jerk limits; do not assume universal values or normalize shallow strokes to full travel.",
+      "implementation": "partial",
+      "verification": "awaiting_external",
+      "acceptance": "open",
+      "next_proof": "Validate device-specific travel/dynamic limits while preserving neutral master and timing; measure physical behavior.",
+      "evidence": [],
+      "source_refs": [
+        "crates/pulsar-engine/src/live_captures.rs",
+        "crates/pulsar-engine/src/handy_hsp_live.rs",
+        "crates/pulsar-clients/src/browser_live.rs"
+      ]
+    },
+    {
+      "id": "M6-EDITIONS",
+      "milestone": "M6",
+      "criterion": "Core includes all baseline Fast input families, local assistant, editing/export and offline playback. Complete is the default full-offline edition and includes every advertised installed tier.",
+      "previous_boundary": "First launch must not require a network download or user-installed Cargo/Python/inference service. Deliver and execute actual contents, not a manifest claiming missing assets.",
+      "implementation": "partial",
+      "verification": "not_requalified",
+      "acceptance": "open",
+      "next_proof": "Deliver actual Core/Complete offline contents, useful defaults and all advertised baseline inputs/tiers.",
+      "evidence": [],
+      "source_refs": [
+        "crates/pulsar-engine/src/project_package_storage.rs",
+        ".github/workflows/release.yml"
+      ]
+    },
+    {
+      "id": "M6-INSTALL",
+      "milestone": "M6",
+      "criterion": "Transactional integrity-checked extraction/import/update, interruption/damage/incompatibility recovery, portable data roots and relocation.",
+      "previous_boundary": "Existing pack/lifecycle tests are scoped evidence. Qualify actual Core/Complete artifacts, disk/extraction limits, interrupted update/rollback, portable credentials and relocation.",
+      "implementation": "partial",
+      "verification": "checkpoint_partial",
+      "acceptance": "open",
+      "next_proof": "Qualify extraction/update/recovery/relocation and actual portable artifacts; finish captured/fallback archival history.",
+      "evidence": [
+        "EV-RESTART",
+        "EV-PORTABLE-BUILD",
+        "EV-CPU-BUILD-003",
+        "EV-CPU-ARCHIVE-003",
+        "EV-CPU-WORKTREE-003",
+        "EV-CPU-ROUNDTRIP-CURRENT"
+      ],
+      "source_refs": [
+        "crates/pulsar-engine/src/project_package_storage.rs",
+        ".github/workflows/release.yml"
+      ]
+    },
+    {
+      "id": "M6-MATRIX",
+      "milestone": "M6",
+      "criterion": "Windows single executable, Linux AppImage, Apple Silicon macOS support and proposed app/dmg packaging; genuine qualified NVIDIA/AMD/Apple/Intel acceleration for every tier.",
+      "previous_boundary": "Pin exact OS/architecture/driver/backend/model/device subjects. CPU fallback must be disclosed. Other architecture priorities and signing/notarization policy remain as specified.",
+      "implementation": "partial",
+      "verification": "awaiting_external",
+      "acceptance": "open",
+      "next_proof": "Qualify exact supported OS/architecture/GPU-vendor artifacts and disclose all provider fallback.",
+      "evidence": [],
+      "source_refs": [
+        "crates/pulsar-engine/src/project_package_storage.rs",
+        ".github/workflows/release.yml"
+      ]
+    },
+    {
+      "id": "M6-MEMORY",
+      "milestone": "M6",
+      "criterion": "16 GB system floor; qualified per-tier RAM/VRAM, startup and response deadlines; avoid unified-memory double counting.",
+      "previous_boundary": "The suggested 12 GB application budget is not an approved hard cap. NVIDIA reference performance/memory configuration cannot silently substitute another board or generalize to other vendors.",
+      "implementation": "partial",
+      "verification": "checkpoint_partial",
+      "acceptance": "open",
+      "next_proof": "Measure complete app RAM/VRAM/startup/response behavior on the 16 GB baseline and required tier/vendor matrix.",
+      "evidence": [
+        "EV-STARTUP"
+      ],
+      "source_refs": [
+        "crates/pulsar-engine/src/project_package_storage.rs",
+        ".github/workflows/release.yml"
+      ]
+    },
+    {
+      "id": "M7-QUALITY",
+      "milestone": "M7",
+      "criterion": "Per-category Default stroke precision and recall at least 80%, target 90%; material-error flag recall at least 95% against independent annotations.",
+      "previous_boundary": "Labels, category protocol and checked source/reference alignment are missing for qualification. Retain >100 ms reversal deviation and >20% neutral travel error as material errors.",
+      "implementation": "partial",
+      "verification": "awaiting_external",
+      "acceptance": "open",
+      "next_proof": "Independently score aligned held-out categories against Preview precision/recall and material-error recall criteria.",
+      "evidence": [],
+      "source_refs": [
+        "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
+        "assurance/README.md"
+      ]
+    },
+    {
+      "id": "M7-SPEED",
+      "milestone": "M7",
+      "criterion": "Required Fast stroke-only paths >1x realtime; reference GPU Fast at least 10x. CPU Default at least 0.5x, reference GPU Default at least 5x.",
+      "previous_boundary": "Measure complete decode/inference/process/export on the specified 30-minute 1080p/30-fps workload and exact hardware. Do not convert worker-only timing into end-to-end speed.",
+      "implementation": "partial",
+      "verification": "awaiting_external",
+      "acceptance": "open",
+      "next_proof": "Measure complete decode-to-export performance on the specified 30-minute reference workload and exact hardware.",
+      "evidence": [],
+      "source_refs": [
+        "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
+        "assurance/README.md"
+      ]
+    },
+    {
+      "id": "M7-PREVIEW",
+      "milestone": "M7",
+      "criterion": "Measured human correction effort, applicable test matrix, explicit experimental labels for unqualified six-axis playback and actual preview artifacts.",
+      "previous_boundary": "The five-human-hour annotation pilot is a method trial, not release coverage. Required regression, native, storage/platform, media/device and human/release gates remain independent.",
+      "implementation": "partial",
+      "verification": "awaiting_external",
+      "acceptance": "open",
+      "next_proof": "Complete the applicable Preview test matrix and measured human correction protocol with required acceptance.",
+      "evidence": [],
+      "source_refs": [
+        "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
+        "assurance/README.md"
+      ]
+    },
+    {
+      "id": "M8-QUALITY",
+      "milestone": "M8",
+      "criterion": "Per-category Default precision and recall at least 95%, qualified material-error detection, creative/secondary-axis criteria and physical six-axis behavior.",
+      "previous_boundary": "No Stable acceptance is established by optimizer fitting, authored fixtures or compiled backends.",
+      "implementation": "partial",
+      "verification": "awaiting_external",
+      "acceptance": "open",
+      "next_proof": "Meet Stable category and secondary-axis/creative/physical criteria with independent evidence.",
+      "evidence": [],
+      "source_refs": [
+        "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
+        "assurance/README.md"
+      ]
+    },
+    {
+      "id": "M8-EFFORT",
+      "milestone": "M8",
+      "criterion": "For at least 95% of 30-minute clips per category, no more than five minutes editing and ten minutes total human effort.",
+      "previous_boundary": "Measure a declared independent human protocol. The 95th-percentile effort agreement does not define the live latency percentile.",
+      "implementation": "partial",
+      "verification": "awaiting_external",
+      "acceptance": "open",
+      "next_proof": "Measure editing and total human effort on the declared independent category protocol.",
+      "evidence": [],
+      "source_refs": [
+        "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
+        "assurance/README.md"
+      ]
+    },
+    {
+      "id": "M8-COMPARISON",
+      "milestone": "M8",
+      "criterion": "Reproducible exact-source/provider/model/hardware comparisons and SOTA claims only after complete supporting evidence.",
+      "previous_boundary": "Freeze splits, scoring, preprocessing, artifacts and candidate selection; never use sterile evaluation inputs for training or invent signatures/human acceptance.",
+      "implementation": "partial",
+      "verification": "awaiting_external",
+      "acceptance": "open",
+      "next_proof": "Freeze reproducible source/model/provider/hardware comparisons before any comparative or SOTA claim.",
+      "evidence": [],
+      "source_refs": [
+        "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
+        "assurance/README.md"
+      ]
+    }
+  ],
+  "completed_work": [
+    {
+      "id": "SC-LIVE",
+      "title": "Captured CPU native lifecycle implementation",
+      "parents": [
+        "M3-MODELS",
+        "M5-LIVE"
+      ],
+      "scope": "Five neutral-input Start/Continue/Stop, cancellation, expiry and refusal cases pass on their pinned subject.",
+      "evidence": [
+        "EV-LIVE-CORE",
+        "EV-CPU-LIVE"
+      ]
+    },
+    {
+      "id": "SC-BROWSER",
+      "title": "Native browser-analysis EOF and successor handover",
+      "parents": [
+        "M2-DOMAIN",
+        "M5-LIVE"
+      ],
+      "scope": "Two native cases and five estimates pass over authored browser callbacks; rendered acquisition remains open.",
+      "evidence": [
+        "EV-BROWSER"
+      ]
+    },
+    {
+      "id": "SC-RESTART",
+      "title": "Reader compatibility and retired restart recovery",
+      "parents": [
+        "M2-INTERCHANGE",
+        "M6-INSTALL"
+      ],
+      "scope": "Pinned older app refuses reader38 with exact DB/WAL/SHM/fence preservation; current restart restores history without live authority.",
+      "evidence": [
+        "EV-RESTART"
+      ]
+    },
+    {
+      "id": "SC-RETIREMENT",
+      "title": "Capture resource-retirement semantics",
+      "parents": [
+        "M3-MEMORY",
+        "M5-LIVE"
+      ],
+      "scope": "Two native cgroup/thread/staging tests pass; physical stopping remains separate.",
+      "evidence": [
+        "EV-RETIREMENT"
+      ]
+    },
+    {
+      "id": "SC-FALLBACK",
+      "title": "Finite fallback and selected-pack lifecycle simulation",
+      "parents": [
+        "M3-MODELS"
+      ],
+      "scope": "Eleven native software scenarios pass; eligibility/provider absence/pack approval are simulated and establish no measured equivalence.",
+      "evidence": [
+        "EV-FALLBACK"
+      ]
+    },
+    {
+      "id": "SC-TRACE",
+      "title": "Bounded startup diagnostic implementation",
+      "parents": [
+        "M5-LIVE",
+        "M6-MEMORY"
+      ],
+      "scope": "14 Engine-open phases and maximum Ready-call/gap observations are tested. Healthy timings do not identify the prior stall.",
+      "evidence": [
+        "EV-STARTUP"
+      ]
+    }
+  ],
+  "queue": [
+    {
+      "id": "CPU-BUILD",
+      "title": "Repair portable CPU transaction/assembly ownership and module reference",
+      "parents": [
+        "M2-INTERCHANGE",
+        "M6-INSTALL"
+      ],
+      "state": "verified",
+      "owner": "Codex",
+      "depends_on": [],
+      "exit": "Compile the current Protocol, Engine and client library tests successfully with zero errors. Collect checked image declarations inside the same DB snapshot as attempts, carry them into assembly, and preserve metadata admission bounds.",
+      "evidence": [
+        "EV-CPU-BUILD-003",
+        "EV-CPU-ROUNDTRIP-BUILD",
+        "EV-CPU-WORKTREE-003"
+      ]
+    },
+    {
+      "id": "CPU-ARCHIVE",
+      "title": "Verify format-15 CPU archival correspondence and mutation refusals",
+      "parents": [
+        "M2-INTERCHANGE"
+      ],
+      "state": "verified",
+      "owner": "Codex",
+      "depends_on": [
+        "CPU-BUILD"
+      ],
+      "exit": "Exact image/profile/model/dependency binding for successful, failed, cancelled, interrupted and captured-running attempts; stripped/changed/contradictory/hidden current or ancestor declarations refuse.",
+      "evidence": [
+        "EV-CPU-ARCHIVE-CURRENT"
+      ]
+    },
+    {
+      "id": "CPU-ROUNDTRIP",
+      "title": "Prove complete CPU export/clone/restart/re-export/second-clone lifecycle",
+      "parents": [
+        "M2-INTERCHANGE",
+        "M6-INSTALL"
+      ],
+      "state": "verified",
+      "owner": "Codex",
+      "depends_on": [
+        "CPU-ARCHIVE"
+      ],
+      "exit": "Actual confined CPU attempts retain exact inert history across two clones; no origin execution authority revives. Preceding reader refuses before mutation; processes, storage and memory release are verified.",
+      "evidence": [
+        "EV-CPU-ROUNDTRIP-CURRENT"
+      ]
+    },
+    {
+      "id": "BROWSER-DEMO",
+      "title": "Verify the real rendered-browser-to-recording/export demo",
+      "parents": [
+        "M2-DOMAIN",
+        "M5-LIVE"
+      ],
+      "state": "in_progress",
+      "owner": "Codex + operator",
+      "depends_on": [
+        "CPU-BUILD"
+      ],
+      "exit": "Actual rendered frame acquisition, source clocks, capture, review/export and stop/reconnect/fault lifecycle pass with sterile inputs; authored callbacks alone do not close this task.",
+      "evidence": [
+        "EV-BROWSER-DEMO-BUILD-001",
+        "EV-BROWSER-DEMO-RENDERED-001",
+        "EV-BROWSER-PLAYER-002",
+        "EV-BROWSER-DEMO-BUILD-002",
+        "EV-BROWSER-DEMO-CONTINUITY-002",
+        "EV-BROWSER-TIMING-DIAG-BUILD-001",
+        "EV-BROWSER-TIMING-DIAG-TEST-001"
+      ],
+      "next_proof": "Diagnose the rendered Observe dependency_mismatch during successor handoff and validate the earlier quarter-lease preparation through a full 40-second rendered run. A passing unit boundary test does not establish continuous browser operation or physical Handy synchronization."
+    },
+    {
+      "id": "CLIENT-CORRECTNESS",
+      "title": "Close shared-client correctness and editing fault scenarios",
+      "parents": [
+        "M1-GEOMETRY",
+        "M2-DOMAIN",
+        "M2-EDITS"
+      ],
+      "state": "planned",
+      "owner": "Codex + rendered-workflow operator",
+      "depends_on": [
+        "CPU-BUILD"
+      ],
+      "exit": "Verify source/view/time correspondence and target loss/reacquisition through real consumers; exercise protected editing, review/commit/rebase/undo/restart and crash/storage faults in CLI/desktop. Retain real-media limitations under M1-DATA.",
+      "evidence": []
+    },
+    {
+      "id": "STARTUP-CAUSE",
+      "title": "Localize the retained intermittent startup/Ready stall",
+      "parents": [
+        "M5-LIVE",
+        "M6-MEMORY"
+      ],
+      "state": "open",
+      "owner": "Codex",
+      "depends_on": [],
+      "exit": "Use existing bounded phase probes on the failing path; establish a causal repair and regression, or a specifically evidenced observation-contract correction. Healthy later runs do not erase the failure.",
+      "evidence": [
+        "EV-STARTUP"
+      ]
+    },
+    {
+      "id": "HANDY-QUALIFY",
+      "title": "Prepare and qualify Handy 2 Pro sync and stop behavior",
+      "parents": [
+        "M5-DEVICE",
+        "M5-ADAPTATION"
+      ],
+      "state": "awaiting_external",
+      "owner": "Operator + Codex",
+      "depends_on": [
+        "BROWSER-DEMO"
+      ],
+      "exit": "Actual firmware/configuration and encrypted secret references are supplied; authorized bench observations establish synchronization, stopping and recovery for the exact configuration. No acceptance is fabricated.",
+      "evidence": []
+    },
+    {
+      "id": "QUALITY-DATA",
+      "title": "Build checked annotation/alignment and held-out evaluation coverage",
+      "parents": [
+        "M1-DATA",
+        "M1-MOTION",
+        "M3-MODELS",
+        "M7-QUALITY"
+      ],
+      "state": "awaiting_external",
+      "owner": "Operator/data reviewer + Codex",
+      "depends_on": [],
+      "exit": "Source-matched target/view labels and reference timing are independently checked; permitted live references train, sterile references remain evaluation-only; score held-out quality and human effort.",
+      "evidence": []
+    },
+    {
+      "id": "STASH-COMPAT",
+      "title": "Verify the configured user Stash library workflow",
+      "parents": [
+        "M2-INTERCHANGE"
+      ],
+      "state": "awaiting_external",
+      "owner": "Operator + Codex",
+      "depends_on": [
+        "CPU-BUILD"
+      ],
+      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped.",
+      "evidence": []
+    },
+    {
+      "id": "LIVE-FALLBACK-HISTORY",
+      "title": "Complete live/browser fallback and remaining portable histories",
+      "parents": [
+        "M3-MODELS",
+        "M5-LIVE",
+        "M2-INTERCHANGE"
+      ],
+      "state": "planned",
+      "owner": "Codex",
+      "depends_on": [
+        "CPU-ROUNDTRIP"
+      ],
+      "exit": "Implement the full retained fallback/live namespaces and authority/expiry/withdrawal behavior through actual consumers. Existing refusals remain until complete correspondence exists.",
+      "evidence": []
+    },
+    {
+      "id": "DELIVERY-MODALITIES",
+      "title": "Finish required modalities, offline editions and platform/vendor coverage",
+      "parents": [
+        "M4-INPUTS",
+        "M4-PRECEDENCE",
+        "M4-AXES",
+        "M6-EDITIONS",
+        "M6-MATRIX",
+        "M6-MEMORY"
+      ],
+      "state": "planned",
+      "owner": "Codex + qualified platform operators",
+      "depends_on": [
+        "CPU-BUILD"
+      ],
+      "exit": "Decompose and verify all remaining M4/M6 gate criteria with exact assets, hardware, fault and relocation evidence; partial adapters and manifests do not close the matrix.",
+      "evidence": []
+    },
+    {
+      "id": "ASSISTANT-CONTENTION",
+      "title": "Qualify useful local-assistant tasks and resource handoff",
+      "parents": [
+        "M3-ASSISTANT",
+        "M3-MEMORY"
+      ],
+      "state": "planned",
+      "owner": "Codex + model/platform evaluator",
+      "depends_on": [
+        "CPU-BUILD"
+      ],
+      "exit": "Measure useful offline assistant tasks through approved actual clients; verify partial-progress generation pause/response/resume and live coexistence under CPU/GPU contention with whole-application memory/latency observations.",
+      "evidence": []
+    },
+    {
+      "id": "PREVIEW-STABLE",
+      "title": "Close Preview, Stable, assurance and comparative acceptance",
+      "parents": [
+        "M7-PREVIEW",
+        "M7-SPEED",
+        "M8-QUALITY",
+        "M8-EFFORT",
+        "M8-COMPARISON"
+      ],
+      "state": "planned",
+      "owner": "Product owner + independent reviewers + Codex",
+      "depends_on": [
+        "BROWSER-DEMO",
+        "HANDY-QUALIFY",
+        "QUALITY-DATA",
+        "DELIVERY-MODALITIES",
+        "LIVE-FALLBACK-HISTORY",
+        "CLIENT-CORRECTNESS",
+        "STASH-COMPAT",
+        "ASSISTANT-CONTENTION"
+      ],
+      "exit": "Every applicable specification/test gate has current subject-bound evidence and required human/release disposition; no percentage or test count substitutes for coverage.",
+      "evidence": []
+    }
+  ],
+  "evidence": [
+    {
+      "id": "EV-STARTUP",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/verification.json",
+      "sha256": "55d754f81999d1dd860b13cc3e4a8382237c0f946bdd2f041c05169d1d38ff79",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Latest passing Engine checkpoint and test-only healthy timing observations; earlier startup failure remains unknown.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_suite",
+            "passed"
+          ],
+          "equals": 1884
+        },
+        {
+          "pointer": [
+            "checks",
+            "engine_suite",
+            "ignored"
+          ],
+          "equals": 110
+        },
+        {
+          "pointer": [
+            "historical_startup002_cause"
+          ],
+          "equals": "UNKNOWN"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "diagnostic_checks"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "open_phase_count"
+          ],
+          "equals": 14
+        }
+      ]
+    },
+    {
+      "id": "EV-CPU-LIVE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/verification.json",
+      "sha256": "083598490ad9667b0e934b089fbf237c61549833b20c52bb2f9f8efb5a154659",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Captured CPU implementation with successful native scenarios; no real-device/model qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "software_checks"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "real_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "protocol_client_suites",
+            "clients_passed"
+          ],
+          "equals": 695
+        },
+        {
+          "pointer": [
+            "checks",
+            "protocol_client_suites",
+            "protocol_passed"
+          ],
+          "equals": 395
+        },
+        {
+          "pointer": [
+            "checks",
+            "protocol_client_suites",
+            "clients_ignored"
+          ],
+          "equals": 14
+        }
+      ]
+    },
+    {
+      "id": "EV-LIVE-CORE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/native-live-001/check.json",
+      "sha256": "a62cead159c8452893d7dc29dee94f50a16ed9837b1bfdf5c3a179e84e98749c",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Five authored-neutral native capture lifecycles; no broad reliability or physical acceptance.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "complete_roadmap_coverage"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/native-browser-005/check.json",
+      "sha256": "ea488d60023007e25886b401e7670e06efed7324622310ccc6da27c82aaaaf85",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Native browser-analysis EOF and prepared handover over authored callbacks; rendered acquisition unverified.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "complete_roadmap_coverage"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RESTART",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/native-reader-004/check.json",
+      "sha256": "df82970ab61e7f2056dd11f0bd5e58296f0c799799532bf30f5186d1abb46e14",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Actual old-reader refusal, exact DB/WAL/SHM/fence preservation and retired current restart.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "complete_roadmap_coverage"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-RETIREMENT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/engine-private-ram-capture-assets-001/check.json",
+      "sha256": "fecdd03752c2943eb967b79a4cf0c6f1436179c526c8aa68f75e5cd232ce05ea",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Two owned cgroup/thread/staging retirement tests; not physical stopping.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "exit"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "summary",
+            "passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "summary",
+            "ignored"
+          ],
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "id": "EV-FALLBACK",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/fallback-active-consumers/verification.json",
+      "sha256": "381ca8d9c9ec690db801e3a08ed3f3f96fb29cde221fe808226f61367da3e11c",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Eleven finite fallback/pack scenarios; eligibility, provider absence and approval simulated.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_simulation",
+            "simulated_eligibility"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-PORTABLE-BUILD",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/portable-cpu-history/build-001.jsonl",
+      "sha256": "0c3c98b835f9d65803972878e5a76e9a00ed6b57ba697615021a76731d09c550",
+      "kind": "cargo_jsonl",
+      "outcome": "fail",
+      "scope": "Current format-15 implementation failed its initial Protocol/Engine/client compile with four Engine errors.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "success"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "error_count"
+          ],
+          "equals": 4
+        },
+        {
+          "pointer": [
+            "codes"
+          ],
+          "equals": [
+            "E0425",
+            "E0425",
+            "E0425",
+            "E0433"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EV-CPU-BUILD-003",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cpu-build-003/build-003.jsonl",
+      "sha256": "bb36df09a39b9e2e96729022f9f1906f33a7f380f34f056e2a5218345f23ef2f",
+      "kind": "cargo_jsonl",
+      "outcome": "pass",
+      "scope": "Current Protocol, Engine and client library test targets compile offline with zero errors; exact binaries and source hashes are summarized in EV-CPU-ARCHIVE-003 verification JSON.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "success"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "error_count"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "codes"
+          ],
+          "equals": []
+        }
+      ]
+    },
+    {
+      "id": "EV-CPU-ARCHIVE-003",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cpu-build-003/verification.json",
+      "sha256": "3d1b5e325d007722cf6c939960fc1ead1c3585b1c7828a636be1ca34d0b96d88",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "One focused format-15 archival regression passes across queued/running/interrupted/failed/cancelled/completed history, two-clone inert ancestry, and stripped/substituted/ancestor refusal cases. This is scoped software evidence, not complete roundtrip or parent acceptance.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "compile",
+            "success"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "compile",
+            "error_count"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "cpu_archive_test",
+            "passed"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "cpu_archive_test",
+            "failed"
+          ],
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "id": "EV-CPU-ROUNDTRIP-BUILD",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cpu-roundtrip-001/build.jsonl",
+      "sha256": "cc0020708c5db80c89744e9daac82f46715f6c7813bd075b30c6aaa0626338db",
+      "kind": "cargo_jsonl",
+      "outcome": "pass",
+      "scope": "Current Engine library test target recompiles after CPU roundtrip integration with zero errors.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "success"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "error_count"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "codes"
+          ],
+          "equals": []
+        }
+      ]
+    },
+    {
+      "id": "EV-CPU-WORKTREE-003",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cpu-roundtrip-001/verification.json",
+      "sha256": "b9c15ec56568a1ac1814ec92d0ce04f7272ac10282cd94afcc969d54c0b3b529",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Current Protocol/client targets compile from EV-CPU-BUILD-003 sources; current Engine recompiles after roundtrip integration; formatting check passes. Source identities and binary hashes are recorded.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "builds",
+            "protocol_clients",
+            "success"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "builds",
+            "protocol_clients",
+            "error_count"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "builds",
+            "engine_roundtrip",
+            "success"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "builds",
+            "engine_roundtrip",
+            "error_count"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "checks",
+            "format_check",
+            "exit"
+          ],
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "id": "EV-CPU-ARCHIVE-CURRENT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cpu-roundtrip-001/verification.json",
+      "sha256": "b9c15ec56568a1ac1814ec92d0ce04f7272ac10282cd94afcc969d54c0b3b529",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Current-source archive correspondence and mutation refusal assertions pass as part of the full CPU lifecycle campaign, including all six attempt states and two-clone ancestor inspection.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "coverage",
+            "attempt_states"
+          ],
+          "equals": [
+            "queued",
+            "running",
+            "interrupted",
+            "failed",
+            "cancelled",
+            "completed"
+          ]
+        },
+        {
+          "pointer": [
+            "coverage",
+            "two_clone_depth"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "coverage",
+            "preceding_reader_refusal_before_mutation"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-CPU-ROUNDTRIP-CURRENT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/cpu-roundtrip-001/verification.json",
+      "sha256": "b9c15ec56568a1ac1814ec92d0ce04f7272ac10282cd94afcc969d54c0b3b529",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Native current-source portable CPU export/clone/restart/re-export/second-clone campaign and preceding-reader refusal pass; exact state and storage/resource assertions pass. No device or model-quality qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_portable_cpu_roundtrip_and_preceding_reader_campaign",
+            "passed"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "checks",
+            "native_portable_cpu_roundtrip_and_preceding_reader_campaign",
+            "failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "coverage",
+            "db_wal_shm_and_fence_preservation_checked"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "coverage",
+            "engine_workers_storage_cpu_threads_and_arc_retirement_checked"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-DEMO-BUILD-001",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/browser-demo-001/app-build.jsonl",
+      "sha256": "d9f03bab301702b8d1baeef15571730b7bf041bafc60c29288bf960ee6936c92",
+      "kind": "cargo_jsonl",
+      "outcome": "pass",
+      "scope": "Current-source Pulsar app and worker build used for rendered sterile browser QA; build-finished success with zero compiler errors.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "success"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "error_count"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "codes"
+          ],
+          "equals": []
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-DEMO-RENDERED-001",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/browser-demo-001/verification.json",
+      "sha256": "b6aed1e20485f91385d49289d66d19779378867b0109acc1245c6cf441c39b13",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Rendered workspace Chromium used the exact sterile 40-second Engine source. Three continued captures delivered 380 accepted unqualified estimates; review identified four gaps, explicit synthetic repairs produced a gap-free revision-3 master, and a 384-action diagnostic .funscript exported. Initial expired/failed successor and browser cleanup/fetch failures remain counterevidence. No calibrated clock, useful model, device contact or release acceptance.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "rendered_browser",
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "capture",
+            "successful_playback_estimates"
+          ],
+          "equals": 380
+        },
+        {
+          "pointer": [
+            "candidate",
+            "initial_gap_count"
+          ],
+          "equals": 4
+        },
+        {
+          "pointer": [
+            "candidate",
+            "gap_repairs_authored"
+          ],
+          "equals": 4
+        },
+        {
+          "pointer": [
+            "candidate",
+            "final_gap_count"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "export",
+            "exit"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "export",
+            "actions"
+          ],
+          "equals": 384
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-PLAYER-002",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/browser-demo-002/verification.json",
+      "sha256": "db3911a11d8e9bc1e1c13ce71e56cbb000ade22bdf4ac0cee90424cdef2d051d",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Current browser player HTML subject passes 160 mocked DOM/transport tests for capture, review/export guards, source/timing identity, continuation, EOF, and UI consent/stop behavior. Does not establish rendered-browser or device qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "tests",
+            "passed"
+          ],
+          "equals": 160
+        },
+        {
+          "pointer": [
+            "tests",
+            "failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "tests",
+            "skipped"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-DEMO-BUILD-002",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/browser-demo-003/app-build.jsonl",
+      "sha256": "6ba0ab4f6fe89b2bdd4acdf1c064c1a4062f599815320227e75d298cf5ad3e00",
+      "kind": "cargo_jsonl",
+      "outcome": "pass",
+      "scope": "Current-source Pulsar app and worker build for the second rendered sterile-browser campaign; build-finished success with zero compiler errors.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "success"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "error_count"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "codes"
+          ],
+          "equals": []
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-DEMO-CONTINUITY-002",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/browser-demo-003/verification.json",
+      "sha256": "9d428021a216078a4399704f053fd69b6477ecd99959a5f7cc5592c3bfb9ddc1",
+      "kind": "json",
+      "outcome": "partial",
+      "scope": "Rendered workspace Chromium used the authorized sterile 40-second source at exact source hash and project placement. Current-source Engine retained 157 accepted estimates through a successful predecessor retirement, then one successor estimate before timing_exchange_unconfirmed retired the player; three capture records and the 600-second server-expiry fetch failure are preserved. Producer clock only; no trained-model, device, platform, or human qualification.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "capture_summary",
+            "predecessor",
+            "retirement"
+          ],
+          "equals": "superseded"
+        },
+        {
+          "pointer": [
+            "capture_summary",
+            "predecessor",
+            "accepted"
+          ],
+          "equals": 157
+        },
+        {
+          "pointer": [
+            "capture_summary",
+            "successor",
+            "accepted"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "faults_by_kind",
+            "successor_timing_exchange",
+            "status"
+          ],
+          "equals": "PARTIAL"
+        },
+        {
+          "pointer": [
+            "faults_by_kind",
+            "browser_server_expiry",
+            "status"
+          ],
+          "equals": "REPRODUCED"
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-TIMING-DIAG-BUILD-001",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/browser-timing-diagnostics-001/library-build.jsonl",
+      "sha256": "e402f60201243298cd9770f243dd25a2c45490ee7f2d53e1daefbb47a954fa4b",
+      "kind": "cargo_jsonl",
+      "outcome": "pass",
+      "scope": "After the browser timing diagnostic edit, the Protocol, Engine and client library test targets compile on the current source with zero compiler errors.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "success"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "error_count"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "codes"
+          ],
+          "equals": []
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-TIMING-DIAG-TEST-001",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-31/browser-timing-diagnostics-001/verification.json",
+      "sha256": "9842af3befc34c9a3e418f99ff2ad45ffb01ba5fdde7c6539399601098274272",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Twelve native timing tests, all 160 mocked browser-player tests, and the full client library suite run serially (696 passed, 14 ignored) pass. A parallel full-client run had one Open-expiry timing harness failure; the exact test passed alone and serially. Operation phase is now retained in redacted diagnostics; the rendered timing root cause remains unresolved.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "tests",
+            "native_timing_module",
+            "passed"
+          ],
+          "equals": 12
+        },
+        {
+          "pointer": [
+            "tests",
+            "native_timing_module",
+            "failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "tests",
+            "browser_player_js",
+            "passed"
+          ],
+          "equals": 160
+        },
+        {
+          "pointer": [
+            "tests",
+            "browser_player_js",
+            "failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "tests",
+            "full_client_library_serial",
+            "passed"
+          ],
+          "equals": 696
+        },
+        {
+          "pointer": [
+            "tests",
+            "full_client_library_serial",
+            "failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "tests",
+            "full_client_library_serial",
+            "ignored"
+          ],
+          "equals": 14
+        },
+        {
+          "pointer": [
+            "tests",
+            "full_client_library_parallel",
+            "failed"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "tests",
+            "pending_reply_test_standalone",
+            "passed"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    }
+  ],
+  "external_inputs": [
+    {
+      "item": "Handy 2 Pro",
+      "needed": "Firmware/model/configuration, encrypted credential environment names and authorized physical bench observations. Do not paste secret values or create plaintext keys."
+    },
+    {
+      "item": "Reference evaluation",
+      "needed": "Independently checked target/view annotations and source/script alignment. Existing permission allows live references for training and sterile references for evaluation only."
+    },
+    {
+      "item": "User-installed Stash",
+      "needed": "Actual endpoint/configuration/library mapping and explicit authorized compatibility run; old owned-fixture compatibility does not qualify the user library."
+    },
+    {
+      "item": "Platforms, six-axis and release",
+      "needed": "Exact supported hardware/OS/vendor subjects plus genuine independent human/release evidence."
+    }
+  ],
+  "execution_rules": [
+    "Use this ledger for current status and priority; keep specifications/ADRs authoritative and historical receipts immutable.",
+    "Finish the active build/verification repair before adding unrelated feature work. Follow task dependencies; parallel independent external preparation may proceed.",
+    "At a code change, mark working-tree build state unverified until a new subject-bound result exists. Keep the last passing checkpoint separate.",
+    "A scoped software completion does not close its parent gate or milestone. Close a gate only against its full criterion and required evidence/human authority.",
+    "Preserve all 25 original gates and numeric thresholds. Missing labels, timing, hardware, signatures or acceptance remain explicit; never synthesize them.",
+    "After each meaningful task, update the existing JSON item, evidence and source observation; regenerate both views and run --check. Use --audit on the evidence host.",
+    "Retain original failures and scope limitations when adding successful successor evidence. Mandatory model reviews remain suspended; independent required acceptance is unchanged."
+  ],
+  "audit_boundary": "Read-only source/evidence reconciliation. Frozen receipts were inspected and hashed; no fresh benchmark, model training, device actuation or full roadmap qualification was performed.",
+  "product_surface": "Source already includes Desktop, CLI and a local browser client over one authenticated Engine; script/project editing, candidate review/commit/export, deterministic patterns, library/Stash controls, local assistant proposals and experimental browser capture. Handy inspection and guarded transport are implemented. Useful learned defaults, the rendered browser-to-device workflow and physical synchronization remain unqualified. See the [app guide](PULSAR_APP_QUICKSTART.md); the gate ledger below retains the remaining acceptance obligations.",
+  "cross_milestone_obligations": "All explicit TEST scenarios, security/consent requirements, delivery/platform/vendor combinations, open-policy decisions and assurance obligations in the specification/execution plan remain required. A selected test subset cannot close the whole test matrix. Before closing a gate, retain exact subject identities, command/operation results, refusals and interruption outcomes, applicable rendered/native/media/device observations, unresolved failures and the required independent human/release authority. Missing evidence stays open."
+}

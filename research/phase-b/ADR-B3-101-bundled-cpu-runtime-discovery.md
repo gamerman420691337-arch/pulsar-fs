@@ -1,0 +1,11 @@
+# ADR B3-101: bundled CPU runtime discovery
+
+Status: implemented; final source-bound verification recorded in the checkpoint. Scope: packaged runtime discovery, not model or platform qualification.
+
+Problem: media tools already resolve beside the executable, but ONNX Runtime only resolves through PULSAR_ORT_DYLIB. Copying a runtime into an otherwise offline candidate does not make CPU profile/pack execution usable without manual runtime-path configuration.
+
+Decision: retain explicit runtime overrides as the highest priority. Otherwise inspect the executable-relative runtimes/libonnxruntime.so.1 on Linux, runtimes/onnxruntime.dll on Windows, or runtimes/libonnxruntime.dylib on macOS. Missing entries preserve optional inference absence; existing invalid entries and metadata errors are surfaced instead of silently disabling inference. Discovery hashes existing regular bytes without loading them. Existing capture, exact identity/profile admission, explicit pack selection and confined inference remain authoritative. No registry download, PATH inference-service discovery or model selection is introduced.
+
+The Linux candidate assembler accepts --cpu-runtime with a bounded schema-1 declaration containing runtime, license and notices entries with exact absolute source path, length and SHA-256. Check x86-64 shared-library type, expected SONAME, absence of interpreter and only the declared standard C/C++ system dependency names. Copy the runtime and license/notices alongside existing media/worker/optional assistant payloads. The manifest states actual system dependencies and unqualified status. This finite dependency-name check does not prove all dynamic behavior, compatible system ABI, transitive licensing or another platform's confinement.
+
+Qualification: execute actual copied CLI/Engine/worker after relocation and without media/runtime overrides; exercise profile and owner-selected offline pack generation. Keep authored model/media evidence distinct from useful model/edition qualification. Windows/macOS names are conventions only; those platform adapters remain unqualified. Core/Complete generation defaults/model assets, first-use extraction/updates, OS/vendor/native/device/media and human/release gates remain open.

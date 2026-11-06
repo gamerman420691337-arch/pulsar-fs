@@ -1,28 +1,71 @@
 //! Candidate selection preserves complete interpolation segments around protected spans.
-use crate::{Axis, CoreError, MotionAction, MotionProgram, MotionTrack, ProjectTime, ProtectedRegion, TimeRange};
-use std::collections::BTreeSet;
+use crate::{
+    Axis, CoreError, MotionAction, MotionProgram, MotionTrack, ProjectTime, ProtectedRegion,
+    TimeRange,
+};
+use std::collections::{BTreeMap, BTreeSet};
+
+/// Which input supplied one action in the checked merge result. Equal values
+/// do not establish origin: the merge's exact write mask selects the input.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CandidateMergeInput {
+    Current,
+    Candidate,
+}
+
+/// Exact input action index within the same axis, before filtering or sorting.
+/// This describes action ownership only, not gaps, interpolation or a clock.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CandidateMergeActionOrigin {
+    pub project_time: ProjectTime,
+    pub input: CandidateMergeInput,
+    pub action_index: usize,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CandidateMergeOrigins {
+    pub program: MotionProgram,
+    /// Every output axis, with entries parallel to its project-ordered actions.
+    /// Omitted axes retain Current origins; an output empty axis has no entries.
+    pub action_origins: BTreeMap<Axis, Vec<CandidateMergeActionOrigin>>,
+}
 
 fn guard(track: Option<&MotionTrack>, range: TimeRange) -> (i64, i64) {
-    let Some(track) = track else { return (0, i64::MAX); };
+    let Some(track) = track else {
+        return (0, i64::MAX);
+    };
     let actions = track.actions();
     let left = actions.partition_point(|action| action.time() < range.start());
     let right = actions.partition_point(|action| action.time() < range.end());
     (
-        (if actions.get(left).is_some_and(|action| action.time() == range.start()) {
+        (if actions
+            .get(left)
+            .is_some_and(|action| action.time() == range.start())
+        {
             Some(left)
         } else {
             left.checked_sub(1)
-        }).map(|i| actions[i].time().as_nanos()).unwrap_or(0),
-        actions.get(right).map(|a| a.time().as_nanos()).unwrap_or(i64::MAX),
+        })
+        .map(|i| actions[i].time().as_nanos())
+        .unwrap_or(0),
+        actions
+            .get(right)
+            .map(|a| a.time().as_nanos())
+            .unwrap_or(i64::MAX),
     )
 }
 
 fn local_actions(track: Option<&MotionTrack>, range: TimeRange) -> Vec<&MotionAction> {
-    let Some(track) = track else { return vec![]; };
+    let Some(track) = track else {
+        return vec![];
+    };
     let actions = track.actions();
     let start = actions.partition_point(|action| action.time() < range.start());
     let end = actions.partition_point(|action| action.time() < range.end());
-    let first = if actions.get(start).is_some_and(|action| action.time() == range.start()) {
+    let first = if actions
+        .get(start)
+        .is_some_and(|action| action.time() == range.start())
+    {
         start
     } else {
         start.saturating_sub(1)
@@ -32,8 +75,12 @@ fn local_actions(track: Option<&MotionTrack>, range: TimeRange) -> Vec<&MotionAc
 }
 
 fn local_gaps(track: Option<&MotionTrack>, range: TimeRange) -> Vec<(ProjectTime, ProjectTime)> {
-    track.into_iter().flat_map(|track| track.gaps()).filter(|gap| gap.overlaps(range))
-        .map(|gap| (gap.start().max(range.start()), gap.end().min(range.end()))).collect()
+    track
+        .into_iter()
+        .flat_map(|track| track.gaps())
+        .filter(|gap| gap.overlaps(range))
+        .map(|gap| (gap.start().max(range.start()), gap.end().min(range.end())))
+        .collect()
 }
 
 /// Dedicated local-edit proof. Equality includes neighbor anchors and evidence,
@@ -45,7 +92,12 @@ pub fn ensure_protected_segments_unchanged(
 ) -> Result<(), CoreError> {
     for region in protected {
         for axis in Axis::ALL {
-            if region.axis.is_some_and(|protected_axis| protected_axis != axis) { continue; }
+            if region
+                .axis
+                .is_some_and(|protected_axis| protected_axis != axis)
+            {
+                continue;
+            }
             let old = before.track(axis);
             let new = after.track(axis);
             if local_actions(old, region.range) != local_actions(new, region.range)
@@ -68,39 +120,107 @@ pub fn merge_candidate_preserving_protection(
     range: Option<TimeRange>,
     protected: &[ProtectedRegion],
 ) -> Result<MotionProgram, CoreError> {
-    if axes.is_empty() || axes.len() > Axis::ALL.len()
+    merge_candidate_impl(current, candidate, axes, range, protected, None)
+}
+
+/// Perform the production merge and retain each output action's exact input.
+/// Protection and selection-boundary anchors remain Current even when an
+/// identically valued candidate action exists. Candidate indices identify the
+/// original candidate track, including skipped actions. The Engine still has
+/// to authenticate both inputs and compose their origins through revision,
+/// edit, restoration and retiming history before claiming source clocks.
+pub fn merge_candidate_with_action_origins(
+    current: &MotionProgram,
+    candidate: &MotionProgram,
+    axes: &[Axis],
+    range: Option<TimeRange>,
+    protected: &[ProtectedRegion],
+) -> Result<CandidateMergeOrigins, CoreError> {
+    let mut action_origins = BTreeMap::new();
+    let program = merge_candidate_impl(
+        current,
+        candidate,
+        axes,
+        range,
+        protected,
+        Some(&mut action_origins),
+    )?;
+    Ok(CandidateMergeOrigins {
+        program,
+        action_origins,
+    })
+}
+
+fn merge_candidate_impl(
+    current: &MotionProgram,
+    candidate: &MotionProgram,
+    axes: &[Axis],
+    range: Option<TimeRange>,
+    protected: &[ProtectedRegion],
+    mut origins: Option<&mut BTreeMap<Axis, Vec<CandidateMergeActionOrigin>>>,
+) -> Result<MotionProgram, CoreError> {
+    if axes.is_empty()
+        || axes.len() > Axis::ALL.len()
         || axes.iter().copied().collect::<BTreeSet<_>>().len() != axes.len()
         || range.is_some_and(|range| range.start() < ProjectTime::ZERO)
     {
-        return Err(CoreError::InvalidMotion("invalid candidate selection".into()));
+        return Err(CoreError::InvalidMotion(
+            "invalid candidate selection".into(),
+        ));
     }
     let mut result = current.clone();
-    let fixed = selection_boundaries(axes, range, protected)?;    for axis in axes {
-        let incoming = candidate.track(*axis)
-            .ok_or_else(|| CoreError::InvalidMotion("selected axis is absent from candidate".into()))?;
+    let fixed = selection_boundaries(axes, range, protected)?;
+    for axis in axes {
+        let incoming = candidate.track(*axis).ok_or_else(|| {
+            CoreError::InvalidMotion("selected axis is absent from candidate".into())
+        })?;
         incoming.span()?;
         let old = current.track(*axis);
-        if let Some(old) = old { old.span()?; }
-        let guards: Vec<_> = fixed.iter()
+        if let Some(old) = old {
+            old.span()?;
+        }
+        let guards: Vec<_> = fixed
+            .iter()
             .filter(|region| region.axis.is_none() || region.axis == Some(*axis))
-            .map(|region| guard(old, region.range)).collect();
+            .map(|region| guard(old, region.range))
+            .collect();
         let writable = |time: ProjectTime| {
             range.is_none_or(|range| range.contains(time))
-                && !guards.iter().any(|(start, end)| *start <= time.as_nanos() && time.as_nanos() <= *end)
+                && !guards
+                    .iter()
+                    .any(|(start, end)| *start <= time.as_nanos() && time.as_nanos() <= *end)
         };
-        let mut actions: Vec<_> = old.into_iter().flat_map(|track| track.actions())
-            .filter(|action| !writable(action.time())).cloned().collect();
-        actions.extend(incoming.actions().iter().filter(|action| writable(action.time())).cloned());
+        let mut actions: Vec<_> = old
+            .into_iter()
+            .flat_map(|track| track.actions())
+            .filter(|action| !writable(action.time()))
+            .cloned()
+            .collect();
+        actions.extend(
+            incoming
+                .actions()
+                .iter()
+                .filter(|action| writable(action.time()))
+                .cloned(),
+        );
         actions.sort_by_key(|action| action.time());
         let mut gaps = Vec::new();
-        for (track, retain_writable) in old.into_iter().map(|track| (track, false))
+        for (track, retain_writable) in old
+            .into_iter()
+            .map(|track| (track, false))
             .chain(std::iter::once((incoming, true)))
         {
             for gap in track.gaps() {
                 let mut cuts = vec![gap.start().as_nanos(), gap.end().as_nanos()];
-                if let Some(range) = range { cuts.extend([range.start().as_nanos(), range.end().as_nanos()]); }
-                for (start, end) in &guards { cuts.extend([*start, end.saturating_add(1)]); }
-                cuts.retain(|time| gap.start().as_nanos() <= *time && *time <= gap.end().as_nanos());
+                if let Some(range) = range {
+                    cuts.extend([range.start().as_nanos(), range.end().as_nanos()]);
+                }
+                for (start, end) in &guards {
+                    cuts.extend([*start, end.saturating_add(1)]);
+                }
+                cuts.retain(|time| {
+                    gap.start().as_nanos() <= *time && *time <= gap.end().as_nanos()
+                });
                 cuts.sort_unstable();
                 cuts.dedup();
                 for interval in cuts.windows(2) {
@@ -123,29 +243,90 @@ pub fn merge_candidate_preserving_protection(
             combined.push(gap);
         }
         let track = MotionTrack::with_name_and_gaps(
-            old.map(|track| track.name()).unwrap_or_else(|| incoming.name()),
-            *axis, actions, combined,
+            old.map(|track| track.name())
+                .unwrap_or_else(|| incoming.name()),
+            *axis,
+            actions,
+            combined,
         )?;
         // Avoid creating a new empty axis when all selected content was protected.
         if old.is_some() || !track.actions().is_empty() || !track.gaps().is_empty() {
+            if let Some(origins) = origins.as_deref_mut() {
+                let labels = track
+                    .actions()
+                    .iter()
+                    .map(|action| {
+                        let (input, source) = if writable(action.time()) {
+                            (CandidateMergeInput::Candidate, incoming)
+                        } else {
+                            (
+                                CandidateMergeInput::Current,
+                                old.ok_or_else(|| {
+                                    CoreError::InvalidMotion(
+                                        "retained merge action has no current track".into(),
+                                    )
+                                })?,
+                            )
+                        };
+                        let action_index = source
+                            .actions()
+                            .binary_search_by_key(&action.time(), |a| a.time())
+                            .map_err(|_| {
+                                CoreError::InvalidMotion(
+                                    "merge action has no exact input index".into(),
+                                )
+                            })?;
+                        Ok(CandidateMergeActionOrigin {
+                            project_time: action.time(),
+                            input,
+                            action_index,
+                        })
+                    })
+                    .collect::<Result<Vec<_>, CoreError>>()?;
+                origins.insert(*axis, labels);
+            }
             result = result.replaced_track(track)?;
         }
     }
     ensure_protected_segments_unchanged(current, &result, &fixed)?;
+    if let Some(origins) = origins {
+        for track in result.tracks() {
+            origins.entry(track.axis()).or_insert_with(|| {
+                track
+                    .actions()
+                    .iter()
+                    .enumerate()
+                    .map(|(action_index, action)| CandidateMergeActionOrigin {
+                        project_time: action.time(),
+                        input: CandidateMergeInput::Current,
+                        action_index,
+                    })
+                    .collect()
+            });
+        }
+    }
     Ok(result)
 }
 
 fn selection_boundaries(
-    axes: &[Axis], range: Option<TimeRange>, protected: &[ProtectedRegion],
+    axes: &[Axis],
+    range: Option<TimeRange>,
+    protected: &[ProtectedRegion],
 ) -> Result<Vec<ProtectedRegion>, CoreError> {
     let mut fixed = protected.to_vec();
     if let Some(range) = range {
         for axis in axes {
             if range.start() > ProjectTime::ZERO {
-                fixed.push(ProtectedRegion { axis: Some(*axis), range: TimeRange::new(ProjectTime::ZERO, range.start())? });
+                fixed.push(ProtectedRegion {
+                    axis: Some(*axis),
+                    range: TimeRange::new(ProjectTime::ZERO, range.start())?,
+                });
             }
             if range.end().as_nanos() < i64::MAX {
-                fixed.push(ProtectedRegion { axis: Some(*axis), range: TimeRange::new(range.end(), ProjectTime::from_nanos(i64::MAX))? });
+                fixed.push(ProtectedRegion {
+                    axis: Some(*axis),
+                    range: TimeRange::new(range.end(), ProjectTime::from_nanos(i64::MAX))?,
+                });
             }
         }
     }
@@ -156,14 +337,20 @@ fn selection_boundaries(
 /// mask. They exclude protected anchors and omitted axes; an envelope may still
 /// contain unchanged samples and is not a point-by-point provenance claim.
 pub fn candidate_merge_writable_regions(
-    current: &MotionProgram, candidate: &MotionProgram, axes: &[Axis],
-    range: Option<TimeRange>, protected: &[ProtectedRegion],
+    current: &MotionProgram,
+    candidate: &MotionProgram,
+    axes: &[Axis],
+    range: Option<TimeRange>,
+    protected: &[ProtectedRegion],
 ) -> Result<Vec<(Axis, TimeRange)>, CoreError> {
-    if axes.is_empty() || axes.len() > Axis::ALL.len()
+    if axes.is_empty()
+        || axes.len() > Axis::ALL.len()
         || axes.iter().copied().collect::<BTreeSet<_>>().len() != axes.len()
         || range.is_some_and(|range| range.start() < ProjectTime::ZERO)
     {
-        return Err(CoreError::InvalidMotion("invalid candidate selection".into()));
+        return Err(CoreError::InvalidMotion(
+            "invalid candidate selection".into(),
+        ));
     }
     let fixed = selection_boundaries(axes, range, protected)?;
     // A new point also changes interpolation toward retained boundary anchors.
@@ -172,11 +359,19 @@ pub fn candidate_merge_writable_regions(
     let merged = merge_candidate_preserving_protection(current, candidate, axes, range, protected)?;
     let mut regions = Vec::new();
     for axis in axes {
-        let Some(track) = merged.track(*axis) else { continue; };
-        let guards: Vec<_> = fixed.iter()
+        let Some(track) = merged.track(*axis) else {
+            continue;
+        };
+        let guards: Vec<_> = fixed
+            .iter()
             .filter(|region| region.axis.is_none() || region.axis == Some(*axis))
-            .map(|region| guard(current.track(*axis), region.range)).collect();
-        let mut support: Vec<_> = track.span()?.into_iter().chain(track.gaps().iter().copied()).collect();
+            .map(|region| guard(current.track(*axis), region.range))
+            .collect();
+        let mut support: Vec<_> = track
+            .span()?
+            .into_iter()
+            .chain(track.gaps().iter().copied())
+            .collect();
         support.sort_by_key(|span| span.start());
         let mut combined: Vec<TimeRange> = Vec::new();
         for span in support {
@@ -190,8 +385,12 @@ pub fn candidate_merge_writable_regions(
         }
         for span in combined {
             let mut cuts = vec![span.start().as_nanos(), span.end().as_nanos()];
-            if let Some(range) = range { cuts.extend([range.start().as_nanos(), range.end().as_nanos()]); }
-            for (start, end) in &guards { cuts.extend([*start, end.saturating_add(1)]); }
+            if let Some(range) = range {
+                cuts.extend([range.start().as_nanos(), range.end().as_nanos()]);
+            }
+            for (start, end) in &guards {
+                cuts.extend([*start, end.saturating_add(1)]);
+            }
             cuts.retain(|time| span.start().as_nanos() <= *time && *time <= span.end().as_nanos());
             cuts.sort_unstable();
             cuts.dedup();
@@ -201,9 +400,14 @@ pub fn candidate_merge_writable_regions(
                     && !guards.iter().any(|(a, b)| *a <= pair[0] && pair[0] <= *b)
                 {
                     if regions.len() >= 1024 {
-                        return Err(CoreError::InvalidMotion("too many merge contribution envelopes".into()));
+                        return Err(CoreError::InvalidMotion(
+                            "too many merge contribution envelopes".into(),
+                        ));
                     }
-                    regions.push((*axis, TimeRange::new(start, ProjectTime::from_nanos(pair[1]))?));
+                    regions.push((
+                        *axis,
+                        TimeRange::new(start, ProjectTime::from_nanos(pair[1]))?,
+                    ));
                 }
             }
         }

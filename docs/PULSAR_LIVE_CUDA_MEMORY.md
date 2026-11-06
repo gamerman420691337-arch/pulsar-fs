@@ -1,0 +1,11 @@
+# Live CUDA memory admission
+
+Pulsar now has a live-specific, supervised CUDA/NVML observer and measured interactive admission. It carries the live manifest identity and caller-issued absolute deadline through a separate sealed loader relay. Both loader stages verify the mounted native image; parent reply validation and exact worker retirement preserve the actual sample time.
+
+The observer shares bounded pipe supervision, native queries and conservative capacity checks with the existing offline path. It samples memory after initialization and integrity work, rejects stale/future measurements and mismatched device/capture/policy identities, and uses the existing aggregate GPU pool. An admitted process-local capability retains the native image, pinned device, reservation, manifest hash and deadline for the future stream launcher.
+
+The native test measures the actual GPU through a 75-library captured image. A 96 MiB interactive claim succeeds while the owner's 64 MiB offline allowance refuses it. Another interactive claim refuses, probe retirement preserves image ownership, the original deadline survives handoff, and a cancelled probe releases ownership. Model loading and persistent inference are outside this increment.
+
+The [terminal checkpoint](evidence/roadmap-2026-10-07/live-cuda-memory/checkpoint.json) records 986 workspace passes (53 ignored), 518 CUDA-feature passes (50 ignored), both explicit native observers, seven live and five offline mount-custody cases, five shipped CPU application cases without skips, four direct/relay refusals and 255 structural checks. All 342 source/archive records, 65 executable identities and 78 terminal input identities match. The saved manifest independently matches the measured reply and current worker. Initial test-helper compile and private-directory permission refusals are retained with their exact scopes. See [ADR B3-054](../research/phase-b/ADR-B3-054-live-cuda-memory-admission.md).
+
+Persistent GPU live remains disabled. Next are the actual inference loader/stream, model snapshots, parent/worker transcript comparison and original final trace verification. Required fastest-preset six-axis generation, measured latency, model/media quality, recovery/IO and Handy/platform/human release gates remain open.

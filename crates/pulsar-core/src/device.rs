@@ -129,6 +129,13 @@ impl DeviceSession {
             state: DeviceState::Disarmed,
         }
     }
+    /// Process recovery has no fresh physical observation. No controller,
+    /// admission, qualification or headless approval is restored.
+    pub fn recover_unconfirmed(device: DeviceId, session: DeviceSessionId) -> Self {
+        let mut recovered = Self::new(device, session);
+        recovered.physical_stop_pending = true;
+        recovered
+    }
     pub fn device(&self) -> &DeviceId {
         &self.device
     }
@@ -211,6 +218,20 @@ impl DeviceSession {
         if self.state != DeviceState::Disarmed {
             self.state = DeviceState::StopRequested;
         }
+        Ok(())
+    }
+
+    /// Cancel admission only while no physical effect has begun. Once start
+    /// has begun, even a missing acknowledgment requires stop evidence.
+    pub fn disarm_before_dispatch(&mut self) -> Result<(), CoreError> {
+        if self.physical_stop_pending
+            || !matches!(self.state, DeviceState::Armed | DeviceState::StopRequested)
+        {
+            return Err(CoreError::InvalidTransition(
+                "cannot cancel an admission after physical dispatch began".into(),
+            ));
+        }
+        self.clear_admission();
         Ok(())
     }
 

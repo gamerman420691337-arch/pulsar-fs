@@ -4,7 +4,9 @@ members = [
     "crates/pulsar-protocol",
     "crates/pulsar-engine",
     "crates/pulsar-clients",
+    "crates/pulsar-worker",
 ]
+default-members = [".", "crates/pulsar-worker"]
 resolver = "2"
 
 [workspace.package]
@@ -33,12 +35,14 @@ pulsar-engine = { path = "crates/pulsar-engine" }
 pulsar-clients = { path = "crates/pulsar-clients" }
 
 [dev-dependencies]
+tempfile = "3"
 serde_json = "1.0"
 sha2 = "0.10"
 rusqlite = { version = "0.32", features = ["bundled"] }
 
 [features]
 default = []
+wasm = ["pulsar-engine/wasm"]
 cuda = ["pulsar-engine/cuda"]
 tensorrt = ["pulsar-engine/tensorrt", "cuda"]
 

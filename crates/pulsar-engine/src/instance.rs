@@ -38,7 +38,7 @@ pub fn instance_lock_is_held(config: &EngineConfig) -> Result<bool> {
         let raw = unsafe {
             libc::openat(
                 directory.as_raw_fd(),
-                b"engine.lock\0".as_ptr().cast(),
+                c"engine.lock".as_ptr(),
                 libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC,
             )
         };

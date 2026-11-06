@@ -1,0 +1,23 @@
+# Worker CUDA SDK identity checkpoint
+
+The worker now checks an explicitly selected driver's logical ordinal against a requested GPU UUID and PCI address. This follows [held kernel device bindings](PULSAR_CUDA_DEVICE_BINDINGS.md); the two checks establish different facts. Production inference admission remains CPU-only.
+
+`worker::cuda_identity::CudaSdkDevice` validates the declaration before loading, opens an absolute nofollow regular file, loads through its held `/proc/self/fd` descriptor and retains the file and library. It resolves the Linux CUDA driver ABI, initializes the driver, checks the visible inventory, obtains the requested ordinal's UUID, PCI address, total memory and API version, and refuses mismatches or invalid facts. No search by library name or supplier-path reopen occurs in this helper. A caller must supply authorized captured code inside the worker; capture digests, namespace bindings, supervision and deadlines remain broker responsibilities. Loading native code is an effect, not a safe parser for untrusted libraries.
+
+UUID comparison ignores hex case. PCI comparison canonicalizes four- and eight-digit domain representations, requiring a domain representable by `u16`, device at most 31 and function at most 7. Logical ordinals are bounded independently of kernel device minors. MIG qualification is absent; an instance UUID differing from the requested conventional GPU UUID refuses. `recheck` repeats observations through the held driver and refuses any change in the initial facts. It does not freeze a physical device, exclude resets, establish owner permission or substitute for a reservation.
+
+The ABI follows installed `/opt/cuda/include/cuda.h` and NVIDIA's [device driver API documentation](https://docs.nvidia.com/cuda/archive/12.5.0/cuda-driver-api/group__CUDA__DEVICE.html). UUID v2, PCI, count/get, total-memory v2, initialization and driver-version calls use bounded buffers and checked statuses. Missing symbols fail. Driver version in this receipt means the CUDA API version returned by `cuDriverGetVersion`, not the installed NVIDIA package version.
+
+## Current evidence
+
+The [receipt](evidence/roadmap-2026-10-01/cuda-sdk-identity/validation.json) records 876 passing Rust tests, zero failures and seven ignored qualification cases across 43 suites; native workspace binaries/examples build; one current native CPU/preceding-reader compatibility case and 213 structural checks pass. Three SDK unit cases exercise identity-coordinate refusal, PCI normalization/bounds, malformed declarations before loading, unexpected fields and status refusal. Full JavaScript and native-window gates were not rerun for this increment.
+
+The supervised host experiment checks a hash-verified copy of the selected driver, with cleared child environment. Both matching and zero-padded domain declarations pass initial/repeated checks. Wrong UUID, PCI and visible ordinal, an invalid ordinal before loading, an unexpected field, a symlink driver and a relative driver path refuse. Binary and captured-driver hashes remain unchanged; explicit copy cleanup is read back. This host probe does not establish namespace confinement, inference, CUDA context creation, a GPU reservation or production job authority. The previous confined C++ inference experiment remains separate evidence.
+
+Observed ordinal 0 identifies `GPU-1790118a-a6d7-4eaf-fcac-dcacac5f4351` at `0000:01:00.0`, with one visible device, API version 13040 and SDK total memory 25,313,280,000 bytes. The preceding `nvidia-smi` resource experiment reported 25,757,220,864 total bytes. These API observations differ; this increment does not infer their cause, equate their capacities or turn either into enforceable VRAM limits.
+
+The initial offline dependency resolution failed because the cached index lacked the existing locked Tokio version. The already-locked `libloading` 0.8.9 package was then added only to the engine's dependency edge, and locked builds passed without a dependency upgrade. An initial unit assertion expected the wrong error wording; its failure is retained separately from the corrected full run.
+
+## Remaining work
+
+Use the held SDK object and checks around an actual strict Rust CUDA session in the confined worker. Then integrate owner/device admission, resource reservations, selected profile/runtime/dependency identities, durable GPU attempt records and provider traces through the real job path with compatibility/recovery evidence. SDK checks alone do not enable that path. Model/media quality, physical Handy, platform/UI, human and release acceptance remain open under the full roadmap.

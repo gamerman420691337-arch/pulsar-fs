@@ -1,0 +1,157 @@
+{
+  "request_id": "inspect-time",
+  "controller": {
+    "acquisition_request_id": "acquire-fixture",
+    "controller_id": "fixture-controller",
+    "preparation_request_id": "prepare-fixture",
+    "preparation_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "project_id": "fixture-project",
+    "revision": 1,
+    "engine_epoch": "fixture-boot",
+    "device_session": "fixture-device-session",
+    "device_id": "fixture-device",
+    "generation": 0,
+    "duration_ms": 1000,
+    "deadline_boottime_ns": 2000000000,
+    "state": "active",
+    "armed": true,
+    "physical_stop_pending": false,
+    "playback_enabled": false
+  },
+  "preparation_qualification": {
+    "dossier_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "revision": 2
+  },
+  "before": {
+    "identity": {
+      "firmware": "4.0.16",
+      "model_number": 2,
+      "model_name": "H02",
+      "model_variant": 0,
+      "session_id": "synthetic-remote",
+      "firmware_status": 0
+    },
+    "mode": {
+      "mode": 1,
+      "mode_session_id": 10
+    },
+    "operative_settings": {
+      "slider": {
+        "x_limit_start": 0.0,
+        "x_limit_stop": 100.0,
+        "x_end_buffer": 5.0,
+        "x_end_zone_size": 10.0,
+        "x_end_zone_speed": 20.0,
+        "x_min_speed": 10.0,
+        "x_max_speed": 100.0,
+        "x_min_speed_theoretical": 5.0,
+        "x_max_speed_theoretical": 150.0,
+        "turn_time": 500.0,
+        "regulator_timeout": 2000.0,
+        "temp_high_trigger": 75.0,
+        "temp_offset": 0.0,
+        "x_stroke_min": 20.0,
+        "x_stroke_max": 100.0,
+        "temp_hysteresis": 5.0,
+        "overclock_enabled": false,
+        "x_inverse_motor": false,
+        "x_inverse_hall": false
+      },
+      "stroke": {
+        "min": 0.0,
+        "max": 1.0,
+        "min_absolute": 0.0,
+        "max_absolute": 100.0
+      }
+    },
+    "remote_hssp": {
+      "play_state": "stopped",
+      "stream_id": 8,
+      "current_time_ms": 0,
+      "playback_rate": 1.0,
+      "looping": false,
+      "pause_on_starving": false
+    },
+    "observed_at_unix_ms": 1
+  },
+  "first": {
+    "info": {
+      "device_uptime_ms": 100,
+      "reported_clock_offset_ms": -125,
+      "last_sync_round_trip_ms": 10
+    },
+    "user_offset": {
+      "offset_ms": -50
+    },
+    "read_started_boottime_ns": 10,
+    "read_finished_boottime_ns": 11
+  },
+  "second": {
+    "info": {
+      "device_uptime_ms": 101,
+      "reported_clock_offset_ms": -125,
+      "last_sync_round_trip_ms": 10
+    },
+    "user_offset": {
+      "offset_ms": -50
+    },
+    "read_started_boottime_ns": 12,
+    "read_finished_boottime_ns": 13
+  },
+  "after": {
+    "identity": {
+      "firmware": "4.0.16",
+      "model_number": 2,
+      "model_name": "H02",
+      "model_variant": 0,
+      "session_id": "synthetic-remote",
+      "firmware_status": 0
+    },
+    "mode": {
+      "mode": 1,
+      "mode_session_id": 10
+    },
+    "operative_settings": {
+      "slider": {
+        "x_limit_start": 0.0,
+        "x_limit_stop": 100.0,
+        "x_end_buffer": 5.0,
+        "x_end_zone_size": 10.0,
+        "x_end_zone_speed": 20.0,
+        "x_min_speed": 10.0,
+        "x_max_speed": 100.0,
+        "x_min_speed_theoretical": 5.0,
+        "x_max_speed_theoretical": 150.0,
+        "turn_time": 500.0,
+        "regulator_timeout": 2000.0,
+        "temp_high_trigger": 75.0,
+        "temp_offset": 0.0,
+        "x_stroke_min": 20.0,
+        "x_stroke_max": 100.0,
+        "temp_hysteresis": 5.0,
+        "overclock_enabled": false,
+        "x_inverse_motor": false,
+        "x_inverse_hall": false
+      },
+      "stroke": {
+        "min": 0.0,
+        "max": 1.0,
+        "min_absolute": 0.0,
+        "max_absolute": 100.0
+      }
+    },
+    "remote_hssp": {
+      "play_state": "stopped",
+      "stream_id": 8,
+      "current_time_ms": 0,
+      "playback_rate": 1.0,
+      "looping": false,
+      "pause_on_starving": false
+    },
+    "observed_at_unix_ms": 1
+  },
+  "inspection_started_boottime_ns": 9,
+  "inspection_finished_boottime_ns": 14,
+  "synchronization_verified": false,
+  "playback_enabled": false
+}

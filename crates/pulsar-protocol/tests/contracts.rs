@@ -123,6 +123,12 @@ fn preview_adopts_actual_frame_but_rejects_stale_seek_or_transform() {
         request_generation: 8,
     };
     let result = PreviewResult {
+        annotated: None,
+        time_basis: PreviewTimeBasis::SourcePts,
+        elapsed_source_time: None,
+        source_origin: None,
+        placed: None,
+        coordinate_map: None,
         context: FrameContext {
             frame: FrameId::new(101),
             ..requested.clone()
@@ -251,4 +257,42 @@ mod local {
         ));
         server.join().unwrap();
     }
+}
+
+#[test]
+fn preview_clock_defaults_preserve_legacy_wire_and_negative_elapsed_time_refuses() {
+    let context = FrameContext {
+        source_version: SourceVersionId::new("source").unwrap(),
+        source_placement: SourcePlacementId::new("placement").unwrap(),
+        frame: FrameId::new(0),
+        transform: TransformId::new("source-identity").unwrap(),
+        seek_generation: 0,
+        request_generation: 0,
+    };
+    let command = Command::PreviewFrame {
+        time_basis: PreviewTimeBasis::SourcePts,
+        video_view: None,
+        context,
+        source_time: SourceTimestamp::new(-1, 1).unwrap(),
+        model_path: None,
+        model_input: None,
+        inference_profile: None,
+    };
+    let mut wire = serde_json::to_value(command).unwrap();
+    assert!(wire["arguments"].get("time_basis").is_none());
+    let legacy: Command = serde_json::from_value(wire.clone()).unwrap();
+    assert!(matches!(
+        legacy,
+        Command::PreviewFrame {
+            time_basis: PreviewTimeBasis::SourcePts,
+            ..
+        }
+    ));
+    wire["arguments"]["time_basis"] = "elapsed_from_first_frame".into();
+    let elapsed: Command = serde_json::from_value(wire).unwrap();
+    let request = Request::new(RequestId::new("negative-elapsed").unwrap(), elapsed);
+    assert_eq!(
+        request.validate().unwrap_err().code,
+        ErrorCode::InvalidRequest
+    );
 }

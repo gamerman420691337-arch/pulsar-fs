@@ -330,3 +330,24 @@ fn malformed_pcm_and_feature_resource_inputs_fail_closed() {
     assert!(features.envelope.iter().all(|sample| sample.level() == 0.0));
     assert!(features.amplitude_onsets.is_empty());
 }
+
+#[test]
+fn family_preflight_refuses_inconsistent_duration_and_combined_allocation_without_generating_tracks(
+) {
+    let specs=["stroke","sway","surge","roll","pitch","yaw"].map(|axis|parse_pattern_prompt(&format!("pattern=triangle axis={axis} duration=1000s frequency=1hz amplitude=0.1 offset=0.5 sample_hz=200")).unwrap());
+    assert!(specs
+        .iter()
+        .all(|spec| spec.action_count().unwrap() == 200001));
+    assert!(validate_patterns(&specs).is_err());
+    assert!(synthesize_patterns(&specs).is_err());
+    let a = parse_pattern_prompt(
+        "pattern=hold axis=stroke duration=1s frequency=0hz amplitude=0 offset=0.4",
+    )
+    .unwrap();
+    let b = parse_pattern_prompt(
+        "pattern=hold axis=yaw duration=2s frequency=0hz amplitude=0 offset=0.4",
+    )
+    .unwrap();
+    assert!(validate_patterns(&[a.clone(), b]).is_err());
+    assert!(validate_patterns(&[a]).is_ok());
+}

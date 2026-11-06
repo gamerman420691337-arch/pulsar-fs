@@ -5,245 +5,77 @@
 [![Rust: 1.80+](https://img.shields.io/badge/rust-1.80%2B-orange.svg)](https://www.rust-lang.org)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Donate-orange?style=for-the-badge&logo=buy-me-a-coffee)](https://buymeacoffee.com/thesmartestgooner)
 
-> **The Next-Generation Motion Tracking Engine & Haptic Workstation**  
-> *Pure Native Rust Engine • Adaptive Fast/Slow Vision-to-Motion • 6-DOF Robotic Kinematics • Zero External C Dependencies*
+Pulsar is a local motion workstation under active implementation. **Pulsar Desktop**, the command-line client, and the experimental local browser player use one authenticated Engine. The roadmap remains **PARTIAL**: useful model defaults, real-media accuracy, supported-platform releases and physical-device synchronization are not qualified.
 
-Pulsar is a high-performance workstation and CLI suite for automated visual and acoustic motion tracking, robotic kinematic synthesis (OSR2, SR6, DIY T-Code, Buttplug.io, The Handy), and interactive funscript authoring.
+Start with the [current app guide and model-free demo](docs/PULSAR_APP_QUICKSTART.md). The [execution dashboard](docs/PULSAR_MILESTONES.md), [generated current status](docs/PULSAR_CURRENT_STATUS.md), [software specification](docs/PULSAR_SOFTWARE_SPECIFICATION.md), and [architecture-first roadmap](docs/PULSAR_MAJOR_ROADMAP.md) separate implemented behavior from remaining requirements.
 
-## Product specification and major roadmap
+## Open the desktop app
 
-The [software specification](docs/PULSAR_SOFTWARE_SPECIFICATION.md) records the agreed product contract and chat decision sources. The [major roadmap](docs/PULSAR_MAJOR_ROADMAP.md) defines staged implementation, beginning with bounding-box, tracking, and stroke correctness. These documents distinguish requirements from measured capabilities; feature descriptions below are not release-qualification evidence.
+Build both companion executables from this checkout:
 
----
-
-## 🚀 Key Features
-
-- **Adaptive Fast/Slow ML Architecture**: Combines SAM 3.1 open-vocabulary semantic segmentation, YOLO26 direct NMS/DFL-free top-$K$ tensor decoding, TAPNext++ sparse point tracking with forward-backward cycle consistency, and Bayesian multi-hypothesis occlusion resolution.
-- **Live Gestural Motion Recording ("Puppeteering")**: Real-time interactive funscript capture in both Studio Editor and Cinema Player. Puppet motions directly via mouse Y tracking over the video canvas or tactile vertical slider strip with scroll-wheel support across variable playback speeds (`0.25x`, `0.5x`, `1.0x`, `1.5x`, `2.0x`). Includes automatic inflection point extraction, RDP curve simplification, non-destructive undo/redo splicing, and live hardware mirroring.
-- **Hardware Ecosystem & Live Player**: Direct real-time streaming to USB Serial COM ports (T-Code v0.3), Intiface Central / Buttplug.io v3 WebSockets (hundreds of Bluetooth LE & Wi-Fi toys), The Handy cloud API, and DeoVR/HereSphere VR headsets.
-- **3D Robotic Rig Simulator**: Real-time 60+ FPS interactive 3D forward-kinematics simulator for OSR2 and SR6 multi-axis hardware with servo limit visualization.
-- **Sub-Millisecond Audio Waterfall Spectrogram**: Real-time STFT 16-band perceptual frequency decomposition (Sub-Bass, Mid, High), beat-snapping, and automated haptic infill synthesis.
-- **Interactive Desktop Timeline GUI Editor & Cinema Player**: Built with `egui` / `eframe` for ultra-responsive native rendering, live keyframe dragging, pan/zoom, visual motor speed violation heatmaps, integrated Script Doctor auditing panel, and distraction-free cinema mode.
-- **Hardware Benchmark**: Built-in `pulsar bench` utility measuring Lucas-Kanade optical flow throughput (3,000+ FPS), FFT transforms (700,000+ transforms/sec), and quintic kinematics evaluations (800M+ ops/sec).
-- **Automated Model Manager**: Zero-config auto-download of default SOTA YOLO models, local model catalog discovery, and global caching in `~/.cache/pulsar/models/`.
-- **Stash Media Server Integration & Headless Batch**: Direct GraphQL querying of scenes missing interactive scripts, automated generation, scene auto-tagging, and background batch queues.
-- **Deterministic Kinematics & Thermal Protection**: Jerk-limited quintic S-curves, continuous motor wattage dissipation simulation, and dynamic velocity throttling.
-
----
-
-## 🛠️ Installation & Quick Start
-
-### Quick Install (Linux / macOS)
-```bash
-git clone https://github.com/gamerman420691337-arch/pulsar-fs.git pulsar
-cd pulsar
-./install.sh
-```
-This compiles the release binary with maximum native CPU optimizations and links `pulsar` into `~/.local/bin/`.
-
-### Cross-Platform Cargo Build
-```bash
-cargo build --release
+```sh
+cargo build -p pulsar -p pulsar-worker
 ```
 
----
+Run the resulting `pulsar` executable with no arguments or with `gui`. Keep `pulsar-worker` beside it. On the development workstation, the current validation build is:
 
-## 📖 CLI Command Reference
-
-### 1. Launch Interactive Desktop GUI
-```bash
-pulsar
-# or explicitly
-pulsar gui
-```
-*(Press `?` or `Ctrl+H` inside the GUI to open the interactive keyboard & mouse shortcuts cheat sheet).*
-
-#### 🎬 Live Puppeteering & Motion Recording (Studio & Cinema Modes)
-Pulsar allows authoring and refining funscripts in real time as you watch a video:
-- **Arm / Disarm Recording**: Press `R` or click `🔴 Record (R)` in the transport bar.
-- **Puppet via Mouse Tracking**: Hover or click-drag over the video viewport. A glowing laser guide line tracks your vertical position (`0–100%`) with live badge telemetry.
-- **Puppet via Tactile Slider**: Use the vertical slider strip on the right side of the canvas or hover and spin the mouse scroll wheel.
-- **Slow-Motion Capture**: Drop playback speed to `0.25x` or `0.5x` for hyper-precise tracking during fast or complex scenes.
-- **Curve Simplification**: Recorded samples are processed with automatic directional peak/valley detection and Ramer-Douglas-Peucker (RDP) filtering to produce clean, crisp keyframes without micro-jitters.
-- **Physical Movement Percentage & Selectable Axis Slider/Knob**: Real-time visualization of actual physical servo stroke percentage (`0–100%`) and knob position gliding live during playback. Switch between Stroke (`L0`), Surge (`L1`), Sway (`L2`), Roll (`R0`), Pitch (`R1`), Twist (`R2`), and Suction (`V0`) directly from the slider dropdown.
-- **Cursor-Centric Timeline Navigation**: Zooming in/out via the mouse scroll wheel locks precisely onto the exact millisecond under the mouse cursor without drifting. Zoom-out duration is clamped to the content duration (+5% margin), preventing empty infinite zoom and keeping scripts perfectly framed.
-- **Undo / Redo Support**: Any recording take cleanly splices into the script over the recorded interval and can be undone with `Ctrl+Z`.
-
-### 2. Generate Funscripts from Video
-
-#### Zero-Config Automatic Generation:
-```bash
-# Automatically downloads default SOTA neural model if not present locally
-pulsar generate video.mp4 --multi-axis
+```sh
+/home/brianklam/.cache/pulsar-roadmap-validation/debug/pulsar gui
 ```
 
-#### Neural Mode with Specific Profile:
-```bash
-pulsar generate video.mp4 \
-  --profile balanced \
-  --fps 30.0 \
-  --pov \
-  --multi-axis \
-  --cuts scene_boundaries.json
+The model-free demo needs no model download. Media decoding and visual inference need the explicitly configured FFmpeg/FFprobe and ONNX runtime respectively. A source build is not a qualified portable release. Older installed shortcuts and retained runtime candidates can contain older software; use the executable belonging to the checked source.
+
+## What you can use
+
+| Surface | Current workflow |
+| --- | --- |
+| Studio / Cinema | Durable projects, captured media, source-time preview and editable motion timelines. |
+| Generator | Explicit synthetic patterns, script import, audio-derived motion and visual generation with admitted model/profile settings. Generation produces candidates for separate review and commitment. |
+| Doctor | Shared script diagnostics and explicit repairs. |
+| Library batches / Stash | Bounded media discovery and retained generation/publication workflows. Installed-Stash compatibility remains unqualified. |
+| Portable projects | Explicit private project packaging and clone import, plus neutral script exports. |
+| Automation / Settings | Explicit local assistant configuration and proposals; useful default model selection remains open. |
+| Devices | Handy inspection, device-motion proposals and a [guarded CLI playback path](docs/PULSAR_HANDY_PLAY_SUBMISSION.md). Desktop playback and physical qualification remain open. |
+
+Existing authored work, protected regions, revisions and original request identities are preserved by the shared Engine contracts. Unsupported options refuse rather than silently selecting another implementation. Six-axis synthetic patterns and neutral exports are implemented; that does not establish faithful six-axis recovery or physical playback.
+
+## Try an offline script demo
+
+This command creates a retained project, generates and commits a deterministic synthetic Stroke pattern, and exports to a **new** destination:
+
+```sh
+pulsar synthesize 'pattern=triangle axis=stroke duration=2s frequency=1hz amplitude=0.1 offset=0.5 sample_hz=8' --output /absolute/new-demo.funscript
 ```
 
-#### Optical Flow Mode:
-```bash
-pulsar generate video.mp4 --profile economy --fps 30.0 --pov
+Use the current executable's full path if `pulsar` on PATH is an older build. Expected output is 17 actions, at 125 ms intervals from 0 to 2000 ms, with positions between 40 and 60. This is authored motion, not video inference or natural-language AI. Existing destinations refuse; projects from unsuccessful attempts may remain available for inspection. The [app guide](docs/PULSAR_APP_QUICKSTART.md) provides the equivalent desktop workflow with separate review/commit steps.
+
+## Local browser player
+
+In the desktop, open **Browser live**, capture the Generator’s explicit file model/profile, use its [owner-selected pack](docs/PULSAR_LIVE_MODEL_PACKS.md), or choose a live-options JSON file, review the live settings, and click **Launch browser player**. The open project and revision are captured for the launch. Open its visible link; **Stop browser player** requests cleanup and joins the owned server. See [desktop launcher](docs/PULSAR_DESKTOP_BROWSER_LIVE.md) and [direct live configuration](docs/PULSAR_DESKTOP_LIVE_OPTIONS.md). The CLI remains available:
+
+```sh
+pulsar browser-live PROJECT REVISION /absolute/live-options.json
 ```
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `<VIDEO>` | Path to input video file | *(Required)* |
-| `-o, --output <PATH>` | Output `.funscript` file destination | `<video>.funscript` |
-| `--model <PATH>` | Custom ONNX neural vision model | Auto-detected |
-| `--profile <NAME>` | Adaptive ML profile (`economy`, `balanced`, `default`, `dense`, `geometry3d`) | `default` |
-| `--conf <FLOAT>` | Neural detection confidence threshold | `0.35` |
-| `--fps <FLOAT>` | Processing target frame rate | `30.0` |
-| `--cuts <PATH>` | Export detected scene boundaries to JSON | `None` |
-| `--pov` | Anchor motion to bottom-center (POV perspective) | `false` |
-| `--vr` | VR 180 stereo tracking mode | `false` |
-| `--multi-axis` | Export full 6-DOF companion bundle (`.surge.funscript`, `.sway`, etc.) | `false` |
+Open its printed loopback URL, select a local video, and press Play. An explicit compatible temporal model/profile and runtime are required. Recording, candidate review/commit, explicit gap proposals, and gap-free committed Stroke download are available. Experimental **Share a browser tab** and [**Use camera**](docs/PULSAR_BROWSER_CAMERA.md) provide explicit capture input paths with distinct presentation-time declarations. Actual tab/camera acquisition, source-player clock mapping and platform acceptance remain open. The player sends no toy commands. Verified diagnostic-model feedback is not useful trained motion.
 
----
+See [launch instructions](docs/PULSAR_BROWSER_LIVE_PREVIEW.md), [tab-sharing limits](docs/PULSAR_BROWSER_TAB_CAPTURE.md), and [retained timing domains](docs/PULSAR_LIVE_TIME_BASIS.md).
 
-### 3. Real-Time Hardware Streaming (`pulsar play`)
+## Media, library and Stash workflows
 
-Stream any funscript directly to your physical hardware in real time without third-party players:
+Use [declared video views](docs/PULSAR_VIDEO_VIEWS.md) for stereo/VR180/360 projections and [desktop library batches](docs/PULSAR_DESKTOP_LIBRARY_BATCHES.md) for retained local scheduling. [Stash integration](docs/PULSAR_STASH_INTEGRATION.md) documents the brokered endpoint, encrypted credential names, server-to-local mappings, opt-in scan/tag phases and recovery. Do not put key values in command lines or project files.
 
-```bash
-# Stream to USB Serial T-Code microcontroller (OSR2 / SR6 / ESP32)
-pulsar play video.mp4 --serial /dev/ttyUSB0 --baud 115200
+For actual command syntax, run `pulsar --help` and `pulsar COMMAND --help`. Historical model names, legacy CLI flags and compatibility parsing do not prove current model availability or supported behavior.
 
-# Stream to Intiface Central / Buttplug.io (Bluetooth toys)
-pulsar play video.mp4 --buttplug ws://127.0.0.1:12345
+## Development checks
 
-# Stream to The Handy
-pulsar play video.mp4 --handy <YOUR_CONNECTION_KEY>
+```sh
+cargo test --workspace
+node scripts/check-architecture.mjs
+node scripts/architecture-source-guards.mjs
 ```
 
----
-
-### 4. Neural Model Manager (`pulsar model`)
-
-Manage local and remote neural vision models directly from the CLI:
-
-```bash
-# List all registered and locally cached models
-pulsar model list
-
-# Download a specific model into ~/.cache/pulsar/models/
-pulsar model download yolo26n
-
-# View cache footprint and directory statistics
-pulsar model status
-```
-
----
-
-### 5. Hardware Performance Benchmark (`pulsar bench`)
-
-Benchmark your CPU and GPU compute capabilities across optical flow, FFT, and kinematics engines:
-
-```bash
-pulsar bench
-```
-
----
-
-### 6. Shell Autocompletions (`pulsar completions`)
-
-Generate autocompletions for Bash, Zsh, Fish, or PowerShell:
-
-```bash
-# Bash
-source <(pulsar completions bash)
-
-# Zsh
-pulsar completions zsh > ~/.zsh/completion/_pulsar
-
-# Fish
-pulsar completions fish > ~/.config/fish/completions/pulsar.fish
-```
-
----
-
-### 7. Library Batch Scanning & Auto-Generation
-
-Scan an entire media directory, identify videos lacking funscripts, and batch process them:
-
-```bash
-# Scan library and display audit table
-pulsar scan /path/to/media/ --recursive --missing-only
-
-# Scan and immediately enqueue missing media for batch generation
-pulsar scan /path/to/media/ --recursive --generate --multi-axis
-
-# Dry run batch processor
-pulsar batch /path/to/media/ --dry-run
-```
-
----
-
-### 8. Stash Media Server Synchronization
-
-Synchronize directly with your Stash media server over GraphQL:
-
-```bash
-# Scan Stash for scenes missing funscripts
-pulsar stash scan --url http://localhost:9999 --api-key <KEY>
-
-# Generate funscripts for missing scenes, rescan metadata, and tag scenes in Stash
-pulsar stash generate --url http://localhost:9999 --limit 20 --multi-axis --tag "Pulsar-Generated"
-```
-
----
-
-### 9. Script Doctor & Automated Repairs
-
-Audit and repair speed violations, micro-jitters, and out-of-range positions:
-
-```bash
-# Audit a funscript for hardware speed violations (>450 units/s)
-pulsar doctor video.funscript --max-speed 450.0
-
-# Automatically clamp and smooth violating transitions
-pulsar fix video.funscript -o video.fixed.funscript
-```
-
----
-
-### 10. Audio Spectral Infill Synthesis
-
-Synthesize auxiliary haptic channels from video audio streams:
-
-```bash
-# Synthesize high-frequency vibration channel from bass transients
-pulsar audio-synth video.mp4 --mode infill --band sub-bass --axis roll
-```
-
----
-
-## 🔌 Hardware Compatibility Matrix
-
-| Hardware Type | Protocol | Communication | Supported Devices |
-|---|---|---|---|
-| **Multi-Axis DIY** | T-Code v0.3 | USB Serial (COM / `/dev/ttyUSB*`) | OSR2, OSR2+, SR6, ESP32, Teensy 4.0/4.1, Arduino |
-| **Intiface / Buttplug** | Buttplug.io v3 | WebSocket (`ws://127.0.0.1:12345`) | 200+ commercial Bluetooth LE & Wi-Fi haptic devices |
-| **The Handy** | HDSP / HSSP | HandyFeeling REST API v2 | The Handy |
-| **VR Headsets** | WebSocket Sync | Telemetry JSON (`ws://localhost:11573`) | DeoVR, HereSphere, Quest, Valve Index |
-
----
-
-## 🧪 Running Tests
-
-Pulsar maintains a comprehensive test suite covering all DSP, neural inference, kinematic solves, and synchronization protocols:
-
-```bash
-cargo test
-```
-
----
+Run the relevant feature/backend checks for changes in those paths. Authored fixtures, headless controllers, browser mocks and compilation have narrower scope than rendered GUI, real-media, platform, device or release acceptance. The [current status](docs/PULSAR_CURRENT_STATUS.md) links source-bound receipts and outstanding gates.
 
 ## 📄 License
 

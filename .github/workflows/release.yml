@@ -20,14 +20,17 @@ jobs:
             target: x86_64-unknown-linux-gnu
             artifact_name: pulsar-linux-x86_64.tar.gz
             binary: pulsar
+            worker: pulsar-worker
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: pulsar-windows-x86_64.zip
             binary: pulsar.exe
+            worker: pulsar-worker.exe
           - os: macos-latest
             target: aarch64-apple-darwin
             artifact_name: pulsar-macos-arm64.tar.gz
             binary: pulsar
+            worker: pulsar-worker
 
     steps:
       - name: Checkout repository
@@ -45,20 +48,20 @@ jobs:
           sudo apt-get install -y ffmpeg libasound2-dev libudev-dev pkg-config
 
       - name: Build Release Binary
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --workspace --bins --target ${{ matrix.target }}
 
       - name: Package Binary (Unix)
         if: runner.os != 'Windows'
         run: |
           cd target/${{ matrix.target }}/release
-          tar -czvf ../../../${{ matrix.artifact_name }} ${{ matrix.binary }}
+          tar -czvf ../../../${{ matrix.artifact_name }} ${{ matrix.binary }} ${{ matrix.worker }}
           cd ../../..
 
       - name: Package Binary (Windows)
         if: runner.os == 'Windows'
         run: |
           cd target/${{ matrix.target }}/release
-          Compress-Archive -Path ${{ matrix.binary }} -DestinationPath ../../../${{ matrix.artifact_name }}
+          Compress-Archive -Path ${{ matrix.binary }},${{ matrix.worker }} -DestinationPath ../../../${{ matrix.artifact_name }}
           cd ../../..
 
       - name: Publish Release Assets
