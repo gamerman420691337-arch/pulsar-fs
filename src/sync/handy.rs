@@ -7,6 +7,9 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::Arc;
+
+use super::handy_hsp::{HspClient, HspStream};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -25,6 +28,16 @@ pub struct HandyConfig {
     pub direct_hdsp_mode: bool,
     /// Invert stroke direction (0% ⇄ 100%)
     pub invert: bool,
+    /// Handy application key for HSP token issue (memory only; falls back to HANDY_API_KEY)
+    #[serde(skip)]
+    pub api_key: String,
+    /// Maximum stroke speed uploaded for scripted playback, units/s (100 units = full stroke)
+    #[serde(default = "default_max_speed")]
+    pub max_speed: f32,
+}
+
+fn default_max_speed() -> f32 {
+    300.0
 }
 
 impl Default for HandyConfig {
@@ -36,6 +49,8 @@ impl Default for HandyConfig {
             max_stroke_pct: 100.0,
             direct_hdsp_mode: true,
             invert: false,
+            api_key: String::new(),
+            max_speed: default_max_speed(),
         }
     }
 }
@@ -59,7 +74,24 @@ pub enum HandyCommand {
     SetMode { key: String, mode: i32 },
     SendPosition { key: String, position_pct: f32, duration_ms: u32 },
     Stop { key: String },
+    /// Start (or restart) scripted HSP playback at `cursor_ms` as of `issued`.
+    HspPlay {
+        key: String,
+        api_key: String,
+        points: Arc<Vec<(u32, u8)>>,
+        cursor_ms: i64,
+        issued: Instant,
+        rate: f64,
+    },
+    /// Report the current script position so the worker can top up the device buffer.
+    HspTick { pos_ms: i64 },
+    HspStop,
 }
+
+/// Script time loaded ahead of the play position (device keeps playing this much after a crash).
+const HSP_AHEAD_MS: f64 = 5000.0;
+/// Extra look-ahead for the initial upload, covering cloud latency before play starts.
+const HSP_START_SLACK_MS: f64 = 4000.0;
 
 /// Events returned from the background Handy worker to the UI thread
 #[derive(Debug, Clone)]
@@ -206,6 +238,10 @@ pub struct HandyDispatcher {
     pub is_connecting: bool,
     last_pos_sent: f32,
     last_send_time: Instant,
+    /// True while scripted HSP playback owns the device; direct position streaming is suppressed.
+    pub hsp_active: bool,
+    last_tick: Instant,
+    hsp_end_ms: i64,
 }
 
 impl Default for HandyDispatcher {
@@ -221,7 +257,21 @@ impl HandyDispatcher {
 
         thread::spawn(move || {
             let client = HandyHttpClient::new();
+            let mut hsp: Option<HspClient> = None;
+            let mut stream: Option<HspStream> = None;
+            let mut rate = 1.0f64;
+            let mut device_in_hsp_mode = false;
             while let Ok(mut cmd) = cmd_rx.recv() {
+                if let HandyCommand::HspTick { .. } = cmd {
+                    while let Ok(newer) = cmd_rx.try_recv() {
+                        if let HandyCommand::HspTick { .. } = newer {
+                            cmd = newer;
+                        } else {
+                            cmd = newer;
+                            break;
+                        }
+                    }
+                }
                 // Drain newer position commands to keep latency minimal
                 if let HandyCommand::SendPosition { .. } = cmd {
                     while let Ok(newer) = cmd_rx.try_recv() {
@@ -265,6 +315,13 @@ impl HandyDispatcher {
                         }
                     }
                     HandyCommand::SendPosition { key, position_pct, duration_ms } => {
+                        if stream.is_some() {
+                            continue; // scripted playback owns the device
+                        }
+                        if device_in_hsp_mode {
+                            let _ = client.set_mode(&key, 3);
+                            device_in_hsp_mode = false;
+                        }
                         match client.send_hdsp_xpt(&key, position_pct, duration_ms) {
                             Ok(()) => {
                                 let _ = event_tx.send(HandyEvent::PositionAck { position: position_pct });
@@ -277,7 +334,53 @@ impl HandyDispatcher {
                         }
                     }
                     HandyCommand::Stop { key } => {
+                        if let Some(h) = hsp.as_mut() {
+                            let _ = h.stop();
+                        }
+                        stream = None;
                         let _ = client.stop(&key);
+                    }
+                    HandyCommand::HspPlay { key, api_key, points, cursor_ms, issued, rate: r } => {
+                        let h = hsp.get_or_insert_with(|| HspClient::new(&api_key, &key));
+                        let started = (|| -> anyhow::Result<HspStream> {
+                            let _ = h.stop();
+                            h.ensure_hsp_mode()?;
+                            let mut st = HspStream::begin(h, points, cursor_ms)?;
+                            st.load_until(h, (cursor_ms as f64 + (HSP_AHEAD_MS + HSP_START_SLACK_MS) * r) as u64)?;
+                            let clock = h.server_clock(2)?;
+                            let start = cursor_ms as f64 + issued.elapsed().as_millis() as f64 * r;
+                            h.play(start as i32, r, &clock)?;
+                            Ok(st)
+                        })();
+                        match started {
+                            Ok(st) => {
+                                stream = Some(st);
+                                rate = r;
+                                device_in_hsp_mode = true;
+                            }
+                            Err(e) => {
+                                stream = None;
+                                hsp = None; // rebuild credentials/token on next attempt
+                                let _ = event_tx.send(HandyEvent::Error { message: format!("Handy playback failed: {e}") });
+                            }
+                        }
+                    }
+                    HandyCommand::HspTick { pos_ms } => {
+                        if let (Some(h), Some(st)) = (hsp.as_mut(), stream.as_mut()) {
+                            let result = st.load_until(h, (pos_ms as f64 + HSP_AHEAD_MS * rate) as u64);
+                            if let Err(e) = result {
+                                let _ = event_tx.send(HandyEvent::Error { message: format!("Handy buffer top-up failed: {e}") });
+                            } else if pos_ms as u64 > st.end_ms() + 500 {
+                                let _ = h.stop();
+                                stream = None;
+                            }
+                        }
+                    }
+                    HandyCommand::HspStop => {
+                        if let Some(h) = hsp.as_mut() {
+                            let _ = h.stop();
+                        }
+                        stream = None;
                     }
                 }
             }
@@ -291,6 +394,9 @@ impl HandyDispatcher {
             is_connecting: false,
             last_pos_sent: -1.0,
             last_send_time: Instant::now() - Duration::from_secs(10),
+            hsp_active: false,
+            last_tick: Instant::now(),
+            hsp_end_ms: 0,
         }
     }
 
@@ -326,7 +432,7 @@ impl HandyDispatcher {
 
     /// Stream normalized stroke position [0.0, 100.0] respecting rate-limits and min/max bounds
     pub fn stream_position(&mut self, key: &str, raw_pos: f32, config: &HandyConfig, duration_ms: u32) {
-        if !config.is_enabled || !self.status.is_connected || key.trim().is_empty() {
+        if !config.is_enabled || !self.status.is_connected || key.trim().is_empty() || self.hsp_active {
             return;
         }
 
@@ -359,7 +465,7 @@ impl HandyDispatcher {
 
     /// Explicitly send a manual position command without rate-limiting (e.g. for test buttons or scrubbing)
     pub fn send_manual_position(&mut self, key: &str, raw_pos: f32, config: &HandyConfig, duration_ms: u32) {
-        if !self.status.is_connected || key.trim().is_empty() {
+        if !self.status.is_connected || key.trim().is_empty() || self.hsp_active {
             return;
         }
 
@@ -380,6 +486,50 @@ impl HandyDispatcher {
 
         self.last_pos_sent = pos;
         self.last_send_time = Instant::now();
+    }
+
+    /// Start or restart scripted playback from `cursor_ms` (device plays from its own buffer).
+    pub fn hsp_play(&mut self, config: &HandyConfig, points: Arc<Vec<(u32, u8)>>, cursor_ms: i64, rate: f64) {
+        let api_key = if config.api_key.trim().is_empty() {
+            std::env::var("HANDY_API_KEY").unwrap_or_default()
+        } else {
+            config.api_key.clone()
+        };
+        if api_key.trim().is_empty() {
+            self.last_error = Some("Set the Handy application key (or HANDY_API_KEY) for scripted playback".to_string());
+            return;
+        }
+        if points.len() < 2 || config.connection_key.trim().is_empty() {
+            return;
+        }
+        self.hsp_active = true;
+        self.hsp_end_ms = points.last().map(|p| p.0 as i64).unwrap_or(0);
+        let _ = self.cmd_tx.send(HandyCommand::HspPlay {
+            key: config.connection_key.trim().to_string(),
+            api_key,
+            points,
+            cursor_ms,
+            issued: Instant::now(),
+            rate,
+        });
+    }
+
+    /// Feed the current play position so the device buffer stays topped up (throttled).
+    pub fn hsp_tick(&mut self, pos_ms: i64) {
+        if self.hsp_active && pos_ms > self.hsp_end_ms + 500 {
+            self.hsp_active = false; // the worker stops the device at the end of the script
+        }
+        if self.hsp_active && self.last_tick.elapsed() >= Duration::from_millis(400) {
+            self.last_tick = Instant::now();
+            let _ = self.cmd_tx.send(HandyCommand::HspTick { pos_ms });
+        }
+    }
+
+    pub fn hsp_stop(&mut self) {
+        if self.hsp_active {
+            self.hsp_active = false;
+            let _ = self.cmd_tx.send(HandyCommand::HspStop);
+        }
     }
 
     /// Poll incoming events from background worker
@@ -429,6 +579,7 @@ mod tests {
             max_stroke_pct: 80.0,
             direct_hdsp_mode: true,
             invert: false,
+            ..Default::default()
         };
 
         let map_fn = |raw: f32, invert: bool| -> f32 {

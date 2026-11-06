@@ -661,6 +661,36 @@ impl FunGenApp {
         });
     }
 
+    /// Stroke actions for the Handy: speed-limited, range-mapped device points.
+    fn handy_points(&self) -> std::sync::Arc<Vec<(u32, u8)>> {
+        let stroke = if self.active_axis == AxisChannel::Stroke {
+            Some(&self.script)
+        } else {
+            self.multi_axis.channels.get(&AxisChannel::Stroke)
+        };
+        let invert = self.handy_config.invert;
+        let raw: Vec<(i64, i32)> = stroke
+            .map(|f| f.actions.iter().map(|a| (a.at, if invert { 100 - a.pos } else { a.pos })).collect())
+            .unwrap_or_default();
+        std::sync::Arc::new(crate::sync::handy_hsp::build_points(
+            &raw,
+            self.handy_config.max_speed,
+            self.handy_config.min_stroke_pct,
+            self.handy_config.max_stroke_pct,
+        ))
+    }
+
+    /// (Re)start scripted Handy playback from the cursor if the device is live.
+    fn handy_play_from_cursor(&mut self) {
+        if self.handy_config.is_enabled
+            && self.handy_dispatcher.status.is_connected
+            && !self.recorder.is_recording_active
+        {
+            let points = self.handy_points();
+            self.handy_dispatcher.hsp_play(&self.handy_config, points, self.timeline_state.cursor_time_ms, self.playback_speed);
+        }
+    }
+
     pub fn set_playing(&mut self, playing: bool) {
         if self.is_playing == playing {
             return;
@@ -675,8 +705,10 @@ impl FunGenApp {
             if let Some(ref path) = self.video_path {
                 self.audio_player.play_at(path, self.timeline_state.cursor_time_ms, self.playback_speed);
             }
+            self.handy_play_from_cursor();
         } else {
             self.audio_player.pause();
+            self.handy_dispatcher.hsp_stop();
             if self.recorder.is_recording_active {
                 self.finalize_recording_take();
             }
@@ -692,7 +724,9 @@ impl FunGenApp {
             streamer.seek_to(self.timeline_state.cursor_time_ms);
         }
         self.audio_player.seek_to(self.timeline_state.cursor_time_ms, self.playback_speed);
-        if self.handy_config.is_enabled {
+        if self.is_playing && self.handy_dispatcher.hsp_active {
+            self.handy_play_from_cursor(); // restart the device stream at the new position
+        } else if self.handy_config.is_enabled {
             let cur_pos = self.script.interpolate_position(self.timeline_state.cursor_time_ms);
             self.handy_dispatcher.send_manual_position(
                 &self.handy_config.connection_key,
@@ -1270,6 +1304,7 @@ impl FunGenApp {
                         if let Some(ref path) = self.video_path {
                             self.audio_player.play_at(path, self.timeline_state.cursor_time_ms, self.playback_speed);
                         }
+                        self.handy_play_from_cursor();
                     }
                     self.set_status(format!("Playback speed: {:.2}x", self.playback_speed));
                 } else {
@@ -1285,6 +1320,7 @@ impl FunGenApp {
                         if let Some(ref path) = self.video_path {
                             self.audio_player.play_at(path, self.timeline_state.cursor_time_ms, self.playback_speed);
                         }
+                        self.handy_play_from_cursor();
                     }
                     self.set_status(format!("Playback speed: {:.2}x", self.playback_speed));
                 } else {
@@ -1583,6 +1619,7 @@ impl FunGenApp {
                                 streamer.seek_to(in_ms);
                             }
                             looped = true;
+                            self.handy_play_from_cursor();
                         }
                     }
                 }
@@ -1597,6 +1634,7 @@ impl FunGenApp {
                         if let Some(ref streamer) = self.playback_streamer {
                             streamer.seek_to(0);
                         }
+                        self.handy_play_from_cursor();
                     }
                 }
 
@@ -1637,7 +1675,12 @@ impl FunGenApp {
             }
 
             // The Handy Hardware Streaming
-            if self.handy_config.is_enabled {
+            if self.recorder.is_recording_active {
+                self.handy_dispatcher.hsp_stop(); // live puppeteering drives the device directly
+            }
+            if self.handy_dispatcher.hsp_active {
+                self.handy_dispatcher.hsp_tick(self.timeline_state.cursor_time_ms);
+            } else if self.handy_config.is_enabled && self.recorder.is_recording_active {
                 let stroke_pos = *positions.get(&AxisChannel::Stroke).unwrap_or(&50.0);
                 self.handy_dispatcher.stream_position(
                     &self.handy_config.connection_key,
@@ -3661,8 +3704,8 @@ impl FunGenApp {
 
             // 4. The Handy (Ohdoki / Sweet Tech) Hardware Cloud & Local Sync
             ui.group(|ui| {
-                ui.heading("The Handy — Hardware Cloud & Local HDSP Sync");
-                ui.label("Direct physical toy control via official HandyFeeling API v2 (HDSP real-time streaming & HSSP script mode).");
+                ui.heading("The Handy — Scripted HSP Playback");
+                ui.label("Scripts play from the device's own buffer (REST v3 HSP), so cloud latency does not affect timing. Sync offset is the one set on the Handyverse site.");
                 ui.add_space(6.0);
 
                 ui.horizontal(|ui| {
@@ -3726,6 +3769,18 @@ impl FunGenApp {
                         self.handy_dispatcher.set_mode(&self.handy_config.connection_key, mode_num);
                     }
                 });
+
+                ui.add_space(6.0);
+
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Application Key:").strong());
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.handy_config.api_key)
+                            .password(true)
+                            .hint_text("or set HANDY_API_KEY (kept in memory only)"),
+                    );
+                });
+                ui.add(Slider::new(&mut self.handy_config.max_speed, 50.0..=450.0).text("Max speed (units/s)"));
 
                 ui.add_space(6.0);
 

@@ -1715,7 +1715,7 @@ fn run_play_handy(
     stroke_min: f32,
     stroke_max: f32,
 ) -> Result<()> {
-    use crate::sync::handy_hsp::{build_points, HspClient, MAX_ADD_POINTS};
+    use crate::sync::handy_hsp::{build_points, HspClient};
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
 
@@ -1764,35 +1764,24 @@ fn run_play_handy(
     }
     hsp.ensure_hsp_mode()?;
     let _ = hsp.stop(); // clear anything left over from a prior session
-    let stream_id = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs() as u32).max(1);
-    hsp.setup(stream_id)?;
-
-    // Send points in chunks no further ahead than `until_ms` of script time.
-    let mut sent = 0usize;
-    let load = |hsp: &mut HspClient, until_ms: u64, sent: &mut usize| -> Result<()> {
-        while *sent < points.len() && (points[*sent].0 as u64) <= until_ms {
-            let end = (*sent + MAX_ADD_POINTS).min(points.len());
-            let mut stop_at = *sent;
-            while stop_at < end && (points[stop_at].0 as u64) <= until_ms {
-                stop_at += 1;
-            }
-            hsp.add(&points[*sent..stop_at], (stop_at - 1) as u32)?;
-            *sent = stop_at;
-        }
-        Ok(())
-    };
-    load(&mut hsp, AHEAD_MS, &mut sent)?;
+    match hsp.user_offset_ms() {
+        Ok(off) => println!("Device sync offset: {off} ms (set on the Handyverse site)"),
+        Err(_) => println!("Device sync offset: unavailable"),
+    }
+    let points = std::sync::Arc::new(points);
+    let mut stream = crate::sync::handy_hsp::HspStream::begin(&mut hsp, points.clone(), 0)?;
+    stream.load_until(&mut hsp, AHEAD_MS)?;
     let st = hsp.state()?;
     let on_device = st["points"].as_u64().unwrap_or(0);
-    if on_device != sent as u64 {
-        anyhow::bail!("Handy reports {on_device} buffered points but {sent} were sent; not starting.");
+    if on_device != stream.sent() as u64 {
+        anyhow::bail!("Handy reports {on_device} buffered points but {} were sent; not starting.", stream.sent());
     }
     let clock = hsp.server_clock(3)?;
     println!("Server clock: best round trip {} ms", clock.rtt_ms);
 
     println!("Starting playback... Ctrl+C stops.");
     let t0 = Instant::now();
-    hsp.play(0, &clock)?;
+    hsp.play(0, 1.0, &clock)?;
     let mut audio_player = crate::audio::AudioPlayer::default();
     audio_player.play_at(video, 0, 1.0);
 
@@ -1806,10 +1795,8 @@ fn run_play_handy(
             if elapsed > end_ms + 500 {
                 return Ok(());
             }
-            if sent < points.len() && (points[sent].0 as u64) <= elapsed + AHEAD_MS {
-                load(&mut hsp, elapsed + AHEAD_MS, &mut sent)?;
-            }
-            print!("\r[Playing] {:>6.2}s / {:.2}s | points sent {}/{}", elapsed as f64 / 1000.0, end_ms as f64 / 1000.0, sent, points.len());
+            stream.load_until(&mut hsp, elapsed + AHEAD_MS)?;
+            print!("\r[Playing] {:>6.2}s / {:.2}s | points sent {}/{}", elapsed as f64 / 1000.0, end_ms as f64 / 1000.0, stream.sent(), points.len());
             let _ = std::io::stdout().flush();
             std::thread::sleep(Duration::from_millis(100));
         }

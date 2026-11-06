@@ -175,6 +175,12 @@ impl HspClient {
         best.ok_or_else(|| anyhow!("no server clock samples"))
     }
 
+    /// The user sync offset stored on the device (set from the Handyverse site), in ms.
+    pub fn user_offset_ms(&mut self) -> Result<i64> {
+        let v = self.call("GET", "/hstp/offset", None)?;
+        Ok(v["result"]["offset"].as_i64().or_else(|| v["result"].as_i64()).unwrap_or(0))
+    }
+
     pub fn setup(&mut self, stream_id: u32) -> Result<()> {
         if stream_id == 0 {
             bail!("stream id must be nonzero");
@@ -198,14 +204,14 @@ impl HspClient {
     }
 
     /// Play from `start_ms` of script time, aligned to the given server-clock estimate.
-    pub fn play(&mut self, start_ms: i32, clock: &ServerClock) -> Result<()> {
+    pub fn play(&mut self, start_ms: i32, rate: f64, clock: &ServerClock) -> Result<()> {
         self.call(
             "PUT",
             "/hsp/play",
             Some(json!({
                 "start_time": start_ms,
                 "server_time": clock.now_ms(),
-                "playback_rate": 1.0,
+                "playback_rate": rate,
                 "pause_on_starving": false,
                 "loop": false
             })),
@@ -216,6 +222,61 @@ impl HspClient {
     pub fn stop(&mut self) -> Result<()> {
         self.call("PUT", "/hsp/stop", None)?;
         Ok(())
+    }
+}
+
+/// A windowed upload of one script to the device buffer. Only points up to a limit
+/// are ever sent, so a lost client leaves the device with a short bounded tail.
+pub struct HspStream {
+    points: std::sync::Arc<Vec<(u32, u8)>>,
+    next: usize,
+    count: u32,
+}
+
+impl HspStream {
+    /// Start a fresh device stream whose first point is the last one at or before `from_ms`.
+    pub fn begin(client: &mut HspClient, points: std::sync::Arc<Vec<(u32, u8)>>, from_ms: i64) -> Result<Self> {
+        let first = points.partition_point(|p| (p.0 as i64) <= from_ms).saturating_sub(1);
+        static COUNTER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as u32)
+            .unwrap_or(1);
+        let id = secs.wrapping_add(COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)).max(1);
+        client.setup(id)?;
+        Ok(Self { points, next: first, count: 0 })
+    }
+
+    pub fn end_ms(&self) -> u64 {
+        self.points.last().map(|p| p.0 as u64).unwrap_or(0)
+    }
+
+    /// Send every point with time <= `until_ms` (the first upload always has at least two).
+    pub fn load_until(&mut self, client: &mut HspClient, until_ms: u64) -> Result<()> {
+        loop {
+            let remaining = self.points.len() - self.next;
+            if remaining == 0 {
+                return Ok(());
+            }
+            let min_take = if self.count == 0 { 2.min(remaining) } else { 0 };
+            let mut take = self.points[self.next..]
+                .iter()
+                .take(MAX_ADD_POINTS)
+                .take_while(|p| p.0 as u64 <= until_ms)
+                .count();
+            take = take.max(min_take).min(MAX_ADD_POINTS);
+            if take == 0 {
+                return Ok(());
+            }
+            let chunk = &self.points[self.next..self.next + take];
+            client.add(chunk, self.count + take as u32 - 1)?;
+            self.next += take;
+            self.count += take as u32;
+        }
+    }
+
+    pub fn sent(&self) -> u32 {
+        self.count
     }
 }
 
