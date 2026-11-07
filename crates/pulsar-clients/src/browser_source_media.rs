@@ -11,6 +11,58 @@ use std::{
 const CONTROL_TIMEOUT: Duration = Duration::from_secs(3);
 const RANGE_TIMEOUT: Duration = Duration::from_secs(30);
 const RANGE_SLOTS: usize = 4;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SourceFailureStage {
+    Exchange,
+    Reply,
+}
+impl std::fmt::Display for SourceFailureStage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Exchange => "source exchange",
+            Self::Reply => "source reply",
+        })
+    }
+}
+impl std::error::Error for SourceFailureStage {}
+
+// Only allowlisted metadata leaves native cleanup; error text may contain paths
+// or credentials and must not be included in the public diagnostic.
+fn source_cleanup_diagnostic(error: &anyhow::Error) -> serde_json::Value {
+    let stage = match error.downcast_ref::<SourceFailureStage>() {
+        Some(SourceFailureStage::Exchange) => "exchange",
+        Some(SourceFailureStage::Reply) => "reply",
+        None => "local",
+    };
+    let transport = error.downcast_ref::<TransportError>();
+    let protocol = error.downcast_ref::<ProtocolError>().or(match transport {
+        Some(TransportError::Protocol(error)) => Some(error),
+        _ => None,
+    });
+    let io = error.downcast_ref::<std::io::Error>().or(match transport {
+        Some(TransportError::Io(error)) => Some(error),
+        _ => None,
+    });
+    let category = if stage == "reply" {
+        "reply_validation"
+    } else if protocol.is_some() {
+        "protocol_rejected"
+    } else if let Some(io) = io {
+        if matches!(
+            io.kind(),
+            std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
+        ) {
+            "transport_timeout"
+        } else {
+            "transport_io"
+        }
+    } else if transport.is_some() {
+        "transport_framing"
+    } else {
+        "local_state"
+    };
+    serde_json::json!({"stage":stage,"category":category,"protocol_code":protocol.map(|p|p.code)})
+}
 fn identifier() -> AttemptId {
     AttemptId::new(uuid::Uuid::new_v4().to_string()).expect("UUID")
 }
@@ -223,21 +275,22 @@ fn call_original(
     if kind == OpKind::Prepare {
         intent.dispatched.store(true, Ordering::Release);
     }
-    let report = checked_report(
-        client.browser_media_call_until(
+    let reply = client
+        .browser_media_call_until(
             id,
             command,
             intent.project.clone(),
             revision,
             Instant::now() + CONTROL_TIMEOUT,
-        )?,
-        intent,
-    )?;
+        )
+        .context(SourceFailureStage::Exchange)?;
+    let report = checked_report(reply, intent).context(SourceFailureStage::Reply)?;
     if kind == OpKind::Release {
-        ensure!(
-            !report.current && report.state != BrowserMediaPreparationState::Pending,
-            "source release not confirmed"
-        );
+        if report.current || report.state == BrowserMediaPreparationState::Pending {
+            return Err(
+                anyhow::anyhow!("source release not confirmed").context(SourceFailureStage::Reply)
+            );
+        }
         intent.released.store(true, Ordering::Release);
     }
     Ok(report)
@@ -569,6 +622,17 @@ impl MediaController {
             )
             .in_project(intent.project.clone(), Some(intent.revision))
             .validate()?;
+            ensure!(
+                self.successor.is_none() || self.retired.len() < 4,
+                "media predecessor cleanup must settle before replacement"
+            );
+            // A new original preparation cannot inherit an earlier parent's
+            // successor. Keep its pending replies and exact native cleanup
+            // obligation addressable until retirement actually settles.
+            if let Some(previous) = self.successor.take() {
+                previous.intent.cancelled.store(true, Ordering::Release);
+                self.retired.push(previous);
+            }
             self.prepared = Some(Prepared {
                 intent: intent.clone(),
                 report: None,
@@ -864,12 +928,13 @@ impl MediaController {
                 p.intent.cancelled.store(true, Ordering::Release);
             }
             if p.intent.cancelled.load(Ordering::Acquire)
-                && p.intent.dispatched.load(Ordering::Acquire)
                 && !p.intent.released.load(Ordering::Acquire)
                 && !p.release_pending
                 && !p.cleanup_attempted
                 && p.pending == 0
             {
+                // The worker resolves an unissued intent locally; it still
+                // needs a confirmed release to clear its retained cleanup slot.
                 p.ready = None;
                 p.release_pending = true;
                 p.cleanup_attempted = true;
@@ -1036,12 +1101,13 @@ impl MediaController {
         {
             if p.intent.dispatched.load(Ordering::Acquire)
                 && !p.intent.released.load(Ordering::Acquire)
-                && call_original(&self.cleanup, &p.intent, OpKind::Release).is_err()
             {
-                failure = Some(format!(
-                    "source cleanup unconfirmed; original preparation {} selection {}",
-                    p.intent.request_id, p.intent.selection_id
-                ));
+                if let Err(error) = call_original(&self.cleanup, &p.intent, OpKind::Release) {
+                    failure.get_or_insert_with(|| format!(
+                        "source cleanup unconfirmed; original preparation {} selection {}; diagnostic {}",
+                        p.intent.request_id, p.intent.selection_id, source_cleanup_diagnostic(&error)
+                    ));
+                }
             }
         }
         if panicked {

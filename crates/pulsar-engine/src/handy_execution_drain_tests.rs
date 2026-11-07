@@ -205,10 +205,10 @@ impl Fixture {
         let pending = Arc::new(AtomicBool::new(false));
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         listener.set_nonblocking(true).unwrap();
-        let credentials = Arc::new(Credentials {
-            api: "synthetic-drain-api".into(),
-            connection: "synthetic-drain-connection".into(),
-        });
+        let credentials = Arc::new(Credentials::for_test(
+            "synthetic-drain-api",
+            "synthetic-drain-connection",
+        ));
         let mut transport = HandyTransport::from_snapshot(
             TransportBinding {
                 admission: admission.clone(),

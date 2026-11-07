@@ -1,7 +1,10 @@
 //! Explicit remote configuration; declarations and observations are not motion proof.
 use crate::*;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+// Firmware reports settings beyond the pinned schema. Unknown fields are
+// ignored while declared fields remain required and validated. Retain declared
+// firmware extensions below; do not alias x_limit_end to x_limit_stop because
+// choosing the wrong range can affect a device profile.
 pub struct HandySliderSettings {
     pub x_limit_start: f64,
     pub x_limit_stop: f64,
@@ -22,6 +25,14 @@ pub struct HandySliderSettings {
     pub overclock_enabled: bool,
     pub x_inverse_motor: bool,
     pub x_inverse_hall: bool,
+    /// Reported by Handy 2 Pro firmware 4.3.0 and later; absent from the pinned
+    /// v3 schema. Declared so observed values are retained rather than dropped.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub x_cw_is_forward: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lead_pitch: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ticks_per_rot: Option<f64>,
 }
 impl HandySliderSettings {
     pub fn validate(&self) -> Result<(), ProtocolError> {
@@ -52,6 +63,10 @@ impl HandySliderSettings {
             || self.x_min_speed > self.x_max_speed
             || self.x_min_speed_theoretical > self.x_max_speed_theoretical
             || self.x_stroke_min > self.x_stroke_max
+            || [self.lead_pitch, self.ticks_per_rot]
+                .iter()
+                .flatten()
+                .any(|v| !v.is_finite() || *v < 0.0)
         {
             return Err(ProtocolError::invalid("invalid Handy slider settings"));
         }
@@ -96,6 +111,35 @@ impl HandyOperativeSettings {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn observed_handy2pro_slider_settings_with_firmware_extras_are_accepted() {
+        // Verbatim Handy 2 Pro firmware 4.3.0 response. lead_pitch, ticks_per_rot
+        // and x_cw_is_forward are absent from the pinned v3 schema but are real.
+        let bytes = r#"{"result":{
+            "x_limit_start":0,"x_limit_stop":124.326,"x_end_buffer":5,
+            "x_end_zone_size":10,"x_end_zone_speed":200,"x_min_speed":32,
+            "x_max_speed":450,"x_min_speed_theoretical":45,
+            "x_max_speed_theoretical":1600,"turn_time":0,"regulator_timeout":10,
+            "temp_high_trigger":80,"temp_offset":0.06,"x_stroke_min":0,
+            "x_stroke_max":0.91,"x_cw_is_forward":false,"temp_hysteresis":10,
+            "overclock_enabled":false,"x_inverse_motor":false,"x_inverse_hall":false,
+            "lead_pitch":8,"ticks_per_rot":24,
+            "an_unseen_future_field":true}}"#;
+        let mut value: serde_json::Value = serde_json::from_str(bytes).unwrap();
+        let body = value["result"].clone();
+        let slider: HandySliderSettings = serde_json::from_value(body.clone()).unwrap();
+        slider.validate().unwrap();
+        assert_eq!(slider.lead_pitch, Some(8.0));
+        assert_eq!(slider.ticks_per_rot, Some(24.0));
+        assert_eq!(slider.x_cw_is_forward, Some(false));
+        assert_eq!(slider.x_max_speed_theoretical, 1600.0);
+        // Unknown fields are ignored rather than fatal; declared fields stay required.
+        value["result"]
+            .as_object_mut()
+            .unwrap()
+            .remove("x_max_speed_theoretical");
+        assert!(serde_json::from_value::<HandySliderSettings>(value["result"].clone()).is_err());
+    }
     #[test]
     fn handy_operative_settings_are_complete_finite_and_ordered_without_defaults() {
         let bytes = include_str!("../tests/fixtures/handy-operative-settings.json");

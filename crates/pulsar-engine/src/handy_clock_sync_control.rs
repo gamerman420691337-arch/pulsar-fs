@@ -31,10 +31,10 @@ impl Engine {
         action()
     }
 }
-fn mismatch() -> ProtocolError {
+fn mismatch(why: &'static str) -> ProtocolError {
     ProtocolError::new(
         ErrorCode::DependencyMismatch,
-        "clock synchronization selection changed",
+        format!("clock synchronization selection changed ({why})"),
     )
 }
 fn selected(r: &Request, l: &HandyControllerLease) -> bool {
@@ -127,7 +127,7 @@ impl Engine {
     ) -> PResult<()> {
         if let Some(body) = replay(db, actor.as_str(), r, fingerprint)? {
             let ResponseBody::HandyClockSync(saved) = body else {
-                return Err(mismatch());
+                return Err(mismatch("sync:130"));
             };
             saved.validate()?;
             if saved.project_id != value.project_id
@@ -139,7 +139,7 @@ impl Engine {
                         .is_none_or(|v| v.record_id != h.record_id)
                 })
             {
-                return Err(mismatch());
+                return Err(mismatch("sync:142"));
             }
         } else {
             let tx = db.transaction().map_err(internal)?;
@@ -185,7 +185,7 @@ impl Engine {
         if matches!(r.command, Command::SynchronizeHandyClock { .. })
             && !self.check_handy_controller_monitor()?
         {
-            return Err(mismatch());
+            return Err(mismatch("sync:188"));
         }
         self.handy_clock_sync_with(
             r,
@@ -237,7 +237,7 @@ impl Engine {
             {
                 if let Some(body) = replay(&db, actor.as_str(), r, fingerprint)? {
                     let ResponseBody::HandyClockSync(v) = &body else {
-                        return Err(mismatch());
+                        return Err(mismatch("sync:240"));
                     };
                     v.validate()?;
                     if v.sync_request_id != *sync_request_id
@@ -246,7 +246,7 @@ impl Engine {
                             h.record_id == *record_id && h.state == HandyClockSyncState::Cancelled
                         })
                     {
-                        return Err(mismatch());
+                        return Err(mismatch("sync:249"));
                     }
                     return Ok(body);
                 }
@@ -256,11 +256,11 @@ impl Engine {
                     .map_err(internal)?
                     .clock_sync_request_history(actor, sync_request_id)
                     .map_err(internal)?
-                    .ok_or_else(mismatch)?;
+                    .ok_or_else(|| mismatch("sync:opt"))?;
                 if existing.id != record_id.as_str()
                     || existing.record.original_controller.project_id != *project(r)?
                 {
-                    return Err(mismatch());
+                    return Err(mismatch("sync:263"));
                 }
                 let tx = db.transaction().map_err(internal)?;
                 claim_request_identity(&tx, actor.as_str(), r, fingerprint)?;
@@ -293,7 +293,7 @@ impl Engine {
                 .map_err(internal)?
             {
                 if !selected(r, &existing.record.original_controller) {
-                    return Err(mismatch());
+                    return Err(mismatch("sync:296"));
                 }
                 let value = status(project(r)?.clone(), r.request_id.clone(), Some(existing))?;
                 Self::reserve_sync(&mut db, r, actor, fingerprint, &value)?;
@@ -325,7 +325,7 @@ impl Engine {
             return Err(internal("synchronization preflight differs"));
         };
         if preflight.first.user_offset != preflight.second.user_offset {
-            return Err(mismatch());
+            return Err(mismatch("sync:328"));
         }
         let (captured, prep, claim, deadline, native_context) = {
             let mut db = self.db.lock().map_err(internal)?;
@@ -345,7 +345,7 @@ impl Engine {
             let live =
                 self.controller_view(&db, actor, preflight.controller.clone(), r, &mut clock)?;
             if !selected(r, &live) {
-                return Err(mismatch());
+                return Err(mismatch("sync:348"));
             }
             let prep = self
                 .handy_preparations
@@ -353,7 +353,7 @@ impl Engine {
                 .map_err(internal)?
                 .entries
                 .get(&live.preparation_id)
-                .ok_or_else(mismatch)?
+                .ok_or_else(|| mismatch("sync:opt"))?
                 .report
                 .clone();
             let (captured, _) = self.preparation_references(&db, actor, &prep, r)?;
@@ -367,7 +367,7 @@ impl Engine {
             if qualified.as_ref().is_some_and(|q| {
                 q.contract.user_offset_ms != preflight.second.user_offset.offset_ms
             }) {
-                return Err(mismatch());
+                return Err(mismatch("sync:370"));
             }
             let route = crate::HandyRouteIdentity::from_snapshot(
                 &self.handy_owner_token,
@@ -398,7 +398,7 @@ impl Engine {
             let existing = journal
                 .clock_sync_request_history(actor, &r.request_id)
                 .map_err(internal)?
-                .ok_or_else(mismatch)?;
+                .ok_or_else(|| mismatch("sync:opt"))?;
             Self::reserve_sync(
                 &mut db,
                 r,
@@ -419,9 +419,9 @@ impl Engine {
                 )?;
                 let retired = registry
                     .retire_controller(&live.preparation_id, &live.controller_id)
-                    .ok_or_else(mismatch)?;
+                    .ok_or_else(|| mismatch("sync:opt"))?;
                 if retired.physical_stop_pending {
-                    return Err(mismatch());
+                    return Err(mismatch("sync:424"));
                 }
                 context
             };
@@ -430,7 +430,7 @@ impl Engine {
                 .deadline_boottime_ns
                 .checked_sub(now)
                 .filter(|v| *v > 0)
-                .ok_or_else(mismatch)?;
+                .ok_or_else(|| mismatch("sync:opt"))?;
             let deadline = sync_now() + Duration::from_nanos(remaining.min(10_000_000_000));
             let claim = journal.claim_clock_sync(&prepared).map_err(internal)?;
             (captured, prep, claim, deadline, native_context)
@@ -445,7 +445,7 @@ impl Engine {
                 || captured.connection.registration != fresh.connection.registration
                 || !captured.hosted.same_location(&fresh.hosted)
             {
-                return Err(mismatch());
+                return Err(mismatch("sync:448"));
             }
             self.accepted_handy_timing(
                 &db,
@@ -455,7 +455,7 @@ impl Engine {
                 &fresh.hosted,
             )?;
             if clock()? >= preflight.controller.deadline_boottime_ns {
-                return Err(mismatch());
+                return Err(mismatch("sync:458"));
             }
             Ok(())
         })();
@@ -467,7 +467,7 @@ impl Engine {
                     .map_err(internal)?
                     .sweep_controllers(&mut clock)?;
                 if now >= preflight.controller.deadline_boottime_ns {
-                    return Err(mismatch());
+                    return Err(mismatch("sync:470"));
                 }
                 Ok(now)
             })
@@ -503,13 +503,13 @@ impl Engine {
         let db = self.db.lock().map_err(internal)?;
         if let Some(context) = native_context {
             let native = (|| {
-                let ack = acknowledgment.ok_or_else(mismatch)?;
+                let ack = acknowledgment.ok_or_else(|| mismatch("sync:opt"))?;
                 let query = self.preparation_inspection(r, &context.preparation.selection()?);
                 let fresh = self.capture_setup(&db, &query, actor)?;
                 if !Arc::ptr_eq(&fresh.credentials, &context.captured.credentials)
                     || !fresh.hosted.same_location(&context.captured.hosted)
                 {
-                    return Err(mismatch());
+                    return Err(mismatch("sync:512"));
                 }
                 let qualified = self
                     .accepted_handy_device_clock(
@@ -519,9 +519,9 @@ impl Engine {
                         &preflight.after,
                         &fresh.hosted,
                     )?
-                    .ok_or_else(mismatch)?;
+                    .ok_or_else(|| mismatch("sync:opt"))?;
                 if qualified != context.qualified {
-                    return Err(mismatch());
+                    return Err(mismatch("sync:524"));
                 }
                 crate::handy_playback_clock::NativeDeviceClock::new(ack, qualified)
             })()

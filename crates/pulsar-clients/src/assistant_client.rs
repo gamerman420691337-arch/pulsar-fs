@@ -790,6 +790,7 @@ mod tests {
                 target_focus: vec![],
                 review_focus: vec![],
                 profile: pulsar_protocol::AssistantProfile {
+                    execution: None,
                     vision_projector: None,
                     profile_id: AttemptId::new("profile").unwrap(),
                     worker: artifact.clone(),

@@ -885,7 +885,19 @@ mod tests {
         assert!(PreparedPackageImport::open(&path, &PackageImportControl::default()).is_ok());
         fs::write(
             &path,
-            probe_bytes(PROJECT_PACKAGE_FORMAT_VERSION_WITH_CPU_HISTORY + 1),
+            probe_bytes(PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY),
+        )
+        .unwrap();
+        assert!(PreparedPackageImport::open(&path, &PackageImportControl::default()).is_ok());
+        fs::write(
+            &path,
+            probe_bytes(PROJECT_PACKAGE_FORMAT_VERSION_WITH_BROWSER_FALLBACK_HISTORY),
+        )
+        .unwrap();
+        assert!(PreparedPackageImport::open(&path, &PackageImportControl::default()).is_ok());
+        fs::write(
+            &path,
+            probe_bytes(PROJECT_PACKAGE_FORMAT_VERSION_WITH_BROWSER_FALLBACK_HISTORY + 1),
         )
         .unwrap();
         assert!(PreparedPackageImport::open(&path, &PackageImportControl::default()).is_err());
@@ -1023,6 +1035,9 @@ mod socket_tests {
         loop {
             match listener.accept() {
                 Ok((stream, _)) => {
+                    // Accepted socket mode is platform-dependent; timed fixture I/O
+                    // must use blocking mode even when the listener polls.
+                    stream.set_nonblocking(false).unwrap();
                     stream
                         .set_read_timeout(Some(Duration::from_secs(2)))
                         .unwrap();

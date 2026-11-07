@@ -136,22 +136,53 @@ impl HandyProgramCorrelation {
     ) -> Result<(), ProtocolError> {
         device.validate()?;
         buffer.validate()?;
-        let state = device
-            .remote_hssp
-            .as_ref()
-            .ok_or_else(|| ProtocolError::invalid("HSSP state missing"))?;
-        if device.mode.mode != 1
-            || buffer.play_state != 2
-            || state.play_state != HandyRemotePlayState::Stopped
-            || state.stream_id != buffer.stream_id
-            || state.current_time_ms != buffer.current_time
-            || state.playback_rate != buffer.playback_rate
-            || state.looping != buffer.r#loop
-            || state.pause_on_starving != buffer.pause_on_starving
-        {
+        if buffer.play_state != 2 {
             return Err(ProtocolError::invalid(
                 "stopped HSSP buffer observation differs",
             ));
+        }
+        match device.mode.mode {
+            1 => {
+                let state = device
+                    .remote_hssp
+                    .as_ref()
+                    .ok_or_else(|| ProtocolError::invalid("HSSP state missing"))?;
+                if state.play_state != HandyRemotePlayState::Stopped
+                    || state.stream_id != buffer.stream_id
+                    || state.current_time_ms != buffer.current_time
+                    || state.playback_rate != buffer.playback_rate
+                    || state.looping != buffer.r#loop
+                    || state.pause_on_starving != buffer.pause_on_starving
+                {
+                    return Err(ProtocolError::invalid(
+                        "stopped HSSP buffer observation differs",
+                    ));
+                }
+            }
+            // H02_pro 4.3.0 leaves HSSP for HSP on any HSSP operation, but still
+            // serves the same buffer at /hssp/state. Cross-check it against the
+            // HSP observation, which is read from a different endpoint.
+            4 => {
+                let hsp = device
+                    .remote_hsp
+                    .as_ref()
+                    .ok_or_else(|| ProtocolError::invalid("HSP state missing"))?;
+                if hsp.play_state != HandyRemotePlayState::Stopped
+                    || u64::from(hsp.stream_id) != buffer.stream_id
+                    || hsp.playback_rate != buffer.playback_rate
+                    || hsp.looping != buffer.r#loop
+                    || hsp.pause_on_starving != buffer.pause_on_starving
+                {
+                    return Err(ProtocolError::invalid(
+                        "stopped HSP buffer observation differs",
+                    ));
+                }
+            }
+            _ => {
+                return Err(ProtocolError::invalid(
+                    "HSP streaming mode unavailable for buffer correlation",
+                ))
+            }
         }
         Ok(())
     }

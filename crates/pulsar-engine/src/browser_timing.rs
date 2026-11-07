@@ -174,6 +174,11 @@ impl BrowserTimingRead {
     }
 }
 impl BrowserTimingPin {
+    pub(super) fn same_owner(&self, other: &Self) -> bool {
+        self.binding == other.binding
+            && Arc::ptr_eq(&self.registry, &other.registry)
+            && Arc::ptr_eq(&self.lifetime, &other.lifetime)
+    }
     #[cfg(test)]
     pub(super) fn hold_registry_for_test(&self) -> std::sync::MutexGuard<'_, Registry> {
         self.registry.lock().unwrap()
@@ -736,7 +741,7 @@ impl Engine {
         pin.latest(now)?;
         Ok(pin)
     }
-    fn browser_timing_now(&self) -> PResult<u64> {
+    pub(super) fn browser_timing_now(&self) -> PResult<u64> {
         #[cfg(test)]
         {
             let tick = self.browser_timing_test_tick.load(Ordering::Acquire);
@@ -934,6 +939,16 @@ impl Engine {
                         .as_ref()
                         .is_none_or(NativeBrowserMediaSuccessor::current)
             });
+        #[cfg(test)]
+        if !report.current {
+            eprintln!(
+                "browser timing open recheck: begin_ns={begin}, recheck_ns={:?}, deadline_ns={deadline_ns}, clock_failed={}, source_current={}, shutting_down={}",
+                registry.last_tick_ns,
+                registry.clock_failed,
+                source.current(),
+                self.is_shutting_down()
+            );
+        }
         if report.current {
             let source = Arc::new(source);
             let lifetime = Arc::new(Lifetime {

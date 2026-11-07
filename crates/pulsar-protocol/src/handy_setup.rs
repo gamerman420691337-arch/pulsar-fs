@@ -20,6 +20,14 @@ pub struct HandyHsspObservation {
     pub pause_on_starving: bool,
 }
 impl HandyHsspObservation {
+    /// Configuration equality, excluding `current_time_ms`.
+    pub fn same_configuration(&self, other: &Self) -> bool {
+        self.play_state == other.play_state
+            && self.stream_id == other.stream_id
+            && self.playback_rate == other.playback_rate
+            && self.looping == other.looping
+            && self.pause_on_starving == other.pause_on_starving
+    }
     pub fn validate(&self) -> Result<(), ProtocolError> {
         if self.stream_id > (1u64 << 53) - 1
             || self.current_time_ms > (1u64 << 53) - 1
@@ -51,6 +59,22 @@ pub struct HandyHspObservation {
     pub tail_point_stream_index_threshold: u32,
 }
 impl HandyHspObservation {
+    /// Configuration equality: program identity and playback settings, excluding
+    /// clock position (`current_time_ms`, `current_point`) which advances
+    /// continuously on real hardware even while stopped.
+    pub fn same_configuration(&self, other: &Self) -> bool {
+        self.play_state == other.play_state
+            && self.stream_id == other.stream_id
+            && self.points == other.points
+            && self.max_points == other.max_points
+            && self.playback_rate == other.playback_rate
+            && self.looping == other.looping
+            && self.pause_on_starving == other.pause_on_starving
+            && self.first_point_time_ms == other.first_point_time_ms
+            && self.last_point_time_ms == other.last_point_time_ms
+            && self.tail_point_stream_index == other.tail_point_stream_index
+            && self.tail_point_stream_index_threshold == other.tail_point_stream_index_threshold
+    }
     pub fn validate(&self) -> Result<(), ProtocolError> {
         if self.current_point < -1
             || self.tail_point_stream_index < -1
@@ -107,12 +131,37 @@ impl HandySetupDeviceObservation {
         }
         Ok(())
     }
+    /// Full equality, including advancing clock position. Callers that need to
+    /// detect any difference between two bracketing reads use this.
     pub fn same_state(&self, other: &Self) -> bool {
         self.identity == other.identity
             && self.mode == other.mode
             && self.operative_settings == other.operative_settings
             && self.remote_hssp == other.remote_hssp
             && self.remote_hsp == other.remote_hsp
+    }
+    /// Configuration equality, excluding clock position.
+    ///
+    /// Real hardware advances `current_time_ms` (and, for HSP, `current_point`)
+    /// continuously, even while stopped, so two bracketing reads of an unchanged
+    /// device never compare equal under `same_state`. Setup inspection needs the
+    /// question "did the device's configuration or program change?", which is
+    /// this predicate. It is deliberately separate: `same_state` retains the
+    /// stricter meaning for callers that require an exact match.
+    pub fn same_configuration(&self, other: &Self) -> bool {
+        self.identity == other.identity
+            && self.mode == other.mode
+            && self.operative_settings == other.operative_settings
+            && match (&self.remote_hssp, &other.remote_hssp) {
+                (None, None) => true,
+                (Some(a), Some(b)) => a.same_configuration(b),
+                _ => false,
+            }
+            && match (&self.remote_hsp, &other.remote_hsp) {
+                (None, None) => true,
+                (Some(a), Some(b)) => a.same_configuration(b),
+                _ => false,
+            }
     }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -167,6 +216,48 @@ impl HandySetupInspection {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn hsp_observation(time_ms: i32, point: i32) -> HandyHspObservation {
+        HandyHspObservation {
+            play_state: HandyRemotePlayState::Stopped,
+            stream_id: 3751215493,
+            current_time_ms: time_ms,
+            points: 1637,
+            max_points: 100000,
+            current_point: point,
+            playback_rate: 1.0,
+            looping: false,
+            pause_on_starving: false,
+            first_point_time_ms: 0,
+            last_point_time_ms: 799720,
+            tail_point_stream_index: 1636,
+            tail_point_stream_index_threshold: 359,
+        }
+    }
+
+    #[test]
+    fn advancing_clock_position_is_not_a_configuration_change() {
+        // Observed Handy 2 Pro behaviour: a stopped stream reports current_time
+        // and current_point advancing between bracketing reads. Those are clock
+        // position, so two inspections must still agree.
+        let first = hsp_observation(4_362_072, 1376);
+        let second = hsp_observation(4_362_692, 1377);
+        assert!(first.same_configuration(&second));
+
+        // Configuration and program identity must still differ.
+        let mut changed = second.clone();
+        changed.play_state = HandyRemotePlayState::Playing;
+        assert!(!first.same_configuration(&changed));
+        let mut changed = second.clone();
+        changed.stream_id = 99;
+        assert!(!first.same_configuration(&changed));
+        let mut changed = second.clone();
+        changed.points = 1;
+        assert!(!first.same_configuration(&changed));
+        let mut changed = second.clone();
+        changed.playback_rate = 0.5;
+        assert!(!first.same_configuration(&changed));
+    }
     #[test]
     fn handy_setup_inspection_is_read_only_but_requires_revision_and_consent() {
         let mut r = Request::new(

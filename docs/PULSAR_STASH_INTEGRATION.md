@@ -40,6 +40,15 @@ The desktop can capture a ready source into the current project. The engine inde
 
 The returned `stash_source_captured` receipt retains source hash/byte length, scene/file IDs and distinct server/host/script paths. Source bytes and the association receipt are durable; successful request replay returns the recorded outcome without re-querying the server and rechecks current authority. Later edits to the original source cannot alter the snapshot. No script is published and no scan or tag mutation occurs during capture.
 
+The development build also supports an explicit multifile capture experiment. Save the exact server path reported for the chosen file as a JSON string in `expected-path.json`, then provide both the file ID and the path:
+
+```sh
+pulsar stash capture-source PROJECT_ID SCENE_ID FILE_ID --mappings mappings.json \
+  --allow-multifile-selection --expected-server-path-file expected-path.json
+```
+
+The engine re-queries the scene and refuses a missing or duplicate file ID, a changed path, an unsafe mapped path, an interactive scene, or an existing sibling script. This selects one file for capture; it does not establish that other files are aliases. Automatic planning and batching continue to reject multifile scenes, and publication, scan and tag attachment remain fenced for them. An isolated Stash v0.31.1 fixture passed explicit capture of a sterile regular file in a two-record alias scene, including changed-path and symlink refusals. The experiment remains unqualified for a user's library or production use.
+
 ## Generation and publication
 
 The [live generation clock guard](PULSAR_STASH_GENERATION_CLOCK_GUARD.md) verifies each contributing job against the selected source and exact declared clock. Equal-clock independent generations remain publishable; differing placements require explicit piecewise correspondence and refuse. Matching source hashes alone do not make generation clocks interchangeable. [Native origin verification](PULSAR_NATIVE_CLOCK_ORIGINS.md) now centralizes bounded source/job/candidate/receipt and stored-motion checks for the existing native path. [Explicit per-action clock arithmetic](PULSAR_SELECTED_SOURCE_CLOCKS.md) is implemented in core; Engine ancestry verification and durable mixed-clock publication proofs remain pending, so differing-clock publication still refuses.

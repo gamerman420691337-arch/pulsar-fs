@@ -1680,6 +1680,7 @@ mod tests {
             target_focus: vec![],
             review_focus: vec![],
             profile: AssistantProfile {
+                execution: None,
                 vision_projector: None,
                 profile_id: AttemptId::new("fixture-profile").unwrap(),
                 worker: identity(),

@@ -6,7 +6,7 @@ Consolidated 2026-11-06. **This is the project entry point and authority for fea
 
 Pulsar is a local motion workstation: open media or a script, generate or edit motion, review it against the source, and play an explicitly approved motion revision on a synchronized device. Desktop, CLI and the experimental browser client share the same Engine. The immediate product target is a repeatable local-video plus existing-funscript workflow with Handy 2 Pro. Useful generation follows; sustained browser observation and live device output are later increments.
 
-The project is **partial**. Source contains substantial editing, generation, library, capture and device infrastructure. Component receipts establish scoped behavior; they do not establish a working consumer product. The current source is unverified as a whole, physical Handy synchronization is unqualified, useful learned defaults are unqualified, and all 25 original M1–M8 acceptance gates remain open. The autonomous implementation runner remains paused; consolidating this plan does not start it or actuate hardware.
+The project is **partial**. Source contains substantial editing, generation, library, capture and device infrastructure. Component receipts establish scoped behavior; they do not establish a working consumer product. The current source is unverified as a whole, physical Handy synchronization is unqualified, useful learned defaults are unqualified, and all 25 original M1–M8 gates and four additional assistant/consent/media/image gates remain open. The autonomous implementation runner remains paused; consolidating this plan does not start it or actuate hardware.
 
 Use these three surfaces, with one owner for each kind of information:
 
@@ -28,7 +28,8 @@ Every required feature belongs to the following catalog. The requirement tables 
 | Script interoperability | Import/export ordinary funscripts; diagnostics and explicit repair; neutral six-axis output; portable private projects and inert history. Preserve existing work and never silently overwrite scripts. | Script and portable-project code exists; CPU archive/two-clone roundtrip have scoped receipts. That does not qualify all formats and consumers. | M2 interchange |
 | Offline motion generation | Faithful video tracking with automatic or overridden target; confidence and review intervals; Fast/Default/Maximum tiers; CPU/GPU scheduling. Preserve pauses, shallow motion and relative amplitude. | Admitted model/profile/runtime plumbing exists. Diagnostic/synthetic output does not establish useful trained defaults. | M1 data/motion; M3 models; M7 quality/speed |
 | Multimodal and six-axis generation | 2D/stereo/VR180/360 video, audio, audio+video, image+prompt, text/patterns; explicit faithful/creative precedence and observed/inferred/synthetic semantics. | Patterns, audio and neutral outputs exist; complete modality quality and six-axis source recovery remain unqualified. | M4 inputs/precedence/axes |
-| Local assistant | Offline natural-language assistance for targets, settings, review and authorized undoable edits; coexistence with generation under resource limits. | Configuration/proposals and admission code exist; useful bundled model and measured end-to-end tasks remain open. | M3 assistant/memory |
+| Local assistant and roleplay | Offline natural-language assistance, multi-turn roleplay, bounded typed tools, project/media actions and direct motion within an explicit device-control session; hardware-tier budgets, model licensing, participant/content consent and separate remote-processing consent. | Proposal/admission, consent records and device-control session code exist; useful model defaults, complete broker/UI/tools and measured workflows remain open. | M3 assistant/memory/roleplay/consent; M5 conduct |
+| Optional image output | Local generated images as a separately installed optional model pack, synthetic attribution, storage, licensing and content-policy qualification. Core/Complete must work without it. | Requirements and research exist; a qualified image-generation product path is not established. | M4 imagegen (conditional on offering the optional pack) |
 | Library, Stash and batch | Discover and match local/Stash media, prepare bounded jobs, review/publish safely, cancel/restart without overwrites. | Controls and fixture compatibility exist. The user's installed Stash endpoint, encrypted credential references and path mappings remain missing. | M2 interchange; M3 models |
 | Device playback | Device-neutral motion, profile adaptation, Handy transports and six-axis drivers; explicit admission, consent, controller ownership, synchronization, Stop and recovery. | Guarded CLI transport/inspection code exists. Desktop Arm remains disabled; no physical Handy qualification is claimed. | M5 device/adaptation |
 | Live browser and camera | Explicitly selected browser/tab/camera source, source clock correspondence, bounded inference, capture/review/export and authorized device streaming; survive or stop correctly on loss. | Experimental client and native fixtures exist. Rendered successor continuity and physical sync remain unverified; startup counterevidence remains. | M5 live; M2 domain/interchange |
@@ -49,7 +50,7 @@ The order below prioritizes complete user workflows. Detailed task states, block
 | 3 | Useful offline generation | Run permitted media through a real admitted model; review localized uncertainty, correct/protect edits, regenerate selectively and export/play the approved result. Measure held-out quality and human effort. | GENERATION-WORKFLOW, QUALITY-DATA, CLIENT-CORRECTNESS |
 | 4 | Library and Stash workflow | Exercise actual configured server discovery, source/path matching, batch generation, review/publication, cancellation/restart and no-overwrite behavior. | STASH-COMPAT |
 | 5 | Sustained live workflow | Observe selected rendered browser/tab/camera frames, preserve clocks through successor handoff, produce bounded motion and reviewable recordings; then qualify authorized device streaming, source loss, stop and recovery. | BROWSER-DEMO, STARTUP-CAUSE, LIVE-FALLBACK-HISTORY, HANDY-QUALIFY |
-| 6 | Complete feature and platform coverage | Finish all modalities and six-axis behavior, useful local assistant, plugins/drivers, offline Core/Complete and required hardware/OS/vendor matrix. Reuse working paths; retain explicit gaps. | DELIVERY-MODALITIES, ASSISTANT-CONTENTION; CPU work already scoped in ledger |
+| 6 | Complete feature and platform coverage | Finish all modalities and six-axis behavior, useful local assistant, plugins/drivers, offline Core/Complete and required hardware/OS/vendor matrix. Reuse working paths; retain explicit gaps. | DELIVERY-MODALITIES, ASSISTANT-CONTENTION, CONSENT-AUTHORITY, ROLEPLAY-BROKER, BOUNDED-MEDIA, MCP-TOOL-SURFACE; IMAGE-OUTPUT is optional; CPU work already scoped in ledger |
 | 7 | Preview and Stable | Run the full preserved acceptance contract against pinned artifacts and required real media/devices/platforms. Publish truthful supported-feature evidence and obtain required human release dispositions. | PREVIEW-STABLE; all M1–M8 and cross-milestone obligations |
 
 Handy playback with an existing script does **not** depend on completing live browser capture. Live-to-device qualification does depend on both the qualified source path and the admitted device path. Test bench preparation is distinct from normal playback authority; this roadmap does not bypass either.
@@ -60,7 +61,7 @@ ARCH-041's architecture, functional-correctness and hardening dimensions remain 
 
 When implementation resumes, take APP-PLAYBACK from the ledger. Inspect the actual Desktop open/import/preview/edit/export controls, reproduce the user workflow with sterile media and a known script, fix the smallest blocking path, and update the app guide with reproducible steps. A currently passing test binary is insufficient proof of the rendered workflow. Follow with the Handy desktop/control gap and bench preparation; do not return to unrelated archival plumbing unless it blocks this path.
 
-Handy model is 2 Pro. Firmware and encrypted API/connection-key environment names are still unknown. Ask for names/details only, never plaintext values. Live references are permitted for training; sterile references remain evaluation-only. No existing target/view annotation manifest has been supplied. Installed-Stash configuration and physical six-axis reference hardware remain external inputs. Software work that does not need those inputs continues.
+Handy model is 2 Pro. Preserved bench tooling expects the environment names `HANDY_API_KEY` and `HANDY_CONNECTION_KEY`; integration does not inspect secret values or establish that those names are configured. Verify exact firmware, encrypted secret references and bench configuration before qualification. Live references are permitted for training; sterile references remain evaluation-only. No existing target/view annotation manifest has been supplied. Installed-Stash compatibility and physical six-axis reference hardware still require subject-specific evidence; retained configured-server observations do not establish the whole workflow. Software work that does not need those inputs continues.
 
 ## Implementation scaffolding
 
@@ -75,6 +76,76 @@ Handy model is 2 Pro. Firmware and encrypted API/connection-key environment name
 | Assurance | [assurance](../assurance/README.md), architecture contracts and scoped verification scripts: preserve required critical-path models/correspondence and release obligations. |
 
 Keep one master project timeline, independent source/project/monotonic time domains, revision-checked mutations and stale candidates. Preserve compact provenance, original media, protected edits and historical failures. Offline jobs may outlive a GUI; physical playback stops on controller loss unless the separately authorized headless policy permits continuation. Third-party code and assistant effects retain their distinct grants. See ARCH-001–ARCH-040 and CONTRACT-01–CONTRACT-11 for detailed confirmed decisions and obligations; dated implementation observations there are historical.
+
+## Technology and tooling stack
+
+This is the implemented stack at consolidation; manifests and pinned lockfiles are the version authority. A dependency or feature flag is not an installed, accelerated or qualified capability.
+
+| Area | Stack and status | Source of truth |
+| --- | --- | --- |
+| Product and desktop | Rust 2021, Cargo workspace, native `eframe` 0.31 UI, `clap` 4.5 CLI/completions. Package 0.8.0; AGPL-3.0-only. | [Workspace](../Cargo.toml), [clients](../crates/pulsar-clients/Cargo.toml) |
+| Browser adapter | Embedded HTML/JavaScript served by Rust loopback HTTP, Engine-mediated source/timing/control; experimental. | [Browser client](../crates/pulsar-clients/src/browser_live.rs) |
+| State and local IPC | Bundled SQLite (`rusqlite` 0.32), Serde, UUID, SHA-256, locks; `interprocess` local transport and versioned typed protocol. Engine owns persistence. | [Engine manifest](../crates/pulsar-engine/Cargo.toml), [protocol](../crates/pulsar-protocol/src/lib.rs) |
+| Media and inference | Explicit admitted FFmpeg/FFprobe; dynamically loaded ONNX Runtime (`ort` 2.0.0-rc.13/API 24), `ndarray` 0.17. Models, runtime bytes and providers admitted separately. | Engine manifest and worker/model contracts |
+| Acceleration and plugins | Optional CUDA; TensorRT implies CUDA. Optional Wasmtime 49/Cranelift. Default Cargo features empty. Broader GPU-vendor support remains a required target. | Cargo feature tables; exact-build admission/qualification |
+| Assistant | Confined external GGUF runtime/model, optional multimodal projector, hardware-tier limits, structured proposals and allowlisted tools. Model selection/licensing and useful interactive quality remain open. | [Assistant worker](../crates/pulsar-engine/src/assistant_worker.rs), [roleplay ADR](adr/0012-in-product-roleplay-assistant.md) |
+| HTTP, credentials and update trust | `ureq`/Rustls, URL validation, `ring`, `tough`; named encrypted-secret references. No plaintext credential files or process-environment harvesting in the supported workflow. | Engine manifest and credential/runtime contracts |
+| Linux native confinement | Bubblewrap, delegated cgroup v2, pinned assets and process-tree supervision. Actual qualification host required. | [Confinement](../crates/pulsar-engine/src/confinement.rs) |
+| Development and assurance | Rust tests/Clippy/rustfmt, Node `.mjs` architecture/campaign tooling, Python ledger/training/evaluation tooling, shell build wrappers, TLA+/TLC and Kani obligations. | [CI](../.github/workflows/ci.yml), [assurance](../assurance/README.md), `scripts/` |
+
+Python, Node, Cargo and user-managed inference installs are development tools, not acceptable required installations for the advertised bundled end-user product. Use existing build caches and the host's `priority-build`/`oneoff` slots, keep 80 GB free on `/`, and store evidence under project artifacts. Do not create one build cache per agent.
+
+### Delivery targets
+
+| Target | Required result | Present boundary |
+| --- | --- | --- |
+| Launch OS/CPU | Windows and Linux x86-64; Apple Silicon macOS. Minimum OS versions need qualification. Windows/Linux ARM64 timing remains open; Intel Mac is not launch-required. | Release workflow produces two-binary archives for the three launch targets. Those archives do not meet the whole portable-distribution contract. |
+| Portable editions | Offline Core with every required Fast input family and local assistant; Complete with every advertised quality tier. Required Windows single executable/Linux AppImage and exact macOS delivery contract retained below. | Real bundled models/runtimes, offline first launch, signing, update/rollback and relocation remain qualification work. |
+| Compute | CPU on the 16 GB baseline; NVIDIA, AMD, Apple and Intel acceleration in that priority order, with qualified reference configurations. | Optional CUDA/TensorRT code does not prove any vendor matrix or latency/quality target. |
+| Devices | Immediate Handy 2 Pro; full Handy transport/player matrix; neutral six-axis adaptation and Stable physical qualification. | Existing Engine path and bench/legacy prototypes must converge through one API. No hardware was actuated during consolidation. |
+| Performance and quality | Exact stroke-only offline speed, live deadlines, Preview/Stable precision/recall, review/effort and category requirements in the numbered sections. | No aggregate “percent complete” replaces measured acceptance. Optional image pack has its own conditional gate. |
+
+## One ergonomic API and one runtime owner
+
+**Engine is the single runtime orchestrator and authority.** It owns projects, revisions, jobs, budgets, admissions, persistence and devices. Core remains deterministic; isolated workers perform admitted media/model work; clients present and coordinate workflows without owning a second authoritative state store.
+
+The existing client seam is [EngineApi / SessionClient](../crates/pulsar-clients/src/session.rs), using the versioned `Command`/`Request`/`Response` protocol:
+
+```rust
+execute(command, project: Option<ProjectId>, revision: Option<RevisionId>)
+execute_identified(request_id: RequestId, command, project, revision)
+upload_edit(project: ProjectId, revision: RevisionId, program: &MotionProgram, label: &str)
+```
+
+These signatures summarize existing operations, not a new SDK. `execute_identified` preserves effect identity; `upload_edit` proposes a candidate and does not commit it. Unsupported lanes refuse explicitly.
+
+UNIFIED-API extends this seam with typed workflow operations for open/import, source-aligned preview, edit/undo/save/export, generate/review/commit, library/batch and device connect/prepare/play/pause/seek/Stop. This workflow facade is planned work, not an assertion that every convenience method exists today. Desktop, CLI, browser and assistant consume it; they do not implement parallel device transports or alternate approval logic. Existing CLI compatibility remains binding.
+
+Each operation carries the original request identity, project/revision where applicable, bounded deadline, cancellation and typed outcome. Stale results remain candidates; unknown physical outcomes require reconciliation, not a fresh retry identity. Convenience must remove repeated user plumbing without silently choosing models, losing provenance, granting permissions or replaying effects. Device control uses the confirmed single visible, bounded user-created session from DCS-01–09 below; Stop remains immediately available. Per-action confirmations are not reintroduced for already authorized live session motion.
+
+The [architecture checker](../scripts/check-architecture.mjs) enforces the four-library boundary, dependency direction, pure Core and absence of client imports of Engine/SQLite/ONNX/Wasmtime/legacy implementation. New APIs deepen this boundary rather than adding another service, command bus or orchestration framework.
+
+## One project owner, parallel agents
+
+The integrating orchestrator owns this specification, the shared API contract, integration branch and execution ledger. The product owner retains requirement/release decisions and physical-test authorization. Agents own bounded tasks, not separate feature lists or roadmaps.
+
+The authoritative branch is **`codex/pulsar-integration`**, in the current roadmap checkout. `main` remains the published baseline until the integration PR passes the applicable CI and is merged. Short-lived agent branches/worktrees are isolation for a task, not competing trunks. No agent pushes directly to the default branch.
+
+Dispatch each task with its ledger ID, base commit, owned files/modules, intended user result and relevant checks. Tell every writer it shares the project and must preserve others' work. Use separate disposable worktrees under `/mnt/4tb/tmp/pulsar-worktrees/`; reuse build slots/caches. The orchestrator alone integrates overlapping API/protocol changes, updates shared status and resolves conflicts. Independent agents can work concurrently within these lanes:
+
+| Lane | Typical ownership | Handback needed |
+| --- | --- | --- |
+| App/API | Shared client workflow facade and Desktop happy path | Rendered local-video/script workflow and compatibility result |
+| Device | Engine device/playback modules and protocol changes agreed with owner | Focused wire/transport tests and exact bench limits; no inferred physical acceptance |
+| Models/data | Worker/model profiles, permitted annotations, held-out evaluation | Exact assets/configuration, measured quality/speed/memory and data split |
+| Library/media | Stash discovery/path mapping and source adapters | Configured subject, no-overwrite/cancel/recovery result |
+| Verification/platform | CI, targeted tests, packaging and native host campaigns | Source/binary identity, actual result and unresolved limitations |
+
+A handback contains the commit, changed paths, exact checks/results and remaining blocker. Integrate it into the existing task and delete only the task's own merged clean scratch worktree. The orchestrator verifies the diff and relevant result; self-report is not acceptance. No mandatory model-review ceremony is added. Retired external worktrees remain preserved until their owner confirms retirement; they are not active integration authorities.
+
+### Consolidation record
+
+[The branch/worktree register](PULSAR_CONSOLIDATION.md) records every discovered ref/worktree and its disposition. Durable snapshots of dirty files, binary patches, source hashes and the initial ref inventory live under `/mnt/4tb/artifacts/Funscripts/keep/pulsar-consolidation-2026-11-06/`. Those artifacts and historical Git commits preserve work that cannot safely be compiled together, including direct-device legacy prototypes. The ledger retains both newer evidence and older counterevidence with original outcomes; importing records does not qualify the new integrated source.
 
 ## How work is tracked
 
@@ -91,7 +162,7 @@ python3 scripts/execution_dashboard.py --audit
 
 ## Reconciliation and document policy
 
-The former software specification is incorporated below, retaining its C/D/V classifications, requirement IDs, exact numeric thresholds, acceptance scenarios and traceability. Its earlier Stage 0–4 ordering is replaced by the delivery roadmap above. The byte-preserved [original specification](PULSAR_SOFTWARE_SPECIFICATION_HISTORY_2026-11-06.md) has SHA-256 `27bf297f0d7a676eef13bd60ed3f9f4c39278c1f9fdabf378ee432e77f1cd330` and remains provenance, not a competing plan.
+The former software specification and its newer confirmed Appendix E are incorporated below, retaining its C/D/V classifications, requirement IDs, exact numeric thresholds, acceptance scenarios and traceability. Its earlier Stage 0–4 ordering is replaced by the delivery roadmap above. The byte-preserved [original specification](PULSAR_SOFTWARE_SPECIFICATION_HISTORY_2026-11-06.md) has SHA-256 `27bf297f0d7a676eef13bd60ed3f9f4c39278c1f9fdabf378ee432e77f1cd330` and remains provenance, not a competing plan.
 
 The former major roadmap, architecture-first execution plan, dated execution plans, phase status pages and handoffs are historical scheduling/evidence records. Confirmed ARCH decisions and technical CONTRACT definitions remain supporting obligations; an old “current” or “authoritative” paragraph cannot override this entry point or the current ledger. The frozen pre-dashboard gate ledger and status chronology, original failure receipts and all 25 gate criteria are unchanged. Technical notes and ADRs remain available through the catalog; unaccepted research/proposals remain unaccepted.
 
@@ -764,3 +835,145 @@ Revision 0.2 records the post-audit approval to make the Fast execution-path sco
 - The suggested 2x CPU Fast engineering target, 12 GB application-memory cap, macOS DMG format, and tighter rapid-motion phase thresholds were not independently approved as hard numeric or packaging requirements.
 - Historical repository findings remain in Appendix A and Stage 0. They are not newly verified current-state facts or completed remediation.
 - Future decisions should append a source-backed row and update the affected requirement. Superseded decisions should retain their source and explicit replacement rather than disappearing from the record.
+
+## Appendix E. Owner decision 2026-11-04 — in-product roleplay assistant
+
+Source: product-owner direction recorded in ADR 0012. This appendix adds
+requirements; it does not weaken, renumber or reinterpret Sections 1 through 17 or
+Appendices A through D. Where an item below conflicts with EDIT-05 or SAFE-01/02, the
+earlier requirement retains authority and the tool is not implemented as described.
+
+The owner directed that the bundled local assistant additionally hold a multi-turn
+roleplay conversation and act through an allowlisted tool set: author funscripts,
+execute funscripts on a device, generate images, and play video or audio. The stated
+safety model is tool allowlisting.
+
+### E.1 Assistant and tool requirements
+
+| ID | Status | Requirement |
+| --- | --- | --- |
+| RPA-01 | C | The assistant MUST support a multi-turn, local, in-product roleplay conversation over a fixed, deny-by-default tool allowlist. Anything absent from the allowlist is refused. |
+| RPA-02 | C | Tool calls MUST be typed, schema-versioned and validated by the Engine. Conversational text MUST NOT be parsed as a command. No tool accepts a filesystem path, URL, credential, model declaration or executable job originating in model output. |
+| RPA-03 | C | Tools are partitioned into read, author, effect and stop classes. Author-class output is a candidate only; the existing separate approvals, review and commit remain required before any effect. |
+| RPA-04 | **superseded by DCS-01..08** | Every effect-class call required a fresh, single-use, digest-bound human approval. Owner direction 2026-11-04 replaced per-call approval for device control with a bounded, visible device-control session, because per-call approval made ordinary use unusable. The single-use approval remains required for commit, publication and export, which are not live effects. |
+| RPA-05 | C | Stop-class calls (device stop, media pause) MUST be executable without approval at any time, including while an opposing approval is pending or an effect is in flight. |
+| RPA-06 | C | Untrusted content reaching the model as context — media metadata, subtitle text, imported `.funscript` comments, project and library names — MUST be treated as data. It MAY influence authored candidates and MUST NEVER satisfy an effect-class approval. |
+| RPA-07 | C | The assistant MUST NOT become a timing authority. Script playback MUST compose existing timing admission, controller lease, player guard and stop behaviour, and MUST NOT mint or extend any of them. |
+| RPA-08 | C | SAFE-01/02 are unchanged: after disconnect or reconnection, playback remains disarmed until the **user** explicitly resumes. No assistant action, approval or tool call may serve as that consent. |
+| RPA-09 | C | DEV-04 is unchanged: device play approval is not permission to transmit source media, prompts or derived content. No allowlisted tool may move content off the machine. |
+| RPA-10 | C | MEM-01/MEM-02 are unchanged: an assistant request may pause and checkpoint offline generation, while live device playback remains protected from that handoff. |
+| RPA-11 | C | Conversation state MUST be local, per-project, bounded and separately retained. It MUST be excluded from evidence receipts, diagnostics, support bundles and exported logs, and MUST NOT be written into a project master. |
+| RPA-12 | C | Per-turn and per-session tool-call budgets, encoding-size limits and single-pending-approval limits MUST be enforced by refusal, never by silent truncation. |
+| TOOL-01 | D | Proposed default budgets: 4 calls per turn, 32 per session, 8 KiB per tool-call encoding, at most one pending effect approval. |
+| TOOL-02 | D | Proposed allowlist for launch: `project.summary`, `review.explain`, `catalog.list`, `motion.propose_patterns`, `generation.propose`, `edit.propose_recipe`, `target.select`, `commit.propose`, `script.play`, `device.stop`, `device.status`, `media.present`, `media.pause`, `image.generate`. |
+| TOOL-03 | C | The following are refused regardless of approval: shell or process execution, filesystem paths, network fetches, credential access, assistant profile or model registration, protection unlock, project export/import, package publication, Stash publication, update installation, and settings mutation outside a tool's declared fields. |
+| TOOL-04 | D | Error and diagnostic output SHOULD identify the tool, class and refusal reason without reproducing conversation text or arguments. |
+
+### E.2 New capability requiring its own qualification
+
+| ID | Status | Requirement |
+| --- | --- | --- |
+| IMG-01 | C | Local image generation is a new output modality, not an exposure of the existing image-conditioned creative path. It requires its own model/pack decision, redistribution review under SEC-08, output-storage contract and generated-imagery safety policy before implementation. |
+| IMG-02 | C | Generated images MUST retain observed/inferred/synthetic attribution consistent with GEN-06 and MUST NOT be presented as observed source content. |
+| MDP-01 | D | Assistant media presentation controls an application-owned player over local files only. Presentation grants no device authority, and a presenting player and a script-playing device retain separate timing admissions. |
+
+### E.3 Open items added by this decision
+
+| ID | Open item | Resolution path |
+| --- | --- | --- |
+| RPA-OPEN-01 | Whether local image generation is a launch modality, a Core capability or an optional pack | Pack/model selection, SEC-08 redistribution review and the 16 GB memory budget must be decided together. |
+| RPA-OPEN-02 | Which interactive model profile serves roleplay, and its memory/latency floor | Measure candidate profiles against OPEN-01/OPEN-02 caps; the pinned 0.6B Q8 assistant fails 1 of 8 authored intents and does not approach interactive latency. |
+| RPA-OPEN-03 | Roleplay content policy: moderation scope, AI disclosure, participant consent, age policy | No current provision exists in Sections 1 through 17; required before any effect-class tool ships. |
+| RPA-OPEN-04 | Transcript retention, deletion and export-exclusion defaults | Define alongside RPA-11; SEC-03 addresses telemetry, not conversations. |
+| RPA-OPEN-05 | Whether an approved effect survives a page refresh or Engine restart | Default is no; invoking a prior receipt as current authority contradicts existing doctrine. |
+
+### E.4 Owner answers, 2026-11-04: optional image pack, 18+ and participant consent
+
+Recorded by the product owner in direct response to E.3. These items supersede the
+open status of RPA-OPEN-01 and part of RPA-OPEN-03 while retaining Section 1's
+requirement-status discipline. No existing requirement is relaxed.
+
+| ID | Status | Requirement |
+| --- | --- | --- |
+| IMG-03 | C | Local image generation is an **optional pack**. It MUST NOT be a launch modality or a Core/Complete requirement. Core and Complete MUST function fully without it, and its absence MUST refuse explicitly rather than substitute another path or claim the capability. |
+| AGE-01 | C | Roleplay and any mature or explicit content class require a local, explicit, revocable **18+ attestation** with its recorded timestamp. |
+| AGE-02 | C | The application MUST NOT represent that attestation as identity or age **verification**, and MUST NOT collect, store or transmit identity documents. |
+| AGE-03 | D | Withdrawing the attestation immediately disables roleplay and every effect-class tool while retaining the historical record of what already occurred. |
+| CNS-01 | C | An effect-class tool MUST require the consent of **every human participant present in the session**, not only the operator. Consent is per participant and per content class. |
+| CNS-02 | C | A retained consent record MUST identify the local participant reference, declared content class, scope, time and revocation state. Consent is a **precondition, not authority**: it does not replace the single-use digest-bound approval and neither substitutes for the other. |
+| CNS-03 | C | Consent MUST be revocable at any time by any participant, without approval and without the operator's cooperation. Revocation MUST terminate in-flight effect-class work and MUST leave playback disarmed until every present participant consents again. |
+| CNS-04 | C | Consent MUST NOT be inferred from continued participation, silence, a prior session, a saved profile or an existing approval. Each session requires fresh consent from each participant. |
+| CNS-05 | C | Escalation to a more explicit content class requires fresh consent from every participant. The session's declared class bounds the tool allowlist and the model context. |
+| CNS-06 | C | Participant references MUST be local pseudonymous identifiers, consistent with SEC-01 and DEV-04. Participant data MUST NOT be transmitted. |
+| CNS-07 | D | Consent records are local safety state and SHOULD be excluded from evidence receipts, diagnostics and exported logs, as transcripts are under RPA-11. |
+| CLS-01 | C | Every roleplay session declares an explicit content class and defaults to the least permissive class. |
+| CLS-02 | D | Proposed classes: `general`, `mature`, `explicit`. Mature and explicit require a current 18+ attestation. |
+| DSP-01 | C | The assistant MUST declare itself as an AI participant for the whole session and MUST NOT claim to be human. |
+| DSP-02 | V | Moderation scope and rules for NSFW roleplay content remain unresolved. |
+| DSP-03 | V | This specification asserts no legal compliance and no age verification. Jurisdictional and app-store distribution rules are a packaging decision requiring separate qualification. |
+
+Gates: M3-CONSENT carries AGE/CNS/CLS/DSP; M3-ROLEPLAY carries the broker and
+conversation; M4-IMAGEGEN is scoped to the optional pack; M5-CONDUCT carries
+presentation and playback composition.
+
+### E.5 Owner answers, 2026-11-04: pipeline shape and remote providers
+
+| ID | Status | Requirement |
+| --- | --- | --- |
+| PIPE-01 | C | The roleplay pipeline is: chat turn, author-class proposal, existing approval/review/commit, prepared Stroke script, per-call play approval, existing timing admission, device. A model MUST NOT emit a playable script directly or substitute different bytes between approval and dispatch. |
+| PIPE-02 | C | Media presentation and device playback MUST retain separate timing admissions. A stalled or unbound player MUST NOT become device authority, and a positional script MUST NOT claim the player's clock. |
+| CLD-01 | C | Local processing is the default and the only mode available offline. No advertised Core capability may depend on a remote provider. |
+| CLD-02 | C | Remote roleplay processing is permitted only as an explicit per-session exception to SEC-01, after the owner configures a provider and **every participant consents to remote disclosure** in addition to their content-class consent. |
+| CLD-03 | C | A configured provider MUST be an opaque reference. Neither model output nor any tool may supply a URL, endpoint, credential or key. |
+| CLD-04 | C | Switching between local and remote processing clears existing consent; consent for local processing is not consent for remote disclosure. Consent records MUST record which scope they were granted for. |
+| CLD-05 | V | Which providers may be configured, whether any is bundled or approved, provider-side retention, jurisdiction and moderation remain unresolved. The application MUST NOT claim to audit a remote provider's handling. |
+
+SEC-01 is not repealed. E.5 records a narrow, disclosed, consent-gated exception for
+remote roleplay processing; offline local operation remains the contract for all
+advertised Core and Complete capability.
+
+### E.6 Owner answers, 2026-11-04: hardware tiers and model provenance
+
+The owner directed that assistant capability scale with the machine rather than with a
+single global ceiling, that the shipped default be a licensed model, and that other
+models be reachable by an optional user-initiated download pinned to an exact hash.
+
+| ID | Status | Requirement |
+| --- | --- | --- |
+| TIE-01 | C | Assistant ceilings MUST be selected per hardware tier, not fixed for every machine. A 16 GB-class machine MUST NOT be held to workstation limits, and a workstation MUST NOT be held to laptop limits. |
+| TIE-02 | C | The tier is chosen by the build or by an explicit owner declaration. It MUST NOT be raised silently: an undeclared profile defaults to the most restrictive tier. |
+| TIE-03 | D | Proposed tiers and ceilings. `constrained`: 16 GB system memory, <= 8 GB graphics; model 8 GiB, worker 12 GiB, context 32,768. `standard`: 32 GB, up to 16 GB graphics; model 16 GiB, worker 24 GiB, context 65,536. `workstation`: 64 GB+ with 24 GB+ graphics; model 32 GiB, worker 48 GiB, context 131,072. These are declaration bounds, not reservations, and not measured guarantees. |
+| TIE-04 | C | The protocol retains one outermost envelope. A tier narrows it; a declaration beyond the selected tier MUST refuse with the tier named. |
+| PROV-01 | C | The shipped default assistant model MUST be permissively licensed and redistributable. Shipping a default with unknown or non-commercial terms is prohibited. |
+| PROV-02 | C | A model whose author granted no licence, or granted only non-commercial terms, MUST NEVER be packaged, mirrored, vendored or redistributed by Pulsar. |
+| PROV-03 | C | Such a model MAY be offered as an optional, explicitly user-initiated download from the author's own source, pinned to an exact revision, file name, SHA-256 and byte length. Pulsar provides the pointer, not the bytes. |
+| PROV-04 | C | A redistributable declaration MUST carry an actual licence identifier. A licence MUST be derived from the pinned upstream base, never from an uploader's tag: one reviewed upload tags `license: gemma` over an Apache-2.0 base. |
+| PROV-05 | C | A download manifest MUST refuse a non-HTTPS source, a source containing credentials, a traversal or dotfile name, a malformed hash and an unbounded size. A changed artifact at the source MUST refuse rather than install. |
+| PROV-06 | D | Setup SHOULD offer a single reviewed action that applies a tier-appropriate profile for the user's hardware with the licensed default, and a separate action for a user-supplied or user-fetched model. |
+
+### E.7 Owner answer, 2026-11-04: one toggle, not one approval per action
+
+For the consolidated contract, this newer answer supersedes per-call **device-effect** approval wording in RPA-04 and PIPE-01. Retained-script authoring/commit and publication/export keep their separate approvals; direct motion within the bounded active session follows DCS-09. Earlier rows remain verbatim for traceability.
+
+Per-call approval was judged unusable friction for ordinary use. The owner directed a
+single, simple control the user turns on, after which the assistant moves the device
+directly. This supersedes RPA-04 for device effects only. Commit, publication, export
+and protection unlock keep their single-use approvals.
+
+| ID | Status | Requirement |
+| --- | --- | --- |
+| DCS-01 | C | Device control MUST be a single user-visible toggle. Turning it on creates a bounded device-control session; turning it off stops motion and disarms immediately. |
+| DCS-02 | C | Only the user may create, renew or end a session. No tool, model output, remote provider or automation may create or extend one, and a session never survives Engine restart or application relaunch. |
+| DCS-03 | C | A session MUST have a bounded lifetime and expire without user action. Renewal requires a fresh user action. |
+| DCS-04 | C | Stop MUST be available at all times as a single control, MUST NOT require approval, MUST work while motion is in flight, and MUST work when the model is mid-stream or unresponsive. |
+| DCS-05 | C | A session MUST carry enforced limits fixed at its creation: device, travel range, amplitude cap, maximum rate and content class. Motion outside the caps MUST be limited rather than executed as requested, and the limiting MUST be visible. |
+| DCS-06 | C | The session state MUST be visible continuously while it is on, including its expiry, and MUST NOT be hideable behind a modal or a collapsed panel. |
+| DCS-07 | C | Losing the device, the Engine or the network MUST end or suspend the session and leave playback disarmed. Reconnection MUST NOT restore it without a fresh toggle (SAFE-01/02 unchanged). |
+| DCS-08 | D | Proposed defaults: 20-minute lifetime, amplitude cap 70% of the device's usable range, one device per session, and stop presented as a persistent control in every view while a session is active. |
+| DCS-09 | C | Within an active session the assistant MUST be able to submit motion directly, without per-action approval. Authoring a retained script for later use remains the separate candidate/commit path. |
+
+The risk this accepts is explicit. A session is a standing grant: while it is on, a
+prompt-injected or manipulated model can move the device without further confirmation.
+The offsetting controls are the lifetime bound, the fixed caps, the always-available
+stop, user-only creation, no persistence, and disarm-on-loss. Opening a session is the
+informed-consent moment that per-action approval was simulating badly.

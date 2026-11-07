@@ -1,8 +1,253 @@
 //! Real local IPC with synthetic timing receipts; no media/device qualification.
 use super::*;
+
+#[test]
+fn timing_diagnostic_retains_sanitized_transport_phase() {
+    use crate::session::BrowserTransportPhase;
+    for (phase, expected) in [
+        (BrowserTransportPhase::Connect, "connect"),
+        (BrowserTransportPhase::Deadline, "deadline"),
+        (BrowserTransportPhase::RequestWrite, "request_write"),
+        (BrowserTransportPhase::ResponseRead, "response_read"),
+    ] {
+        let error = anyhow::Error::from(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            "private path and token",
+        ))
+        .context(phase)
+        .context(FailureStage::Exchange);
+        let encoded = serde_json::to_value(FailureDiagnostic::from_error("open", &error)).unwrap();
+        assert_eq!(encoded["category"], "transport_timeout");
+        assert_eq!(encoded["transport_phase"], expected);
+        assert!(!encoded.to_string().contains("private path and token"));
+    }
+}
 use std::os::unix::net::UnixListener;
 
 const NATIVE: u64 = (1_u64 << 53) + 17;
+
+#[cfg(target_os = "linux")]
+include!("browser_player_timing_native_tests.rs");
+
+#[test]
+fn failed_ordinary_probe_retains_diagnostic_but_exact_release_settles_cleanup() {
+    for release in ["inactive", "foreign", "current", "drop"] {
+        let mut report = None;
+        let mut server = Server::new(move |request| match &request.command {
+            Command::OpenBrowserTiming { .. } => {
+                let value = opened(request);
+                report = Some(value.clone());
+                body(value)
+            }
+            Command::IssueBrowserTimingProbe { .. } => Some(Err(ProtocolError::new(
+                ErrorCode::Unavailable,
+                "browser timing binding is not current",
+            ))),
+            Command::ReleaseBrowserTiming { binding_id, player } => {
+                let mut value = report.take().unwrap();
+                assert_eq!(binding_id, &value.binding.binding_id);
+                assert_eq!(player, &value.binding.player);
+                if release == "drop" {
+                    return None;
+                }
+                value.current = release == "current";
+                if release == "foreign" {
+                    value.binding.binding_id = ArtifactId::new("foreign-release").unwrap();
+                }
+                body(value)
+            }
+            _ => panic!("failed timing must not retry or reopen"),
+        });
+        let mut timing = Timing::new(&server.client()).unwrap();
+        let player = player();
+        timing
+            .open(player.clone(), Arc::new(AtomicBool::new(false)), media())
+            .unwrap();
+        ready(&timing);
+        timing
+            .handle("/player/timing-probe", &player, b"", 1)
+            .unwrap();
+        assert!(reply(&timing, &player, 1).is_err());
+        let cleanup = timing.shutdown();
+        let records = state(&timing.shared);
+        let record = &records.entries[0];
+        assert!(record.retired);
+        if release == "inactive" {
+            assert!(record.release == ReleaseState::Acknowledged);
+            assert!(!record.report.as_ref().unwrap().current);
+            assert!(
+                cleanup.is_ok(),
+                "exact retirement must settle custody: {cleanup:?}"
+            );
+        } else {
+            assert!(record.release == ReleaseState::Unknown);
+            assert!(cleanup
+                .unwrap_err()
+                .to_string()
+                .contains("release_unconfirmed"));
+        }
+        assert!(
+            record.first_failure.is_some(),
+            "do not erase the failed exchange"
+        );
+        drop(records);
+        assert_eq!(server.finish().len(), 3);
+    }
+}
+
+#[test]
+fn retirement_after_worker_skip_before_open_dispatch_does_not_create_unknown_custody() {
+    let mut server = Server::new(|_| panic!("retired Open must never reach the Engine"));
+    let mut timing = Timing::new(&server.client()).unwrap();
+    let (entered, observed) = mpsc::sync_channel(1);
+    let (resume, released) = mpsc::sync_channel(1);
+    state(&timing.shared).before_execute = Some(Arc::new(TestBeforeExecute {
+        entered,
+        resume: Mutex::new(released),
+    }));
+    let player = player();
+    timing
+        .open(player.clone(), Arc::new(AtomicBool::new(false)), media())
+        .unwrap();
+    observed.recv_timeout(Duration::from_secs(2)).unwrap();
+    timing.retire(&player);
+    resume.send(()).unwrap();
+    ready(&timing);
+    timing.shutdown().unwrap();
+    assert!(server.finish().is_empty());
+}
+
+#[test]
+fn failure_diagnostics_allowlist_fields_without_formatting_private_errors() {
+    let private = "private-authentication-path".repeat(2048);
+    let cases = [
+        (
+            anyhow::Error::from(ProtocolError::invalid(private.clone()))
+                .context(FailureStage::Exchange),
+            "protocol_rejected",
+            Some(ErrorCode::InvalidRequest),
+        ),
+        (
+            anyhow::Error::from(ProtocolError::invalid(
+                "browser timing scope or sequence differs",
+            ))
+            .context(FailureStage::Exchange),
+            "scope_or_sequence",
+            Some(ErrorCode::InvalidRequest),
+        ),
+        (
+            anyhow::Error::from(ProtocolError::new(
+                ErrorCode::Unavailable,
+                "browser timing binding is not current",
+            ))
+            .context(FailureStage::Exchange),
+            "binding_not_current",
+            Some(ErrorCode::Unavailable),
+        ),
+        (
+            anyhow::Error::from(pulsar_protocol::TransportError::Io(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                private.clone(),
+            )))
+            .context(FailureStage::Exchange),
+            "transport_timeout",
+            None,
+        ),
+        (
+            anyhow::Error::from(std::io::Error::new(
+                std::io::ErrorKind::WouldBlock,
+                private.clone(),
+            ))
+            .context(FailureStage::Exchange),
+            "transport_timeout",
+            None,
+        ),
+        (
+            anyhow::Error::from(pulsar_protocol::TransportError::Io(std::io::Error::new(
+                std::io::ErrorKind::ConnectionReset,
+                private.clone(),
+            )))
+            .context(FailureStage::Exchange),
+            "transport_io",
+            None,
+        ),
+        (
+            anyhow::Error::from(pulsar_protocol::TransportError::ResponseMismatch)
+                .context(FailureStage::Exchange),
+            "transport_framing",
+            None,
+        ),
+        (
+            anyhow::Error::msg(private.clone()).context(FailureStage::Reply),
+            "reply_validation",
+            None,
+        ),
+        (
+            anyhow::Error::msg(private.clone()).context(FailureStage::Exchange),
+            "exchange_unclassified",
+            None,
+        ),
+        (anyhow::Error::msg(private), "local_state", None),
+    ];
+    for (error, category, protocol_code) in cases {
+        let value = FailureDiagnostic::from_error("observe", &error);
+        let encoded = serde_json::to_string(&value).unwrap();
+        assert!(encoded.len() < 192);
+        assert!(!encoded.contains("private"));
+        assert!(!encoded.contains("authentication"));
+        assert_eq!(value.category, category);
+        assert_eq!(value.protocol_code, protocol_code);
+    }
+}
+
+#[test]
+fn original_exchange_failure_survives_later_unknown_release_without_retry() {
+    let mut server = Server::new(|request| match &request.command {
+        Command::OpenBrowserTiming { .. } => body(opened(request)),
+        Command::IssueBrowserTimingProbe { .. } => Some(Err(ProtocolError::invalid(
+            "browser timing scope or sequence differs",
+        ))),
+        Command::ReleaseBrowserTiming { .. } => Some(Err(ProtocolError::new(
+            ErrorCode::Unavailable,
+            "private-authentication-path",
+        ))),
+        _ => panic!("unexpected timing command"),
+    });
+    let mut timing = Timing::new(&server.client()).unwrap();
+    let player = player();
+    timing
+        .open(player.clone(), Arc::new(AtomicBool::new(false)), media())
+        .unwrap();
+    ready(&timing);
+    timing
+        .handle("/player/timing-probe", &player, b"", 1)
+        .unwrap();
+    assert!(reply(&timing, &player, 1).is_err());
+    {
+        let records = state(&timing.shared);
+        let record = &records.entries[0];
+        assert!(record.retired && record.release == ReleaseState::Unknown);
+        let failure = diagnostic(record);
+        assert_eq!(failure["first_failure"]["operation"], "probe");
+        assert_eq!(failure["first_failure"]["stage"], "exchange");
+        assert_eq!(failure["first_failure"]["category"], "scope_or_sequence");
+        assert_eq!(failure["first_failure"]["protocol_code"], "invalid_request");
+        assert!(!failure.to_string().contains("private"));
+    }
+    let error = timing.shutdown().unwrap_err().to_string();
+    assert!(error.contains("cleanup unconfirmed"));
+    assert!(!error.contains("authentication"));
+    let calls = server.finish();
+    assert_eq!(calls.len(), 3, "unknown operations must not be replayed");
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|c| matches!(c, Command::ReleaseBrowserTiming { .. }))
+            .count(),
+        1
+    );
+}
+
 fn media() -> BrowserMediaBinding {
     BrowserMediaBinding {
         preparation_request_id: RequestId::new("synthetic-source-prepare").unwrap(),
@@ -147,9 +392,7 @@ impl Server {
         let stopped = Arc::new(AtomicBool::new(false));
         let stop = stopped.clone();
         let worker = thread::spawn(move || {
-            // Keep the synthetic IPC peer alive beyond the longest client
-            // operation deadline, even when the full suite is contended.
-            let end = Instant::now() + Duration::from_secs(30);
+            let end = Instant::now() + Duration::from_secs(5);
             let mut calls = Vec::new();
             while !stop.load(Ordering::Acquire) && Instant::now() < end {
                 let (mut socket, _) = match listener.accept() {
@@ -160,11 +403,13 @@ impl Server {
                     }
                     Err(error) => panic!("synthetic socket accept: {error}"),
                 };
+                // A polled listener can yield a nonblocking stream on macOS.
+                socket.set_nonblocking(false).unwrap();
                 socket
-                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .set_read_timeout(Some(Duration::from_secs(1)))
                     .unwrap();
                 socket
-                    .set_write_timeout(Some(Duration::from_secs(5)))
+                    .set_write_timeout(Some(Duration::from_secs(1)))
                     .unwrap();
                 let request: pulsar_protocol::Request = read_message(&mut socket).unwrap();
                 calls.push(request.command.clone());
@@ -622,101 +867,6 @@ fn release_missing_foreign_and_current_replies_remain_uncertain_after_join() {
 }
 
 #[test]
-fn active_timing_exchange_failure_retains_bounded_probe_or_observation_phase() {
-    for failed_phase in ["probe", "observe"] {
-        let mut report = None;
-        let mut server = Server::new(move |request| match &request.command {
-            Command::OpenBrowserTiming { .. } => {
-                let value = opened(request);
-                report = Some(value.clone());
-                body(value)
-            }
-            Command::IssueBrowserTimingProbe { .. } if failed_phase == "probe" => Some(Err(
-                ProtocolError::invalid("synthetic active probe refusal"),
-            )),
-            Command::IssueBrowserTimingProbe { sequence, .. } => {
-                Some(Ok(pulsar_protocol::ResponseBody::BrowserTimingProbe(
-                    Box::new(probe(report.as_ref().unwrap(), *sequence)),
-                )))
-            }
-            Command::ObserveBrowserTiming { .. } if failed_phase == "observe" => Some(Err(
-                ProtocolError::invalid("synthetic active observation refusal"),
-            )),
-            Command::ObserveBrowserTiming {
-                frame, sequence, ..
-            } => {
-                let value = report.as_mut().unwrap();
-                observe(value, frame.clone(), *sequence);
-                body(value.clone())
-            }
-            Command::ReleaseBrowserTiming { .. } => {
-                let value = report.as_mut().unwrap();
-                value.current = false;
-                body(value.clone())
-            }
-            _ => panic!("unexpected timing request"),
-        });
-        let mut timing = Timing::new(&server.client()).unwrap();
-        let player = player();
-        timing
-            .open(player.clone(), Arc::new(AtomicBool::new(false)), media())
-            .unwrap();
-        ready(&timing);
-        timing
-            .handle("/player/timing-probe", &player, b"", 1)
-            .unwrap();
-        let failure = if failed_phase == "probe" {
-            reply(&timing, &player, 1).unwrap_err().to_string()
-        } else {
-            let challenge = reply(&timing, &player, 1).unwrap();
-            let request = serde_json::to_vec(
-                &json!({"sequence":"1","probe_id":challenge["probe_id"],"frame":frame()}),
-            )
-            .unwrap();
-            timing
-                .handle("/player/timing-observe", &player, &request, 2)
-                .unwrap();
-            reply(&timing, &player, 2).unwrap_err().to_string()
-        };
-        assert!(failure.contains("timing_exchange_unconfirmed"));
-        assert!(failure.contains(&format!("\"failed_operation\":\"{failed_phase}\"")));
-        assert!(failure.contains("\"failure_class\":\"protocol_refusal\""));
-        assert!(failure.contains("\"failure_code\":\"invalid_request\""));
-        assert!(!failure.contains("synthetic-authentication-never-displayed"));
-        let cleanup = timing.shutdown().unwrap_err().to_string();
-        assert!(cleanup.contains("timing_exchange_unconfirmed"));
-        assert!(cleanup.contains(&format!("\"failed_operation\":\"{failed_phase}\"")));
-        assert!(cleanup.contains("\"failure_class\":\"protocol_refusal\""));
-        assert!(cleanup.contains("\"failure_code\":\"invalid_request\""));
-        assert!(!cleanup.contains("synthetic-authentication-never-displayed"));
-        let calls = server.finish();
-        assert_eq!(calls.len(), if failed_phase == "probe" { 3 } else { 4 });
-        assert!(matches!(
-            calls.last(),
-            Some(Command::ReleaseBrowserTiming { .. })
-        ));
-    }
-}
-
-#[test]
-fn failure_class_is_bounded_and_never_copies_error_text() {
-    let timeout = anyhow::Error::new(pulsar_protocol::TransportError::Io(std::io::Error::new(
-        std::io::ErrorKind::TimedOut,
-        "private-path-and-token",
-    )));
-    assert_eq!(failure_class(&timeout), "transport_timeout");
-    assert_eq!(protocol_code(&timeout), None);
-
-    let protocol = anyhow::Error::from(ProtocolError::invalid("private-path-and-token"));
-    assert_eq!(failure_class(&protocol), "protocol_refusal");
-    assert_eq!(protocol_code(&protocol), Some("invalid_request"));
-
-    let other = anyhow::anyhow!("private-path-and-token");
-    assert_eq!(failure_class(&other), "client_operation_error");
-    assert_eq!(protocol_code(&other), None);
-}
-
-#[test]
 fn timing_projection_never_rounds_exact_phase_or_native_sequence_into_javascript_numbers() {
     let request = pulsar_protocol::Request {
         version: PROTOCOL_VERSION,
@@ -952,10 +1102,40 @@ fn foreign_probe_or_changed_observation_refuses_and_releases_only_original_bindi
         let message = result.unwrap_err().to_string();
         assert!(!message.contains("authentication"));
         assert!(!message.contains("private path"));
+        {
+            let records = state(&timing.shared);
+            let value = diagnostic(&records.entries[0]);
+            let operation = if fault.starts_with("probe") {
+                "probe"
+            } else {
+                "observe"
+            };
+            assert_eq!(value["first_failure"]["operation"], operation, "{fault}");
+            assert_eq!(
+                value["first_failure"]["stage"],
+                if fault == "remote error" {
+                    "exchange"
+                } else {
+                    "reply"
+                },
+                "{fault}"
+            );
+            let diagnostic = value.to_string();
+            assert!(!diagnostic.contains("authentication"));
+            assert!(!diagnostic.contains("private path"));
+        }
         assert!(timing
             .handle("/player/timing-probe", &player, b"", 3)
             .is_err());
-        assert!(timing.shutdown().is_err());
+        timing.shutdown().unwrap();
+        {
+            let records = state(&timing.shared);
+            let record = &records.entries[0];
+            assert!(record.release == ReleaseState::Acknowledged);
+            assert!(!record.report.as_ref().unwrap().current);
+            assert!(record.first_failure.is_some());
+            assert!(record.probe.is_none());
+        }
         let calls = server.finish();
         assert_eq!(calls.len(), if fault.starts_with("probe") { 3 } else { 4 });
     }

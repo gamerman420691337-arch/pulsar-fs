@@ -1,5 +1,8 @@
 //! Local feed admission and role/generation tests; no Engine or physical grants.
 use super::*;
+#[cfg(unix)]
+#[path = "browser_live_fallback_tests.rs"]
+mod fallback_ipc;
 use std::sync::atomic::Ordering;
 fn request() -> Request {
     let identity = HandyPlayerIdentity {
@@ -209,6 +212,8 @@ fn input_fixture() -> (Request, AnalysisFeed, LiveCaptureReport) {
         "../../pulsar-protocol/tests/fixtures/live-cpu-capture-report.json"
     ))
     .unwrap();
+    report.options.inference.as_mut().unwrap().model_path =
+        std::env::temp_dir().join("fixture-model.onnx");
     report.identity.epoch = AttemptId::new("capture").unwrap();
     let media = request.browser_media.as_ref().unwrap();
     report.identity.project = media.project_id.clone();
@@ -629,6 +634,8 @@ mod successor_bulk_reservation {
         Prepare(RequestId),
         Reserve(RequestId),
         Status(RequestId),
+        Cancel(RequestId),
+        Stop(AttemptId),
         Bulk(LiveIdentity),
     }
     type Calls = Arc<Mutex<Vec<Call>>>;
@@ -702,12 +709,23 @@ mod successor_bulk_reservation {
             let mut prepared: Option<BrowserAnalysisSuccessorReport> = None;
             let mut reserved: Option<BrowserAnalysisTransferReport> = None;
             let mut seeded: Option<LiveCaptureReport> = None;
+            let mut status_reads = 0;
             // Retain the accepted channel until cleanup. A second handshake is
             // observable even when no G pixels have been sent on the first one.
             let mut channels = Vec::new();
             while !stopped.load(Ordering::Acquire) && Instant::now() < deadline {
                 if let Some(mut stream) = accept(&commands) {
-                    let wire: pulsar_protocol::Request = read_message(&mut stream).unwrap();
+                    let wire: pulsar_protocol::Request = match read_message(&mut stream) {
+                        Ok(wire) => wire,
+                        // A locally refused request may close its connected socket
+                        // before writing a frame. Keep the peer alive for Stop.
+                        Err(pulsar_protocol::TransportError::Io(error))
+                            if error.kind() == std::io::ErrorKind::UnexpectedEof =>
+                        {
+                            continue
+                        }
+                        Err(error) => panic!("successor IPC frame: {error}"),
+                    };
                     wire.validate().unwrap();
                     assert_eq!(wire.project.as_ref(), Some(&server_prior.identity.project));
                     assert_eq!(
@@ -843,9 +861,49 @@ mod successor_bulk_reservation {
                                 .lock()
                                 .unwrap()
                                 .push(Call::Status(wire.request_id.clone()));
-                            pulsar_protocol::ResponseBody::BrowserAnalysisTransfer(Box::new(
-                                original.clone(),
-                            ))
+                            status_reads += 1;
+                            let mut report = original.clone();
+                            report.predecessor_delivery_settled = true;
+                            report.predecessor_worker_joined = status_reads >= 2;
+                            report.phase = if report.predecessor_worker_joined {
+                                BrowserAnalysisTransferPhase::AwaitingSuccessorPair
+                            } else {
+                                BrowserAnalysisTransferPhase::JoiningPredecessor
+                            };
+                            report.validate().unwrap();
+                            pulsar_protocol::ResponseBody::BrowserAnalysisTransfer(Box::new(report))
+                        }
+                        Command::CancelBrowserAnalysisTransfer {
+                            transfer_request_id,
+                        } => {
+                            let original = reserved.as_ref().expect("cancel original reservation");
+                            assert_eq!(wire.expected_revision, None);
+                            assert_eq!(transfer_request_id, &original.original_request_id);
+                            assert_ne!(wire.request_id, original.original_request_id);
+                            observed
+                                .lock()
+                                .unwrap()
+                                .push(Call::Cancel(wire.request_id.clone()));
+                            let mut report = original.clone();
+                            report.phase = BrowserAnalysisTransferPhase::Aborted;
+                            report.error = Some(ProtocolError::new(
+                                ErrorCode::Unavailable,
+                                "explicit cancellation",
+                            ));
+                            report.validate().unwrap();
+                            pulsar_protocol::ResponseBody::BrowserAnalysisTransfer(Box::new(report))
+                        }
+                        Command::StopLiveCapture { epoch } => {
+                            assert_eq!(epoch, &server_prior.identity.epoch);
+                            observed.lock().unwrap().push(Call::Stop(epoch.clone()));
+                            let mut report = server_prior.clone();
+                            report.active = false;
+                            report.retirement = Some(LiveCaptureRetirement::Stopped);
+                            report.admitted_pixel_bytes = 0;
+                            report.inference.as_mut().unwrap().state =
+                                LiveCaptureInferenceState::Retired;
+                            report.validate().unwrap();
+                            pulsar_protocol::ResponseBody::LiveCapture(Box::new(report))
                         }
                         other => panic!("unexpected successor operation: {other:?}"),
                     };
@@ -934,6 +992,82 @@ mod successor_bulk_reservation {
     }
 
     #[test]
+    fn browser_stop_cancels_reserved_transfer_without_revision_and_with_fresh_request() {
+        with_peer(ReservationReply::Reserved, |preview, old, child, calls| {
+            preview.prepare_analysis_successor(child).unwrap();
+            preview.transfer_analysis(old, false).unwrap();
+            let transfer = preview
+                .analysis_successor
+                .as_ref()
+                .unwrap()
+                .transfer_id
+                .clone()
+                .unwrap();
+            preview.stop().unwrap();
+            assert!(preview.analysis_successor.is_none());
+            assert!(preview.report.is_none());
+            let observed = calls.lock().unwrap();
+            let cancelled: Vec<_> = observed
+                .iter()
+                .filter_map(|call| match call {
+                    Call::Cancel(id) => Some(id),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(cancelled.len(), 1);
+            assert_ne!(cancelled[0], &transfer);
+            assert_eq!(
+                observed
+                    .iter()
+                    .filter(|call| matches!(call, Call::Stop(_)))
+                    .count(),
+                1
+            );
+            let after_stop = observed.len();
+            drop(observed);
+            preview.stop().unwrap();
+            assert_eq!(
+                calls.lock().unwrap().len(),
+                after_stop,
+                "confirmed Stop is inert on repetition"
+            );
+        });
+    }
+
+    #[test]
+    fn browser_successor_waits_for_original_join_before_opening_g_ingress() {
+        with_peer(ReservationReply::Reserved, |preview, old, child, calls| {
+            preview.prepare_analysis_successor(child).unwrap();
+            preview.transfer_analysis(old, false).unwrap();
+            let next = preview.analysis_successor.as_ref().unwrap();
+            assert!(!next.transfer.as_ref().unwrap().predecessor_worker_joined);
+            assert!(
+                next.bulk.is_none(),
+                "G ingress opened before predecessor joined"
+            );
+            assert!(!next.pair_sent);
+            assert!(!calls
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|call| matches!(call, Call::Bulk(_))));
+            let sample = frame(&next.feed);
+            let mut early = super::request();
+            early.body = serde_json::to_vec(&serde_json::json!({
+                "epoch":sample.epoch,"media_us":sample.media_us,"analysis":sample.analysis
+            }))
+            .unwrap();
+            early.body.push(b'\n');
+            early.body.resize(early.body.len() + LIVE_FRAME_BYTES, 128);
+            assert!(preview.successor_analysis_frame(&early).is_err());
+            assert!(
+                !preview.analysis_successor.as_ref().unwrap().pair_sent,
+                "early G must not consume the one-use pair latch"
+            );
+        });
+    }
+
+    #[test]
     fn browser_successor_bulk_opens_only_after_original_reservation_and_is_reused_before_g() {
         with_peer(ReservationReply::Reserved, |preview, old, child, calls| {
             preview.prepare_analysis_successor(child).unwrap();
@@ -958,27 +1092,28 @@ mod successor_bulk_reservation {
             let original = next.transfer_id.clone().unwrap();
             let boundary = next.boundary.clone().unwrap();
             let child_identity = next.report.as_ref().unwrap().successor.identity.clone();
-            assert!(next.bulk.is_some());
+            assert!(next.bulk.is_none());
             assert!(!next.pair_sent);
             assert_eq!(
                 Some(&boundary),
                 preview.report.as_ref().unwrap().last_frame.as_ref()
             );
-            for _ in 0..2 {
+            for expected_open in [false, true, true] {
                 preview.transfer_analysis(old, true).unwrap();
                 let next = preview.analysis_successor.as_ref().unwrap();
                 assert_eq!(next.transfer_id.as_ref(), Some(&original));
                 assert_eq!(next.boundary.as_ref(), Some(&boundary));
-                assert!(next.bulk.is_some());
+                assert_eq!(next.bulk.is_some(), expected_open);
                 assert!(!next.pair_sent);
             }
             let observed = calls.lock().unwrap();
-            assert_eq!(observed.len(), 6);
+            assert_eq!(observed.len(), 7);
             assert_eq!(observed[2], Call::Reserve(original));
-            assert_eq!(observed[3], Call::Bulk(child_identity));
+            assert!(matches!(observed[3], Call::Status(_)));
             assert!(matches!(observed[4], Call::Status(_)));
-            assert!(matches!(observed[5], Call::Status(_)));
-            assert_ne!(observed[4], observed[5]);
+            assert_eq!(observed[5], Call::Bulk(child_identity));
+            assert!(matches!(observed[6], Call::Status(_)));
+            assert_ne!(observed[3], observed[4]);
         });
     }
 

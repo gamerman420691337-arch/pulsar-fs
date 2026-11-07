@@ -1,6 +1,11 @@
 //! Setup journal metadata and single-use claims. This module performs no I/O to a device.
 use super::*;
-const TABLE: &str = "CREATE TABLE setup_effects(id TEXT PRIMARY KEY NOT NULL,route TEXT NOT NULL,intent TEXT NOT NULL,record TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('prepared','claimed','acknowledged','unknown','cancelled')))";
+/// The pre-`retired` layout. Journals created before the terminal state existed
+/// carry this exact text; `upgrade_retired` rebuilds them in place.
+const LEGACY_TABLE: &str = "CREATE TABLE setup_effects(id TEXT PRIMARY KEY NOT NULL,route TEXT NOT NULL,intent TEXT NOT NULL,record TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('prepared','claimed','acknowledged','unknown','cancelled')))";
+const LEGACY_HISTORY_INDEX: &str =
+    "CREATE INDEX setup_active_route ON setup_effects(route) WHERE state!='cancelled'";
+const TABLE: &str = "CREATE TABLE setup_effects(id TEXT PRIMARY KEY NOT NULL,route TEXT NOT NULL,intent TEXT NOT NULL,record TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('prepared','claimed','acknowledged','unknown','cancelled','retired')))";
 const INDEX: &str =
     "CREATE UNIQUE INDEX setup_active_route ON setup_effects(route) WHERE state!='cancelled'";
 
@@ -52,7 +57,13 @@ impl SetupEffectRecord {
     fn validate(&self) -> Result<()> {
         if let Some(mode) = &self.preflight_mode {
             mode.validate()?;
-            ensure!(mode.mode == 1, "setup requires HSSP mode");
+            // 1 = HSSP, 4 = HSP. H02_pro 4.3.0 leaves HSSP for HSP on any HSSP
+            // operation, so a setup effect records either idle streaming mode.
+            // Accepting only mode 1 would refuse to load the journal it wrote.
+            ensure!(
+                matches!(mode.mode, 1 | 4),
+                "setup requires a streaming mode"
+            );
         }
         if let Some(namespace) = &self.route_namespace_sha256 {
             ensure!(digest_valid(namespace), "invalid route namespace");
@@ -102,6 +113,41 @@ fn request_identity(actor: &SessionId, request: &RequestId) -> Result<String> {
         Sha256::digest(serde_json::to_vec(&(actor, request))?)
     ))
 }
+/// An acknowledged setup from a retired engine boot that no play references is
+/// inert history: the device session it bound is gone, so it can never be
+/// played and cannot hold the device. Only the current boot, or a play that
+/// still references the setup, is real custody. Without this, a bench run that
+/// loaded a script and stopped would demand a physical recovery contract -- with
+/// evidence that cannot exist -- merely to record that nothing ever moved.
+fn retired_without_play(db: &Connection, id: &str, boot: &str, device: &DeviceId) -> Result<bool> {
+    let value = row(db, id)?;
+    if value.record.boot.as_str() == boot || &value.record.registration.device_id != device {
+        return Ok(false);
+    }
+    // A setup is inert once it can no longer move the device. Loading a script
+    // never moves it; only a play record starts motion. So an acknowledged setup,
+    // or an `unknown` one whose reply was lost, is inert here as long as no play
+    // references it. A prepared setup was never sent and is cancelled explicitly;
+    // a claimed one is mid-flight and still refuses.
+    if !matches!(
+        value.state,
+        SetupJournalState::Acknowledged | SetupJournalState::Unknown | SetupJournalState::Retired
+    ) {
+        return Ok(false);
+    }
+    let referenced: bool = db
+        .prepare("SELECT CASE WHEN length(CAST(record AS BLOB))<=8192 THEN record ELSE NULL END FROM play_operations WHERE state!='cancelled' LIMIT 1025")?
+        .query_map([], |r| r.get::<_, Option<String>>(0))?
+        .filter_map(|r| r.ok().flatten())
+        .any(|raw| {
+            serde_json::from_str::<serde_json::Value>(&raw)
+                .ok()
+                .and_then(|v| v.get("setup_record_id").and_then(|s| s.as_str()).map(str::to_owned))
+                .as_deref()
+                == Some(id)
+        });
+    Ok(!referenced)
+}
 fn check_namespace(
     db: &Connection,
     namespace: &str,
@@ -110,10 +156,12 @@ fn check_namespace(
 ) -> Result<()> {
     ensure!(digest_valid(namespace), "invalid route namespace");
     let resolved = super::reconciliation::resolved_keys(db)?;
-    let mut q=db.prepare("SELECT CASE WHEN length(id)=64 THEN id ELSE NULL END FROM setup_effects WHERE state!='cancelled' LIMIT 1025")?;
+    let boot: String = db.query_row("SELECT boot FROM owner", [], |r| r.get(0))?;
+    let mut q=db.prepare("SELECT CASE WHEN length(id)=64 THEN id ELSE NULL END FROM setup_effects WHERE state NOT IN ('cancelled','retired') LIMIT 1025")?;
     let ids = q
         .query_map([], |r| r.get::<_, String>(0))?
         .collect::<rusqlite::Result<Vec<_>>>()?;
+    drop(q);
     ensure!(
         ids.len() <= CAPACITY as usize,
         "setup journal capacity exceeded"
@@ -127,8 +175,13 @@ fn check_namespace(
             value.record.route_namespace_sha256.as_deref() == Some(namespace),
             "legacy or changed route namespace has unresolved setup history"
         );
+        if value.id == current_id || &value.record.registration.device_id != device {
+            continue;
+        }
+        // `retired_without_play` answers "is this inert history?". Inert history
+        // is admissible; either kind of live custody still refuses.
         ensure!(
-            value.id == current_id || &value.record.registration.device_id != device,
+            retired_without_play(db, &id, &boot, device)?,
             "logical device has unresolved setup history"
         );
     }
@@ -142,6 +195,9 @@ pub enum SetupJournalState {
     Acknowledged,
     Unknown,
     Cancelled,
+    /// Acknowledged on a boot that is gone, and referenced by no play. Terminal:
+    /// the script may still sit on the device as the new boot's setup replaces it.
+    Retired,
 }
 impl SetupJournalState {
     fn parse(value: &str) -> Result<Self> {
@@ -151,6 +207,7 @@ impl SetupJournalState {
             "acknowledged" => Self::Acknowledged,
             "unknown" => Self::Unknown,
             "cancelled" => Self::Cancelled,
+            "retired" => Self::Retired,
             _ => anyhow::bail!("invalid setup state"),
         })
     }
@@ -239,8 +296,20 @@ pub(super) fn validate_schema(db: &Connection, version: u32) -> Result<()> {
                 "unexpected setup journal layout; original was not modified"
             );
         } else {
+            // A journal may still carry the pre-`retired` table text until
+            // `upgrade_retired` rebuilds it, so both layouts are the same journal.
+            let accepted: &[&str] = match name {
+                "setup_effects" => &[TABLE, LEGACY_TABLE],
+                // Before `retired` existed the cache index admitted any state but
+                // cancelled; a journal may still carry that text until it migrates.
+                "setup_active_route" if version >= 8 => &[sql, LEGACY_HISTORY_INDEX],
+                _ => std::slice::from_ref(&sql),
+            };
             ensure!(
-                actual == Some((kind.into(), sql.into())),
+                actual
+                    .as_ref()
+                    .is_some_and(|(actual_kind, actual_sql)| actual_kind == kind
+                        && accepted.contains(&actual_sql.as_str())),
                 "setup journal layout differs; original was not modified"
             );
         }
@@ -278,6 +347,57 @@ pub(super) fn validate_schema(db: &Connection, version: u32) -> Result<()> {
         let mut value = decode(id, route, intent, text, state)?;
         observations::read(db, &mut value)?;
     }
+    Ok(())
+}
+/// Adds the terminal `retired` state to `setup_effects` and to its cache index.
+/// The table is rebuilt because SQLite cannot alter a CHECK constraint in place;
+/// ids, routes and records are copied verbatim so every prior receipt stays
+/// verifiable. This is a layout migration, not a schema-version bump, so no other
+/// module's version ladder changes.
+pub(super) fn upgrade_retired(db: &mut Connection, version: u32) -> Result<()> {
+    let table: Option<String> = db
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='setup_effects'",
+            [],
+            |r| r.get(0),
+        )
+        .optional()?;
+    let Some(table) = table else {
+        return Ok(());
+    };
+    let index: Option<String> = db
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type='index' AND name='setup_active_route'",
+            [],
+            |r| r.get(0),
+        )
+        .optional()?;
+    let table_ok = table == TABLE;
+    // The unique pre-v8 index is a different generation and is left untouched.
+    let index_ok =
+        version < 8 || index.as_deref() == Some(super::reconciliation::SETUP_HISTORY_INDEX);
+    if table_ok && index_ok {
+        return Ok(());
+    }
+    ensure!(
+        table_ok || table == LEGACY_TABLE,
+        "setup journal layout differs; original was not modified"
+    );
+    let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+    if !table_ok {
+        tx.execute_batch("ALTER TABLE setup_effects RENAME TO setup_effects_pre_retired")?;
+        tx.execute_batch(TABLE)?;
+        tx.execute_batch(
+            "INSERT INTO setup_effects(id,route,intent,record,state) SELECT id,route,intent,record,state FROM setup_effects_pre_retired",
+        )?;
+        tx.execute_batch("DROP TABLE setup_effects_pre_retired")?;
+        tx.execute_batch(INTENT_INDEX)?;
+    }
+    if version >= 8 {
+        tx.execute_batch("DROP INDEX IF EXISTS setup_active_route")?;
+        tx.execute_batch(super::reconciliation::SETUP_HISTORY_INDEX)?;
+    }
+    tx.commit()?;
     Ok(())
 }
 pub(super) fn upgrade(db: &mut Connection, version: u32) -> Result<()> {
@@ -385,12 +505,43 @@ impl DeviceEffectJournal {
             let count: u64 =
                 tx.query_row("SELECT count(*) FROM setup_effects", [], |r| r.get(0))?;
             ensure!(count < CAPACITY, "setup journal capacity reached");
-            let occupied: bool = tx.query_row(
-                "SELECT EXISTS(SELECT 1 FROM setup_custody_routes WHERE route=?1)",
-                [&record.route_sha256],
-                |r| r.get(0),
-            )?;
-            ensure!(!occupied, "setup route has unresolved history");
+            // One route may be shared by several non-terminal setups: the route
+            // cache keys on route, so all of them must leave before this one can
+            // own it. Retire every inert holder; refuse if any is live custody.
+            let holders: Vec<String> = {
+                let mut q = tx.prepare(
+                    "SELECT CASE WHEN length(id)=64 THEN id ELSE NULL END FROM setup_effects WHERE route=?1 AND state NOT IN ('cancelled','retired') LIMIT 1025",
+                )?;
+                let rows = q
+                    .query_map([&record.route_sha256], |r| r.get::<_, String>(0))?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                rows
+            };
+            let resolved = super::reconciliation::resolved_keys(&tx)?;
+            for holder in holders {
+                // A reconciled setup is already accounted for; it no longer holds
+                // the route, which is why the cache never listed it either.
+                if resolved.contains(&(CustodyKind::Setup, holder.clone())) {
+                    continue;
+                }
+                ensure!(
+                    retired_without_play(
+                        &tx,
+                        &holder,
+                        self.boot.as_str(),
+                        &record.registration.device_id,
+                    )?,
+                    "setup route has unresolved history"
+                );
+                tx.execute(
+                    "UPDATE setup_effects SET state='retired' WHERE id=?1 AND state IN ('acknowledged','unknown','retired')",
+                    [&holder],
+                )?;
+                tx.execute(
+                    "DELETE FROM setup_custody_routes WHERE setup_id=?1",
+                    [&holder],
+                )?;
+            }
             tx.execute(
                 "INSERT INTO setup_effects VALUES(?1,?2,?3,?4,'prepared')",
                 params![id, record.route_sha256, intent_identity(&record)?, text],
@@ -600,6 +751,59 @@ mod tests {
     }
     fn open(path: &Path, boot: &str) -> DeviceEffectJournal {
         DeviceEffectJournal::open(path, DeviceSessionId::new(boot).unwrap()).unwrap()
+    }
+    #[test]
+    fn setup_journal_retired_acknowledged_setup_without_play_does_not_block_a_new_boot() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut journal = open(dir.path(), "boot-old");
+        let receipt = journal
+            .prepare_setup(record("boot-old", "old-setup"))
+            .unwrap();
+        let claim = journal.claim_setup(&receipt).unwrap();
+        journal
+            .complete_setup(
+                &claim,
+                SetupCompletion::Acknowledged(crate::handy_wire::fixture_setup_acknowledgment()),
+            )
+            .unwrap();
+        drop(journal);
+        let mut next = open(dir.path(), "boot-new");
+        next.prepare_setup(record("boot-new", "new-setup"))
+            .expect("a retired setup that never played must not hold the device");
+    }
+    #[test]
+    fn setup_journal_retired_setup_referenced_by_a_play_still_holds_the_device() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut journal = open(dir.path(), "boot-old");
+        let receipt = journal
+            .prepare_setup(record("boot-old", "played-setup"))
+            .unwrap();
+        let claim = journal.claim_setup(&receipt).unwrap();
+        journal
+            .complete_setup(
+                &claim,
+                SetupCompletion::Acknowledged(crate::handy_wire::fixture_setup_acknowledgment()),
+            )
+            .unwrap();
+        let id = receipt.id().to_owned();
+        let device = DeviceId::new("synthetic-device").unwrap();
+        // Unreferenced and retired: inert.
+        assert!(retired_without_play(&journal.db, &id, "boot-new", &device).unwrap());
+        journal
+            .db
+            .execute(
+                "INSERT INTO play_operations VALUES(?1,?2,?3,?4,?5,'prepared')",
+                rusqlite::params![
+                    "a".repeat(64),
+                    "actor",
+                    "request",
+                    "b".repeat(64),
+                    serde_json::json!({ "setup_record_id": id }).to_string()
+                ],
+            )
+            .unwrap();
+        // A play references it: custody, never history.
+        assert!(!retired_without_play(&journal.db, &id, "boot-new", &device).unwrap());
     }
     #[test]
     fn setup_journal_single_claim_and_uncertain_or_acknowledged_routes_remain_reserved() {

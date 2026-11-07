@@ -211,8 +211,13 @@ pub(super) fn parent(db: &Connection, record: &ClockSyncEffectRecord) -> Result<
     let value = super::setup::row(db, record.setup_record_id.as_str())?;
     let c = &record.original_controller;
     ensure!(
-        value.state == SetupJournalState::Acknowledged
-            && value.acknowledgment.is_some()
+        // A retired parent means its own boot is gone and no play referenced it;
+        // the synchronization it witnessed is inert history, still verifiable and
+        // still bound to the exact acknowledged observation it was taken from.
+        matches!(
+            value.state,
+            SetupJournalState::Acknowledged | SetupJournalState::Retired
+        ) && value.acknowledgment.is_some()
             && value.record.actor_session == record.actor_session
             && value.record.boot == c.engine_epoch
             && value.record.device_session == c.device_session

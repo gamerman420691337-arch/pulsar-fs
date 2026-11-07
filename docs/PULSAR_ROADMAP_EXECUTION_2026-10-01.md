@@ -1,4 +1,4 @@
-> **Consolidated:** [PULSAR_PROJECT.md](PULSAR_PROJECT.md) defines current scope and delivery order; the [execution dashboard](PULSAR_MILESTONES.md) supplies current state. This document retains technical decisions and historical plans/evidence. Its dated status and task ordering are not the current queue. Confirmed technical requirements remain binding unless explicitly superseded.
+> **Historical planning/status:** [PULSAR_PROJECT.md](PULSAR_PROJECT.md) owns current scope and delivery order; the [execution dashboard](PULSAR_MILESTONES.md) owns task/evidence state. Technical obligations and scoped receipts below remain references.
 
 > Native preparation intent custody now has protocol metadata, a conditional schema-27 journal and fail-closed restart interruption. The trusted API shares the bounded options. Authenticated asynchronous creation/status/cancellation/revocation/disposal and CLI/desktop integration remain pending; no native/device qualification is implied. See [journal scope and evidence](PULSAR_NATIVE_PREPARATION_JOURNAL.md).
 

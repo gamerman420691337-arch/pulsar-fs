@@ -7,7 +7,7 @@
 
 Pulsar is a local motion workstation under active implementation. **Pulsar Desktop**, the command-line client, and the experimental local browser player use one authenticated Engine. The roadmap remains **PARTIAL**: useful model defaults, real-media accuracy, supported-platform releases and physical-device synchronization are not qualified.
 
-Start with the [single project specification and roadmap](docs/PULSAR_PROJECT.md). It defines the feature set, delivery order and document hierarchy. The [app guide](docs/PULSAR_APP_QUICKSTART.md) covers existing controls; the linked execution ledger owns current task and evidence state.
+Start with the [single project specification and roadmap](docs/PULSAR_PROJECT.md). It defines the feature set, stack, shared API, delivery order and parallel-agent ownership. Current integration branch: `codex/pulsar-integration`. The [app guide](docs/PULSAR_APP_QUICKSTART.md) covers existing controls; the linked execution ledger owns current task and evidence state.
 
 ## Open the desktop app
 

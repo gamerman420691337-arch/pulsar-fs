@@ -931,6 +931,7 @@ mod tests {
     use crate::handy_hsp_runtime::{
         HandyHspRuntime, HspAuthorityWindow, HspPlayReference, HspSettledTransport,
     };
+    use crate::handy_hsp_wire::HspExtras;
     use pulsar_core::{HspPhaseWindow, HspPoint, HspPolicy, RevisionId};
     use pulsar_protocol::HandyRegistrationSettings;
 
@@ -1207,7 +1208,9 @@ mod tests {
         changed.profile_sha256 = "F".repeat(64);
         assert!(changed.validate().is_err());
         let mut changed = stream.clone();
-        changed.device.session_id = "native session with spaces".into();
+        // Firmware-reported text may contain interior spaces; use genuinely
+        // invalid content (a control character) to assert strictness.
+        changed.device.session_id = "native\nsession".into();
         assert!(changed.validate().is_err());
     }
     #[test]
@@ -1272,6 +1275,7 @@ mod tests {
             tail_point_stream_index: -1,
             tail_point_stream_index_threshold: 1,
             pause_on_starving: false,
+            extras: HspExtras::default(),
         };
         let good = HspOutcomeRecord::capture(&HspObservedOutcome::Acknowledged(state)).unwrap();
         good.validate_for_effect(&record).unwrap();

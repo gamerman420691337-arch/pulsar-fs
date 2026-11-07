@@ -6,10 +6,10 @@ use std::sync::{
     Arc,
 };
 type Result<T> = std::result::Result<T, ProtocolError>;
-fn invalid() -> ProtocolError {
+fn invalid(why: &'static str) -> ProtocolError {
     ProtocolError::new(
         ErrorCode::Unavailable,
-        "device or combined clock is stale, changed or outside accepted bounds",
+        format!("device or combined clock is stale, changed or outside accepted bounds ({why})"),
     )
 }
 #[derive(Clone, PartialEq, Eq)]
@@ -32,7 +32,7 @@ impl NativeDeviceClock {
         if acknowledgment.info.last_sync_round_trip_ms
             > qualified.contract.maximum_sync_round_trip_ms
         {
-            return Err(invalid());
+            return Err(invalid("nc:35"));
         }
         let value = Self {
             acknowledgment,
@@ -44,19 +44,19 @@ impl NativeDeviceClock {
     pub(crate) fn error_at(&self, now: u64) -> Result<u64> {
         let age = now
             .checked_sub(self.acknowledgment.sent_boottime_ns)
-            .ok_or_else(invalid)?;
+            .ok_or_else(|| invalid("nc:opt"))?;
         let elapsed = now
             .checked_sub(self.acknowledgment.received_boottime_ns)
-            .ok_or_else(invalid)?;
+            .ok_or_else(|| invalid("nc:opt"))?;
         let error = u128::from(self.qualified.contract.device_error_ns)
             + (u128::from(elapsed) * u128::from(self.qualified.contract.drift_ppm))
                 .div_ceil(1_000_000);
         if age > self.qualified.contract.maximum_sync_age_ns
             || error > u128::from(self.qualified.maximum_total_error_ns)
         {
-            return Err(invalid());
+            return Err(invalid("nc:64"));
         }
-        error.try_into().map_err(|_| invalid())
+        error.try_into().map_err(|_| invalid("nc:66"))
     }
     pub(crate) fn check_observation(&self, sample: &HandyDeviceTimingSample) -> Result<()> {
         sample.validate()?;
@@ -69,7 +69,7 @@ impl NativeDeviceClock {
             || sample.info.last_sync_round_trip_ms
                 != self.acknowledgment.info.last_sync_round_trip_ms
         {
-            return Err(invalid());
+            return Err(invalid("nc:79"));
         }
         Ok(())
     }
@@ -84,7 +84,7 @@ impl NativePlaybackClock {
             .acknowledgment
             .sent_boottime_ns
             .checked_add(self.device.qualified.contract.maximum_sync_age_ns)
-            .ok_or_else(invalid)
+            .ok_or_else(|| invalid("nc:opt"))
     }
     pub(crate) fn at(&self, now: u64) -> Result<PlaybackClock> {
         let mut clock = self.server.at(now)?;
@@ -97,9 +97,9 @@ impl NativePlaybackClock {
         clock.uncertainty_ns = clock
             .uncertainty_ns
             .checked_add(self.device.error_at(now)?)
-            .ok_or_else(invalid)?;
+            .ok_or_else(|| invalid("nc:opt"))?;
         if clock.uncertainty_ns > self.device.qualified.maximum_total_error_ns {
-            return Err(invalid());
+            return Err(invalid("nc:109"));
         }
         Ok(clock)
     }
@@ -149,7 +149,7 @@ impl HspClockPin {
             || valid_until_ns > clock.at(at)?.valid_until_ns
             || session_until_ns > clock.synchronization_until_ns()?
         {
-            return Err(invalid());
+            return Err(invalid("nc:159"));
         }
         Ok(Self(Arc::new(HspClockObservation {
             owner_id,
@@ -165,7 +165,7 @@ impl HspClockPin {
             || now_ns >= self.0.valid_until_ns
             || now_ns >= self.0.session_until_ns
         {
-            return Err(invalid());
+            return Err(invalid("nc:175"));
         }
         let mut clock = self.0.clock.at(now_ns)?;
         clock.valid_until_ns = clock.valid_until_ns.min(self.0.valid_until_ns);
@@ -198,7 +198,7 @@ impl HspClockPin {
         if reference.at_ns() > now_ns
             || facts.binding().clock_domain() != &self.0.clock.server.clock.domain
         {
-            return Err(invalid());
+            return Err(invalid("nc:208"));
         }
         let observed = self.at(reference.at_ns())?;
         self.at(now_ns)?;
@@ -207,7 +207,7 @@ impl HspClockPin {
             value
                 .and_then(|n| u128::try_from(n).ok())
                 .and_then(|n| n.checked_mul(1_000_000))
-                .ok_or_else(invalid)
+                .ok_or_else(|| invalid("nc:opt"))
         };
         if reference.server_time_ms() != observed.estimated_server_ms
             || facts.window().clock_until_ns() > observed.valid_until_ns
@@ -216,7 +216,7 @@ impl HspClockPin {
             || margin(i128::from(reference.phase().latest_ms).checked_sub(center))?
                 < u128::from(observed.uncertainty_ns)
         {
-            return Err(invalid());
+            return Err(invalid("nc:226"));
         }
         Ok(())
     }

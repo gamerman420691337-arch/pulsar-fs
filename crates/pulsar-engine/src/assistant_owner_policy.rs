@@ -23,12 +23,29 @@ pub(crate) struct Policy {
     cpu_threads: u16,
     wall_time_ms: u64,
     worker_memory_bytes: u64,
+    /// Optional native execution limits. Absent preserves the pinned defaults.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    execution: Option<AssistantExecutionLimits>,
+    /// Hardware class this build/owner admits the profile under. Defaults to the
+    /// most restrictive tier so an unset policy never inherits workstation limits.
+    #[serde(default)]
+    tier: AssistantHardwareTier,
 }
 impl Policy {
     fn validate(&self, config: &crate::EngineConfig) -> Result<()> {
         ensure!(
             matches!(self.schema_version, 1..=4) && self.approve_inference,
             "assistant owner policy requires a supported schema and explicit inference approval"
+        );
+        let required = AssistantHardwareTier::required_for(
+            self.model.byte_len,
+            self.worker_memory_bytes,
+            self.execution.as_ref(),
+        );
+        ensure!(
+            required <= self.tier,
+            "assistant policy exceeds the declared hardware tier: this build admits {tier:?}, the declaration needs {required:?}",
+            tier = self.tier
         );
         ensure!(
             self.projector.is_some() == matches!(self.schema_version, 3 | 4),
@@ -55,6 +72,7 @@ impl Policy {
             cpu_threads: self.cpu_threads,
             wall_time_ms: self.wall_time_ms,
             worker_memory_bytes: self.worker_memory_bytes,
+            execution: self.execution.clone(),
         };
         profile.validate()?;
         ensure!(
@@ -130,6 +148,7 @@ impl Policy {
                 projector,
                 self.cpu_threads,
                 self.wall_time_ms,
+                self.execution.clone(),
             )?;
         } else {
             engine.register_assistant_profile(
@@ -138,6 +157,7 @@ impl Policy {
                 self.model,
                 self.cpu_threads,
                 self.wall_time_ms,
+                self.execution.clone(),
             )?;
         }
         Ok(())
@@ -220,6 +240,10 @@ pub struct AssistantPolicySetup {
     pub cpu_threads: u16,
     pub wall_time_ms: u64,
     pub worker_memory_bytes: u64,
+    /// Optional native execution limits for the registered profile.
+    pub execution: Option<AssistantExecutionLimits>,
+    /// Hardware class the registered profile is admitted under.
+    pub tier: AssistantHardwareTier,
     pub absolute_assets: bool,
     pub approve_host_inference: bool,
 }
@@ -299,6 +323,8 @@ pub fn create_assistant_policy(
         cpu_threads: options.cpu_threads,
         wall_time_ms: options.wall_time_ms,
         worker_memory_bytes: options.worker_memory_bytes,
+        execution: options.execution.clone(),
+        tier: options.tier,
     };
     let mut checked = policy.clone();
     checked.runtime_path = options.runtime;
@@ -704,21 +730,25 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let model = root.path().join("model");
         std::fs::write(&model, b"x").unwrap();
-        let bytes = std::fs::metadata("/usr/bin/true").unwrap().len();
+        let runtime = root.path().join("runtime");
+        std::fs::write(&runtime, b"owned runtime fixture").unwrap();
+        std::fs::set_permissions(&runtime, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let bytes = std::fs::metadata(&runtime).unwrap().len();
         let artifact = |len| ArtifactIdentity {
             artifact_id: ArtifactId::new("fixture").unwrap(),
             sha256: "a".repeat(64),
             byte_len: len,
         };
-        let config =
-            crate::EngineConfig::new(root.path().join("state"), PathBuf::from("/usr/bin/true"));
+        let config = crate::EngineConfig::new(root.path().join("state"), runtime.clone());
         let mut policy = Policy {
+            tier: AssistantHardwareTier::Workstation,
+            execution: None,
             projector: None,
             schema_version: 1,
             approve_inference: true,
             worker_sha256: "a".repeat(64),
             worker_bytes: bytes,
-            runtime_path: PathBuf::from("/usr/bin/true"),
+            runtime_path: runtime,
             runtime: artifact(bytes),
             model_path: model,
             model: artifact(1),
@@ -726,7 +756,9 @@ mod tests {
             wall_time_ms: 1000,
             worker_memory_bytes: 512 * 1024 * 1024,
         };
-        assert!(policy.validate(&config).is_ok());
+        policy
+            .validate(&config)
+            .expect("owned policy fixture is valid");
         policy.approve_inference = false;
         assert!(policy.validate(&config).is_err());
         policy.approve_inference = true;
@@ -737,6 +769,45 @@ mod tests {
         small.max_ram_bytes = 512 * 1024 * 1024;
         assert!(policy.validate(&small).is_err());
     }
+    #[test]
+    fn a_constrained_build_refuses_a_workstation_sized_declaration() {
+        let root = tempfile::tempdir().unwrap();
+        let runtime = root.path().join("runtime");
+        std::fs::write(&runtime, b"runner").unwrap();
+        std::fs::set_permissions(&runtime, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let bytes = std::fs::metadata(&runtime).unwrap().len();
+        let artifact = |len| ArtifactIdentity {
+            artifact_id: ArtifactId::new("fixture").unwrap(),
+            sha256: "a".repeat(64),
+            byte_len: len,
+        };
+        let model = root.path().join("model.gguf");
+        std::fs::write(&model, b"m").unwrap();
+        let config = crate::EngineConfig::new(root.path().join("state"), runtime.clone());
+        let policy = Policy {
+            tier: AssistantHardwareTier::Constrained,
+            execution: Some(AssistantExecutionLimits::roleplay(65_536, 60)),
+            projector: None,
+            schema_version: 1,
+            approve_inference: true,
+            worker_sha256: "a".repeat(64),
+            worker_bytes: bytes,
+            runtime_path: runtime,
+            runtime: artifact(bytes),
+            model_path: model,
+            // 14 GiB needs the standard tier; a constrained build must refuse it.
+            model: artifact(14 * 1024 * 1024 * 1024),
+            cpu_threads: 1,
+            wall_time_ms: 1000,
+            worker_memory_bytes: 16 * 1024 * 1024 * 1024,
+        };
+        let error = policy.validate(&config).unwrap_err();
+        assert!(
+            error.to_string().contains("hardware tier"),
+            "constrained build must refuse a workstation declaration: {error}"
+        );
+    }
+
     fn portable_fixture(root: &Path) -> (PathBuf, Policy, crate::EngineConfig) {
         let assets = root.join("assets");
         std::fs::create_dir(&assets).unwrap();
@@ -753,6 +824,8 @@ mod tests {
             byte_len: 1,
         };
         let policy = Policy {
+            tier: AssistantHardwareTier::Workstation,
+            execution: None,
             projector: None,
             schema_version: 2,
             approve_inference: true,
@@ -768,7 +841,10 @@ mod tests {
         };
         let path = root.join("assistant.json");
         write_policy(&path, &policy);
-        let config = crate::EngineConfig::new(root.join("state"), "/usr/bin/true".into());
+        let worker = root.join("fixture-worker");
+        std::fs::write(&worker, b"fixture worker; not executed").unwrap();
+        std::fs::set_permissions(&worker, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let config = crate::EngineConfig::new(root.join("state"), worker);
         (path, policy, config)
     }
     fn write_policy(path: &Path, policy: &Policy) {
@@ -832,6 +908,8 @@ mod tests {
         let (path, _, config) = portable_fixture(root.path());
         std::fs::remove_file(&path).unwrap();
         let options = || AssistantPolicySetup {
+            tier: AssistantHardwareTier::Workstation,
+            execution: None,
             projector: None,
             output: path.clone(),
             runtime: root.path().join("assets/runtime"),
@@ -867,6 +945,8 @@ mod tests {
         let (path, _, config) = portable_fixture(root.path());
         std::fs::remove_file(&path).unwrap();
         let options = || AssistantPolicySetup {
+            tier: AssistantHardwareTier::Workstation,
+            execution: None,
             projector: None,
             output: path.clone(),
             runtime: root.path().join("assets/runtime"),
@@ -900,6 +980,8 @@ mod tests {
     }
     fn vision_options(root: &Path, output: &Path, absolute_assets: bool) -> AssistantPolicySetup {
         AssistantPolicySetup {
+            tier: AssistantHardwareTier::Workstation,
+            execution: None,
             output: output.to_path_buf(),
             runtime: root.join("assets/runtime"),
             model: root.join("assets/model"),

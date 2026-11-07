@@ -76,8 +76,96 @@ pub struct LibraryGenerationOptions {
     pub source_sample_stride: u32,
 }
 
+/// Bounded, normalized, absolute path for a private consent document.
+pub(crate) fn parse_private_document_path(value: &str) -> Result<PathBuf, String> {
+    use std::path::Component;
+    let path = PathBuf::from(value);
+    let normalized: PathBuf = path.components().collect();
+    if !path.is_absolute()
+        || value.len() > 4096
+        || value.contains('\0')
+        || path
+            .components()
+            .any(|part| matches!(part, Component::ParentDir))
+        || path.as_os_str() != normalized.as_os_str()
+    {
+        return Err(
+            "consent document requires a bounded normalized absolute path without traversal".into(),
+        );
+    }
+    Ok(path)
+}
+
+/// Local roleplay consent and adult attestation operations.
+///
+/// Nothing here starts inference, selects a device or plays motion. Consent is
+/// recorded locally; the attestation it carries is an assertion, never
+/// verification.
+#[derive(Debug, Subcommand)]
+pub enum RoleplayCommands {
+    /// Create a new least-permissive, local-scope consent document.
+    Create {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+    },
+    /// Record the local 18+ attestation. This is not identity verification.
+    Attest {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+    },
+    /// Withdraw the attestation. Ungated and immediate.
+    WithdrawAttestation {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+    },
+    /// Record one participant's consent to the declared class and scope.
+    Consent {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+        #[arg(long)]
+        participant: String,
+        #[arg(long, value_parser = ["general", "mature", "explicit"])]
+        class: String,
+    },
+    /// Revoke a participant's consent. Ungated and immediate.
+    Revoke {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+        #[arg(long)]
+        participant: String,
+    },
+    /// Escalate the declared content class, clearing every prior consent.
+    Escalate {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+        #[arg(long, value_parser = ["general", "mature", "explicit"])]
+        class: String,
+    },
+    /// Switch between local and remote processing, clearing every prior consent.
+    Provider {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+        /// Process entirely on this machine.
+        #[arg(long)]
+        local: bool,
+        /// Opaque owner-configured provider reference for remote processing.
+        #[arg(long, conflicts_with = "local")]
+        remote: Option<String>,
+    },
+    /// Print the redacted consent status without changing anything.
+    Status {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+    },
+}
+
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    /// Record, inspect and withdraw roleplay consent and adult attestation.
+    Roleplay {
+        #[command(subcommand)]
+        command: RoleplayCommands,
+    },
     /// Inspect local attempt declarations and observed completion without retrying.
     JobAttempts {
         #[arg(long)]
@@ -931,6 +1019,30 @@ pub enum Commands {
         #[arg(long)]
         request_id: String,
     },
+    /// Import a dossier and accept it in one step, for attended bench work.
+    ///
+    /// The same evidence checks and live device binding run as the two-step
+    /// import/accept path; this only removes the separate human step between
+    /// them. The attested fact remains the operator's, asserted once per
+    /// invocation by `--bench-mode`. No arm, setup or play follows from it.
+    HandyQualify {
+        /// Immutable dossier to import and accept.
+        manifest: PathBuf,
+        #[arg(long)]
+        manifest_sha256: String,
+        #[arg(long)]
+        engine_epoch: String,
+        #[arg(long)]
+        device_session: String,
+        #[arg(long)]
+        note: String,
+        #[arg(long)]
+        request_id: String,
+        /// Asserts the operator attests this dossier's physical evidence for an
+        /// attended bench run, and consents to the fresh online inspection.
+        #[arg(long)]
+        bench_mode: bool,
+    },
     /// Verify retained evidence and read current review state.
     HandyQualificationStatus {
         dossier: String,
@@ -1324,6 +1436,31 @@ pub enum Commands {
     },
     /// Explicitly commit a reviewed candidate at the named revision.
     CommitCandidate {
+        project: String,
+        candidate: String,
+        #[arg(long)]
+        revision: u64,
+        #[arg(long)]
+        request_id: Option<String>,
+    },
+    /// Undo the latest committed revision, subject to current protection authority.
+    Undo {
+        project: String,
+        #[arg(long)]
+        revision: u64,
+        #[arg(long)]
+        request_id: Option<String>,
+    },
+    /// Redo the next committed revision, subject to current protection authority.
+    Redo {
+        project: String,
+        #[arg(long)]
+        revision: u64,
+        #[arg(long)]
+        request_id: Option<String>,
+    },
+    /// Rebase a retained candidate onto the named current revision for separate review.
+    RebaseCandidate {
         project: String,
         candidate: String,
         #[arg(long)]
@@ -1977,6 +2114,12 @@ pub enum StashCommands {
         /// Rebind an existing project source only if freshly captured bytes match.
         #[arg(long)]
         expected_source_version: Option<String>,
+        /// Explicitly capture a selected file in a multifile scene; publication remains fenced.
+        #[arg(long, requires = "expected_server_path_file")]
+        allow_multifile_selection: bool,
+        /// JSON string containing the exact server path shown during selection.
+        #[arg(long)]
+        expected_server_path_file: Option<PathBuf>,
         #[arg(long)]
         mappings: PathBuf,
         #[arg(long, default_value = "http://localhost:9999/graphql")]
@@ -2953,6 +3096,34 @@ mod tests {
         );
     }
     #[test]
+    fn history_commands_require_revision_and_accept_explicit_request_identity() {
+        for name in ["undo", "redo"] {
+            assert!(Cli::try_parse_from(["pulsar", name, "project"]).is_err());
+            assert!(Cli::try_parse_from([
+                "pulsar",
+                name,
+                "project",
+                "--revision",
+                "7",
+                "--request-id",
+                "history-request",
+            ])
+            .is_ok());
+        }
+        assert!(
+            Cli::try_parse_from(["pulsar", "rebase-candidate", "project", "candidate"]).is_err()
+        );
+        assert!(matches!(
+            Cli::try_parse_from([
+                "pulsar", "rebase-candidate", "project", "candidate", "--revision", "7",
+                "--request-id", "rebase-request",
+            ])
+            .unwrap()
+            .command,
+            Some(Commands::RebaseCandidate { revision: 7, request_id: Some(id), .. }) if id == "rebase-request"
+        ));
+    }
+    #[test]
     fn saved_assistant_generation_cli_requires_separate_approval_and_complete_prepare_options() {
         assert!(Cli::try_parse_from([
             "pulsar",
@@ -3248,6 +3419,56 @@ mod tests {
                 .is_err()
         );
     }
+    #[test]
+    fn stash_multifile_capture_requires_explicit_path_file() {
+        let base = [
+            "pulsar",
+            "stash",
+            "capture-source",
+            "project",
+            "scene",
+            "file",
+            "--mappings",
+            "mapping.json",
+        ];
+        assert!(Cli::try_parse_from(base).is_ok());
+        let without_path = [
+            "pulsar",
+            "stash",
+            "capture-source",
+            "project",
+            "scene",
+            "file",
+            "--mappings",
+            "mapping.json",
+            "--allow-multifile-selection",
+        ];
+        assert!(Cli::try_parse_from(without_path).is_err());
+        let explicit = [
+            "pulsar",
+            "stash",
+            "capture-source",
+            "project",
+            "scene",
+            "file",
+            "--mappings",
+            "mapping.json",
+            "--allow-multifile-selection",
+            "--expected-server-path-file",
+            "path.json",
+        ];
+        assert!(matches!(
+            Cli::try_parse_from(explicit).unwrap().command,
+            Some(Commands::Stash {
+                command: StashCommands::CaptureSource {
+                    allow_multifile_selection: true,
+                    expected_server_path_file: Some(_),
+                    ..
+                }
+            })
+        ));
+    }
+
     #[test]
     fn legacy_aliases_remain_parseable() {
         assert!(matches!(

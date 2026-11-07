@@ -32,12 +32,31 @@ pub struct HandyIdentity {
     pub firmware_status: u8,
 }
 impl HandyIdentity {
+    /// Stable physical-device identity.
+    ///
+    /// `session_id` is a per-connection token that changes on every reconnect, so
+    /// it is excluded from matching: binding it would invalidate a qualification
+    /// (and any accepted playback) as soon as the device reconnects. The physical
+    /// device is pinned by the registration binding and connection key, not by
+    /// this token. `session_id` is still retained on the record for provenance.
+    pub fn same_device(&self, other: &Self) -> bool {
+        self.firmware == other.firmware
+            && self.model_number == other.model_number
+            && self.model_name == other.model_name
+            && self.model_variant == other.model_variant
+            && self.firmware_status == other.firmware_status
+    }
     pub fn validate(&self) -> Result<(), ProtocolError> {
+        // Firmware-reported text may contain interior spaces (e.g. "Handy 2 Pro").
+        // Reject control characters and surrounding whitespace, but keep the value
+        // as reported: it is part of retained identity and hash bindings.
         let text = |s: &str, max| {
             !s.is_empty()
                 && s.len() <= max
-                && s.bytes()
-                    .all(|c| c.is_ascii_alphanumeric() || b"._-".contains(&c))
+                && s.trim() == s
+                && !s
+                    .chars()
+                    .any(|c| c.is_control() || !(c.is_ascii_graphic() || c == ' '))
         };
         if !text(&self.firmware, 64)
             || !text(&self.model_name, 64)
@@ -47,6 +66,73 @@ impl HandyIdentity {
             return Err(ProtocolError::invalid("invalid Handy identity observation"));
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod identity_tests {
+    use super::*;
+
+    fn identity(model_name: &str) -> HandyIdentity {
+        HandyIdentity {
+            firmware: "4.0.0".into(),
+            model_number: 2,
+            model_name: model_name.into(),
+            model_variant: 1,
+            session_id: "abcd-1234".into(),
+            firmware_status: 0,
+        }
+    }
+
+    #[test]
+    fn firmware_reported_spaced_model_name_is_accepted_unchanged() {
+        let reported = "Handy 2 Pro";
+        let value = identity(reported);
+        value.validate().unwrap();
+        assert_eq!(value.model_name, reported);
+    }
+
+    #[test]
+    fn reconnect_session_change_is_not_a_different_device() {
+        // The device issues a new session_id on every connection. Qualification
+        // and accepted playback must survive that, or they break on every
+        // reconnect. The physical device is pinned by the registration binding.
+        let mut first = identity("H02_pro");
+        first.session_id = "01M67Q3CHBKC6STN99PNMX46JM".into();
+        let mut second = identity("H02_pro");
+        second.session_id = "01M67X5RGT0AKVQBZMDN3TPQXY".into();
+        assert!(first.same_device(&second));
+        assert_ne!(first, second, "records still retain the observed session");
+
+        // Genuine hardware differences are still refused.
+        let mut other = second.clone();
+        other.firmware = "4.3.1+dcee7e58".into();
+        assert!(!first.same_device(&other));
+        let mut other = second.clone();
+        other.model_variant = 2;
+        assert!(!first.same_device(&other));
+        let mut other = second.clone();
+        other.model_name = "H02".into();
+        assert!(!first.same_device(&other));
+        let mut other = second.clone();
+        other.firmware_status = 1;
+        assert!(!first.same_device(&other));
+    }
+
+    #[test]
+    fn identity_text_still_refuses_control_and_surrounding_whitespace() {
+        for bad in [
+            "Handy\n2",
+            "Handy\t2",
+            " Handy 2",
+            "Handy 2 ",
+            "Handy\u{7f}",
+        ] {
+            assert!(
+                identity(bad).validate().is_err(),
+                "accepted invalid identity text {bad:?}"
+            );
+        }
     }
 }
 

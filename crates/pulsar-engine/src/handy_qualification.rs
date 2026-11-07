@@ -386,7 +386,7 @@ pub(super) fn accepted_record(
     }
     verify_evidence(db, &value)?;
     if check_binding(db, &value.manifest.subject)? != *registration
-        || value.manifest.subject.identity != *identity
+        || !value.manifest.subject.identity.same_device(identity)
     {
         return Err(ProtocolError::new(
             ErrorCode::DependencyMismatch,
@@ -695,7 +695,7 @@ pub(super) fn accepted_hsp_bundle(
     let subject = &value.manifest.subject;
     if observation.mode.mode != 4
         || observation.remote_hsp.is_none()
-        || observation.identity != subject.identity
+        || !observation.identity.same_device(&subject.identity)
         || subject.operative_settings.as_ref() != Some(&observation.operative_settings)
     {
         return Err(ProtocolError::new(
@@ -1178,11 +1178,11 @@ impl Engine {
                 .map_err(internal)?
                 .capture(session, device_session)?;
             if connection.registration != before
-                || connection
+                || !connection
                     .inspection
                     .as_ref()
                     .and_then(|s| s.identity.as_ref())
-                    != Some(&value.manifest.subject.identity)
+                    .is_some_and(|seen| seen.same_device(&value.manifest.subject.identity))
             {
                 return Err(ProtocolError::new(
                     ErrorCode::DependencyMismatch,
@@ -1194,7 +1194,9 @@ impl Engine {
             observation.validate()?;
             if (value.manifest.subject.transport()? == HandyQualificationTransport::Hsp
                 && (observation.mode.mode != 4 || observation.remote_hsp.is_none()))
-                || observation.identity != value.manifest.subject.identity
+                || !observation
+                    .identity
+                    .same_device(&value.manifest.subject.identity)
                 || observation.operative_settings != *expected_settings
                 || credentials.echoed_text(&serde_json::to_string(&observation).map_err(internal)?)
             {

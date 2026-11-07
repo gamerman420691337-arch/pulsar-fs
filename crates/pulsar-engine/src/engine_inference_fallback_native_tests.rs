@@ -249,6 +249,93 @@ mod inference_fallback_native_tests {
         to: &DeclaredInferenceProfile,
         fixture_validity_ms: u64,
     ) -> Result<InferenceFallbackSelection> {
+        let provisional = selection(
+            InferenceFallbackReference {
+                dossier_id: ArtifactId::new("0".repeat(64))?,
+                expected_revision: 2,
+                expected_report_sha256: "0".repeat(64),
+            },
+            source,
+        );
+        let reference = install_simulated_eligibility_scoped(
+            engine,
+            actor,
+            SimulationScope {
+                source,
+                model,
+                from,
+                to,
+                fixture_validity_ms,
+                tier: InferenceEquivalenceTier::Default,
+                axis: Axis::Stroke,
+                source_policy: provisional.source_policy.identity()?,
+                view_policy: provisional.view_policy.identity()?,
+            },
+        )?;
+        Ok(selection(reference, source))
+    }
+
+    /// Private test database only. This reuses the explicitly simulated record
+    /// builder; it does not call public acceptance or export its fake documents.
+    pub(in crate::authority) fn install_simulated_browser_eligibility(
+        engine: &Arc<Engine>,
+        actor: &SessionId,
+        source: &SourceArtifact,
+        model: &SourceArtifact,
+        from: &DeclaredInferenceProfile,
+        to: &DeclaredInferenceProfile,
+        selection: &BrowserInferenceFallbackSelection,
+    ) -> Result<BrowserInferenceFallbackSelection> {
+        selection.validate()?;
+        let reference = install_simulated_eligibility_scoped(
+            engine,
+            actor,
+            SimulationScope {
+                source,
+                model,
+                from,
+                to,
+                fixture_validity_ms: 300_000,
+                tier: selection.tier,
+                axis: selection.axis,
+                source_policy: selection.source_policy.identity()?,
+                view_policy: selection.view_policy.identity()?,
+            },
+        )?;
+        let mut result = selection.clone();
+        result.equivalents = vec![reference];
+        result.maximum_fallbacks = 1;
+        result.validate()?;
+        Ok(result)
+    }
+
+    struct SimulationScope<'a> {
+        source: &'a SourceArtifact,
+        model: &'a SourceArtifact,
+        from: &'a DeclaredInferenceProfile,
+        to: &'a DeclaredInferenceProfile,
+        fixture_validity_ms: u64,
+        tier: InferenceEquivalenceTier,
+        axis: Axis,
+        source_policy: ArtifactIdentity,
+        view_policy: ArtifactIdentity,
+    }
+    fn install_simulated_eligibility_scoped(
+        engine: &Arc<Engine>,
+        actor: &SessionId,
+        scope: SimulationScope<'_>,
+    ) -> Result<InferenceFallbackReference> {
+        let SimulationScope {
+            source,
+            model,
+            from,
+            to,
+            fixture_validity_ms,
+            tier,
+            axis,
+            source_policy,
+            view_policy,
+        } = scope;
         ensure!(
             matches!(fixture_validity_ms, 45_000 | 300_000),
             "private fixture validity bound"
@@ -264,14 +351,6 @@ mod inference_fallback_native_tests {
         let now = inference_fallback_execution::wall_time()?;
         let (mut manifest, documents) = authored::synthetic_fixture();
         let mut details = authored::fixture_documents(&documents);
-        let provisional = selection(
-            InferenceFallbackReference {
-                dossier_id: ArtifactId::new("0".repeat(64))?,
-                expected_revision: 2,
-                expected_report_sha256: "0".repeat(64),
-            },
-            source,
-        );
         manifest.subject.origin = InferenceEquivalenceOrigin::Measured;
         manifest.subject.from_profile = from.clone();
         manifest.subject.to_profile = to.clone();
@@ -282,8 +361,10 @@ mod inference_fallback_native_tests {
             .checked_add(fixture_validity_ms)
             .context("fixture validity overflow")?;
         manifest.subject.scope.recipe = InferenceEquivalenceRecipe::TemporalPosition;
-        manifest.subject.scope.source_policy = provisional.source_policy.identity()?;
-        manifest.subject.scope.view_policy = provisional.view_policy.identity()?;
+        manifest.subject.scope.tier = tier;
+        manifest.subject.scope.axes = vec![axis];
+        manifest.subject.scope.source_policy = source_policy;
+        manifest.subject.scope.view_policy = view_policy;
         manifest.subject.scope.limitations="SOFTWARE SIMULATION ONLY: fabricated eligibility shape, no measured equivalence, human review or qualification".into();
         let scope = manifest.subject.scope_sha256()?;
         if let D::Corpus(corpus) = details.get_mut(&K::Corpus).unwrap() {
@@ -331,21 +412,89 @@ mod inference_fallback_native_tests {
                     memory_bytes: 512 * 1024 * 1024,
                     output_bytes: 16 * 1024 * 1024,
                     wall_time_ms: 1000,
-                    cpu_threads: 2,
+                    cpu_threads: profile.cpu_threads,
                 };
+                if profile.provider == InferenceProvider::Cuda {
+                    let owner = engine
+                        .cuda_owner_policy
+                        .as_ref()
+                        .context("simulated CUDA owner policy absent")?;
+                    let policy = owner.policy();
+                    let runtime = policy
+                        .native_dependencies
+                        .libraries
+                        .iter()
+                        .find(|library| {
+                            library
+                                .names
+                                .iter()
+                                .any(|name| name == "libonnxruntime.so.1")
+                        })
+                        .context("simulated CUDA runtime absent")?;
+                    case.manifest.tools.onnx_runtime = Some(ArtifactReference {
+                        path: runtime.path.clone(),
+                        identity: profile.runtime.clone(),
+                    });
+                    let libraries: Vec<CapturedNativeLibrary> = policy
+                        .native_dependencies
+                        .libraries
+                        .iter()
+                        .map(|library| {
+                            Ok(CapturedNativeLibrary {
+                                identity: ArtifactIdentity {
+                                    artifact_id: ArtifactId::new(library.sha256.clone())?,
+                                    sha256: library.sha256.clone(),
+                                    byte_len: library.byte_len,
+                                },
+                                names: library.names.clone(),
+                            })
+                        })
+                        .collect::<Result<_>>()?;
+                    let owner_policy = owner.status().source_identity;
+                    case.manifest.dependencies.push(owner_policy.clone());
+                    for library in &libraries {
+                        if !case.manifest.dependencies.contains(&library.identity) {
+                            case.manifest.dependencies.push(library.identity.clone());
+                        }
+                    }
+                    // Inert shape for synthetic equivalence documents only: this directory
+                    // is never created and does not confer a captured execution grant.
+                    case.manifest.cuda_execution = Some(WorkerCudaExecution {
+                        schema_version: 1,
+                        owner_policy,
+                        device_uuid: policy.device.device_uuid.clone(),
+                        pci_bus_address: policy.device.pci_bus_address.clone(),
+                        device_minor: policy.device.device_minor,
+                        device_ordinal: policy.accounting.device_ordinal,
+                        library_directory: engine
+                            .config
+                            .state_dir
+                            .join("SIMULATED-equivalence-not-a-capture"),
+                        libraries,
+                    });
+                } else {
+                    case.manifest.cuda_execution = None;
+                }
                 let WorkerOperation::Generate {
+                    preset,
                     settings,
                     model: declared,
-                    ..
                 } = &mut case.manifest.operation
                 else {
                     unreachable!()
                 };
                 let interval = settings.project_interval;
                 **settings = GenerationSettings {
+                    axis,
                     project_interval: interval,
                     ..self::settings(profile)
                 };
+                *preset = match tier {
+                    InferenceEquivalenceTier::Fast => "fast",
+                    InferenceEquivalenceTier::Default => "default",
+                    InferenceEquivalenceTier::Maximum => "maximum",
+                }
+                .into();
                 *declared = Some(model.clone());
                 case.manifest.validate()?;
             }
@@ -354,6 +503,8 @@ mod inference_fallback_native_tests {
             for case in &mut placement.cases {
                 case.from.profile_sha256 = fixture_hash(&fixture_bytes(from));
                 case.to.profile_sha256 = fixture_hash(&fixture_bytes(to));
+                case.from.executed_providers = vec![from.provider];
+                case.to.executed_providers = vec![to.provider];
             }
         }
         if let D::Review(review) = details.get_mut(&K::Review).unwrap() {
@@ -426,14 +577,11 @@ mod inference_fallback_native_tests {
         )?;
         tx.commit()?;
         inference_equivalence_store::validate(&db)?;
-        Ok(selection(
-            InferenceFallbackReference {
-                dossier_id: report.dossier_id,
-                expected_revision: 2,
-                expected_report_sha256: report_hash,
-            },
-            source,
-        ))
+        Ok(InferenceFallbackReference {
+            dossier_id: report.dossier_id,
+            expected_revision: 2,
+            expected_report_sha256: report_hash,
+        })
     }
 
     struct Inputs {
@@ -669,7 +817,7 @@ mod inference_fallback_native_tests {
             "pack_success" | "pack_withdraw_pending" | "pack_withdraw_active"
         )
     }
-    fn run_case(engine: &Arc<Engine>, mode: &str) -> Result<Value> {
+    fn run_case(engine: &Arc<Engine>, mode: &str, archive: bool) -> Result<Value> {
         // Short record validity is authored before any admission. Neither the
         // accepted-shaped record nor a live lease is rewritten after dispatch.
         let input = if mode == "active_dossier_expiry" {
@@ -952,6 +1100,9 @@ mod inference_fallback_native_tests {
                 "active barrier did not bind real successor progress"
             );
             active_successor = Some(barrier.manifest().clone());
+            if mode == "archive_interruption" {
+                return native_fallback_interruption_rendezvous(engine, &input, &barrier);
+            }
             let trigger = match mode {
                 "active_cancel" => {
                     call(
@@ -1104,17 +1255,26 @@ mod inference_fallback_native_tests {
                 && encode(&after.motion)? == encode(&input.original.motion)?,
             "simulation altered master"
         );
+        let archival = if archive {
+            Some(archive_native_fallback(
+                engine,
+                &input.actor,
+                &input.project,
+            )?)
+        } else {
+            None
+        };
         Ok(
             json!({"case":mode,"passed":true,"simulated_eligibility":true,"primary_provider_absence_simulated":true,"real_measured_equivalence":false,"qualified":false,
         "primary_simulator":file_identity(&simulator)?,"primary_attempt":manifest.attempt_id,"primary_profile":input.from,
         "original_custody_dropped_before_successor":no_predecessor_custody,"opaque_failure_from_real_supervisor":true,"pending_marked":pending,
         "continuation_error":continuation_error,"terminal":terminal,"history":history,"target":target,"active_consumer":active_consumer,"selected_pack":selected_pack,
         "attempt_count":attempts,"candidate_count":candidates,"pending_rows":pending_rows,"master_preserved":true,"custody_clear":true,
-        "public_synthetic_refusal":synthetic_refusal,"public_acceptance_called":false,"accepted_fixture_records_exported":false}),
+        "public_synthetic_refusal":synthetic_refusal,"public_acceptance_called":false,"accepted_fixture_records_exported":archive,"archival":archival}),
         )
     }
 
-    fn campaign_case(mode: &str) -> Result<Value> {
+    fn campaign_case(mode: &str, archive: bool) -> Result<Value> {
         let directory = tempfile::tempdir()?;
         let mut config = EngineConfig::new(
             directory.path().join("state"),
@@ -1123,8 +1283,9 @@ mod inference_fallback_native_tests {
         config.cpu_owner_policy = Some(environment_path("PULSAR_FALLBACK_NATIVE_POLICY")?);
         config.worker_timeout = Duration::from_secs(60);
         let engine = Engine::open(config)?;
-        let result =
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run_case(&engine, mode)));
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            run_case(&engine, mode, archive)
+        }));
         let shutdown = engine.finish_shutdown();
         let custody = await_custody_clear(&engine, true);
         drop(engine);
@@ -1178,7 +1339,7 @@ mod inference_fallback_native_tests {
                 receipt["cases"]
                     .as_array_mut()
                     .unwrap()
-                    .push(campaign_case(mode)?);
+                    .push(campaign_case(mode, false)?);
             }
             Ok(())
         })();
@@ -1190,4 +1351,7 @@ mod inference_fallback_native_tests {
         save(&output.join("receipt.json"), &receipt).expect("save bounded simulation receipt");
         result.expect("native SOFTWARE SIMULATION campaign failed");
     }
+
+    include!("engine_inference_fallback_archive_native_tests.rs");
+    include!("engine_inference_fallback_interruption_native_tests.rs");
 }

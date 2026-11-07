@@ -619,10 +619,7 @@ mod hsp_engine_execution_tests {
                     },
                     setup_previous: HspSetupPreviousState::new(9, HspPlayState::Stopped).unwrap(),
                 },
-                Arc::new(Credentials {
-                    api: "fixture-api".into(),
-                    connection: "fixture-connection".into(),
-                }),
+                Arc::new(Credentials::for_test("fixture-api", "fixture-connection")),
                 true,
                 &f.engine.handy_owner_token,
             )
@@ -682,10 +679,7 @@ mod hsp_engine_execution_tests {
                     },
                     setup_previous: HspSetupPreviousState::new(9, HspPlayState::Stopped).unwrap(),
                 },
-                Arc::new(Credentials {
-                    api: "fixture-api".into(),
-                    connection: "fixture-connection".into(),
-                }),
+                Arc::new(Credentials::for_test("fixture-api", "fixture-connection")),
                 true,
                 &self.f.engine.handy_owner_token,
             )

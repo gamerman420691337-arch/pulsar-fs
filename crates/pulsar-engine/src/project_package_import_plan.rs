@@ -56,10 +56,11 @@ pub(crate) fn require_portable_cpu_dependencies(dependencies: &[ArtifactIdentity
 }
 
 pub(crate) fn require_portable_cpu_manifest(manifest: &PortableProjectManifest) -> PResult<()> {
-    for candidate in &manifest.candidates {
-        crate::portable_cpu_archives::require_no_fallback(&candidate.lineage)?;
-    }
     if manifest.imported_origins.is_empty() {
+        crate::authority::portable_fallback_payload::validate_metadata_graph(
+            manifest,
+            &BTreeMap::new(),
+        )?;
         crate::portable_cpu_archives::check_graph(manifest, &BTreeMap::new())?;
     }
     Ok(())
@@ -445,6 +446,7 @@ fn validate_mapping(
         if map.local != map.origin
             || !same(&l.kind, &r.kind)?
             || !same(&l.identity, &r.identity)?
+            || l.browser_fallback_history != r.browser_fallback_history
             || r.stash_associations
                 .iter()
                 .any(|a| !l.stash_associations.contains(a))
@@ -640,6 +642,7 @@ pub(crate) fn validate_retained_origin_graph(
         canonical.insert(sha.as_str(), bytes.len() as u64);
     }
     crate::portable_cpu_archives::check_graph(manifest, origins)?;
+    crate::authority::portable_fallback_payload::validate_metadata_graph(manifest, origins)?;
     fn visit<'a>(
         sha: &'a str,
         node: &'a PortableProjectManifest,
@@ -1281,6 +1284,19 @@ mod tests {
     }
 
     #[test]
+    fn fallback_format16_does_not_bypass_root_or_ancestor_canonical_structure() {
+        let original = fixture();
+        let mut declared = original.clone();
+        declared.format_version = PROJECT_PACKAGE_FORMAT_VERSION_WITH_FALLBACK_HISTORY;
+        // A recognized version cannot replace the required structural payload.
+        assert!(declared.validate().is_err());
+        assert!(validate_retained_origin_graph(&declared, &BTreeMap::new()).is_err());
+        let mut ancestors = BTreeMap::new();
+        ancestors.insert("b".repeat(64), declared);
+        assert!(validate_retained_origin_graph(&original, &ancestors).is_err());
+    }
+
+    #[test]
     fn fallback_selection_tags_refuse_in_dependencies_and_root_or_ancestor_lineage() {
         let identity = |name: &str| ArtifactIdentity {
             artifact_id: ArtifactId::new(name).unwrap(),
@@ -1464,6 +1480,7 @@ mod tests {
         let mut original = fixture();
         let source = SourceVersionId::new("c".repeat(64)).unwrap();
         original.sources.push(PackageSource {
+            browser_fallback_history: None,
             source_version: source.clone(),
             kind: SourceKind::Media,
             label: "synthetic".into(),

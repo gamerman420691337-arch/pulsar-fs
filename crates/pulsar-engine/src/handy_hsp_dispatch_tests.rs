@@ -1,4 +1,5 @@
 use super::*;
+use crate::handy_hsp_wire::HspExtras;
 use crate::{
     device_effect_journal::{HspJournalState, HspStreamReceipt},
     handy_hsp_records::{HspBindingRecord, HspStreamRecord},
@@ -96,6 +97,7 @@ fn remote_state(stream: u32, tail: i32, playing: bool) -> HspState {
         tail_point_stream_index: tail,
         tail_point_stream_index_threshold: 1,
         pause_on_starving: false,
+        extras: HspExtras::default(),
     }
 }
 #[derive(Clone, Copy)]
@@ -261,14 +263,11 @@ fn read_request(socket: &mut TcpStream) -> Option<(String, String, Vec<u8>)> {
         }
     }
     let header = std::str::from_utf8(&bytes).ok()?;
-    assert!(
-        header
-            .to_ascii_lowercase()
-            .contains("x-api-key: test-api-secret")
-            || header
-                .to_ascii_lowercase()
-                .contains("x-api-key: rotated-api-secret")
-    );
+    // Device endpoints take a bearer token; the ApplicationKey must never appear.
+    assert!(header
+        .to_ascii_lowercase()
+        .contains("authorization: bearer "));
+    assert!(!header.to_ascii_lowercase().contains("x-api-key:"));
     let mut line = header.lines().next()?.split_whitespace();
     let method = line.next()?.to_owned();
     let path = line.next()?.to_owned();
@@ -374,10 +373,10 @@ impl Rig {
                 },
                 setup_previous: HspSetupPreviousState::new(9, HspPlayState::Stopped).unwrap(),
             },
-            Arc::new(Credentials {
-                api: "test-api-secret".into(),
-                connection: "test-connection-secret".into(),
-            }),
+            Arc::new(Credentials::for_test(
+                "test-api-secret",
+                "test-connection-secret",
+            )),
             true,
             &"f".repeat(64),
         )
@@ -1009,15 +1008,14 @@ fn native_second_route_wrong_credentials_namespace_device_and_registration_canno
                 },
                 setup_previous: HspSetupPreviousState::new(9, HspPlayState::Stopped).unwrap(),
             },
-            Arc::new(Credentials {
-                api: "test-api-secret".into(),
-                connection: if changed == 0 {
+            Arc::new(Credentials::for_test(
+                "test-api-secret",
+                if changed == 0 {
                     "second-connection-secret"
                 } else {
                     "test-connection-secret"
-                }
-                .into(),
-            }),
+                },
+            )),
             true,
             &if changed == 1 { "e" } else { "f" }.repeat(64),
         )
@@ -1056,10 +1054,10 @@ fn native_api_key_rotation_keeps_same_keyed_route_and_can_claim() {
             },
             setup_previous: HspSetupPreviousState::new(9, HspPlayState::Stopped).unwrap(),
         },
-        Arc::new(Credentials {
-            api: "rotated-api-secret".into(),
-            connection: "test-connection-secret".into(),
-        }),
+        Arc::new(Credentials::for_test(
+            "rotated-api-secret",
+            "test-connection-secret",
+        )),
         true,
         &"f".repeat(64),
     )

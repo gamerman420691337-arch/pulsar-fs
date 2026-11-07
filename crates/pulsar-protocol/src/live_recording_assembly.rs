@@ -60,9 +60,18 @@ pub fn assemble_live_recordings(
     let mut expected_after = 0;
     let mut scope = None;
     let mut previous: Option<LiveInferenceInput> = None;
+    let mut last_observed: Option<(
+        LiveInferenceInput,
+        NormalizedPosition,
+        ExactSeconds,
+        std::mem::Discriminant<LiveInferenceReply>,
+    )> = None;
+    let mut force_discontinuous_next = false;
+    let mut observed_count = 0_usize;
     let mut points = Vec::new();
     let mut requests = Vec::new();
     let mut provisional = false;
+    let mut previous_scope: Option<&LiveRecordingPage> = None;
     for page in pages {
         page.validate()?;
         if page.active || page.discarded {
@@ -70,22 +79,28 @@ pub fn assemble_live_recordings(
                 "assemble stopped, retained recordings only",
             ));
         }
-        if !same_cpu_mode(page.cpu_manifest.as_deref(), root.cpu_manifest.as_deref())?
-            || page.model_pack != root.model_pack
-            || page.browser_media != root.browser_media
+        let new_scope = scope.as_ref() != Some(&page.identity.epoch);
+        let mut boundary = None;
+        let previous_declaration = previous_scope.unwrap_or(root);
+        let same_execution = same_cpu_mode(
+            page.cpu_manifest.as_deref(),
+            previous_declaration.cpu_manifest.as_deref(),
+        )? && serde_json::to_value(&page.profile).map_err(invalid_json)?
+            == serde_json::to_value(&previous_declaration.profile).map_err(invalid_json)?;
+        if page.model_pack != root.model_pack
+            || !same_recorded_media(page.browser_media.as_ref(), root.browser_media.as_ref())
             || page.source_time_basis != root.source_time_basis
             || page.engine_epoch != root.engine_epoch
             || page.identity.project != root.identity.project
             || page.identity.revision != root.identity.revision
             || page.identity.source != root.identity.source
-            || serde_json::to_value(&page.profile).map_err(invalid_json)?
-                != serde_json::to_value(&root.profile).map_err(invalid_json)?
+            || (!same_execution
+                && (!new_scope || !recorded_fallback_successor(previous_declaration, page)?))
         {
             return Err(ProtocolError::invalid(
                 "assembly boot/project/source/profile or captured CPU mode differs",
             ));
         }
-        let new_scope = scope.as_ref() != Some(&page.identity.epoch);
         if new_scope {
             if expected_after != 0 || !seen.insert(page.identity.epoch.clone()) || seen.len() > 64 {
                 return Err(ProtocolError::invalid(
@@ -95,7 +110,10 @@ pub fn assemble_live_recordings(
             scope = Some(page.identity.epoch.clone());
             header = None;
             previous = None;
+            boundary = last_observed.take();
+            force_discontinuous_next = false;
             requests.push(page.recording_request_id.clone());
+            previous_scope = Some(page);
         }
         if page.after != expected_after {
             return Err(ProtocolError::invalid(
@@ -114,6 +132,14 @@ pub fn assemble_live_recordings(
         }
         header = Some(current_header);
         for sample in &page.samples {
+            observed_count = observed_count
+                .checked_add(1)
+                .ok_or_else(|| ProtocolError::invalid("assembly sample count overflow"))?;
+            if observed_count > 4096 {
+                return Err(ProtocolError::invalid(
+                    "assembly exceeds 4096 accepted points",
+                ));
+            }
             let (input, position) = match &sample.result {
                 LiveInferenceReply::Estimated {
                     input, position, ..
@@ -137,22 +163,54 @@ pub fn assemble_live_recordings(
                     "recording sequence regresses across pages",
                 ));
             }
-            let continuous = previous.as_ref().is_some_and(|p| {
-                p.pair.current_frame == input.pair.previous_frame
-                    && p.pair.current_time == input.pair.previous_time
-                    && p.current == input.previous
-            });
-            let time = page
+            let continuous = !force_discontinuous_next
+                && previous.as_ref().is_some_and(|p| {
+                    p.pair.current_frame == input.pair.previous_frame
+                        && p.pair.current_time == input.pair.previous_time
+                        && p.current == input.previous
+                });
+            let exact_time = page
                 .clock
                 .project_at_source(input.pair.current_time)
-                .and_then(|t| t.quantize_nanoseconds())
+                .map_err(|e| ProtocolError::invalid(e.to_string()))?;
+            let time = exact_time
+                .quantize_nanoseconds()
                 .map_err(|e| ProtocolError::invalid(e.to_string()))?
                 .time;
+            let result_kind = std::mem::discriminant(&sample.result);
+            let identical_boundary =
+                boundary
+                    .take()
+                    .is_some_and(|(prior, prior_position, prior_time, prior_kind)| {
+                        page.browser_media.is_some()
+                            && same_execution
+                            && matches!(
+                                sample.result,
+                                LiveInferenceReply::Estimated { .. }
+                                    | LiveInferenceReply::CapturedCpuEstimated { .. }
+                            )
+                            && prior_time == exact_time
+                            && prior_kind == result_kind
+                            && prior_position == position
+                            && prior.previous == input.previous
+                            && prior.current == input.current
+                            && prior.pair.previous_time == input.pair.previous_time
+                            && prior.pair.current_time == input.pair.current_time
+                    });
+            last_observed = Some((input.clone(), position, exact_time, result_kind));
+            if identical_boundary {
+                // Both recording requests remain in provenance. The shared
+                // point occurs once, but the epoch seam remains unavailable.
+                previous = Some(input.clone());
+                force_discontinuous_next = true;
+                continue;
+            }
             points.push(LiveMotionPoint {
                 time,
                 position,
                 continuous_from_previous: continuous,
             });
+            force_discontinuous_next = false;
             if points.len() > 4096 {
                 return Err(ProtocolError::invalid(
                     "assembly exceeds 4096 accepted points",
@@ -176,6 +234,70 @@ pub fn assemble_live_recordings(
         contains_cuda_provisional: provisional,
         recording_requests: requests,
     })
+}
+
+/// Correspondence only. Engine-owned consumers separately verify each original
+/// admission. Empty pre-Ready failures never contribute motion or continuity.
+fn recorded_fallback_successor(
+    previous: &LiveRecordingPage,
+    next: &LiveRecordingPage,
+) -> Result<bool, ProtocolError> {
+    let (Some(before), Some(after)) = (&previous.fallback, &next.fallback) else {
+        return Ok(false);
+    };
+    let prefix = before.admission.history.len();
+    if previous.total_samples != 0
+        || after.admission.history.len() <= prefix
+        || before.admission.selection != after.admission.selection
+        || before.admission.semantic_identity != after.admission.semantic_identity
+        || serde_json::to_value(&before.admission.history).map_err(invalid_json)?
+            != serde_json::to_value(&after.admission.history[..prefix]).map_err(invalid_json)?
+    {
+        return Ok(false);
+    }
+    let step = &after.admission.history[prefix];
+    let stream = &step.failure.manifest.stream;
+    let Some(transition) = &before.transition else {
+        return Ok(false);
+    };
+    let expected_next = after
+        .admission
+        .history
+        .get(prefix + 1)
+        .map_or(&next.identity.epoch, |step| {
+            &step.failure.manifest.stream.identity.epoch
+        });
+    Ok(stream.identity == previous.identity
+        && stream.attempt_id == previous.inference_attempt
+        && stream.clock == previous.clock
+        && stream.budget.wall_time_ms == u64::from(before.options.lease_ms)
+        && serde_json::to_value(&stream.profile).map_err(invalid_json)?
+            == serde_json::to_value(&previous.profile).map_err(invalid_json)?
+        && transition.phase == BrowserInferenceFallbackPhase::Started
+        && transition.next_epoch.as_ref() == Some(expected_next)
+        && serde_json::to_value(&transition.failure).map_err(invalid_json)?
+            == serde_json::to_value(&step.failure).map_err(invalid_json)?)
+}
+
+fn same_recorded_media(
+    page: Option<&BrowserMediaBinding>,
+    root: Option<&BrowserMediaBinding>,
+) -> bool {
+    match (page, root) {
+        (None, None) => true,
+        (Some(page), Some(root)) => {
+            // Epochs may have independent, now-retired leases for the same
+            // imported bytes and declared mapping. This compares inert source
+            // correspondence only; each epoch's complete header stays immutable
+            // across its pages and every original binding remains in provenance.
+            page.engine_epoch == root.engine_epoch
+                && page.project_id == root.project_id
+                && page.revision == root.revision
+                && page.selection == root.selection
+                && page.clock == root.clock
+        }
+        _ => false,
+    }
 }
 
 fn same_cpu_mode(
@@ -222,6 +344,265 @@ mod tests {
         page.browser_media = Some(binding);
         page.validate().unwrap();
     }
+    #[test]
+    fn duplicate_boundary_still_counts_toward_accepted_sample_limit() {
+        let mut first = page();
+        bind_page(&mut first);
+        first.maximum_samples = 4096;
+        first.total_samples = 4096;
+        let template = first.samples[0].clone();
+        let mut pages = Vec::new();
+        for page_index in 0..64_u32 {
+            let mut part = first.clone();
+            part.after = page_index * 64;
+            part.next = (page_index < 63).then_some(part.after + 64);
+            part.samples.clear();
+            for offset in 0..64_u32 {
+                let index = part.after + offset;
+                let mut sample = template.clone();
+                let LiveInferenceReply::Estimated { input, .. } = &mut sample.result else {
+                    panic!("CPU fixture")
+                };
+                input.sequence = u64::from(index) + 1;
+                input.pair.previous_frame = FrameId::new(u64::from(index));
+                input.pair.current_frame = FrameId::new(u64::from(index) + 1);
+                input.pair.previous_time = SourceTimestamp::new(i64::from(index), 1000).unwrap();
+                input.pair.current_time = SourceTimestamp::new(i64::from(index) + 1, 1000).unwrap();
+                part.samples.push(sample);
+            }
+            part.validate().unwrap();
+            pages.push(part);
+        }
+        assert!(assemble_live_recordings(&pages, range(), 100_000_000).is_ok());
+
+        let mut next = pages.last().unwrap().clone();
+        next.identity.epoch = AttemptId::new("limit-boundary-epoch").unwrap();
+        next.recording_request_id = RequestId::new("limit-boundary-recording").unwrap();
+        next.clock.epoch = next.identity.epoch.clone();
+        next.after = 0;
+        next.next = None;
+        next.total_samples = 1;
+        next.samples = vec![next.samples.last().unwrap().clone()];
+        let LiveInferenceReply::Estimated {
+            identity, input, ..
+        } = &mut next.samples[0].result
+        else {
+            panic!("CPU fixture")
+        };
+        *identity = next.identity.clone();
+        input.sequence = 1;
+        input.pair.source_epoch = next.identity.epoch.clone();
+        input.pair.presentation_clock = Some(next.clock.clone());
+        next.validate().unwrap();
+        pages.push(next);
+        let error = match assemble_live_recordings(&pages, range(), 100_000_000) {
+            Ok(_) => panic!("duplicate bypassed the accepted-sample bound"),
+            Err(error) => error,
+        };
+        assert!(error.message.contains("assembly exceeds 4096 accepted points"));
+    }
+
+    #[test]
+    fn exact_bound_epoch_boundary_duplicate_preserves_gap_and_both_requests() {
+        let mut first = page();
+        bind_page(&mut first);
+        let mut next = first.clone();
+        next.identity.epoch = AttemptId::new("duplicate-boundary-epoch").unwrap();
+        next.recording_request_id = RequestId::new("duplicate-boundary-recording").unwrap();
+        next.clock.epoch = next.identity.epoch.clone();
+        let LiveInferenceReply::Estimated {
+            identity, input, ..
+        } = &mut next.samples[0].result
+        else {
+            panic!("CPU fixture")
+        };
+        *identity = next.identity.clone();
+        input.pair.source_epoch = next.identity.epoch.clone();
+        input.pair.presentation_clock = Some(next.clock.clone());
+        let following = second(&next).samples.remove(0);
+        next.samples.push(following);
+        next.total_samples = 2;
+        next.validate().unwrap();
+
+        let assembled =
+            assemble_live_recordings(&[first.clone(), next.clone()], range(), 100_000_000).unwrap();
+        assert_eq!(assembled.recording_requests.len(), 2);
+        assert_eq!(assembled.recording_requests[0], first.recording_request_id);
+        assert_eq!(assembled.recording_requests[1], next.recording_request_id);
+        let track = &assembled.program.tracks()[0];
+        assert_eq!(track.actions().len(), 2);
+        assert!(track.gaps().iter().any(|gap| {
+            gap.start() == ProjectTime::from_nanos(100_000_001)
+                && gap.end() == ProjectTime::from_nanos(200_000_000)
+        }));
+
+        let mut paged = next.clone();
+        paged.samples.truncate(1);
+        paged.next = Some(1);
+        let tail = second(&paged);
+        let paged_result =
+            assemble_live_recordings(&[first.clone(), paged, tail], range(), 100_000_000).unwrap();
+        assert_eq!(paged_result.program, assembled.program);
+
+        for mismatch in 0..4 {
+            let mut bad = next.clone();
+            let LiveInferenceReply::Estimated {
+                input, position, ..
+            } = &mut bad.samples[0].result
+            else {
+                panic!("CPU fixture")
+            };
+            match mismatch {
+                0 => *position = NormalizedPosition::new(0.99).unwrap(),
+                1 => {
+                    input.current.sha256 = "b".repeat(64);
+                    input.current.artifact_id = ArtifactId::new("b".repeat(64)).unwrap();
+                }
+                2 => {
+                    input.previous.sha256 = "c".repeat(64);
+                    input.previous.artifact_id = ArtifactId::new("c".repeat(64)).unwrap();
+                }
+                _ => input.pair.previous_time = SourceTimestamp::new(1, 1000).unwrap(),
+            }
+            bad.validate().unwrap();
+            assert!(assemble_live_recordings(&[first.clone(), bad], range(), 100_000_000).is_err());
+        }
+
+        let unbound_first = page();
+        let mut unbound_next = unbound_first.clone();
+        unbound_next.identity.epoch = AttemptId::new("unbound-duplicate-epoch").unwrap();
+        unbound_next.recording_request_id = RequestId::new("unbound-duplicate-recording").unwrap();
+        unbound_next.clock.epoch = unbound_next.identity.epoch.clone();
+        let LiveInferenceReply::Estimated {
+            identity, input, ..
+        } = &mut unbound_next.samples[0].result
+        else {
+            panic!("CPU fixture")
+        };
+        *identity = unbound_next.identity.clone();
+        input.pair.source_epoch = unbound_next.identity.epoch.clone();
+        input.pair.presentation_clock = Some(unbound_next.clock.clone());
+        unbound_next.validate().unwrap();
+        assert!(
+            assemble_live_recordings(&[unbound_first, unbound_next], range(), 100_000_000).is_err()
+        );
+
+        fn provisional(page: &mut LiveRecordingPage) {
+            use sha2::{Digest, Sha256};
+            page.profile.provider = InferenceProvider::Cuda;
+            let profile_sha256 = format!(
+                "{:x}",
+                Sha256::digest(serde_json::to_vec(&page.profile).unwrap())
+            );
+            for sample in &mut page.samples {
+                let LiveInferenceReply::Estimated {
+                    attempt_id,
+                    identity,
+                    input,
+                    position,
+                    pair_analysis_elapsed_ns,
+                    ..
+                } = sample.result.clone()
+                else {
+                    panic!("CPU fixture")
+                };
+                sample.result = LiveInferenceReply::CudaProvisional {
+                    attempt_id,
+                    identity,
+                    profile_sha256: profile_sha256.clone(),
+                    manifest_sha256: "a".repeat(64),
+                    input,
+                    position,
+                    pair_analysis_elapsed_ns,
+                };
+            }
+            page.validate().unwrap();
+        }
+        let mut cuda_first = first;
+        let mut cuda_next = next;
+        provisional(&mut cuda_first);
+        provisional(&mut cuda_next);
+        assert!(assemble_live_recordings(&[cuda_first, cuda_next], range(), 100_000_000).is_err());
+    }
+
+    #[test]
+    fn bound_epochs_assemble_across_distinct_leases_without_inventing_continuity() {
+        let mut first = page();
+        bind_page(&mut first);
+        let mut next = second(&first);
+        next.after = 0;
+        next.identity.epoch = AttemptId::new("continued-bound-epoch").unwrap();
+        next.recording_request_id = RequestId::new("continued-recording").unwrap();
+        next.clock.epoch = next.identity.epoch.clone();
+        next.clock.source_anchor = SourceTimestamp::new(1, 10).unwrap();
+        let binding = next.browser_media.as_ref().unwrap();
+        let exact = binding
+            .clock
+            .project_at(next.clock.source_anchor, &binding.selection.placement.spec)
+            .unwrap();
+        next.clock.project_anchor = exact.quantize_nanoseconds().unwrap().time;
+        next.clock.exact_project_anchor = Some(exact);
+        let LiveInferenceReply::Estimated {
+            identity, input, ..
+        } = &mut next.samples[0].result
+        else {
+            panic!("CPU fixture")
+        };
+        *identity = next.identity.clone();
+        input.pair.source_epoch = next.identity.epoch.clone();
+        input.pair.presentation_clock = Some(next.clock.clone());
+        let binding = next.browser_media.as_mut().unwrap();
+        binding.preparation_request_id = RequestId::new("continued-media-preparation").unwrap();
+        binding.lease_id = ArtifactId::new("continued-media-lease").unwrap();
+        binding.lease_ms = 777;
+        next.validate().unwrap();
+        let result =
+            assemble_live_recordings(&[first.clone(), next.clone()], range(), 100_000_000).unwrap();
+        assert_eq!(
+            result.recording_requests,
+            vec![
+                first.recording_request_id.clone(),
+                next.recording_request_id.clone()
+            ]
+        );
+        assert_eq!(result.program.tracks()[0].actions().len(), 2);
+        assert_eq!(result.program.tracks()[0].gaps().len(), 3);
+        for change in 0..3 {
+            let mut bad = next.clone();
+            let binding = bad.browser_media.as_mut().unwrap();
+            match change {
+                0 => {
+                    binding.selection.placement.placement_id =
+                        SourcePlacementId::new("other-placement").unwrap()
+                }
+                1 => {
+                    binding.selection.source.sha256 = "b".repeat(64);
+                    binding.selection.source.artifact_id = ArtifactId::new("b".repeat(64)).unwrap();
+                }
+                _ => {
+                    binding.clock.presentation_anchor = SourceTimestamp::new(1, 1_000_000).unwrap();
+                    bad.clock.source_anchor = SourceTimestamp::new(1, 1_000_000).unwrap();
+                    let exact = binding
+                        .clock
+                        .project_at(bad.clock.source_anchor, &binding.selection.placement.spec)
+                        .unwrap();
+                    bad.clock.project_anchor = exact.quantize_nanoseconds().unwrap().time;
+                    bad.clock.exact_project_anchor = Some(exact);
+                    let LiveInferenceReply::Estimated { input, .. } = &mut bad.samples[0].result
+                    else {
+                        panic!("CPU fixture")
+                    };
+                    input.pair.presentation_clock = Some(bad.clock.clone());
+                }
+            }
+            bad.validate().unwrap();
+            assert!(
+                assemble_live_recordings(&[first.clone(), bad], range(), 100_000_000).is_err(),
+                "changed source correspondence {change}"
+            );
+        }
+    }
+
     #[test]
     fn bound_recordings_preserve_exact_source_and_refuse_mixed_pages_and_continuations() {
         let mut first = page();
@@ -369,6 +750,7 @@ mod tests {
         let mut s = c.inference.as_ref().unwrap().latest.clone().unwrap();
         s.capture_age_ns = s.capture_to_analysis_ns;
         LiveRecordingPage {
+            fallback: None,
             cpu_manifest: None,
             browser_media: None,
             model_pack: None,

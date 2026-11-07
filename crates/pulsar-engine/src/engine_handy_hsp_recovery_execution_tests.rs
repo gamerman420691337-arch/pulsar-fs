@@ -57,10 +57,7 @@ impl AdditionalStream {
                 },
                 setup_previous: HspSetupPreviousState::new(9, HspPlayState::Stopped).unwrap(),
             },
-            Arc::new(Credentials {
-                api: "fixture-api".into(),
-                connection: "independent-fixture-connection".into(),
-            }),
+            Arc::new(Credentials::for_test("fixture-api", "independent-fixture-connection")),
             true,
             &rig.f.engine.handy_owner_token,
         )

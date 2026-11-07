@@ -166,7 +166,10 @@ fn handy_setup_send_refuses_active_modes_missing_consent_and_withdrawn_preflight
         |_, _, _, _| panic!()
     )
     .is_err());
-    for variant in 0..4 {
+    // The firmware `loop: true` default of a stopped device is absent from this
+    // list on purpose: setup does not establish playback options, so it is
+    // admissible. See handy_setup_send_accepts_a_stopped_device_reporting_the_firmware_loop_default.
+    for variant in 0..3 {
         let mut r = request.clone();
         r.request_id = RequestId::new(format!("mode-{variant}")).unwrap();
         assert!(setup_send_call(
@@ -181,7 +184,6 @@ fn handy_setup_send_refuses_active_modes_missing_consent_and_withdrawn_preflight
                         s.remote_hssp = None;
                     }
                     1 => s.remote_hssp.as_mut().unwrap().play_state = HandyRemotePlayState::Playing,
-                    2 => s.remote_hssp.as_mut().unwrap().looping = true,
                     _ => s.remote_hssp.as_mut().unwrap().playback_rate = 2.0,
                 };
                 Ok(s)
@@ -224,6 +226,43 @@ fn handy_setup_send_refuses_active_modes_missing_consent_and_withdrawn_preflight
         .setup_request_history(&f.session, &request.request_id)
         .unwrap()
         .is_none());
+}
+#[test]
+fn handy_setup_send_accepts_a_stopped_device_reporting_the_firmware_loop_default() {
+    use crate::device_effect_journal::SetupCompletion;
+    let f = fixture();
+    let (request, _) = setup_send_request(&f, "setup-loop-default");
+    let mut sent = false;
+    let report = setup_status_report(
+        setup_send_call(
+            &f,
+            &request,
+            |h, _| Ok(h.downloaded.clone()),
+            |_, _| {
+                let mut s = setup_sample();
+                let remote = s.remote_hssp.as_mut().unwrap();
+                assert!(matches!(
+                    remote.play_state,
+                    HandyRemotePlayState::Stopped | HandyRemotePlayState::NotInitialized
+                ));
+                // Measured on H02_pro 4.3.0: an idle device reports loop:true and
+                // the setup endpoint's own loop field does not clear it.
+                remote.looping = true;
+                Ok(s)
+            },
+            |_, _, stream, _| {
+                sent = true;
+                assert_eq!(stream, 7);
+                SetupCompletion::Unknown
+            },
+        )
+        .unwrap(),
+    );
+    assert!(
+        sent,
+        "an idle device reporting loop:true must reach the setup send"
+    );
+    assert_eq!(report.history.unwrap().state, HandySetupState::Unknown);
 }
 #[test]
 fn handy_setup_send_reservation_and_claim_failures_never_send() {

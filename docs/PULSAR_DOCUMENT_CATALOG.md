@@ -1,12 +1,12 @@
 # Pulsar document catalog
 
-Consolidation inventory: 2026-11-06. Start with the [project specification](PULSAR_PROJECT.md), which owns feature scope and delivery order. This catalog makes preserved work discoverable; it is not another roadmap or acceptance ledger.
+Consolidation inventory: 2026-11-06. Start with the [project specification](PULSAR_PROJECT.md), which owns feature scope, stack, API and delivery order. This catalog makes preserved work discoverable; it is not another roadmap or acceptance ledger.
 
-Coverage: every tracked Markdown/reStructuredText/AsciiDoc document in the repository, plus all tracked files under `docs/`, `research/` and `assurance/`, including the new consolidation documents. Ignored evidence/data/build caches are preserved separately and are not copied into this catalog. Asset links retain their original paths.
+Coverage: every tracked Markdown/reStructuredText/AsciiDoc document in the repository, plus all tracked files under `docs/`, `research/` and `assurance/`, including new consolidation records. Ignored/private evidence, data and build caches remain separately preserved. Asset links retain their original paths.
 
-Classification is a routing aid based on location and subject. A supporting contract may contain confirmed obligations; a research proposal remains proposed until its recorded decision accepts it. “Historical” means scheduling/status is superseded, not that technical obligations or counterevidence can be discarded. Family tags are discovery hints; the canonical feature catalog defines scope.
+Classification routes readers; it does not accept proposals or erase confirmed technical obligations. Historical means scheduling/status is superseded, not that source or counterevidence is disposable. Family tags are discovery hints; the canonical feature catalog defines scope. Legacy implementation references are excluded from the production dependency graph.
 
-Maintain this index when adding or relocating documentation. Use `git ls-files` to find tracked records and `rg --files docs research assurance` to locate current files. This is a consolidation snapshot, not an additional build or commit gate.
+Maintain this index when adding or relocating documentation. Use `git ls-files` and `rg --files docs research assurance` to find current records. This inventory is not an additional build/commit gate.
 
 ## Inventory summary
 
@@ -15,16 +15,16 @@ Maintain this index when adding or relocating documentation. Use `git ls-files` 
 | Canonical project specification | 1 |
 | Current execution data | 1 |
 | Generated execution views | 2 |
-| Entry points and usage | 7 |
-| Supporting contracts, research and technical notes | 863 |
-| Historical plans and observations | 41 |
+| Entry points, usage and integration register | 8 |
+| Supporting contracts, research and technical notes | 867 |
+| Historical plans and observations | 46 |
 | Supporting assets, models, schemas and receipts | 118 |
 
-**Total: 1033 records.**
+**Total: 1043 records.**
 
 ## Feature navigation
 
-Use the canonical [feature catalog](PULSAR_PROJECT.md#one-feature-set) for requirements and the [delivery roadmap](PULSAR_PROJECT.md#delivery-roadmap) for sequencing. Search this page by family or original filename to reach a detailed record.
+Use the canonical [feature catalog](PULSAR_PROJECT.md#one-feature-set), [API contract](PULSAR_PROJECT.md#one-ergonomic-api-and-one-runtime-owner), [delivery roadmap](PULSAR_PROJECT.md#delivery-roadmap) and [branch/worktree register](PULSAR_CONSOLIDATION.md). Search this page by family or original filename for detailed contracts and source findings.
 
 ## Canonical project specification
 
@@ -45,7 +45,7 @@ Use the canonical [feature catalog](PULSAR_PROJECT.md#one-feature-set) for requi
 | [Pulsar current status](../docs/PULSAR_CURRENT_STATUS.md)<br>`docs/PULSAR_CURRENT_STATUS.md` | Cross-project or reference |
 | [Pulsar execution dashboard](../docs/PULSAR_MILESTONES.md)<br>`docs/PULSAR_MILESTONES.md` | Cross-project or reference |
 
-## Entry points and usage
+## Entry points, usage and integration register
 
 | Document / original path | Feature family |
 | --- | --- |
@@ -53,7 +53,8 @@ Use the canonical [feature catalog](PULSAR_PROJECT.md#one-feature-set) for requi
 | [Pulsar](../CONTEXT.md)<br>`CONTEXT.md` | Cross-project or reference |
 | [⚡ Pulsar — Neural Kinematic Workstation & Funscript Generator](../README.md)<br>`README.md` | Cross-project or reference |
 | [Use the current Pulsar app](../docs/PULSAR_APP_QUICKSTART.md)<br>`docs/PULSAR_APP_QUICKSTART.md` | Cross-project or reference |
-| [PULSAR_DOCUMENT_CATALOG.md](../docs/PULSAR_DOCUMENT_CATALOG.md)<br>`docs/PULSAR_DOCUMENT_CATALOG.md` | Cross-project or reference |
+| [Pulsar consolidation register](../docs/PULSAR_CONSOLIDATION.md)<br>`docs/PULSAR_CONSOLIDATION.md` | Cross-project or reference |
+| [Pulsar document catalog](../docs/PULSAR_DOCUMENT_CATALOG.md)<br>`docs/PULSAR_DOCUMENT_CATALOG.md` | Cross-project or reference |
 | [Pulsar software specification — consolidated](../docs/PULSAR_SOFTWARE_SPECIFICATION.md)<br>`docs/PULSAR_SOFTWARE_SPECIFICATION.md` | Cross-project or reference |
 | [Pulsar documentation](../docs/README.md)<br>`docs/README.md` | Cross-project or reference |
 
@@ -113,6 +114,7 @@ Use the canonical [feature catalog](PULSAR_PROJECT.md#one-feature-set) for requi
 | [Recovering an assistant start](../docs/PULSAR_ASSISTANT_START_RESOLUTION.md)<br>`docs/PULSAR_ASSISTANT_START_RESOLUTION.md` | Assistant and extensions |
 | [Assistant target application](../docs/PULSAR_ASSISTANT_TARGET_APPLICATION.md)<br>`docs/PULSAR_ASSISTANT_TARGET_APPLICATION.md` | Assistant and extensions |
 | [Checked assistant target catalogue](../docs/PULSAR_ASSISTANT_TARGET_CATALOG.md)<br>`docs/PULSAR_ASSISTANT_TARGET_CATALOG.md` | Assistant and extensions |
+| [Assistant tool surface: MCP server, movement API and funscript authoring](../docs/PULSAR_ASSISTANT_TOOL_SURFACE.md)<br>`docs/PULSAR_ASSISTANT_TOOL_SURFACE.md` | Assistant and extensions |
 | [Atomic auxiliary startup schema](../docs/PULSAR_ATOMIC_AUXILIARY_SCHEMA.md)<br>`docs/PULSAR_ATOMIC_AUXILIARY_SCHEMA.md` | Cross-project or reference |
 | [Atomic Linux recovery receipts](../docs/PULSAR_ATOMIC_LINUX_RECEIPTS.md)<br>`docs/PULSAR_ATOMIC_LINUX_RECEIPTS.md` | Cross-project or reference |
 | [Explicit six-axis audio synthesis](../docs/PULSAR_AUDIO_BUNDLE.md)<br>`docs/PULSAR_AUDIO_BUNDLE.md` | Projects and interoperability |
@@ -374,6 +376,7 @@ Use the canonical [feature catalog](PULSAR_PROJECT.md#one-feature-set) for requi
 | [Persistent live CUDA stream implementation](../docs/PULSAR_LIVE_CUDA_STREAM.md)<br>`docs/PULSAR_LIVE_CUDA_STREAM.md` | Live sources and capture |
 | [Live-development position signal baseline](../docs/PULSAR_LIVE_DEVELOPMENT_SIGNAL.md)<br>`docs/PULSAR_LIVE_DEVELOPMENT_SIGNAL.md` | Live sources and capture |
 | [Explicit live epoch continuation](../docs/PULSAR_LIVE_EPOCH_CONTINUATION.md)<br>`docs/PULSAR_LIVE_EPOCH_CONTINUATION.md` | Live sources and capture |
+| [Browser/live fallback implementation](../docs/PULSAR_LIVE_FALLBACK.md)<br>`docs/PULSAR_LIVE_FALLBACK.md` | Live sources and capture |
 | [Authenticated live RGB frame ingress](../docs/PULSAR_LIVE_FRAME_INGRESS.md)<br>`docs/PULSAR_LIVE_FRAME_INGRESS.md` | Live sources and capture |
 | [Live-reference label consistency and sampled motion](../docs/PULSAR_LIVE_LABEL_CONSISTENCY.md)<br>`docs/PULSAR_LIVE_LABEL_CONSISTENCY.md` | Live sources and capture |
 | [Named live lifecycle inputs](../docs/PULSAR_LIVE_LIFECYCLE_INPUTS.md)<br>`docs/PULSAR_LIVE_LIFECYCLE_INPUTS.md` | Live sources and capture |
@@ -577,6 +580,7 @@ Use the canonical [feature catalog](PULSAR_PROJECT.md#one-feature-set) for requi
 | [ADR 0009: Portable project contracts and capture boundaries](../docs/adr/0009-portable-project-contracts.md)<br>`docs/adr/0009-portable-project-contracts.md` | Projects and interoperability |
 | [ADR 0010: Retained portable-project export operations](../docs/adr/0010-portable-project-export-lifecycle.md)<br>`docs/adr/0010-portable-project-export-lifecycle.md` | Projects and interoperability |
 | [ADR 0011: Fresh-project clone import and inert origin archives](../docs/adr/0011-portable-project-clone-import.md)<br>`docs/adr/0011-portable-project-clone-import.md` | Projects and interoperability |
+| [ADR 0012: In-product roleplay assistant with an allowlisted tool surface](../docs/adr/0012-in-product-roleplay-assistant.md)<br>`docs/adr/0012-in-product-roleplay-assistant.md` | Roleplay, consent and optional imagery |
 | [Actual GUI and native-model architecture scenario](../docs/evidence/phase-a/gui-run.md)<br>`docs/evidence/phase-a/gui-run.md` | Cross-project or reference |
 | [Bounded independent Phase A repair review](../docs/evidence/phase-a/independent-review.md)<br>`docs/evidence/phase-a/independent-review.md` | Multimodal inputs |
 | [Independent review: large motion transport slice](../docs/evidence/phase-b-large-motion/independent-review.md)<br>`docs/evidence/phase-b-large-motion/independent-review.md` | Models and generation |
@@ -924,6 +928,7 @@ Use the canonical [feature catalog](PULSAR_PROJECT.md#one-feature-set) for requi
 | [Good phase runtime portability research](../research/phase-b/runtime-portability-research-2026-09-12.md)<br>`research/phase-b/runtime-portability-research-2026-09-12.md` | Models and generation |
 | [Local semantic image runtime for constrained Pulsar proposals](../research/phase-b/semantic-image-runtime-research-2026-10-11.md)<br>`research/phase-b/semantic-image-runtime-research-2026-10-11.md` | Models and generation |
 | [Stash integration: verified broker contract](../research/phase-b/stash-integration-research-2026-09-29.md)<br>`research/phase-b/stash-integration-research-2026-09-29.md` | Library and Stash |
+| [Roleplay assistant model research: local, offline, tool-calling](../research/roleplay-models-2026-11-04.md)<br>`research/roleplay-models-2026-11-04.md` | Roleplay, consent and optional imagery |
 
 ## Historical plans and observations
 
@@ -941,12 +946,13 @@ Use the canonical [feature catalog](PULSAR_PROJECT.md#one-feature-set) for requi
 | [Pulsar Major Roadmap](../docs/PULSAR_MAJOR_ROADMAP.md)<br>`docs/PULSAR_MAJOR_ROADMAP.md` | Cross-project or reference |
 | [Pulsar milestone gate ledger](../docs/PULSAR_MILESTONE_HISTORY_BEFORE_DASHBOARD.md)<br>`docs/PULSAR_MILESTONE_HISTORY_BEFORE_DASHBOARD.md` | Cross-project or reference |
 | [Native CPU assistant handoff](../docs/PULSAR_NATIVE_ASSISTANT_HANDOFF.md)<br>`docs/PULSAR_NATIVE_ASSISTANT_HANDOFF.md` | Assistant and extensions |
-| [Parallel implementation handoff: CPU-BUILD](../docs/PULSAR_PARALLEL_CPU_BUILD_HANDOFF.md)<br>`docs/PULSAR_PARALLEL_CPU_BUILD_HANDOFF.md` | Models and generation |
+| [Parallel implementation handoff: CPU-ROUNDTRIP](../docs/PULSAR_PARALLEL_CPU_BUILD_HANDOFF.md)<br>`docs/PULSAR_PARALLEL_CPU_BUILD_HANDOFF.md` | Models and generation |
 | [Pulsar Architecture Phase A1-A6 completion record](../docs/PULSAR_PHASE_A_STATUS.md)<br>`docs/PULSAR_PHASE_A_STATUS.md` | Cross-project or reference |
 | [Pulsar Good Phase: large-motion and startup checkpoint](../docs/PULSAR_PHASE_B_LARGE_MOTION_STATUS.md)<br>`docs/PULSAR_PHASE_B_LARGE_MOTION_STATUS.md` | Models and generation |
 | [Pulsar Phase B Research Status](../docs/PULSAR_PHASE_B_RESEARCH_STATUS.md)<br>`docs/PULSAR_PHASE_B_RESEARCH_STATUS.md` | Cross-project or reference |
 | [Pulsar Good Phase: implementation checkpoint](../docs/PULSAR_PHASE_B_STATUS.md)<br>`docs/PULSAR_PHASE_B_STATUS.md` | Cross-project or reference |
 | [Portable accepted CUDA evidence implementation](../docs/PULSAR_PORTABLE_CUDA_IMPLEMENTATION_PLAN.md)<br>`docs/PULSAR_PORTABLE_CUDA_IMPLEMENTATION_PLAN.md` | Projects and interoperability |
+| [Portable fallback history](../docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md)<br>`docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md` | Projects and interoperability |
 | [Portable-project implementation plan](../docs/PULSAR_PORTABLE_PROJECT_IMPLEMENTATION_PLAN.md)<br>`docs/PULSAR_PORTABLE_PROJECT_IMPLEMENTATION_PLAN.md` | Projects and interoperability |
 | [Portable project P1a: contracts, capture, and codec](../docs/PULSAR_PORTABLE_PROJECT_P1A_STATUS.md)<br>`docs/PULSAR_PORTABLE_PROJECT_P1A_STATUS.md` | Projects and interoperability |
 | [Portable project P1b: retained export and scoped download](../docs/PULSAR_PORTABLE_PROJECT_P1B_STATUS.md)<br>`docs/PULSAR_PORTABLE_PROJECT_P1B_STATUS.md` | Projects and interoperability |
@@ -958,6 +964,10 @@ Use the canonical [feature catalog](PULSAR_PROJECT.md#one-feature-set) for requi
 | [Pulsar Software Specification](../docs/PULSAR_SOFTWARE_SPECIFICATION_HISTORY_2026-11-06.md)<br>`docs/PULSAR_SOFTWARE_SPECIFICATION_HISTORY_2026-11-06.md` | Cross-project or reference |
 | [Pulsar current completion status](../docs/PULSAR_STATUS_HISTORY_BEFORE_DASHBOARD.md)<br>`docs/PULSAR_STATUS_HISTORY_BEFORE_DASHBOARD.md` | Cross-project or reference |
 | [Retained WASM invocation history](../docs/PULSAR_WASM_ARCHIVE_HISTORY.md)<br>`docs/PULSAR_WASM_ARCHIVE_HISTORY.md` | Assistant and extensions |
+| [Preserved implementation reference](../legacy/attended-bench/README.md)<br>`legacy/attended-bench/README.md` | Cross-project or reference |
+| [Preserved Handy bench tools](../legacy/bench-tools/README.md)<br>`legacy/bench-tools/README.md` | Cross-project or reference |
+| [Preserved implementation reference](../legacy/handy-hsp/README.md)<br>`legacy/handy-hsp/README.md` | Device playback |
+| [Preserved implementation reference](../legacy/macos-socket-probe/README.md)<br>`legacy/macos-socket-probe/README.md` | Cross-project or reference |
 | [Pre-engine source reference](../legacy/pre-engine/README.md)<br>`legacy/pre-engine/README.md` | Cross-project or reference |
 | [.gitignore](../research/phase-b/historical-execution/.gitignore)<br>`research/phase-b/historical-execution/.gitignore` | Cross-project or reference |
 | [README.md](../research/phase-b/historical-execution/README.md)<br>`research/phase-b/historical-execution/README.md` | Cross-project or reference |

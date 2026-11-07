@@ -15,3 +15,13 @@ Regenerate existing views with `python3 scripts/execution_dashboard.py --write`
 and run `--check`. Use `--audit` on the evidence host when reconciling receipts.
 Use relevant focused tests and real workflow checks; the roadmap defines release
 checkpoint obligations. Update the existing app guide when user controls change.
+
+## Integration and parallel work
+
+`codex/pulsar-integration` is the integration branch. Read the canonical document's
+API/ownership sections before dispatching agents or changing shared contracts.
+The orchestrator owns specification, ledger and integration; assign agents exact
+file/module scope on isolated short-lived worktrees. Hand back a commit, changed
+paths, checks and limitations. Runtime authority stays in Engine through the
+existing EngineApi/SessionClient seam. Preserve external dirty worktrees and use
+the consolidation register for their disposition.

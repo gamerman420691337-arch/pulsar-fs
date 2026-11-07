@@ -47,21 +47,23 @@ impl Broker<'_> {
             .proxy(None)
             .build()
             .into();
-        let mut request = agent
-            .get(format!("{}{path}", self.origin))
-            .header("X-Api-Key", &self.credentials.api)
-            .header("X-Connection-Key", &self.credentials.connection)
-            .header("Accept", "application/json");
-        for name in ["X-Api-Key", "X-Connection-Key"] {
-            request
-                .headers_mut()
-                .and_then(|h| h.get_mut(name))
-                .ok_or_else(|| unavailable("Handy authentication header unavailable"))?
-                .set_sensitive(true);
-        }
-        let mut response = request.call().map_err(|_| {
-            unavailable("Handy inspection request failed; remote detail is withheld")
-        })?;
+        let mut response = match self.attempt(&agent, path)? {
+            Some(response) => response,
+            None => {
+                // A rejected token is re-issued exactly once. The ApplicationKey
+                // is never promoted to a device credential; a second rejection
+                // surfaces as an ordinary failure rather than a retry loop.
+                self.credentials.invalidate_token();
+                match self.attempt(&agent, path)? {
+                    Some(response) => response,
+                    None => {
+                        return Err(unavailable(
+                            "Handy inspection was refused; credential re-issue did not help",
+                        ))
+                    }
+                }
+            }
+        };
         if response.status().as_u16() != 200 {
             return Err(unavailable(
                 "Handy inspection returned a non-success HTTP status",
@@ -81,6 +83,37 @@ impl Broker<'_> {
             return Err(unavailable("Handy inspection deadline expired"));
         }
         Ok(bytes)
+    }
+
+    /// One HTTP attempt. Returns `None` only for an unauthorized reply, which is
+    /// the sole condition eligible for a single token re-issue.
+    fn attempt(
+        &self,
+        agent: &ureq::Agent,
+        path: &str,
+    ) -> Result<Option<ureq::http::Response<ureq::Body>>, ProtocolError> {
+        let bearer = self.credentials.bearer()?;
+        let mut request = agent
+            .get(format!("{}{path}", self.origin))
+            .header("Authorization", format!("Bearer {bearer}"))
+            .header("X-Connection-Key", &self.credentials.connection)
+            .header("Accept", "application/json");
+        for name in ["Authorization", "X-Connection-Key"] {
+            if let Some(value) = request.headers_mut().and_then(|h| h.get_mut(name)) {
+                value.set_sensitive(true);
+            }
+        }
+        let response = request.call().map_err(|error| {
+            // A 401 arrives as a non-2xx status in ureq 3.
+            if matches!(error, ureq::Error::StatusCode(401)) {
+                return unavailable("Handy inspection was refused");
+            }
+            unavailable("Handy inspection request failed; remote detail is withheld")
+        })?;
+        if response.status().as_u16() == 401 {
+            return Ok(None);
+        }
+        Ok(Some(response))
     }
     fn inspect(&self) -> Result<HandyInspection, ProtocolError> {
         let bytes = self.get(handy_wire::EncodedRequest::connected().path())?;
@@ -170,6 +203,17 @@ fn sample_with_buffer(
             handy_wire::decode_hssp(200, &bytes)
                 .map_err(|_| unavailable("invalid Handy HSSP observation"))?,
         )
+    } else if mode.mode == 4 && complete_buffer {
+        // H02_pro 4.3.0 leaves HSSP for HSP on any HSSP operation, keeping the
+        // same program behind /hssp/state. Only the retained buffer is filled
+        // here: `remote_hssp` stays absent in mode 4, preserving the observation
+        // invariant that pairs it with mode 1.
+        let bytes = broker.get("/hssp/state")?;
+        buffer = Some(
+            handy_wire::decode_setup(200, &bytes)
+                .map_err(|_| unavailable("invalid stopped HSP buffer observation"))?,
+        );
+        None
     } else {
         None
     };
@@ -299,7 +343,22 @@ fn device_timing_read(
     clock: &mut dyn FnMut() -> Result<u64, ProtocolError>,
 ) -> Result<DeviceTimingRead, ProtocolError> {
     let read = raw_timing_read(broker, clock)?;
-    if !read.device.before.same_state(&read.device.after)
+    // Pre-play timing requires a device that is not already playing. Clock
+    // position legitimately advances while stopped, so comparison is by
+    // configuration, but an active Playing state must still refuse here.
+    let playing = |observation: &HandySetupDeviceObservation| {
+        observation
+            .remote_hssp
+            .as_ref()
+            .is_some_and(|s| s.play_state == HandyRemotePlayState::Playing)
+            || observation
+                .remote_hsp
+                .as_ref()
+                .is_some_and(|s| s.play_state == HandyRemotePlayState::Playing)
+    };
+    if !read.device.before.same_configuration(&read.device.after)
+        || playing(&read.device.before)
+        || playing(&read.device.after)
         || read.device.second.info.device_uptime_ms < read.device.first.info.device_uptime_ms
     {
         return Err(unavailable(
@@ -451,7 +510,11 @@ pub(crate) fn inspect_hsp_clock_context(
 fn qualification_sample(broker: &Broker<'_>) -> Result<HandySetupDeviceObservation, ProtocolError> {
     let first = setup_sample(broker)?;
     let second = setup_sample(broker)?;
-    if !first.same_state(&second) {
+    // The question is "did the device's configuration or program change?", not
+    // "is its clock identical". Real hardware advances current_time while
+    // stopped, so exact equality would refuse every acceptance on a device that
+    // has ever played.
+    if !first.same_configuration(&second) {
         return Err(unavailable(
             "Handy configuration changed during qualification inspection",
         ));
@@ -534,7 +597,14 @@ mod tests {
                 }
                 assert!(headers
                     .to_ascii_lowercase()
-                    .contains(&format!("x-api-key: {expected_api}")));
+                    .contains("authorization: bearer "));
+                assert!(!headers.to_ascii_lowercase().contains("x-api-key:"));
+                // The ApplicationKey authenticates only /auth/token/issue and must
+                // never appear on a device endpoint, in any header.
+                assert!(
+                    !headers.contains(&expected_api),
+                    "ApplicationKey leaked to a device endpoint"
+                );
                 assert!(headers
                     .to_ascii_lowercase()
                     .contains(&format!("x-connection-key: {expected_connection}")));
@@ -547,10 +617,7 @@ mod tests {
     fn broker(origin: &str) -> Broker<'_> {
         Broker {
             origin,
-            credentials: Arc::new(Credentials {
-                api: "fixture-api".into(),
-                connection: "fixture-device".into(),
-            }),
+            credentials: Arc::new(Credentials::for_test("fixture-api", "fixture-device")),
             deadline: Instant::now() + Duration::from_secs(3),
         }
     }
@@ -617,12 +684,9 @@ mod tests {
         };
         assert_eq!(inspect(&r).unwrap_err().code, ErrorCode::Forbidden);
         for key in ["", "bad\r\nheader", "bad value"] {
-            assert!(Credentials {
-                api: key.into(),
-                connection: "fixture".into()
-            }
-            .validate()
-            .is_err());
+            assert!(Credentials::for_test(key.into(), "fixture".into())
+                .validate()
+                .is_err());
         }
     }
     #[test]
@@ -815,6 +879,26 @@ mod tests {
         );
     }
     #[test]
+    fn preplay_timing_accepts_advancing_clock_while_the_device_is_stopped() {
+        // Observed on a real Handy 2 Pro: a stopped device reports current_time
+        // advancing between the two bracketing reads. That is clock position, not
+        // a configuration change, so pre-play timing inspection must still pass.
+        let mut responses = playing_responses();
+        change_response(&mut responses, 5, "play_state", serde_json::json!(2));
+        change_response(&mut responses, 15, "play_state", serde_json::json!(2));
+        change_response(&mut responses, 5, "current_time", serde_json::json!(51774));
+        change_response(&mut responses, 15, "current_time", serde_json::json!(52372));
+        let (origin, join) = mock(responses);
+        let mut times = [100, 101, 102, 103, 104, 105].into_iter();
+        let read = device_timing_read(&broker(&origin), &mut || Ok(times.next().unwrap()))
+            .expect("an advancing clock on a stopped device is not a change");
+        join.join().unwrap();
+        let before = read.before.remote_hssp.as_ref().expect("hssp observation");
+        let after = read.after.remote_hssp.as_ref().expect("hssp observation");
+        assert_eq!(before.current_time_ms, 51774);
+        assert_eq!(after.current_time_ms, 52372);
+    }
+    #[test]
     fn handy_playing_timing_refuses_changed_context_or_reversed_reported_time() {
         for (name, index, field, value) in [
             ("identity", 11, "fw_version", serde_json::json!("4.0.17")),
@@ -1005,10 +1089,7 @@ mod tests {
         );
         let b = Broker {
             origin: &origin,
-            credentials: Arc::new(Credentials {
-                api: "fixture-api".into(),
-                connection: "42424242".into(),
-            }),
+            credentials: Arc::new(Credentials::for_test("fixture-api", "42424242")),
             deadline: Instant::now() + Duration::from_secs(3),
         };
         let error = timing_sample(&b, &mut || Ok(1)).unwrap_err();
@@ -1036,10 +1117,7 @@ mod tests {
             let (origin, join) = mock_with_keys(responses, "fixture-api", key);
             let broker = Broker {
                 origin: &origin,
-                credentials: Arc::new(Credentials {
-                    api: "fixture-api".into(),
-                    connection: key.into(),
-                }),
+                credentials: Arc::new(Credentials::for_test("fixture-api".into(), key.into())),
                 deadline: Instant::now() + Duration::from_secs(3),
             };
             let result = sample_with_buffer(&broker, true);
@@ -1090,10 +1168,7 @@ mod tests {
         let (origin, join) = mock_with_keys(setup_responses(7, &echoed), "fixture-api", "42424242");
         let broker = Broker {
             origin: &origin,
-            credentials: Arc::new(Credentials {
-                api: "fixture-api".into(),
-                connection: "42424242".into(),
-            }),
+            credentials: Arc::new(Credentials::for_test("fixture-api", "42424242")),
             deadline: Instant::now() + Duration::from_secs(3),
         };
         let error = setup_sample(&broker).unwrap_err();
@@ -1182,10 +1257,7 @@ mod tests {
         let (origin, join) = mock_with_keys(responses, "fixture-api", "42424242");
         let broker = Broker {
             origin: &origin,
-            credentials: Arc::new(Credentials {
-                api: "fixture-api".into(),
-                connection: "42424242".into(),
-            }),
+            credentials: Arc::new(Credentials::for_test("fixture-api", "42424242")),
             deadline: Instant::now() + Duration::from_secs(3),
         };
         let error = setup_sample(&broker).unwrap_err();

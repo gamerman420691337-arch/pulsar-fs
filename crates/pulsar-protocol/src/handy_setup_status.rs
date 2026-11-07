@@ -8,6 +8,9 @@ pub enum HandySetupState {
     Acknowledged,
     Unknown,
     Cancelled,
+    /// Acknowledged under an engine boot that is gone, with no play referencing
+    /// it. Terminal history: it holds no device custody.
+    Retired,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

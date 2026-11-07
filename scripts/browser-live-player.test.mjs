@@ -73,11 +73,12 @@ function player({frameReply,holdStart=false,recording=false,limit="1024",candida
    if(['/start','/frame','/analysis/finish','/analysis/finish-status'].includes(route)&&nativeFeed)data={...data,options:{lease_ms:leaseMs,...data.options},browser:{analysis_final_result_matches:false,...data.browser,analysis_feed:nativeFeed,analysis_last_upload:nativeLastUpload,analysis_finish_request_id:route.startsWith('/analysis/')?'input-close-'+feedCalls:null}};
    return {ok:true,json:async()=>data};
   };
+  elements['resume-after-seek']={hidden:true};
   const document={visibilityState:'visible',addEventListener(n,f){documentEvents[n]=f;},getElementById:id=>elements[id],createElement:()=>({click(){},getContext:()=>({drawImage(reader){drawnReader=reader;drawSources.push(reader===analysisVideo?"analysis":"visible");},getImageData:()=>({data:new Uint8Array(64*64*4).fill(drawnReader===analysisVideo?128:64)})})})};
   const context=vm.createContext({document,window:{location:{href:'http://127.0.0.1:34000/'},addEventListener(n,f){windowEvents[n]=f;}},navigator:{mediaDevices:getDisplayMedia||getUserMedia?{getDisplayMedia,getUserMedia}:undefined},fetch,TextEncoder,Uint8Array,URL,Blob,AbortSignal,crypto:{randomUUID},performance:{now:()=>clock},setTimeout,clearTimeout,console});
   vm.runInContext(code.replace('/*__PULSAR_PAGE_SCOPE__*/ null',JSON.stringify(pageScope)),context);
   const displayTimers=()=>{const id=vm.runInContext('displayTimer',context);return timers.has(id)?[timers.get(id)]:[];};
-  return {elements,sent,events,analysisEvents,drawSources,analysisLoaded,analysisSettled,pendingContinuationTimers(){const id=vm.runInContext('analysisReader?.continuation?.timer',context);return timers.has(id)?[timers.get(id).fn]:[];},continuityState(){return JSON.parse(vm.runInContext('JSON.stringify({epoch,count:analysisReader?.continuationCount,phase:analysisReader?.continuation?.phase,prepareId:analysisReader?.continuation?.prepareId})',context));},analysisEnd(time){analysisPosition=time;analysisVideo.duration=time;analysisVideo.ended=true;analysisVideo.paused=true;analysisEvents.pause?.();analysisEvents.ended?.();},futurePreview(){return JSON.parse(vm.runInContext('JSON.stringify({limit:MAX_FUTURE_ESTIMATES,entries:futureEstimates,last:lastFutureEstimate})',context));},pendingFutureTimers(){const id=vm.runInContext('futureTimer',context);return timers.has(id)?[timers.get(id).fn]:[];},analysisCallback(){return analysisQueue.find(x=>!x.cancelled)?.fn;},analysisFrame(time,frames=++analysisPresentedFrames,metadata={}){analysisPosition=time;let item;while((item=analysisQueue.shift())&&item.cancelled){};assert.ok(item,"analysis callback available");return item.fn(clock,{mediaTime:time,presentedFrames:frames,...metadata});},windowEvents,documentEvents,document,advance,metadata,settleSeek,deliverPauses(){while(pauseEvents.length)pauseEvents.shift()();},seek(time){video.currentTime=time;},timerCount:()=>displayTimers().length,pendingTimers:()=>displayTimers().map(t=>t.fn),controlTimerCount:()=>timers.size-displayTimers().length,releaseFrame:()=>resolveFrame(),releaseRoute:()=>resolveRoute(),play(){video.paused=false;events.play();},frame(time,frames=++presentedFrames,metadata={}){videoPosition=time;return queue.shift()(clock,{mediaTime:time,presentedFrames:frames,...metadata});},release(){resolveStart();}};
+  return {evaluate(script){return vm.runInContext(script,context);},elements,sent,events,analysisEvents,drawSources,analysisLoaded,analysisSettled,pendingContinuationTimers(){const id=vm.runInContext('analysisReader?.continuation?.timer',context);return timers.has(id)?[timers.get(id).fn]:[];},continuityState(){return JSON.parse(vm.runInContext('JSON.stringify({epoch,count:analysisReader?.continuationCount,phase:analysisReader?.continuation?.phase,prepareId:analysisReader?.continuation?.prepareId})',context));},analysisEnd(time){analysisPosition=time;analysisVideo.duration=time;analysisVideo.ended=true;analysisVideo.paused=true;analysisEvents.pause?.();analysisEvents.ended?.();},futurePreview(){return JSON.parse(vm.runInContext('JSON.stringify({limit:MAX_FUTURE_ESTIMATES,entries:futureEstimates,last:lastFutureEstimate})',context));},pendingFutureTimers(){const id=vm.runInContext('futureTimer',context);return timers.has(id)?[timers.get(id).fn]:[];},analysisCallback(){return analysisQueue.find(x=>!x.cancelled)?.fn;},analysisFrame(time,frames=++analysisPresentedFrames,metadata={}){analysisPosition=time;let item;while((item=analysisQueue.shift())&&item.cancelled){};assert.ok(item,"analysis callback available");return item.fn(clock,{mediaTime:time,presentedFrames:frames,...metadata});},windowEvents,documentEvents,document,advance,metadata,settleSeek,deliverPauses(){while(pauseEvents.length)pauseEvents.shift()();},seek(time){video.currentTime=time;},timerCount:()=>displayTimers().length,pendingTimers:()=>displayTimers().map(t=>t.fn),controlTimerCount:()=>timers.size-displayTimers().length,releaseFrame:()=>resolveFrame(),releaseRoute:()=>resolveRoute(),play(){video.paused=false;events.play();},frame(time,frames=++presentedFrames,metadata={}){videoPosition=time;return queue.shift()(clock,{mediaTime:time,presentedFrames:frames,...metadata});},release(){resolveStart();}};
 }
 test('player sends exact timestamp and packed RGB; pause clears motion',async()=>{
  const p=player();p.play();await p.frame(.125);assert.equal(p.elements.position.value,.6);
@@ -464,13 +465,13 @@ test('prepared Play binds only the native selection ID while capture request bod
 });
 
 test('prepared URL and source identity survive pause seek and explicit resume with fresh player generations',async()=>{
- const p=mediaPlayer();await prepareMedia(p);p.play();await p.frame(.1);p.elements.video.pause();assert.equal(p.elements.video.src,'/media/token-one');p.play();await p.frame(.2);p.events.seeking();assert.equal(p.elements.video.src,'/media/token-one');p.play();await p.frame(.3);
+ const p=mediaPlayer();await prepareMedia(p);p.play();await p.frame(.1);p.elements.video.pause();assert.equal(p.elements.video.src,'/media/token-one');p.play();await p.frame(.2);p.events.seeking();assert.equal(p.elements.video.src,'/media/token-one');await p.elements['resume-after-seek'].onclick();await p.frame(.3);
  const registrations=p.sent.filter(r=>r.route==='/player/start').map(jsonBody);assert.equal(registrations.length,3);assert.ok(registrations.every(r=>r.source_id==='selection-one'&&r.media_selection_id==='selection-one'));assert.ok(registrations[0].generation<registrations[1].generation&&registrations[1].generation<registrations[2].generation);assert.equal(p.sent.filter(r=>r.route==='/media/prepare').length,1);assert.equal(p.sent.filter(r=>r.route==='/media/release').length,0);
 });
 
 test('declared trim skips pretrim frames and stops at its half-open end without releasing bytes',async()=>{
  const p=mediaPlayer({candidateReplies:{'/media/prepare':{...readyMedia,trim_start_us:100000,trim_end_us:200000}}});await prepareMedia(p);p.play();await p.frame(.099999);assert.equal(p.sent.filter(r=>r.route==='/start'||r.route==='/frame').length,0);await p.frame(.1);assert.equal(p.sent.filter(r=>r.route==='/frame').length,1);await p.frame(.199999);assert.equal(p.sent.filter(r=>r.route==='/frame').length,2);await p.frame(.2);assert.equal(p.elements.video.paused,true);assert.equal(p.sent.filter(r=>r.route==='/frame').length,2);assert.equal(p.elements.video.src,'/media/token-one');assert.equal(p.sent.filter(r=>r.route==='/media/release').length,0);assert.match(p.elements.status.textContent,/trim ended/);
- p.seek(.1);await flush();p.play();await p.frame(.1);assert.equal(p.sent.filter(r=>r.route==='/player/start').length,2);
+ p.seek(.1);await flush();await p.elements['resume-after-seek'].onclick();await p.frame(.1);assert.equal(p.sent.filter(r=>r.route==='/player/start').length,2);
 });
 
 test('local file replacement revokes prepared selection and registers an explicitly unbound source',async()=>{
@@ -550,7 +551,7 @@ test('obsolete metadata and seek completion cannot settle or reposition a replac
 });
 
 test('bound Play outside trim refuses registration and manual seek inside trim never auto-rearms',async()=>{
- const p=mediaPlayer({candidateReplies:{'/media/prepare':{...readyMedia,trim_start_us:100000,trim_end_us:200000}}});await prepareMedia(p);assert.equal(p.elements.video.currentTime,.1);p.play();await p.frame(.12);p.seek(.05);await flush();p.play();assert.equal(p.sent.filter(r=>r.route==='/player/start').length,1);assert.equal(p.elements.video.paused,true);assert.match(p.elements.status.textContent,/Seek inside/);assert.equal(p.elements.video.currentTime,.05);
+ const p=mediaPlayer({candidateReplies:{'/media/prepare':{...readyMedia,trim_start_us:100000,trim_end_us:200000}}});await prepareMedia(p);assert.equal(p.elements.video.currentTime,.1);p.play();await p.frame(.12);p.seek(.05);await flush();await p.elements['resume-after-seek'].onclick();assert.equal(p.sent.filter(r=>r.route==='/player/start').length,1);assert.equal(p.elements.video.paused,true);assert.match(p.elements.status.textContent,/Seek inside/);assert.equal(p.elements.video.currentTime,.05);
  p.seek(.15);await flush();assert.equal(p.sent.filter(r=>r.route==='/player/start').length,1);assert.equal(p.elements.video.paused,true);p.play();await p.frame(.16);assert.equal(p.sent.filter(r=>r.route==='/player/start').length,2);assert.equal(jsonBody(p.sent.filter(r=>r.route==='/start').at(-1)).media_us,160000);assert.equal(p.elements.video.src,'/media/token-one');assert.equal(p.sent.filter(r=>r.route==='/media/release').length,0);
  p.seek(.2);await flush();p.play();assert.equal(p.sent.filter(r=>r.route==='/player/start').length,2);assert.equal(p.elements.video.paused,true);
 });
@@ -610,6 +611,110 @@ test('queued pause preserves seek and hidden-page stop reasons',async()=>{
   assert.match(p.elements.status.textContent,reason==='seek'?/Seek stopped analysis/:/Hidden page stopped analysis/);
   assert.equal(p.sent.filter(r=>r.route==='/stop').length,1);
  }
+});
+
+test('native seek auto-play cannot restart analysis without explicit resume',async()=>{
+ const p=player({queuedPause:true});p.play();await p.frame(.1);await flush();
+ p.elements.video.seeking=true;p.elements.video.pause();p.deliverPauses();p.events.seeking();
+ await p.elements['resume-after-seek'].onclick();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ assert.match(p.elements.status.textContent,/Wait for the seek/);
+ p.elements.video.seeking=false;p.events.seeked?.();p.play();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ assert.equal(p.elements.video.paused,true);
+ assert.equal(p.elements['resume-after-seek'].hidden,false);
+ await p.elements['resume-after-seek'].onclick();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,2);
+});
+test('seek arriving after a pause event still requires explicit resume',async()=>{
+ const p=player({queuedPause:true});p.play();await p.frame(.1);await flush();
+ p.elements.video.pause();p.deliverPauses();p.events.seeking();p.play();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ assert.equal(p.elements['resume-after-seek'].hidden,false);
+});
+test('seek after pause retains the original pending stop fence',async()=>{
+ const p=player({queuedPause:true,holdRoute:'/stop'});p.play();await p.frame(.1);await flush();
+ p.elements.video.pause();p.deliverPauses();await flush();p.events.seeking();
+ const resume=p.elements['resume-after-seek'].onclick();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ p.releaseRoute();await resume;await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,2);
+});
+test('seek after a queued trim-end pause still requires explicit resume',async()=>{
+ const p=mediaPlayer({queuedPause:true,candidateReplies:{'/media/prepare':{...readyMedia,trim_start_us:100000,trim_end_us:200000}}});
+ await prepareMedia(p);p.play();await p.frame(.12);await p.frame(.2);p.deliverPauses();p.seek(.1);await flush();
+ assert.equal(p.elements['resume-after-seek'].hidden,false);
+ p.play();await flush();assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+});
+test('seek gate also blocks auto-play before a queued seek handler retires the old player',async()=>{
+ const p=player({queuedPause:true});p.play();await p.frame(.1);await flush();
+ p.elements.video.seeking=true;p.evaluate('programmaticPauses=1');p.elements.video.pause();p.deliverPauses();
+ p.elements.video.seeking=false;p.play();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ assert.equal(p.elements.video.paused,true);
+ assert.ok(p.sent.some(x=>x.route==='/stop'));
+});
+test('failed explicit seek resume remains available without starting analysis',async()=>{
+ const p=player({queuedPause:true});p.play();await p.frame(.1);await flush();
+ p.elements.video.seeking=true;p.elements.video.pause();p.deliverPauses();p.events.seeking();p.elements.video.seeking=false;
+ p.elements.video.play=async()=>{throw Error('play rejected');};
+ await p.elements['resume-after-seek'].onclick();
+ assert.equal(p.elements['resume-after-seek'].hidden,false);
+ assert.match(p.elements.status.textContent,/play rejected/);
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+});
+test('explicit seek resume waits for the original capture stop acknowledgement',async()=>{
+ const p=player({queuedPause:true,holdRoute:'/stop'});p.play();await p.frame(.1);await flush();
+ p.elements.video.seeking=true;p.elements.video.pause();p.deliverPauses();p.events.seeking();p.elements.video.seeking=false;await flush();
+ const resume=p.elements['resume-after-seek'].onclick();await flush();
+ assert.equal(p.elements['resume-after-seek'].disabled,true);
+ await p.elements['resume-after-seek'].onclick();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ p.releaseRoute();await resume;await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,2);
+});
+test('a new seek while stop is pending prevents resume until it settles',async()=>{
+ const p=player({queuedPause:true,holdRoute:'/stop'});p.play();await p.frame(.1);await flush();
+ p.elements.video.seeking=true;p.elements.video.pause();p.deliverPauses();p.events.seeking();p.elements.video.seeking=false;await flush();
+ const resume=p.elements['resume-after-seek'].onclick();await flush();p.elements.video.seeking=true;p.releaseRoute();await resume;await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ assert.equal(p.elements['resume-after-seek'].hidden,false);
+ p.elements.video.seeking=false;await p.elements['resume-after-seek'].onclick();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,2);
+});
+test('unknown original seek stop fences explicit resume',async()=>{
+ const p=player({queuedPause:true,replyOverride:r=>r.route==='/stop'?{ok:false,json:async()=>({error:'original stop outcome unknown'})}:null});p.play();await p.frame(.1);await flush();
+ p.elements.video.seeking=true;p.elements.video.pause();p.deliverPauses();p.events.seeking();p.elements.video.seeking=false;await flush();
+ await p.elements['resume-after-seek'].onclick();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ assert.equal(p.elements['resume-after-seek'].disabled,true);
+ assert.match(p.elements.status.textContent,/stop.*confirm|unknown/i);
+});
+test('malformed successful stop reply fences seek resume',async()=>{
+ const p=player({queuedPause:true,replyOverride:r=>r.route==='/stop'?{ok:true,json:async()=>({active:true})}:null});p.play();await p.frame(.1);await flush();
+ p.elements.video.seeking=true;p.elements.video.pause();p.deliverPauses();p.events.seeking();p.elements.video.seeking=false;await flush();
+ await p.elements['resume-after-seek'].onclick();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ assert.equal(p.elements['resume-after-seek'].disabled,true);
+ assert.match(p.elements.status.textContent,/stop.*confirm/i);
+});
+test('unconfirmed player release fences seek resume',async()=>{
+ const p=player({queuedPause:true,replyOverride:r=>r.route==='/player/stop'?{ok:false,json:async()=>({error:'player release unknown'})}:null});p.play();await p.frame(.1);await flush();
+ p.elements.video.seeking=true;p.elements.video.pause();p.deliverPauses();p.events.seeking();p.elements.video.seeking=false;await flush();
+ await p.elements['resume-after-seek'].onclick();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ assert.equal(p.elements['resume-after-seek'].disabled,true);
+ assert.match(p.elements.status.textContent,/stop.*confirm|release unknown/i);
+});
+test('seek during pending player registration waits for its late retirement',async()=>{
+ const p=player({queuedPause:true,holdRoute:'/player/start'});p.play();await flush();
+ p.elements.video.seeking=true;p.elements.video.pause();p.deliverPauses();p.events.seeking();p.elements.video.seeking=false;
+ const resume=p.elements['resume-after-seek'].onclick();await flush();
+ assert.equal(p.sent.filter(x=>x.route==='/player/start').length,1);
+ p.releaseRoute();await resume;await flush();
+ const routes=p.sent.map(x=>x.route);
+ assert.equal(routes.filter(x=>x==='/player/start').length,2);
+ assert.ok(routes.indexOf('/stop')<routes.lastIndexOf('/player/start'));
 });
 
 
@@ -780,6 +885,25 @@ test('sustained lookahead retains earlier results until visible frames catch up 
  }
  const queued=p.futurePreview().entries;assert.equal(queued.length,10);assert.equal(queued[0].time,3.2);assert.equal(queued.at(-1).time,4.1);assert.equal(queued[0].deadline,4100);assert.equal(p.elements.video.paused,false);assert.equal(p.timerCount(),1);
 });
+test('native launch default leaves freshness margin without changing the original estimate deadline',async()=>{
+ const p=mediaPlayer({lookahead:true,timing:true,pageScope:{...defaultPageScope,default_lookahead_ms:500},frameReply:lookaheadEstimate(600000,.7,1000)});
+ await startLookahead(p);await p.analysisFrame(.6);await flush();
+ const start=jsonBody(p.sent.find(r=>r.route==='/start'));
+ assert.equal(start.analysis.policy.target_lead_us,500000);
+ assert.equal(p.futurePreview().entries[0].deadline,1000);
+ p.advance(500);await flush();await p.analysisFrame(1.1);await p.frame(.6);await flush();
+ assert.equal(p.elements.position.value,.7);
+ assert.match(p.elements.status.textContent,/Provisional Stroke at the visible source time/);
+});
+test('native launch default remains editable and cannot enlarge the original freshness budget',async()=>{
+ const p=retainedLookaheadPlayer({pageScope:{...defaultPageScope,default_lookahead_ms:500},frameReply:lookaheadEstimate(1100000,.7,1000)});
+ p.elements['lookahead-ms'].value='1000';await startLookahead(p);await p.analysisFrame(1.1);
+ assert.equal(jsonBody(p.sent.find(r=>r.route==='/start')).analysis.policy.target_lead_us,1000000);
+ assert.equal(p.elements.position.value,0);assert.match(p.elements.status.textContent,/insufficient freshness margin/);
+});
+test('malformed native lookahead defaults fail before any playback admission',()=>{
+ for(const value of [0,15001,1.5,'500',null])assert.throws(()=>mediaPlayer({pageScope:{...defaultPageScope,default_lookahead_ms:value}}),/Invalid native lookahead default/);
+});
 test('one-second lead with the original one-second budget remains unavailable at the deadline boundary',async()=>{
  const p=retainedLookaheadPlayer({frameReply:n=>lookaheadEstimate(1000000+n*100000,n/100,1000)});await startLookahead(p);
  for(let i=0;i<=20;i++){
@@ -906,12 +1030,12 @@ test('original lease expiry and aborted close reports win over finite draining',
 });
 
 // Authored transport results exercise client ordering only; no native transfer proof.
-function continuityPlayer({enabled=true,preparing=0,joining=0,wrongMedia=false,holdTransfer=false,mediaPreparing=0,holdRoute=null}={}){
- let start,scope,nextFeed,oldUpload,nextUpload,prepareCalls=0,statusCalls=0,mediaCalls=0,transferred=false,timingSequence=0;
+function continuityPlayer({enabled=true,preparing=0,joining=0,wrongMedia=false,holdTransfer=false,mediaPreparing=0,holdRoute=null,joinPending=false}={}){
+ let start,scope,nextFeed,oldUpload,nextUpload,prepareCalls=0,statusCalls=0,mediaCalls=0,transferred=false,timingSequence=0,predecessorJoined=!joinPending;
  const ok=data=>({ok:true,json:async()=>data});
  const base=()=>({active:true,identity:{epoch:transferred?'epoch-two':'epoch-one'},options:{lease_ms:30000,policy:{maximum_analysis_age_ns:2e9}},inference:{completed:0}});
  const oldFeed=()=>({feed_id:'analysis-feed-1',role:'lookahead',generation:scope.generation,player:scope,capture_epoch:'epoch-one',policy:start.analysis.policy});
- const transfer=phase=>({original_request_id:'transfer-one',preparation_request_id:'successor-prepare-one',predecessor:{epoch:'epoch-one'},successor:{epoch:'epoch-two'},boundary:{native_only:true},phase,predecessor_worker_joined:phase==='transferred',predecessor_delivery_settled:phase==='transferred',successor_pair_accepted:!!nextUpload,error:null});
+ const transfer=phase=>({original_request_id:'transfer-one',preparation_request_id:'successor-prepare-one',predecessor:{epoch:'epoch-one'},successor:{epoch:'epoch-two'},boundary:{native_only:true},phase,predecessor_worker_joined:predecessorJoined||phase==='transferred',predecessor_delivery_settled:predecessorJoined||phase==='transferred',successor_pair_accepted:!!nextUpload,error:null});
  const pending=phase=>({...base(),browser:{analysis_feed:oldFeed(),analysis_last_upload:oldUpload,analysis_successor:{original_request_id:'successor-prepare-one',feed:nextFeed,report:{original_request_id:'successor-prepare-one',predecessor:{epoch:'epoch-one'},successor:{identity:{epoch:'epoch-two'},options:{lease_ms:30000}},phase:'prepared'},transfer:phase?transfer(phase):null,last_upload:nextUpload}}});
  const p=mediaPlayer({lookahead:true,timing:true,holdRoute,frameReply:{...lookaheadEstimate(1100000),browser:{analysis_continuity:{enabled:true,prepare_due:true}}},replyOverride:r=>{
   if(r.route==='/start'){start=jsonBody(r);scope={launch_id:r.headers['X-Pulsar-Launch'],page_id:r.headers['X-Pulsar-Page'],player_id:r.headers['X-Pulsar-Player'],source_id:r.headers['X-Pulsar-Source'],generation:Number(r.headers['X-Pulsar-Generation']),time_basis:start.source_time_basis};nextFeed={...oldFeed(),feed_id:'analysis-feed-2',capture_epoch:'epoch-two'};}
@@ -921,16 +1045,16 @@ function continuityPlayer({enabled=true,preparing=0,joining=0,wrongMedia=false,h
   if(r.route==='/player/timing-next-probe')return ok({sequence:String(++timingSequence),probe_id:'next-probe-'+timingSequence,probe_timeout_ms:1000,observation_timeout_ms:3000});
   if(r.route==='/player/timing-next-observe'){const o=jsonBody(r);return ok({current:true,qualified:false,observation:{sequence:o.sequence}});}
   if(r.route==='/analysis/prepare'){const data=pending();data.browser.analysis_successor.report.phase=++prepareCalls<=preparing?'preparing':'prepared';return ok(data);}
-  if(r.route==='/analysis/transfer')return ok(pending('boundary_reserved'));
-  if(r.route==='/analysis/successor-frame'){const h=rgbPacket(r).header;nextUpload={media_us:h.media_us,observation:h.analysis};return ok(pending('joining_predecessor'));}
+  if(r.route==='/analysis/transfer')return ok(pending(predecessorJoined?'awaiting_successor_pair':'boundary_reserved'));
+  if(r.route==='/analysis/successor-frame'){const h=rgbPacket(r).header;nextUpload={media_us:h.media_us,observation:h.analysis};return ok(pending('ready_for_transfer'));}
   if(r.route==='/analysis/transfer-status'){
-   const phase=!nextUpload||holdTransfer||++statusCalls<=joining?'joining_predecessor':'transferred';
+   const phase=!predecessorJoined?'joining_predecessor':!nextUpload?'awaiting_successor_pair':holdTransfer||++statusCalls<=joining?'ready_for_transfer':'transferred';
    if(phase!=='transferred')return ok(pending(phase));transferred=true;return ok({...base(),browser:{analysis_feed:nextFeed,analysis_last_upload:nextUpload,analysis_transfer_completed:transfer(phase),analysis_continuity:{enabled:true,prepare_due:false,media_preparation_request_id:'media-prepare-two'}}});
   }
   if(r.route==='/analysis/cancel-successor')return ok({...base(),browser:{analysis_feed:oldFeed(),analysis_last_upload:oldUpload}});
   if(transferred&&(r.route==='/analysis/finish'||r.route==='/analysis/finish-status'))return ok({...base(),browser:{analysis_feed:nextFeed,analysis_last_upload:nextUpload,analysis_finish_request_id:'finish-two',analysis_final_result_matches:false},input_close:{original_request_id:'finish-two',phase:'sealed',disposition:'accepted',worker_joined:true,delivery_settled:true}});
  }});
- p.elements['analysis-continuity'].checked=enabled;return p;
+ p.elements['analysis-continuity'].checked=enabled;p.confirmPredecessorJoin=()=>{predecessorJoined=true;};return p;
 }
 async function prepareContinuation(p){await startLookahead(p);await p.analysisFrame(1.1);await flush();await flush();await p.frame(.2,2);await flush();await flush();}
 test('media continuation and its status retain the original complete player scope',async()=>{
@@ -966,6 +1090,19 @@ test('successor timing preparation keeps predecessor observations current',async
  for(const request of p.sent.filter(r=>r.route.startsWith('/player/timing-')))assert.deepEqual(request.headers,original);
  assert.equal(p.sent.filter(r=>r.route==='/player/start').length,1);
 });
+test('reserved boundary drains the existing predecessor probe without admitting probes that starve G',async()=>{
+ const p=continuityPlayer({holdTransfer:true});await prepareContinuation(p);
+ p.advance(250);await flush();
+ await p.analysisFrame(1.2);await flush();assert.equal(p.continuityState().phase,'pair');
+ const probes=p.sent.filter(r=>r.route==='/player/timing-probe').length;
+ await p.frame(.3,3);await flush();await flush();
+ await p.elements['inspect-timing'].onclick();await flush();
+ p.advance(250);await flush();await p.analysisFrame(1.3);await flush();
+ assert.equal(p.sent.filter(r=>r.route==='/analysis/successor-frame').length,1,'fresh ordinary probes must not starve the original successor G');
+ assert.equal(p.sent.filter(r=>r.route==='/player/timing-probe').length,probes,'the already issued probe drains but no replacement probe is admitted');
+ assert.equal(p.continuityState().phase,'joining');
+ assert.equal(p.continuityState().epoch,'epoch-one','only native commit can promote');
+});
 test('predecessor timing remains frozen after the original successor G until commit',async()=>{
  const p=continuityPlayer({holdTransfer:true});await prepareContinuation(p);await p.analysisFrame(1.2);await p.analysisFrame(1.3);await flush();
  assert.equal(p.continuityState().phase,'joining');const probes=p.sent.filter(r=>r.route==='/player/timing-probe').length;
@@ -973,6 +1110,21 @@ test('predecessor timing remains frozen after the original successor G until com
  assert.equal(p.sent.filter(r=>r.route==='/player/timing-probe').length,probes);
  assert.equal(p.sent.filter(r=>r.route==='/analysis/successor-frame').length,1);assert.equal(p.continuityState().phase,'joining');
 });
+test('successor capture waits for predecessor join without reusing a waiting callback',async()=>{
+ const p=continuityPlayer({joinPending:true});await prepareContinuation(p);
+ await p.analysisFrame(1.2);await flush();await flush();
+ assert.equal(p.continuityState().phase,'joining');
+ const draws=p.drawSources.length;
+ await p.analysisFrame(1.3);await flush();
+ assert.equal(p.sent.filter(r=>r.route==='/analysis/successor-frame').length,0);
+ assert.equal(p.drawSources.length,draws,'waiting callback must not capture or retain G pixels');
+ p.confirmPredecessorJoin();p.advance(100);await flush();await flush();
+ assert.equal(p.continuityState().phase,'pair');
+ await p.analysisFrame(1.4);await flush();
+ const next=p.sent.filter(r=>r.route==='/analysis/successor-frame').map(rgbPacket);
+ assert.equal(next.length,1);assert.equal(next[0].header.media_us,1400000);
+});
+
 test('continuity is explicit and prepares one successor without changing active epoch',async()=>{
  const ordinary=continuityPlayer({enabled:false});await prepareContinuation(ordinary);assert.ok(!ordinary.sent.some(r=>r.route==='/media/continue'));assert.equal(jsonBody(ordinary.sent.find(r=>r.route==='/start')).analysis.continuity,undefined);
  const p=continuityPlayer({preparing:1});await prepareContinuation(p);assert.equal(jsonBody(p.sent.find(r=>r.route==='/start')).analysis.continuity,true);assert.equal(p.continuityState().epoch,'epoch-one');assert.equal(p.continuityState().phase,'preparing');p.advance(100);await flush();assert.equal(p.continuityState().phase,'boundary');assert.equal(p.sent.filter(r=>r.route==='/media/continue').length,1);assert.equal(p.sent.filter(r=>r.route==='/analysis/prepare').length,2);assert.equal(p.continuityState().prepareId,'successor-prepare-one');assert.equal(p.sent.filter(r=>r.route==='/player/start').length,1);
@@ -1091,7 +1243,7 @@ function twoTransferHspPlayer(){
  const epoch=n=>n===1?'epoch-one':n===2?'epoch-two':'epoch-three';
  const feed=n=>({feed_id:'analysis-feed-'+n,role:'lookahead',generation:selectedPlayer.generation,player:selectedPlayer,capture_epoch:epoch(n),policy});
  const base=()=>({active:true,identity:{epoch:epoch(current)},options:{lease_ms:30000,policy:{maximum_analysis_age_ns:2e9}},inference:{completed:0}});
- const transfer=phase=>({original_request_id:'transfer-'+current,preparation_request_id:'successor-prepare-'+current,predecessor:{epoch:epoch(current)},successor:{epoch:epoch(current+1)},boundary:{native_only:true},phase,predecessor_worker_joined:phase==='transferred',predecessor_delivery_settled:phase==='transferred',successor_pair_accepted:!!nextUpload});
+ const transfer=phase=>({original_request_id:'transfer-'+current,preparation_request_id:'successor-prepare-'+current,predecessor:{epoch:epoch(current)},successor:{epoch:epoch(current+1)},boundary:{native_only:true},phase,predecessor_worker_joined:phase!=='boundary_reserved'&&phase!=='joining_predecessor',predecessor_delivery_settled:phase!=='boundary_reserved'&&phase!=='joining_predecessor',successor_pair_accepted:!!nextUpload});
  const pending=phase=>({...base(),browser:{analysis_feed:feed(current),analysis_last_upload:upload,analysis_successor:{original_request_id:'successor-prepare-'+current,feed:successor,report:{original_request_id:'successor-prepare-'+current,predecessor:{epoch:epoch(current)},successor:{identity:{epoch:epoch(current+1)},options:{lease_ms:30000}},phase:'prepared'},transfer:phase?transfer(phase):null,last_upload:nextUpload}}});
  const p=hspPlayer({replyOverride:r=>{
   if(r.route==='/start'){const start=jsonBody(r);policy=start.analysis.policy;selectedPlayer={launch_id:r.headers['X-Pulsar-Launch'],page_id:r.headers['X-Pulsar-Page'],player_id:r.headers['X-Pulsar-Player'],source_id:r.headers['X-Pulsar-Source'],generation:Number(r.headers['X-Pulsar-Generation']),time_basis:start.source_time_basis};}
@@ -1101,9 +1253,9 @@ function twoTransferHspPlayer(){
   if(r.route==='/player/timing-next-probe')return ok({sequence:String(++sequence),probe_id:'next-probe-'+sequence,probe_timeout_ms:1000,observation_timeout_ms:3000});
   if(r.route==='/player/timing-next-observe')return ok({current:true,qualified:false,observation:{sequence:jsonBody(r).sequence}});
   if(r.route==='/analysis/prepare'){successor=feed(current+1);nextUpload=null;return ok(pending());}
-  if(r.route==='/analysis/transfer')return ok(pending('boundary_reserved'));
-  if(r.route==='/analysis/successor-frame'){const h=rgbPacket(r).header;nextUpload={media_us:h.media_us,observation:h.analysis};return ok(pending('joining_predecessor'));}
-  if(r.route==='/analysis/transfer-status'){if(!nextUpload)return ok(pending('joining_predecessor'));const completed=transfer('transferred');current++;upload=nextUpload;return ok({...base(),browser:{analysis_feed:feed(current),analysis_last_upload:upload,analysis_transfer_completed:completed,analysis_continuity:{enabled:true,prepare_due:current<3,media_preparation_request_id:'media-prepare-'+current}}});}
+  if(r.route==='/analysis/transfer')return ok(pending('awaiting_successor_pair'));
+  if(r.route==='/analysis/successor-frame'){const h=rgbPacket(r).header;nextUpload={media_us:h.media_us,observation:h.analysis};return ok(pending('ready_for_transfer'));}
+  if(r.route==='/analysis/transfer-status'){if(!nextUpload)return ok(pending('awaiting_successor_pair'));const completed=transfer('transferred');current++;upload=nextUpload;return ok({...base(),browser:{analysis_feed:feed(current),analysis_last_upload:upload,analysis_transfer_completed:completed,analysis_continuity:{enabled:true,prepare_due:current<3,media_preparation_request_id:'media-prepare-'+current}}});}
   if(r.route==='/analysis/finish'||r.route==='/analysis/finish-status')return ok({...base(),browser:{analysis_feed:feed(current),analysis_last_upload:upload,analysis_finish_request_id:'finish-'+current,analysis_final_result_matches:false},input_close:{original_request_id:'finish-'+current,phase:'sealed',disposition:'accepted',worker_joined:true,delivery_settled:true}});
  }});p.elements['analysis-continuity'].checked=true;return p;
 }
@@ -1138,4 +1290,43 @@ test('HSP lifecycle archive is bounded and allowlisted; explicit Inspect resets 
  const p=hspPlayer();await inspectHspPlayer(p);const previous_lifecycles=Array.from({length:10},(_,n)=>({player_id:'previous-player-'+n,prepare_request_id:'prepare-'+n,stream_request_id:'stream-'+n,play_request_id:'play-'+n,enable_request_id:null,stop_request_id:'stop-'+n,cancel_request_id:null,phase:'cleanup_confirmed',owner_proof:'archive-secret',raw:{credential:'archive-secret'},media_url:'archive-secret'}));p.setHspView({previous_lifecycles});hspAck(p,'prepare','environment','online','play','continuity');await p.elements['hsp-status'].onclick();
  const details=JSON.parse(p.elements['hsp-details'].textContent);assert.equal(details.previous_lifecycles.length,8);assert.equal(details.previous_lifecycles[0].player_id,'previous-player-2');assert.equal(details.previous_lifecycles.at(-1).stop_request_id,'stop-9');assert.equal(details.previous_lifecycles.at(-1).enable_request_id,null);assert.equal(details.previous_lifecycles.at(-1).phase,'cleanup_confirmed');assert.deepEqual(Object.keys(details.previous_lifecycles[0]),['player_id','prepare_request_id','stream_request_id','play_request_id','enable_request_id','stop_request_id','cancel_request_id','phase']);assert.ok(!p.elements['hsp-details'].textContent.includes('archive-secret'));assert.equal(p.elements['hsp-prepare-ack'].checked,true);
  await p.elements['hsp-inspect'].onclick();for(const id of ['prepare','environment','online','play','continuity'])assert.equal(p.elements['hsp-'+id+'-ack'].checked,false);assert.ok(!p.sent.some(r=>/^\/player\/hsp-(prepare|bind|play|continuity-enable)$/.test(r.route)));assert.equal(JSON.parse(p.elements['hsp-details'].textContent).previous_lifecycles.length,8);
+});
+
+
+test('fallback handover drops old observations and keeps the original deadline',()=>{
+ const p=player();
+ const result=p.evaluate(`(()=>{
+  generation=9;
+  const scope={launch_id:'l',page_id:'p',player_id:'v',source_id:'s',generation:9,time_basis:'source_media_presentation'};
+  const policy={minimum_lead_us:1,target_lead_us:2,maximum_lead_us:3};
+  const state={selection:{policy},feed:{feed_id:'old',capture_epoch:'old-epoch'},captureDeadline:10000,lastSubmitted:{old:true},lastAck:{old:true},fallbackTimer:null};
+  futureEstimates=[{position:0.8}];lastFutureEstimate={time:1};
+  const waiting={identity:{epoch:'old-epoch'},browser:{analysis_fallback:{phase:'waiting'}}};
+  const dropped=receiveAnalysisFallback(waiting,state,scope);
+  const report={identity:{epoch:'new-epoch'},active:true,inference:{state:'running',fallback:{history:[{failure:{manifest:{stream:{identity:{epoch:'old-epoch'}}}}}]}},browser:{analysis_fallback:{phase:'ready',target_epoch:'new-epoch',provider:'cpu'},analysis_feed:{feed_id:'new',capture_epoch:'new-epoch',role:'lookahead',generation:9,player:scope,policy}}};
+  const switched=receiveAnalysisFallback(report,state,scope);
+  return JSON.stringify({dropped,switched,epoch,feed:state.feed.feed_id,deadline:state.captureDeadline,waiting:state.fallbackWaiting,lastAck:state.lastAck,future:futureEstimates.length});
+ })()`);
+ assert.deepEqual(JSON.parse(result),{dropped:true,switched:true,epoch:'new-epoch',feed:'new',deadline:10000,waiting:false,lastAck:null,future:0});
+ assert.equal(p.sent.length,0);assert.equal(p.drawSources.length,0);
+});
+
+test('fallback refuses missing original history and expired original deadline',()=>{
+ const p=player();
+ for(const mode of ['history','deadline']) {
+  assert.throws(()=>p.evaluate(`(()=>{generation=9;const state={feed:{feed_id:'old',capture_epoch:'old-epoch'},captureDeadline:${mode==='deadline'?0:10000}};return receiveAnalysisFallback({identity:{epoch:'new'},active:true,inference:{state:'running',fallback:{history:[]}},browser:{analysis_fallback:{phase:'ready',target_epoch:'new'}}},state,{});})()`),mode==='deadline'?/deadline expired/:/original failure/);
+ }
+ assert.equal(p.sent.length,0);
+});
+
+test('selected startup releases its original feed only after ready without extending its deadline',()=>{
+ const p=player();
+ const result=p.evaluate(`(()=>{const state={feed:{feed_id:'original',capture_epoch:'original-epoch'},captureDeadline:10000,fallbackTimer:null};receiveAnalysisFallback({identity:{epoch:'original-epoch'},browser:{analysis_fallback:{phase:'waiting'}}},state,{});const waiting=state.fallbackWaiting;const discarded=receiveAnalysisFallback({identity:{epoch:'original-epoch'},browser:{analysis_fallback:{phase:'ready'}}},state,{});return JSON.stringify({waiting,discarded,ready:!state.fallbackWaiting,deadline:state.captureDeadline});})()`);
+ assert.deepEqual(JSON.parse(result),{waiting:true,discarded:true,ready:true,deadline:10000});assert.equal(p.sent.length,0);assert.equal(p.drawSources.length,0);
+});
+
+test('initial ready-channel opening discards its submitted frame without requiring an upload ack',()=>{
+ const p=player();
+ const result=p.evaluate(`(()=>{const state={feed:{feed_id:'original',capture_epoch:'original-epoch'},captureDeadline:10000,fallbackWaiting:false,lastSubmitted:{old:true},lastAck:null};const discarded=receiveAnalysisFallback({identity:{epoch:'original-epoch'},browser:{analysis_frame_discarded:true,analysis_fallback:{phase:'ready'}}},state,{});return JSON.stringify({discarded,lastSubmitted:state.lastSubmitted,deadline:state.captureDeadline});})()`);
+ assert.deepEqual(JSON.parse(result),{discarded:true,lastSubmitted:null,deadline:10000});assert.equal(p.sent.length,0);
 });

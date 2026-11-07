@@ -16,6 +16,7 @@ fn request() -> AssistantWorkerRequest {
         byte_len: 1,
     };
     AssistantWorkerRequest {
+        execution: None,
         vision: None,
         version: PROTOCOL_VERSION,
         attempt_id: AttemptId::new("assistant-fixture").unwrap(),
@@ -187,7 +188,10 @@ fn actual_engine_parent_runs_pinned_learned_proposal() {
 #[test]
 fn escaped_context_refuses_before_asset_reads_or_admission() {
     let mut r = request();
-    r.system_context = "\u{1}".repeat(8192);
+    // Control characters expand under JSON escaping, so a context that is admissible
+    // as bytes can still exceed the encoded transport cap. Size the fixture at the
+    // current byte budget so the expansion, not the raw length, is what refuses.
+    r.system_context = "\u{1}".repeat(pulsar_protocol::MAX_ASSISTANT_SYSTEM_CONTEXT_BYTES);
     assert!(r.validate().is_ok());
     assert_eq!(
         validate_request(&r).unwrap_err().code,

@@ -352,20 +352,22 @@ impl HandyHspTransport {
             .build()
             .into();
         let uri = format!("{}{}", self.origin, path);
+        let bearer = self
+            .credentials
+            .bearer()
+            .map_err(|_| HspDispatchFailure::Credentials)?;
         let mut request = match method {
             "GET" => agent.get(uri).force_send_body(),
             "PUT" => agent.put(uri),
             _ => return Err(HspDispatchFailure::BindingMismatch),
         }
-        .header("X-Api-Key", &self.credentials.api)
+        .header("Authorization", format!("Bearer {bearer}"))
         .header("X-Connection-Key", &self.credentials.connection)
         .header("Accept", "application/json");
-        for name in ["X-Api-Key", "X-Connection-Key"] {
-            request
-                .headers_mut()
-                .and_then(|h| h.get_mut(name))
-                .ok_or(HspDispatchFailure::Credentials)?
-                .set_sensitive(true);
+        for name in ["Authorization", "X-Connection-Key"] {
+            if let Some(value) = request.headers_mut().and_then(|h| h.get_mut(name)) {
+                value.set_sensitive(true);
+            }
         }
         check()?;
         let remaining = window.remaining(clock, cancelled)?;

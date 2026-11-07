@@ -1,4 +1,4 @@
-> **Historical planning/status:** Current feature scope and delivery order are in [PULSAR_PROJECT.md](PULSAR_PROJECT.md); current task/evidence state is in the [execution dashboard](PULSAR_MILESTONES.md). Technical contracts and scoped receipts below remain references, not a separate work queue.
+> **Historical planning/status:** [PULSAR_PROJECT.md](PULSAR_PROJECT.md) owns current scope and delivery order; the [execution dashboard](PULSAR_MILESTONES.md) owns task/evidence state. Technical obligations and scoped receipts below remain references.
 
 # Pulsar items 2-3: implementation handoff
 

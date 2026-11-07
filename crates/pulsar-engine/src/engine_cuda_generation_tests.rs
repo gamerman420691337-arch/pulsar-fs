@@ -1341,6 +1341,7 @@ mod native_cuda_generation {
                 source: source.clone(),
             };
             let options = LiveCaptureOptions {
+                inference_fallback: None,
                 browser_analysis: None,
                 browser_media: None,
                 model_pack: None,
@@ -1496,9 +1497,13 @@ mod native_cuda_generation {
                 runtime,
                 cancel.clone(),
             );
-            let (manifest, mut live) = engine
+            let started = engine
                 .start_live_cuda(&intent, stream, scope, cancel, origin, end)
                 .unwrap();
+            let engine_live_cuda::LiveCudaStartup::Ready(ready) = started else {
+                panic!("qualified native fixture requires actual CUDA Ready")
+            };
+            let (manifest, mut live) = *ready;
             let foreign = crate::live_frames::LiveRgbRuntime::new(
                 &engine.pool,
                 identity.clone(),

@@ -50,9 +50,45 @@ pub(crate) fn shape(db: &Connection) -> Result<(i64, i64)> {
 /// those layouts using 20 only after validating the actual new reader barrier.
 /// A table under a downgraded header, or a future schema, is always refused.
 pub(crate) fn base_version(db: &Connection, expected: i64) -> Result<i64> {
+    let expected = if expected == 43 {
+        ensure!(
+            db.query_row("PRAGMA main.user_version", [], |r| r.get::<_, i64>(0))? == 43,
+            "browser archive delegation header differs"
+        );
+        crate::portable_browser_history_reader::version(db)?
+    } else {
+        expected
+    };
+    let expected = if expected == 42 {
+        ensure!(
+            crate::portable_browser_history_reader::version(db)? == 42,
+            "browser fallback delegation header differs"
+        );
+        crate::browser_fallback_reader::version(db)?
+    } else {
+        expected
+    };
+    let expected = if expected == 41 {
+        ensure!(
+            crate::browser_fallback_reader::version(db)? == 41,
+            "fallback graph delegation header differs"
+        );
+        crate::portable_fallback_graph_reader::version(db)?
+    } else {
+        expected
+    };
+    let expected = if expected == 40 {
+        ensure!(
+            crate::portable_fallback_graph_reader::version(db)? == 40,
+            "portable fallback delegation header differs"
+        );
+        crate::portable_fallback_reader::version(db)?
+    } else {
+        expected
+    };
     let expected = if expected == 39 {
         ensure!(
-            db.query_row("PRAGMA main.user_version", [], |row| row.get::<_, i64>(0))? == 39,
+            crate::portable_fallback_reader::version(db)? == 39,
             "portable CPU delegation header differs"
         );
         crate::portable_cpu_archives::version(db)?
@@ -308,20 +344,9 @@ pub(crate) mod tests {
     use super::*;
     pub(crate) fn evidence(pool: &ResourcePool) -> LiveCudaEvidence {
         let admission = EvidenceAdmission::reserve(pool).unwrap();
-        let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(
-            "../../docs/evidence/roadmap-2026-10-07/live-cuda-provisional-report/native-engine",
-        );
-        let manifest =
-            serde_json::from_slice(&std::fs::read(base.join("manifest.json")).unwrap()).unwrap();
-        let summary =
-            serde_json::from_slice(&std::fs::read(base.join("summary.json")).unwrap()).unwrap();
+        let (manifest, summary, receipt, trace) = crate::live_cuda_evidence::tests::original();
         admission
-            .finished(
-                &manifest,
-                &summary,
-                std::fs::read(base.join("receipt.json")).unwrap(),
-                std::fs::read(base.join("original-trace.json")).unwrap(),
-            )
+            .finished(&manifest, &summary, receipt, trace)
             .unwrap()
     }
     pub(crate) fn fixture(evidence: &LiveCudaEvidence) -> Connection {

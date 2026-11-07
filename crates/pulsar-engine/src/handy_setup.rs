@@ -31,6 +31,7 @@ pub(super) fn status_from_observation(
                 J::Acknowledged => HandySetupState::Acknowledged,
                 J::Unknown => HandySetupState::Unknown,
                 J::Cancelled => HandySetupState::Cancelled,
+                J::Retired => HandySetupState::Retired,
             };
             Ok(HandySetupHistory {
                 record_id: ArtifactId::new(value.id).map_err(internal)?,
@@ -272,7 +273,7 @@ impl Engine {
         }
         let second = device(captured.credentials.clone(), deadline)?;
         second.validate()?;
-        if !first.same_state(&second) {
+        if !first.same_configuration(&second) {
             return Err(changed(
                 "Handy identity, mode generation, operative settings or remote playback state changed during inspection",
             ));

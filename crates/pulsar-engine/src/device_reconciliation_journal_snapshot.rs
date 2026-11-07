@@ -47,6 +47,7 @@ impl State {
             "acknowledged" => Self::Acknowledged,
             "unknown" => Self::Unknown,
             "cancelled" => Self::Cancelled,
+            "retired" => Self::Cancelled,
             _ => anyhow::bail!("invalid custody state"),
         })
     }

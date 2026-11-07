@@ -16,10 +16,7 @@ fn handy_session_open_request(f: &Fixture, id: &str, registration: &HandyRegistr
     r
 }
 fn handy_session_credentials() -> Arc<crate::handy_credentials::Credentials> {
-    Arc::new(crate::handy_credentials::Credentials {
-        api: "synthetic-api-secret".into(),
-        connection: "synthetic-route-secret".into(),
-    })
+    Arc::new(crate::handy_credentials::Credentials::for_test("synthetic-api-secret", "synthetic-route-secret"))
 }
 fn handy_session_observation() -> HandyInspection {
     HandyInspection {

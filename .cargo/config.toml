@@ -1,2 +1,1 @@
-[build]
-rustflags = ["-C", "target-cpu=native"]
+# Use Rust target defaults so binaries and dependency feature detection remain portable.

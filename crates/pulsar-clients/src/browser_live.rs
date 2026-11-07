@@ -11,8 +11,9 @@ use std::{
 };
 
 const BODY_LIMIT: usize = LIVE_FRAME_BYTES + 1024;
-const SUCCESSOR_PREPARE_LEASE_DIVISOR: u64 = 4;
 const PAGE: &str = include_str!("browser_live.html");
+#[path = "browser_live_fallback.rs"]
+mod fallback;
 #[path = "browser_player_http.rs"]
 mod player_http;
 #[path = "browser_source_media.rs"]
@@ -1484,39 +1485,6 @@ struct Preview {
     export: Option<ExportIntent>,
     gap: Option<GapIntent>,
 }
-
-fn analysis_successor_prepare_due(
-    report: Option<&LiveCaptureReport>,
-    media_expires: Option<Instant>,
-    media_lease_ms: u32,
-    successor_exists: bool,
-    now: Instant,
-) -> bool {
-    let Some(report) = report else {
-        return false;
-    };
-    if successor_exists
-        || !report.active
-        || !report
-            .inference
-            .as_ref()
-            .is_some_and(|inference| inference.state == LiveCaptureInferenceState::Running)
-    {
-        return false;
-    }
-    let capture_threshold_ns = u64::from(report.options.lease_ms).saturating_mul(1_000_000)
-        / SUCCESSOR_PREPARE_LEASE_DIVISOR;
-    let capture_due = report
-        .server_elapsed
-        .is_some_and(|elapsed| elapsed.0 >= capture_threshold_ns);
-    let media_due = media_expires
-        .and_then(|expires| {
-            expires.checked_sub(Duration::from_millis(u64::from(media_lease_ms) / 2))
-        })
-        .is_some_and(|deadline| now >= deadline);
-    capture_due || media_due
-}
-
 fn set_browser_capture_anchor(
     options: &mut LiveCaptureOptions,
     media_us: i64,
@@ -3143,20 +3111,16 @@ impl Preview {
                 !page.active && !page.discarded,
                 "stop the capture before saving retained recording"
             );
-            let signature = serde_json::to_vec(&(
-                &page.model_pack,
-                &page.source_time_basis,
-                &page.engine_epoch,
-                &page.identity,
-                &page.clock,
-                &page.profile,
-                &page.inference_attempt,
-                &page.recording_request_id,
-                page.maximum_samples,
-                page.total_samples,
-                page.exhausted,
-                &page.retirement,
-            ))?;
+            // Preserve all declaration fields, including fallback and captured
+            // runtime provenance, while allowing only the page cursor to move.
+            let mut header = serde_json::to_value(&page)?;
+            let fields = header
+                .as_object_mut()
+                .context("recording page header absent")?;
+            for key in ["after", "next", "samples"] {
+                fields.remove(key);
+            }
+            let signature = serde_json::to_vec(&header)?;
             if let Some(expected) = &first {
                 ensure!(*expected == signature, "recording changed during readback");
             } else {
@@ -3431,9 +3395,13 @@ impl Preview {
             self.promote_analysis_successor()?;
         } else {
             let next = self.analysis_successor.as_mut().unwrap();
-            if next.bulk.is_none() {
-                // Reservation installs the original F seed and opens B ingress.
-                // Preparing B alone must not establish a bulk writer yet.
+            if next.bulk.is_none()
+                && next.transfer.as_ref().is_some_and(|transfer| {
+                    transfer.predecessor_worker_joined && transfer.predecessor_delivery_settled
+                })
+            {
+                // Capture G only after A has actually joined: an early accepted
+                // G can otherwise age out while predecessor custody retires.
                 let prepared = next
                     .report
                     .as_ref()
@@ -3507,13 +3475,18 @@ impl Preview {
             .context("successor absent")?;
         ensure!(
             !next.pair_sent
-                && next.transfer.as_ref().is_some_and(|t| matches!(
-                    t.phase,
-                    BrowserAnalysisTransferPhase::BoundaryReserved
-                        | BrowserAnalysisTransferPhase::JoiningPredecessor
-                        | BrowserAnalysisTransferPhase::AwaitingSuccessorPair
-                )),
-            "successor pair already submitted or transfer not reserved"
+                && next
+                    .transfer
+                    .as_ref()
+                    .is_some_and(|t| t.predecessor_worker_joined
+                        && t.predecessor_delivery_settled
+                        && matches!(
+                            t.phase,
+                            BrowserAnalysisTransferPhase::BoundaryReserved
+                                | BrowserAnalysisTransferPhase::JoiningPredecessor
+                                | BrowserAnalysisTransferPhase::AwaitingSuccessorPair
+                        )),
+            "successor pair already submitted, transfer not reserved, or predecessor join pending"
         );
         ensure!(
             self.last_time.is_none_or(|t| frame.media_us > t),
@@ -3657,7 +3630,7 @@ impl Preview {
                             transfer_request_id: id.clone(),
                         },
                         Some(self.project.clone()),
-                        Some(self.revision),
+                        None,
                     )
                     .and_then(|reply| match reply {
                         ResponseBody::BrowserAnalysisTransfer(report) => {
@@ -3684,7 +3657,9 @@ impl Preview {
             };
             match cancelled {
                 Ok(()) => self.analysis_successor = None,
-                Err(error) => failure = Some(error),
+                Err(error) => {
+                    failure.get_or_insert(error);
+                }
             }
         }
         self.analysis_commit = None;
@@ -3695,26 +3670,48 @@ impl Preview {
         if let Some(pending) = self.pending.as_mut() {
             pending.bulk = None;
         }
-        if let Some(pending) = &self.pending {
+        if let Some(expected) = self.pending.as_ref().map(|p| p.report.clone()) {
             let result = self.command(Command::StopLiveCapture {
-                epoch: pending.report.identity.epoch.clone(),
+                epoch: expected.identity.epoch.clone(),
             });
             match result {
-                Ok(r) if !r.active => self.pending = None,
-                Ok(_) => failure = Some(anyhow::anyhow!("pending capture stop not acknowledged")),
-                Err(e) => failure = Some(e),
-            }
-        }
-        if let Some(r) = &self.report {
-            let epoch = r.identity.epoch.clone();
-            let result = self.command(Command::StopLiveCapture { epoch });
-            match result {
-                Ok(r) => {
-                    ensure!(!r.active, "capture stop not acknowledged");
-                    self.report = None;
+                Ok(r)
+                    if !r.active
+                        && r.identity == expected.identity
+                        && r.engine_epoch == expected.engine_epoch
+                        && r.clock == expected.clock =>
+                {
+                    self.pending = None
+                }
+                Ok(_) => {
+                    failure.get_or_insert_with(|| {
+                        anyhow::anyhow!("pending capture stop not acknowledged")
+                    });
                 }
                 Err(e) => {
-                    failure = Some(e);
+                    failure.get_or_insert(e);
+                }
+            }
+        }
+        if let Some(expected) = self.report.clone() {
+            let epoch = expected.identity.epoch.clone();
+            let result = self.command(Command::StopLiveCapture { epoch });
+            match result {
+                Ok(r)
+                    if !r.active
+                        && r.identity == expected.identity
+                        && r.engine_epoch == expected.engine_epoch
+                        && r.clock == expected.clock =>
+                {
+                    self.report = None;
+                }
+                Ok(_) => {
+                    failure.get_or_insert_with(|| {
+                        anyhow::anyhow!("capture stop acknowledgement scope or state differs")
+                    });
+                }
+                Err(e) => {
+                    failure.get_or_insert(e);
                 }
             }
         }
@@ -3769,6 +3766,14 @@ impl Preview {
         let mut value =
             serde_json::to_value(self.report.as_ref().context("capture report absent")?)?;
         value["browser"] = serde_json::json!({"playback_epoch":self.playback_epoch,"handoffs":self.handoffs,"transition_drops":self.transition_drops,"pending_epoch":self.pending.as_ref().map(|p| &p.report.identity.epoch)});
+        if let Some(notice) = fallback::notice(self) {
+            value["browser"]["analysis_fallback"] = notice;
+            if value["browser"].get("analysis_feed").is_none() {
+                if let Some(feed) = &self.analysis_feed {
+                    value["browser"]["analysis_feed"] = serde_json::to_value(&feed.binding)?;
+                }
+            }
+        }
         if let Some(snapshot) = self.active_analysis_feed()? {
             value["browser"]["analysis_feed"] = serde_json::to_value(snapshot.binding)?;
             value["browser"]["measured_analysis_lead_us"] =
@@ -3779,13 +3784,8 @@ impl Preview {
                 value["browser"]["analysis_continuity"] = serde_json::json!({
                     "enabled":true,
                     "media_preparation_request_id":feed.media.preparation_request_id,
-                    "prepare_due":analysis_successor_prepare_due(
-                        self.report.as_ref(),
-                        feed.media_expires,
-                        feed.media.lease_ms,
-                        self.analysis_successor.is_some(),
-                        Instant::now(),
-                    ),
+                    "prepare_due":self.analysis_successor.is_none() && (self.report.as_ref().is_some_and(|r| r.server_elapsed.is_some_and(|t| t.0 >= u64::from(r.options.lease_ms) * 500_000))
+                        || feed.media_expires.and_then(|end| end.checked_sub(Duration::from_millis(u64::from(feed.media.lease_ms) / 2))).is_some_and(|at| Instant::now() >= at)),
                     "capture_remaining_ms":feed.capture_deadline.map(|end| u64::try_from(end.saturating_duration_since(Instant::now()).as_millis()).unwrap_or(u64::MAX)),
                 });
             }
@@ -4175,8 +4175,18 @@ impl Preview {
             self.report = Some(report.clone());
             self.sequence = 0;
             self.last_time = None;
-            self.begin_recording(&report, report.identity.epoch.clone())?;
-            self.bulk = Some(self.client.open_live_bulk(&report)?);
+            if report.active && report.options.inference_fallback.is_none() {
+                self.begin_recording(&report, report.identity.epoch.clone())?;
+                self.bulk = Some(self.client.open_live_bulk(&report)?);
+            } else if !report.active {
+                ensure!(
+                    report
+                        .inference
+                        .as_ref()
+                        .is_some_and(|i| i.fallback_transition.is_some()),
+                    "capture retired before its original Start was confirmed"
+                );
+            }
             self.eligible_after = Instant::now();
             self.playback_epoch = Some(report.identity.epoch.clone());
             self.handoffs = 0;
@@ -4188,6 +4198,17 @@ impl Preview {
             .as_ref()
             .context("start playback capture first")?;
         if request.path == "/frame" {
+            if self
+                .report
+                .as_ref()
+                .is_some_and(|r| r.options.inference_fallback.is_some())
+            {
+                let prior = self.report.clone().expect("current capture");
+                self.report = Some(self.capture_status(&prior)?);
+                if fallback::reconcile(self)? {
+                    return fallback::discarded_view(self);
+                }
+            }
             ensure!(
                 self.analysis_successor
                     .as_ref()
@@ -4227,7 +4248,23 @@ impl Preview {
                 "one 64x64 RGB frame required"
             );
             let time = SourceTimestamp::new(frame.media_us, 1_000_000)?;
-            let uploaded = self.upload_frame(time, pixels, received)?;
+            let uploaded = match self.upload_frame(time, pixels, received) {
+                Ok(uploaded) => uploaded,
+                Err(error)
+                    if self
+                        .report
+                        .as_ref()
+                        .is_some_and(|r| r.options.inference_fallback.is_some()) =>
+                {
+                    let prior = self.report.clone().expect("original capture");
+                    self.report = Some(self.capture_status(&prior)?);
+                    if fallback::reconcile(self)? {
+                        return fallback::discarded_view(self);
+                    }
+                    return Err(error);
+                }
+                Err(error) => return Err(error),
+            };
             self.last_time = Some(frame.media_us);
             if let Some(feed) = &mut self.analysis_feed {
                 feed.last_upload = Some(AnalysisUploadReceipt {
@@ -4273,6 +4310,7 @@ impl Preview {
             return self.view();
         }
         self.report = Some(report);
+        fallback::reconcile(self)?;
         self.view()
     }
 }
@@ -4457,6 +4495,110 @@ pub(crate) fn run_controlled(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn capture_cleanup_preserves_first_failure_and_attempts_both_originals() {
+        use std::os::unix::net::UnixListener;
+
+        let root = tempfile::tempdir().unwrap();
+        let endpoint = root.path().join("engine.sock");
+        let listener = UnixListener::bind(&endpoint).unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let server = std::thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(4);
+            let mut epochs = Vec::new();
+            while epochs.len() < 2 && Instant::now() < deadline {
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        stream
+                            .set_read_timeout(Some(Duration::from_secs(1)))
+                            .unwrap();
+                        let request: pulsar_protocol::Request =
+                            pulsar_protocol::read_message(&mut stream).unwrap();
+                        let Command::StopLiveCapture { epoch } = &request.command else {
+                            panic!("unexpected cleanup command")
+                        };
+                        epochs.push(epoch.clone());
+                        let message = if epochs.len() == 1 {
+                            "first pending stop failed"
+                        } else {
+                            "second active stop failed"
+                        };
+                        pulsar_protocol::write_message(
+                            &mut stream,
+                            &pulsar_protocol::Response::failure(
+                                request.request_id,
+                                ProtocolError::new(ErrorCode::Unavailable, message),
+                            ),
+                        )
+                        .unwrap();
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(5));
+                    }
+                    Err(error) => panic!("listener failed: {error}"),
+                }
+            }
+            epochs
+        });
+        let original: LiveCaptureReport = serde_json::from_str(include_str!(
+            "../../pulsar-protocol/tests/fixtures/live-cpu-capture-report.json"
+        ))
+        .unwrap();
+        let mut pending = original.clone();
+        pending.identity.epoch = AttemptId::new("pending-capture").unwrap();
+        let mut client = SessionClient::from_credentials(
+            &endpoint,
+            SessionId::new("cleanup-session").unwrap(),
+            "synthetic-token".into(),
+        )
+        .unwrap();
+        client.set_operation_deadline(Some(Instant::now() + Duration::from_secs(3)));
+        let mut preview = Preview {
+            client,
+            project: original.identity.project.clone(),
+            revision: original.identity.revision,
+            options: original.options.clone(),
+            report: Some(original.clone()),
+            analysis_feed: None,
+            analysis_successor: None,
+            analysis_commit: None,
+            analysis_last_transfer: None,
+            analysis_cancelled: false,
+            bulk: None,
+            sequence: 0,
+            last_time: None,
+            blocked: false,
+            playback_epoch: None,
+            pending: Some(Pending {
+                report: pending.clone(),
+                bulk: None,
+                sequence: 0,
+                eligible_after: Instant::now(),
+            }),
+            eligible_after: Instant::now(),
+            handoffs: 0,
+            transition_drops: 0,
+            recording_maximum: None,
+            recordings: vec![],
+            retired_recordings: vec![],
+            candidate: None,
+            export: None,
+            gap: None,
+        };
+        let error = preview.stop().unwrap_err().to_string();
+        let epochs = server.join().unwrap();
+        assert_eq!(
+            epochs,
+            vec![pending.identity.epoch, original.identity.epoch]
+        );
+        assert!(preview.blocked && preview.pending.is_some() && preview.report.is_some());
+        preview.pending = None;
+        preview.report = None;
+        assert!(error.contains("first pending stop failed"), "{error}");
+    }
+
     #[test]
     fn recording_candidate_recovery_restores_no_review_or_commit_authority() {
         let project = ProjectId::new("candidate-project").unwrap();

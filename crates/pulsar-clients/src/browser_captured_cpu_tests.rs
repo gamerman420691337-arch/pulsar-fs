@@ -10,10 +10,12 @@ fn artifact(value: u8) -> ArtifactIdentity {
     }
 }
 fn host_report() -> LiveCaptureReport {
-    let report: LiveCaptureReport = serde_json::from_str(include_str!(
+    let mut report: LiveCaptureReport = serde_json::from_str(include_str!(
         "../../pulsar-protocol/tests/fixtures/live-cpu-capture-report.json"
     ))
     .unwrap();
+    report.options.inference.as_mut().unwrap().model_path =
+        std::env::temp_dir().join("fixture-model.onnx");
     report.validate().unwrap();
     report
 }
@@ -48,7 +50,7 @@ fn bind_captured_report(report: &mut LiveCaptureReport, manifest: LiveCpuInferen
     inference.cpu_manifest = Some(Box::new(manifest));
     report.validate().unwrap();
 }
-fn captured_report() -> LiveCaptureReport {
+pub(super) fn captured_report() -> LiveCaptureReport {
     let mut report = host_report();
     let mut stream: LiveInferenceManifest = serde_json::from_str(include_str!(
         "../../pulsar-protocol/tests/fixtures/live-cpu-manifest.json"

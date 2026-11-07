@@ -65,10 +65,10 @@ pub(in crate::authority::handy_playback_preparation) struct PlayAuthority {
     pub request: Request,
     pub clock: Clock,
 }
-fn unavailable() -> ProtocolError {
+fn unavailable(why: &'static str) -> ProtocolError {
     ProtocolError::new(
         ErrorCode::DependencyMismatch,
-        "original Handy play authority is unavailable or changed",
+        format!("original Handy play authority is unavailable or changed ({why})"),
     )
 }
 fn history(
@@ -86,7 +86,7 @@ fn history(
         }
     };
     if value.project_id != project || value.play_request_id != request {
-        return Err(unavailable());
+        return Err(unavailable("play:89"));
     }
     value.validate()?;
     Ok(value)
@@ -101,7 +101,7 @@ fn save_play_witness(
     value.validate()?;
     if let Some(body) = replay(db, actor.as_str(), r, fingerprint)? {
         let ResponseBody::HandyPlayback(previous) = body else {
-            return Err(unavailable());
+            return Err(unavailable("play:104"));
         };
         previous.validate()?;
         if previous.project_id != value.project_id
@@ -113,7 +113,7 @@ fn save_play_witness(
                     .is_none_or(|v| v.record_id != h.record_id)
             })
         {
-            return Err(unavailable());
+            return Err(unavailable("play:116"));
         }
         if encode(&*previous)? == encode(value)? {
             return Ok(());
@@ -238,7 +238,7 @@ fn references(
         pins.captured.connection.registration.revision,
     )?;
     if registration.disabled || registration != pins.captured.connection.registration {
-        return Err(unavailable());
+        return Err(unavailable("play:242"));
     }
     let _memory = pool.reserve_memory(16 * 1024 * 1024)?;
     let timing = handy_qualification::accepted_timing(
@@ -249,7 +249,7 @@ fn references(
         &pins.captured.hosted,
     )?;
     if timing.configuration() != &r.effect.admission.configuration {
-        return Err(unavailable());
+        return Err(unavailable("play:255"));
     }
     if let Some(browser) = &pins.browser {
         crate::authority::handy_browser_start_qualification::revalidate_accepted_browser_start(
@@ -260,10 +260,10 @@ fn references(
     }
     let (fingerprint,raw):(String,String)=db.query_row("SELECT CASE WHEN length(fingerprint)=64 THEN fingerprint ELSE NULL END,CASE WHEN length(CAST(response AS BLOB))<=16384 THEN response ELSE NULL END FROM requests WHERE session=?1 AND request=?2",params![r.actor_session.as_str(),r.request_id.as_str()],|r|Ok((r.get(0)?,r.get(1)?))).map_err(internal)?;
     if fingerprint != r.request_fingerprint {
-        return Err(unavailable());
+        return Err(unavailable("play:267"));
     }
     let ResponseBody::HandyPlayback(saved) = decode(&raw)? else {
-        return Err(unavailable());
+        return Err(unavailable("play:270"));
     };
     saved.validate()?;
     if saved.project_id != c.project_id
@@ -273,7 +273,7 @@ fn references(
             .as_ref()
             .is_none_or(|h| h.record_id.as_str() != pins.id)
     {
-        return Err(unavailable());
+        return Err(unavailable("play:280"));
     }
     Ok(*saved)
 }
@@ -437,7 +437,7 @@ impl Engine {
     ) -> PResult<ResponseBody> {
         self.handy_playback_with(r, actor, fingerprint, Arc::new(boottime_ns), |e| {
             if !e.check_handy_controller_monitor()? {
-                return Err(unavailable());
+                return Err(unavailable("play:444"));
             }
             Ok(())
         })
@@ -458,16 +458,16 @@ impl Engine {
         let saved:Option<String>=db.query_row("SELECT CASE WHEN length(CAST(response AS BLOB))<=16384 THEN response ELSE NULL END FROM requests WHERE session=?1 AND request=?2",params![actor.as_str(),id.as_str()],|r|r.get(0)).optional().map_err(internal)?;
         if let Some(raw) = saved {
             let ResponseBody::HandyPlayback(witness) = decode(&raw)? else {
-                return Err(unavailable());
+                return Err(unavailable("play:465"));
             };
             witness.validate()?;
             if witness.project_id != *project(r)? || witness.play_request_id != *id {
-                return Err(unavailable());
+                return Err(unavailable("play:469"));
             }
             if witness.history.is_some() {
                 observed
                     .as_ref()
-                    .ok_or_else(unavailable)?
+                    .ok_or_else(|| unavailable("play:witness"))?
                     .check_witness(&witness)
                     .map_err(internal)?;
             }
@@ -508,11 +508,11 @@ impl Engine {
                 .map_err(internal)?
                 .play_request_history(actor, play_request_id)
                 .map_err(internal)?
-                .ok_or_else(unavailable)?;
+                .ok_or_else(|| unavailable("play:witness"))?;
             if observed.id != record_id.as_str()
                 || observed.record.original_controller.project_id != *project(r)?
             {
-                return Err(unavailable());
+                return Err(unavailable("play:519"));
             }
             if !matches!(
                 observed.state,
@@ -525,7 +525,7 @@ impl Engine {
             }
             if let Some(body) = replay(&db, actor.as_str(), r, fingerprint)? {
                 let ResponseBody::HandyPlayback(witness) = body else {
-                    return Err(unavailable());
+                    return Err(unavailable("play:532"));
                 };
                 observed.check_witness(&witness).map_err(internal)?;
             } else {
@@ -552,7 +552,7 @@ impl Engine {
             ));
             let body = self.play_status(&db, r, actor, play_request_id)?;
             let ResponseBody::HandyPlayback(status) = &body else {
-                return Err(unavailable());
+                return Err(unavailable("play:559"));
             };
             save_play_witness(&mut db, r, actor, fingerprint, status)?;
             return Ok(body);
@@ -591,7 +591,7 @@ impl Engine {
                 clock_request_id,
                 None,
             ),
-            _ => return Err(unavailable()),
+            _ => return Err(unavailable("play:598")),
         };
         let replayed = replay(&db, actor.as_str(), r, fingerprint)?;
         let observed = self
@@ -605,22 +605,22 @@ impl Engine {
                 Some(ResponseBody::HandyPlayback(saved)) => {
                     saved.validate()?;
                     if saved.project_id != *project(r)? || saved.play_request_id != r.request_id {
-                        return Err(unavailable());
+                        return Err(unavailable("play:612"));
                     }
                     Some(saved)
                 }
-                Some(_) => return Err(unavailable()),
+                Some(_) => return Err(unavailable("play:616")),
                 None => None,
             };
             if let Some(h) = &observed {
                 if h.record.request_fingerprint != fingerprint || !selected(r, &h.record) {
-                    return Err(unavailable());
+                    return Err(unavailable("play:621"));
                 }
                 if let Some(saved) = previous.as_ref().filter(|s| s.history.is_some()) {
                     h.check_witness(saved).map_err(internal)?;
                 }
             } else if previous.as_ref().is_some_and(|s| s.history.is_some()) {
-                return Err(unavailable());
+                return Err(unavailable("play:627"));
             }
             let status = history(project(r)?.clone(), r.request_id.clone(), observed)?;
             if previous.as_ref().is_none_or(|s| s.history.is_none()) && status.history.is_some() {
@@ -645,7 +645,7 @@ impl Engine {
                     .as_ref()
                     .map_or(*expected_generation, |owner| owner.selected_generation())
         {
-            return Err(unavailable());
+            return Err(unavailable("play:652"));
         }
         let browser_capture = if let Command::StartHandyPlaybackFromBrowser {
             browser_timing_binding_id,
@@ -659,7 +659,7 @@ impl Engine {
                 let entry = registry
                     .entries
                     .get(&live.preparation_id)
-                    .ok_or_else(unavailable)?;
+                    .ok_or_else(|| unavailable("play:witness"))?;
                 (
                     entry.captured.hosting.clone(),
                     entry.report.selection()?.qualification,
@@ -697,7 +697,7 @@ impl Engine {
             let e = registry
                 .entries
                 .get(&live.preparation_id)
-                .ok_or_else(unavailable)?;
+                .ok_or_else(|| unavailable("play:witness"))?;
             let route = crate::HandyRouteIdentity::from_snapshot(
                 &self.handy_owner_token,
                 &e.captured.credentials.connection,
@@ -711,7 +711,7 @@ impl Engine {
             .lock()
             .map_err(internal)?
             .play_route_available(&route, &namespace, &live.device_id, None)
-            .map_err(|_| unavailable())?;
+            .map_err(|_| unavailable("play:718"))?;
         let no_cancel = AtomicBool::new(false);
         let browser_claim = browser_capture
             .as_ref()
@@ -727,17 +727,20 @@ impl Engine {
             let e = registry
                 .entries
                 .get(&live.preparation_id)
-                .ok_or_else(unavailable)?;
-            let c = e.playback_clock.as_ref().ok_or_else(unavailable)?;
+                .ok_or_else(|| unavailable("play:witness"))?;
+            let c = e
+                .playback_clock
+                .as_ref()
+                .ok_or_else(|| unavailable("play:witness"))?;
             if c.report.request_id != *clock_request_id
                 || !playback_clock::sync_current(&registry, &c.sync)
             {
-                return Err(unavailable());
+                return Err(unavailable("play:739"));
             }
             let live = e
                 .controller
                 .as_ref()
-                .ok_or_else(unavailable)?
+                .ok_or_else(|| unavailable("play:witness"))?
                 .report
                 .clone();
             if live.state != HandyControllerState::Active
@@ -754,7 +757,7 @@ impl Engine {
                 })
                 || (browser_owner.is_none() && e.browser_owner.is_some())
             {
-                return Err(unavailable());
+                return Err(unavailable("play:761"));
             }
             let mut native = c.native.at(now)?;
             let selection = e.report.selection()?;
@@ -762,11 +765,11 @@ impl Engine {
             let shape = e.captured.hosted.sample_shape();
             let browser = if let Some((timing, accepted)) = &browser_capture {
                 if !accepted.current() {
-                    return Err(unavailable());
+                    return Err(unavailable("play:769"));
                 }
                 let observation = browser_claim
                     .as_ref()
-                    .ok_or_else(unavailable)?
+                    .ok_or_else(|| unavailable("play:witness"))?
                     .observation
                     .clone();
                 let alignment = accepted
@@ -783,7 +786,7 @@ impl Engine {
                     .map_err(internal)?;
                 browser_play::check_phase_coverage(&alignment, timing.binding(), &shape)?;
                 if alignment.total_error_ns > c.native.device.qualified.maximum_total_error_ns {
-                    return Err(unavailable());
+                    return Err(unavailable("play:790"));
                 }
                 let decision = HandyBrowserStartDecision {
                     qualification: accepted.binding().clone(),
@@ -799,7 +802,10 @@ impl Engine {
                     .valid_until_ns
                     .min(decision.alignment.valid_until_boottime_ns);
                 Some(Arc::new(browser_play::BrowserPlay {
-                    owner: browser_owner.as_ref().ok_or_else(unavailable)?.clone(),
+                    owner: browser_owner
+                        .as_ref()
+                        .ok_or_else(|| unavailable("play:witness"))?
+                        .clone(),
                     timing: timing.clone(),
                     qualification: accepted.clone(),
                     decision,
@@ -812,7 +818,7 @@ impl Engine {
                 .as_ref()
                 .map(|b| b.decision.alignment.start_time_ms)
                 .or(manual_start)
-                .ok_or_else(unavailable)?;
+                .ok_or_else(|| unavailable("play:witness"))?;
             if start_time_ms < shape.first_time_ms || start_time_ms > shape.last_time_ms {
                 return Err(ProtocolError::invalid(
                     "play start lies outside the verified script",
@@ -829,7 +835,7 @@ impl Engine {
             } else {
                 runtime.prepare_start(controller_id, native.clone(), start_time_ms)
             }
-            .map_err(|_| unavailable())?;
+            .map_err(|_| unavailable("play:836"))?;
             let effect = runtime
                 .dispatch_start(
                     start,
@@ -838,7 +844,7 @@ impl Engine {
                     &native.domain,
                     now,
                 )
-                .map_err(|_| unavailable())?;
+                .map_err(|_| unavailable("play:845"))?;
             let captured = (|| {
                 let record = PlayOperationRecord {
                     actor_session: actor.clone(),
@@ -882,7 +888,10 @@ impl Engine {
                     return Err(error);
                 }
             };
-            let l = e.controller.as_mut().ok_or_else(unavailable)?;
+            let l = e
+                .controller
+                .as_mut()
+                .ok_or_else(|| unavailable("play:witness"))?;
             l.report.state = HandyControllerState::Playing;
             l.report.physical_stop_pending = true;
             e.play = Some(pins.clone());
@@ -900,7 +909,7 @@ impl Engine {
                 })?;
             let body = self.play_status(&db, r, actor, &r.request_id)?;
             let ResponseBody::HandyPlayback(status) = &body else {
-                return Err(unavailable());
+                return Err(unavailable("play:907"));
             };
             save_play_witness(&mut db, r, actor, fingerprint, status)?;
             Ok::<_, ProtocolError>((prepared, body))

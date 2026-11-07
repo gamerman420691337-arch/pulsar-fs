@@ -169,14 +169,17 @@ impl HandyTransport {
             .proxy(None)
             .build()
             .into();
+        let bearer = self.credentials.bearer().ok()?;
         let mut builder = agent
             .put(format!("{}{}", self.origin, expected_path))
-            .header("X-Api-Key", &self.credentials.api)
+            .header("Authorization", format!("Bearer {bearer}"))
             .header("X-Connection-Key", &self.credentials.connection)
             .header("Accept", "application/json");
         // Redact custom authentication headers in dependency diagnostics too.
-        for name in ["X-Api-Key", "X-Connection-Key"] {
-            builder.headers_mut()?.get_mut(name)?.set_sensitive(true);
+        for name in ["Authorization", "X-Connection-Key"] {
+            if let Some(value) = builder.headers_mut().and_then(|h| h.get_mut(name)) {
+                value.set_sensitive(true);
+            }
         }
         // Recheck after request construction too. A suspend after the claim
         // cannot turn a still-live Instant budget into fresh play authority.

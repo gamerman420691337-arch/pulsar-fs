@@ -15,7 +15,7 @@ const CENSUS:&str="CREATE TABLE custody_resolution_census(singleton INTEGER PRIM
 const SETUP_ROUTES:&str="CREATE TABLE setup_custody_routes(route TEXT PRIMARY KEY NOT NULL,setup_id TEXT NOT NULL UNIQUE)";
 const SYNC_ROUTES:&str="CREATE TABLE clock_sync_custody_routes(route TEXT PRIMARY KEY NOT NULL,sync_id TEXT NOT NULL UNIQUE)";
 pub(super) const SETUP_HISTORY_INDEX: &str =
-    "CREATE INDEX setup_active_route ON setup_effects(route) WHERE state!='cancelled'";
+    "CREATE INDEX setup_active_route ON setup_effects(route) WHERE state NOT IN ('cancelled','retired')";
 pub(super) const SYNC_HISTORY_INDEX:&str="CREATE INDEX clock_sync_active_route ON clock_sync_effects(route) WHERE state IN ('prepared','claimed','unknown')";
 fn digest(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
@@ -220,7 +220,7 @@ pub(super) fn validate_routes(db: &Connection) -> Result<()> {
             "setup_id",
             "setup_effects",
             "setup",
-            "state!='cancelled'",
+            "state NOT IN ('cancelled','retired')",
         ),
         (
             "clock_sync_custody_routes",
@@ -244,7 +244,7 @@ pub(super) fn validate_routes(db: &Connection) -> Result<()> {
 }
 pub(super) fn update_setup_route(db: &Connection, id: &str) -> Result<()> {
     db.execute("DELETE FROM setup_custody_routes WHERE setup_id=?1", [id])?;
-    db.execute("INSERT INTO setup_custody_routes(route,setup_id) SELECT route,id FROM setup_effects s WHERE id=?1 AND state!='cancelled' AND NOT EXISTS(SELECT 1 FROM custody_resolution_members m WHERE m.kind='setup' AND m.id=s.id)",[id])?;
+    db.execute("INSERT INTO setup_custody_routes(route,setup_id) SELECT route,id FROM setup_effects s WHERE id=?1 AND state NOT IN ('cancelled','retired') AND NOT EXISTS(SELECT 1 FROM custody_resolution_members m WHERE m.kind='setup' AND m.id=s.id)",[id])?;
     Ok(())
 }
 pub(super) fn update_sync_route(db: &Connection, id: &str) -> Result<()> {

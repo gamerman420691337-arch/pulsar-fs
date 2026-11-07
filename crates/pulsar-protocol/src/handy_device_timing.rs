@@ -84,7 +84,9 @@ impl HandyDeviceTimingInspection {
         if self.synchronization_verified
             || self.playback_enabled
             || self.controller.state != HandyControllerState::Active
-            || !self.before.same_state(&self.after)
+            // Bracketing reads of an idle device differ only in advancing clock
+            // position, so configuration equality is the meaningful question here.
+            || !self.before.same_configuration(&self.after)
             || self.inspection_started_boottime_ns > self.first.read_started_boottime_ns
             || self.first.read_finished_boottime_ns > self.second.read_started_boottime_ns
             || self.second.read_finished_boottime_ns > self.inspection_finished_boottime_ns

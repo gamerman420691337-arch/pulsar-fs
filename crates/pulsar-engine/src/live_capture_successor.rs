@@ -20,6 +20,7 @@ struct SuccessorIdentity {
     preparation_request: RequestId,
     predecessor: NativeCaptureSelection,
     successor: NativeCaptureSelection,
+    semantics: ArtifactIdentity,
     expires_at_ns: u64,
     retired: AtomicBool,
     transfer_started: AtomicBool,
@@ -254,6 +255,7 @@ impl NativeCaptureTransferGuard<'_> {
         predecessor.runtime = None;
         predecessor.browser_media = None;
         predecessor.browser_analysis_pin = None;
+        predecessor.fallback = None;
         predecessor.native_accepted = None;
         predecessor.report.active = false;
         predecessor.report.retirement = Some(LiveCaptureRetirement::Superseded);
@@ -364,35 +366,75 @@ impl Registry {
                 "original successor reservation retired or consumed",
             ));
         }
-        for selected in [native.predecessor(), native.successor()] {
+        for (predecessor, selected) in [(true, native.predecessor()), (false, native.successor())] {
+            let source_refusal = |prior: &'static str, next: &'static str| {
+                refused(if predecessor { prior } else { next })
+            };
             let entry = self
                 .entries
                 .get(selected.identity.epoch.as_str())
                 .ok_or_else(|| refused("transfer epoch absent"))?;
-            if !entry.report.active
-                || entry.cancel.load(Ordering::Acquire)
-                || entry
-                    .native_delivery
-                    .as_ref()
-                    .is_some_and(|sink| !sink.current())
-                || selection(entry)? != *selected
-                || tick(entry).is_err()
-                || entry.created.elapsed()
-                    >= Duration::from_millis(u64::from(entry.report.options.lease_ms))
-                || entry.native_clock.latest_native()?.latest_ns >= native.expires_at_ns()
-                || entry
-                    .browser_media
-                    .as_ref()
-                    .is_none_or(|pin| !pin.current())
-                || entry.browser_analysis_pin.as_ref().is_none_or(|pin| {
-                    entry
-                        .native_clock
-                        .latest_native()
-                        .map_or(true, |at| !pin.current(at.latest_ns))
-                })
+            if !entry.report.active || entry.cancel.load(Ordering::Acquire) {
+                return Err(source_refusal(
+                    "original transfer predecessor capture retired",
+                    "original transfer successor capture retired",
+                ));
+            }
+            if entry
+                .native_delivery
+                .as_ref()
+                .is_some_and(|sink| !sink.current())
             {
-                return Err(refused(
-                    "original transfer source capability expired or changed",
+                return Err(source_refusal(
+                    "original transfer predecessor delivery retired",
+                    "original transfer successor delivery retired",
+                ));
+            }
+            if selection(entry)? != *selected {
+                return Err(source_refusal(
+                    "original transfer predecessor selection changed",
+                    "original transfer successor selection changed",
+                ));
+            }
+            if browser_inference_semantic_identity(&entry.report.options)? != native.0.semantics {
+                return Err(refused("original successor semantic declaration changed"));
+            }
+            if tick(entry).is_err() {
+                return Err(source_refusal(
+                    "original transfer predecessor native clock refused",
+                    "original transfer successor native clock refused",
+                ));
+            }
+            if entry.created.elapsed()
+                >= Duration::from_millis(u64::from(entry.report.options.lease_ms))
+            {
+                return Err(source_refusal(
+                    "original transfer predecessor capture lease expired",
+                    "original transfer successor capture lease expired",
+                ));
+            }
+            if entry.native_clock.latest_native()?.latest_ns >= native.expires_at_ns() {
+                return Err(refused("original transfer reservation deadline expired"));
+            }
+            if entry
+                .browser_media
+                .as_ref()
+                .is_none_or(|pin| !pin.current())
+            {
+                return Err(source_refusal(
+                    "original transfer predecessor media authority retired or expired",
+                    "original transfer successor media authority retired or expired",
+                ));
+            }
+            if entry.browser_analysis_pin.as_ref().is_none_or(|pin| {
+                entry
+                    .native_clock
+                    .latest_native()
+                    .map_or(true, |at| !pin.current(at.latest_ns))
+            }) {
+                return Err(source_refusal(
+                    "original transfer predecessor timing authority retired or expired",
+                    "original transfer successor timing authority retired or expired",
                 ));
             }
         }
@@ -498,12 +540,16 @@ impl Registry {
                 !matches!(
                     s.phase,
                     BrowserAnalysisSuccessorPhase::Active | BrowserAnalysisSuccessorPhase::Aborted
-                ) && self.check_successor(&s.native).is_err()
+                )
             })
-            .map(|s| s.native.0.id.clone())
+            .filter_map(|s| {
+                self.check_successor(&s.native)
+                    .err()
+                    .map(|error| (s.native.0.id.clone(), error))
+            })
             .collect();
-        for id in expired {
-            self.abort_successor(&id, refused("original successor lifetime retired"))?;
+        for (id, error) in expired {
+            self.abort_successor(&id, error)?;
         }
         Ok(())
     }
@@ -596,11 +642,23 @@ impl Registry {
         engine: &Engine,
         predecessor: &AttemptId,
     ) -> PResult<NativeCaptureSuccessor> {
+        self.authored_successor_sources_for_test(engine, predecessor, None)
+    }
+    pub(in crate::authority) fn authored_successor_sources_for_test(
+        &mut self,
+        engine: &Engine,
+        predecessor: &AttemptId,
+        sources: Option<(
+            super::super::browser_media::SourceMediaPin,
+            super::super::browser_timing::BrowserTimingPin,
+        )>,
+    ) -> PResult<NativeCaptureSuccessor> {
         let prior = self
             .entries
             .get(predecessor.as_str())
             .ok_or_else(|| refused("test predecessor absent"))?;
         let selected = selection(prior)?;
+        let semantics = browser_inference_semantic_identity(&prior.report.options)?;
         tick(prior)?;
         let a_until = prior
             .native_clock
@@ -619,6 +677,15 @@ impl Registry {
             .as_mut()
             .expect("browser test")
             .feed_id = id!(ArtifactId);
+        if let Some((media, timing)) = &sources {
+            options.browser_media = Some(media.binding().clone());
+            options
+                .browser_analysis
+                .as_mut()
+                .expect("browser test")
+                .timing_binding_id = timing.binding().binding_id.clone();
+        }
+        validate_browser_inference_semantic_successor(&prior.report.options, &options)?;
         let clock = options.clock(identity.epoch.clone());
         let mut info = prior
             .report
@@ -658,13 +725,14 @@ impl Registry {
             id: id!(ArtifactId),
             preparation_request: id!(RequestId),
             predecessor: selected,
+            semantics,
             successor: NativeCaptureSelection {
                 cpu_manifest_sha256: cpu_manifest_hash(&info)?,
                 owner: prior.owner.clone(),
                 identity: identity.clone(),
                 attempt_id: info.attempt_id,
                 profile_sha256: info.profile_sha256,
-                browser_media: prior.report.options.browser_media.clone().unwrap(),
+                browser_media: report.options.browser_media.clone().unwrap(),
             },
             expires_at_ns: a_until
                 .min(native_clock.lease_deadline(u64::from(report.options.lease_ms) * 1_000_000)?),
@@ -691,8 +759,16 @@ impl Registry {
             cancel: b_cancel,
             origin: None,
             recording: None,
-            browser_media: prior.browser_media.clone(),
-            browser_analysis_pin: prior.browser_analysis_pin.clone(),
+            browser_media: sources
+                .as_ref()
+                .map(|(media, _)| media.clone())
+                .or_else(|| prior.browser_media.clone()),
+            browser_analysis_pin: sources
+                .as_ref()
+                .map(|(_, timing)| timing.clone())
+                .or_else(|| prior.browser_analysis_pin.clone()),
+            fallback: None,
+            fallback_lifetime: None,
         };
         self.entries.insert(identity.epoch.to_string(), entry);
         self.successors.insert(
@@ -704,6 +780,15 @@ impl Registry {
             },
         );
         Ok(native)
+    }
+    pub(in crate::authority) fn change_successor_age_policy_for_test(&mut self, epoch: &AttemptId) {
+        self.entries
+            .get_mut(epoch.as_str())
+            .expect("authored successor")
+            .report
+            .options
+            .policy
+            .maximum_analysis_age_ns += 1;
     }
 }
 
@@ -1022,6 +1107,32 @@ impl Engine {
         drop(db);
         self.advance_browser_analysis_transfers()
     }
+    fn commit_preview_transfer(
+        &self,
+        guard: NativeCaptureTransferGuard<'_>,
+    ) -> Result<(), NativeCaptureTransferFailure> {
+        let old_timing = guard.predecessor().browser_timing.clone();
+        let new_timing = guard.successor().browser_timing.clone();
+        let media = super::super::browser_media::NativeBrowserMediaSuccessor::from_pins(
+            guard.predecessor().source_media.clone(),
+            guard.successor().source_media.clone(),
+        )?;
+        let mut timing = old_timing
+            .try_claim_successor_native(&new_timing, &media, || self.browser_timing_now())?;
+        guard
+            .commit_with(|old, new| {
+                timing.observations_for(
+                    &old.browser_timing,
+                    &new.browser_timing,
+                    self.browser_timing_now()?,
+                )?;
+                // Browser-only preview owns the same native source/timing cutover
+                // as a device consumer, without granting any device authority.
+                media.commit()?;
+                timing.commit(self.browser_timing_now()?)
+            })
+            .map_err(Into::into)
+    }
     pub(super) fn advance_browser_analysis_transfers(&self) -> PResult<()> {
         let notifications = {
             let db = self.db.lock().map_err(internal)?;
@@ -1053,9 +1164,11 @@ impl Engine {
                 registry.sweep(&db)?;
                 // Only actual local contention preserves retry custody. Native
                 // refusal remains terminal; neither path repeats input or work.
-                let outcome = match registry.try_claim_native_transfer(&proof) {
-                    Ok(guard) => guard.commit_with(|_, _| Ok(())),
-                    Err(NativeCaptureTransferFailure::Contended) => Ok(()),
+                let outcome = match registry
+                    .try_claim_native_transfer(&proof)
+                    .and_then(|guard| self.commit_preview_transfer(guard))
+                {
+                    Ok(()) | Err(NativeCaptureTransferFailure::Contended) => Ok(()),
                     Err(NativeCaptureTransferFailure::Refused(error)) => Err(error),
                 };
                 outcome
@@ -1078,6 +1191,7 @@ impl Engine {
         actor: &SessionId,
         fingerprint: &str,
     ) -> PResult<ResponseBody> {
+        let prepared_fallback = fallback::prepare(self, request, actor, fingerprint)?;
         let mut db = self.db.lock().map_err(internal)?;
         self.authorize(&db, request, actor)?;
         check_request_identity(&db, actor.as_str(), request, fingerprint)?;
@@ -1198,23 +1312,20 @@ impl Engine {
                     None,
                     false,
                 )?;
-                let previous_media = prior
-                    .report
-                    .options
-                    .browser_media
-                    .as_ref()
-                    .expect("validated source");
                 let previous_analysis = prior
                     .report
                     .options
                     .browser_analysis
                     .as_ref()
                     .expect("validated analysis");
-                if options.browser_media.selection != previous_media.selection
-                    || options.browser_media.clock != previous_media.clock
-                    || options.browser_analysis.player != previous_analysis.player
-                    || options.browser_analysis.policy != previous_analysis.policy
-                    || options.browser_analysis.feed_id == previous_analysis.feed_id
+                let mut derived = prior.report.options.clone();
+                derived.browser_media = Some(options.browser_media.clone());
+                derived.browser_analysis = Some(options.browser_analysis.clone());
+                derived.lease_ms = options.lease_ms;
+                derived.continuation_mode = LiveContinuationMode::Immediate;
+                validate_browser_inference_semantic_successor(&prior.report.options, &derived)?;
+                let semantics = browser_inference_semantic_identity(&prior.report.options)?;
+                if options.browser_analysis.feed_id == previous_analysis.feed_id
                     || registry.entries.values().any(|e| {
                         e.report
                             .options
@@ -1223,14 +1334,12 @@ impl Engine {
                             .is_some_and(|a| a.feed_id == options.browser_analysis.feed_id)
                     })
                 {
-                    return Err(refused(
-                        "successor changes original source, player, lookahead or reused feed",
-                    ));
+                    return Err(refused("successor reuses a retained browser analysis feed"));
                 }
                 if registry
                     .entries
                     .values()
-                    .filter(|e| e.runtime.is_some())
+                    .filter(|e| e.runtime.is_some() || e.pending_fallback())
                     .count()
                     >= MAX_ACTIVE
                 {
@@ -1246,12 +1355,6 @@ impl Engine {
                 let predecessor_cancel = prior.cancel.clone();
                 let created = Instant::now();
                 let native_clock = clock::NativeCaptureClock::new(created);
-                let mut derived = prior.report.options.clone();
-                derived.browser_media = Some(options.browser_media.clone());
-                derived.browser_analysis = Some(options.browser_analysis.clone());
-                derived.lease_ms = options.lease_ms;
-                derived.continuation_mode = LiveContinuationMode::Immediate;
-                derived.validate()?;
                 let media = self.pin_browser_media_locked(&db, request, &options.browser_media)?;
                 let timing = self.capture_browser_timing_locked(
                     &db,
@@ -1295,7 +1398,7 @@ impl Engine {
                 if native_clock.latest_native()?.latest_ns >= until {
                     return Err(refused("successor expired during admission"));
                 }
-                let capture = LiveCaptureReport {
+                let mut capture = LiveCaptureReport {
                     input_close: None,
                     continuation: None,
                     age_basis: LiveCaptureAgeBasis::ProducerDeclared,
@@ -1319,6 +1422,7 @@ impl Engine {
                     id: id!(ArtifactId),
                     preparation_request: request.request_id.clone(),
                     predecessor: predecessor_selection.clone(),
+                    semantics,
                     successor: NativeCaptureSelection {
                         cpu_manifest_sha256: cpu_manifest_hash(&info)?,
                         owner: actor.clone(),
@@ -1335,6 +1439,28 @@ impl Engine {
                     cancel_requested: AtomicBool::new(false),
                     worker_retirement,
                 }));
+                let tx = db.transaction().map_err(internal)?;
+                match (&derived.inference_fallback, &prepared_fallback) {
+                    (None, None) => {}
+                    (Some(_), Some(prepared)) => {
+                        capture
+                            .inference
+                            .as_mut()
+                            .expect("declared inference")
+                            .fallback = Some(prepared.declare(
+                            &tx,
+                            fallback::Publication {
+                                request,
+                                actor,
+                                options: &derived,
+                                stream: &manifest,
+                                media: &media,
+                                timing: &timing,
+                            },
+                        )?);
+                    }
+                    _ => return Err(refused("successor fallback preparation differs")),
+                }
                 let value = BrowserAnalysisSuccessorReport {
                     original_request_id: request.request_id.clone(),
                     predecessor: predecessor_selection.identity,
@@ -1344,12 +1470,18 @@ impl Engine {
                 };
                 value.validate()?;
                 let body = ResponseBody::BrowserAnalysisSuccessor(Box::new(value));
-                let tx = db.transaction().map_err(internal)?;
                 self.arm_worker_fence(&tx)?;
                 self.arm_staging_fence(&tx)?;
                 remember(&tx, actor.as_str(), request, fingerprint, &body)?;
                 tx.commit().map_err(internal)?;
                 let id = native.0.id.clone();
+                if let Some(prepared) = &prepared_fallback {
+                    prepared.lifetime().register(&cancel);
+                }
+                let lease_end = created + Duration::from_millis(u64::from(derived.lease_ms));
+                let lease_end = prepared_fallback
+                    .as_ref()
+                    .map_or(lease_end, |p| p.end_cap(lease_end));
                 registry.entries.insert(
                     identity.epoch.to_string(),
                     Entry {
@@ -1369,6 +1501,8 @@ impl Engine {
                         recording: None,
                         browser_media: Some(media),
                         browser_analysis_pin: Some(timing),
+                        fallback_lifetime: prepared_fallback.as_ref().map(|p| p.lifetime()),
+                        fallback: prepared_fallback,
                     },
                 );
                 registry.successors.insert(
@@ -1404,7 +1538,7 @@ impl Engine {
                         cancel,
                         inference::CpuLaunchLifetime {
                             origin: created,
-                            lease_end: created + Duration::from_millis(u64::from(derived.lease_ms)),
+                            lease_end,
                             retirement: Some(retirement_guard),
                         },
                     )

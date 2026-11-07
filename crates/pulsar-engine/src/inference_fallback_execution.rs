@@ -20,7 +20,7 @@ fn digest<T: Serialize>(value: &T) -> PResult<String> {
 fn changed(message: &str) -> ProtocolError {
     ProtocolError::new(ErrorCode::DependencyMismatch, message)
 }
-fn profile(request: &WorkerRequest) -> PResult<&DeclaredInferenceProfile> {
+pub(super) fn profile(request: &WorkerRequest) -> PResult<&DeclaredInferenceProfile> {
     match &request.operation {
         WorkerOperation::Generate {
             settings,
@@ -31,7 +31,7 @@ fn profile(request: &WorkerRequest) -> PResult<&DeclaredInferenceProfile> {
     }
     .ok_or_else(|| ProtocolError::invalid("fallback requires explicit model-backed generation"))
 }
-fn scope_matches(
+pub(super) fn scope_matches(
     selection: &InferenceFallbackSelection,
     subject: &InferenceEquivalenceSubject,
     manifest: &WorkerRequest,
@@ -223,7 +223,7 @@ impl PreparedFallback {
 
 #[cfg(target_os = "linux")]
 impl Engine {
-    fn observe_fallback_profile(
+    pub(super) fn observe_fallback_profile(
         &self,
         profile: &DeclaredInferenceProfile,
         deadline: Instant,
@@ -781,36 +781,5 @@ impl Engine {
             return Ok(());
         }
         Err(last)
-    }
-}
-
-impl Engine {
-    pub(super) fn fallback_history_trace(
-        &self,
-        db: &Connection,
-        manifest: &WorkerRequest,
-    ) -> PResult<Option<JobAttemptFallbackTrace>> {
-        let Some(retained) = inference_fallback_store::retained(db, manifest)? else {
-            return Ok(None);
-        };
-        let admission = retained.admission;
-        let trace = JobAttemptFallbackTrace {
-            schema_version: 1,
-            selection: retained.selection.identity()?,
-            kind: match admission.kind {
-                FallbackAdmissionKind::Initial => JobAttemptFallbackKind::Initial,
-                FallbackAdmissionKind::Resume => JobAttemptFallbackKind::Resume,
-                FallbackAdmissionKind::Fallback => JobAttemptFallbackKind::Fallback,
-            },
-            ordinal: admission.ordinal,
-            predecessor: admission.predecessor,
-            reference: admission.reference,
-            observed_environment_sha256: admission.observed_environment.identity_sha256()?,
-            admitted_at_unix_ms: admission.admitted_at_unix_ms,
-            expires_at_unix_ms: admission.expires_at_unix_ms,
-            history_only: true,
-        };
-        trace.validate_for_attempt(&manifest.attempt_id)?;
-        Ok(Some(trace))
     }
 }

@@ -63,10 +63,10 @@ impl Fixture {
                 stream_id: 42,
             },
             origin,
-            credentials: Arc::new(crate::handy_credentials::Credentials {
-                api: "fixture-api".into(),
-                connection: "fixture-connection".into(),
-            }),
+            credentials: Arc::new(crate::handy_credentials::Credentials::for_test(
+                "fixture-api",
+                "fixture-connection",
+            )),
         }
     }
     fn dispatcher(&self, origin: String) -> HandyDispatcher {
@@ -160,7 +160,7 @@ fn accept(listener: &TcpListener) -> TcpStream {
     }
 }
 fn request(stream: &mut TcpStream) -> (String, Vec<u8>) {
-    request_with_keys(stream, "fixture-api", "fixture-connection")
+    request_with_keys(stream, "test-bearer-token", "fixture-connection")
 }
 fn request_with_keys(
     stream: &mut TcpStream,
@@ -196,7 +196,7 @@ fn request_with_keys(
         if let Some(value) = lower.strip_prefix("content-length:") {
             length = value.trim().parse::<usize>().unwrap();
         }
-        api |= lower.trim() == format!("x-api-key: {api_key}");
+        api |= lower.trim() == format!("authorization: bearer {api_key}");
         connection |= lower.trim() == format!("x-connection-key: {connection_key}");
     }
     assert!(api && connection);
@@ -1187,7 +1187,10 @@ fn numeric_credential_echo_in_an_otherwise_valid_ack_is_withheld() {
     let origin = format!("http://{}", listener.local_addr().unwrap());
     let server = thread::spawn(move || {
         let mut stream = accept(&listener);
-        request_with_keys(&mut stream, "1234", "fixture-connection");
+        // Device requests carry the client token, never the ApplicationKey; the
+        // numeric echo under test is still the ApplicationKey value, so the
+        // header expectation follows the token while `api` becomes "1234".
+        request_with_keys(&mut stream, "test-bearer-token", "fixture-connection");
         respond(&mut stream, 200, &reply(1, 42));
     });
     let mut transport = f.transport(origin);

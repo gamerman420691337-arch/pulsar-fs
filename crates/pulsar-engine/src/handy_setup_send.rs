@@ -272,9 +272,47 @@ impl Engine {
         else {
             return Err(internal("setup preflight response mismatch"));
         };
-        let remote=inspection.device.remote_hssp.as_ref().filter(|state| inspection.device.mode.mode==1 && matches!(state.play_state,HandyRemotePlayState::NotInitialized|HandyRemotePlayState::Stopped) && state.playback_rate==1.0 && !state.looping)
-            .ok_or_else(||ProtocolError::new(ErrorCode::Forbidden,"setup requires an existing HSSP mode with no active playback, normal rate and no looping"))?;
-        let previous_stream = remote.stream_id;
+        // Setup does not establish playback options; explicit Play does, and
+        // only its response and running appends must echo that fixed profile.
+        // A stopped Handy reports its firmware default `loop: true`, and the
+        // setup endpoint's own `loop` field does not clear it (observed on
+        // H02_pro 4.3.0: a 200 response with loop:false still reads loop:true),
+        // so requiring no-looping here refuses every idle device. Playback
+        // options stay enforced where playback is expected to run.
+        //
+        // HSSP is not the only idle streaming state. Measured on H02_pro
+        // 4.3.0, any HSSP operation moves the device from mode 1 to mode 4,
+        // where it reports the same program through the HSP observation. Both
+        // are admissible here; the mode is recorded with the effect either way.
+        let idle_stream = |rate: f64, state: HandyRemotePlayState| {
+            matches!(
+                state,
+                HandyRemotePlayState::NotInitialized | HandyRemotePlayState::Stopped
+            ) && rate == 1.0
+        };
+        let previous_stream = inspection
+            .device
+            .remote_hssp
+            .as_ref()
+            .filter(|state| {
+                inspection.device.mode.mode == 1
+                    && idle_stream(state.playback_rate, state.play_state)
+            })
+            .map(|state| state.stream_id)
+            .or_else(|| {
+                inspection
+                    .device
+                    .remote_hsp
+                    .as_ref()
+                    .filter(|state| {
+                        inspection.device.mode.mode == 4
+                            && idle_stream(state.playback_rate, state.play_state)
+                    })
+                    // The HSP observation carries a u32 stream id; widen it to
+                    // the HSSP field width so one value reaches the effect.
+                    .map(|state| u64::from(state.stream_id))
+            })
+            .ok_or_else(||ProtocolError::new(ErrorCode::Forbidden,"setup requires an idle Handy streaming mode with no active playback and normal rate"))?;
         let _memory = self.pool.reserve_memory(16 * 1024 * 1024)?;
         let (captured, claim) = {
             let mut db = self.db.lock().map_err(internal)?;
@@ -344,10 +382,10 @@ impl Engine {
             // Reserve the global actor/request fingerprint before the separate journal.
             // A crash in the gap cannot send: no setup claim has been produced.
             Self::reserve_setup_request(&mut db, request, session, fingerprint, None)?;
-            let prepared = journal.prepare_setup(record).map_err(|_| {
+            let prepared = journal.prepare_setup(record).map_err(|e| {
                 ProtocolError::new(
                     ErrorCode::Unavailable,
-                    "setup preparation refused; inspect original history and reservations",
+                    &format!("setup preparation refused: {e}"),
                 )
             })?;
             let observed = journal
@@ -361,10 +399,10 @@ impl Engine {
                     "setup deadline expired before claim; preparation retained",
                 ));
             }
-            let claim = journal.claim_setup(&prepared).map_err(|_| {
+            let claim = journal.claim_setup(&prepared).map_err(|e| {
                 ProtocolError::new(
                     ErrorCode::UnknownOutcome,
-                    "setup claim unavailable; inspect original history",
+                    format!("setup claim unavailable; inspect original history: {e}"),
                 )
             })?;
             (captured, claim)

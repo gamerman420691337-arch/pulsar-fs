@@ -1,7 +1,5 @@
 # Use the current Pulsar app
 
-Start with the [project specification and delivery roadmap](PULSAR_PROJECT.md) for scope and priorities. This guide describes existing controls; it does not establish completed workflow or hardware qualification.
-
 
 2026-10-24. Development build; full roadmap PARTIAL. The desktop and CLI share a local Engine.
 Model-free patterns, script import/editing and export are available. Media analysis requires an
@@ -20,17 +18,13 @@ selected existing playback on player loss; it does not start or synchronize the 
 Browser-generated HSP streaming now passes its positive localhost demo; fault
 coverage and physical synchronization remain unfinished.
 
-## Build and launch
-
-On the development workstation, build the two companion executables using the shared build wrapper:
+## Launch on this workstation
 
 ```sh
-priority-build cargo build -p pulsar -p pulsar-worker
+/home/brianklam/.cache/pulsar-roadmap-validation/debug/pulsar gui
 ```
 
-Run the resulting `pulsar` executable with `gui` (or no arguments), using the path printed by that build. No current executable is asserted to exist at a historical cache path.
-
-Keep the companion `pulsar-worker` beside the executable. No arguments also opens the desktop. An older installed `pulsar` or retained runtime candidate may not contain these controls. Model-free patterns and script editing do not need a neural model. Media preview requires configured FFmpeg/FFprobe; visual inference requires the admitted model/profile and ONNX runtime. A running Engine keeps its existing startup configuration until it is restarted deliberately.
+The companion `pulsar-worker` is beside this executable. No arguments also opens the desktop. This is the current development build; an older installed `pulsar` or retained runtime candidate may not contain these controls. Model-free patterns and script editing do not need a neural model. Media preview requires configured FFmpeg/FFprobe; visual inference requires the admitted model/profile and ONNX runtime. A running Engine keeps its existing startup configuration until it is restarted deliberately.
 
 ## Desktop demo without models, media or hardware
 
@@ -48,7 +42,7 @@ Keep the companion `pulsar-worker` beside the executable. No arguments also open
 7. Select Stroke on the timeline. Enter a new absolute destination in **Export Stroke .funscript path** and click **Export committed revision**.
 8. Inspect the exported JSON: 17 actions at 125 ms intervals, from 0 through 2000 ms. Undo/Redo operate on retained project history; exported files are separate snapshots.
 
-This is a deterministic authored pattern. It neither analyzes a video nor drives a device. These button labels and the shared production pattern grammar are checked against current source; the native CLI equivalent below is executed. A rendered desktop walkthrough has not been qualified.
+This is a deterministic authored pattern. It neither analyzes a video nor drives a device. These button labels and the shared production pattern grammar are checked against current source; the native CLI equivalent below is executed. The pinned pre-format15 Linux app also passes an actual rendered walkthrough of create/generate/review/commit/export, overwrite refusal, Undo/Redo and joined Engine restart/reopen. The exported 17 actions match an independent oracle. See [the retained receipt](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/rendered-pattern/verification.json). This is scoped software evidence. The [execution dashboard](PULSAR_MILESTONES.md) records current build/browser checkpoints and remaining physical-device acceptance obligations.
 
 ## Equivalent checked CLI demo
 
@@ -216,6 +210,13 @@ the browser page, with an explicit declared clock acknowledgment. This preserves
 and project-time provenance through recordings. Preparation and pause do not start a
 device. See [the source-media workflow](PULSAR_BROWSER_SOURCE_MEDIA.md) for exact steps,
 limits and the rendered diagnostic demo.
+
+The browser starts **Requested lead** at half the configured analysis-age budget,
+with a 1 ms minimum and a 1,000 ms cap. For a 1,000 ms age budget, it starts at
+500 ms. You can change the request before playback. A shorter lead leaves more
+freshness margin but less time for analysis. Native admission and each estimate's
+original expiry still apply; this setting does not enlarge the age budget or
+establish synchronization.
 
 Open **Browser live** in the desktop, choose **Generator model/profile** and **Capture Generator model/profile** after loading a compatible explicit file-model profile in Generator, or choose **Owner-selected pack** and **Capture owner-selected pack** after refreshing its selection, or enter a live-options JSON path. Review the live settings, click **Launch browser player**, then click **Open local browser player**. The launcher uses the open project and revision and owns a finite server lifetime. **Stop browser player** or a project/revision change requests capture cleanup and joins the server. See [desktop launcher](PULSAR_DESKTOP_BROWSER_LIVE.md) and [direct configuration steps](PULSAR_DESKTOP_LIVE_OPTIONS.md). The [CLI local browser player](PULSAR_BROWSER_LIVE_PREVIEW.md) remains available with an explicit project/current revision. It supports local video preview, accepted-estimate recording, candidate review/commit, explicit gap repair and gap-free Stroke download. The player also offers [Use camera](PULSAR_BROWSER_CAMERA.md), with explicit video-only permission and the same recording workflow. Camera input and experimental tab sharing retain capture-relative timestamps; it does not establish source-player timing. Useful motion inference and synchronized Handy output are unfinished. The optional [Handy stop guard](PULSAR_BROWSER_PLAYER_CONTROL.md) adds exact existing-play monitoring and stop requests, with independent heartbeat handling. It does not provide synchronized start or generated device streaming. Default launch has no device linkage.
 

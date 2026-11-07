@@ -1,6 +1,7 @@
 //! Durable fallback intent and attempt correspondence, never permission. The
 //! Engine separately retains live settlement, acceptance, expiry and resources.
 use super::*;
+use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
 const JOBS: &str = "CREATE TABLE inference_fallback_jobs(job TEXT PRIMARY KEY NOT NULL REFERENCES jobs(id),selection_sha256 TEXT NOT NULL,selection TEXT NOT NULL,initial_attempt TEXT UNIQUE NOT NULL REFERENCES attempts(id))";
@@ -15,6 +16,7 @@ const MAX_SELECTION: usize = 64 * 1024;
 const MAX_ADMISSION: usize = 128 * 1024;
 const MAX_MANIFEST: usize = 1024 * 1024;
 const MAX_ATTEMPTS: usize = 128;
+const MAX_HISTORY_TRACE_BYTES: usize = 512 * 1024;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -47,6 +49,160 @@ pub(super) struct PendingFallback {
     pub(super) predecessor: AttemptId,
     pub(super) engine_epoch: AttemptId,
     pub(super) outcome_sha256: String,
+}
+
+/// Checked historical metadata from one transaction. This contains no live
+/// lease, settlement handle, permission or provider-acceptance authority.
+pub(super) struct HistorySnapshot {
+    job: JobId,
+    archive: Option<InferenceFallbackHistory>,
+    indices: BTreeMap<AttemptId, usize>,
+}
+impl HistorySnapshot {
+    pub(super) fn into_archive(self) -> Option<InferenceFallbackHistory> {
+        self.archive
+    }
+    pub(super) fn trace_for(
+        &self,
+        request: &WorkerRequest,
+    ) -> PResult<Option<JobAttemptFallbackTrace>> {
+        request.validate()?;
+        ensure(
+            request.job_id == self.job,
+            "fallback snapshot names another job",
+        )?;
+        let Some(archive) = &self.archive else {
+            ensure(
+                tagged(request)?.is_none(),
+                "fallback selection has no retained history snapshot",
+            )?;
+            return Ok(None);
+        };
+        let index = self
+            .indices
+            .get(&request.attempt_id)
+            .ok_or_else(|| invalid("fallback snapshot lacks the original attempt"))?;
+        let entry = &archive.attempts[*index];
+        ensure(
+            entry.manifest_sha256 == digest(encode(request)?.as_bytes()),
+            "fallback snapshot worker manifest differs",
+        )?;
+        Ok(Some(entry.trace.clone()))
+    }
+}
+
+pub(super) fn history_snapshot(
+    tx: &Transaction<'_>,
+    project: &ProjectId,
+    job_id: &JobId,
+) -> PResult<HistorySnapshot> {
+    // Namespace admission precedes reading any selected-policy metadata.
+    job_snapshot(tx, job_id, project)?;
+    let job = if layout(tx)? {
+        load_job(tx, job_id)?
+    } else {
+        None
+    };
+    let Some(job) = job else {
+        let pending: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM jobs WHERE id=?1 AND state='fallback_pending')",
+                [job_id.as_str()],
+                |row| row.get(0),
+            )
+            .map_err(internal)?;
+        ensure(!pending, "pending fallback job lacks retained history")?;
+        return Ok(HistorySnapshot {
+            job: job_id.clone(),
+            archive: None,
+            indices: BTreeMap::new(),
+        });
+    };
+    validate_pending(tx, &job)?;
+    let selection = job.selection.identity()?;
+    let mut attempts = Vec::new();
+    let mut bytes = 0usize;
+    let mut archive_bytes = encode(&job.selection)?.len();
+    walk_chain(tx, &job, &job.current, job.count, |attempt| {
+        let admission = &attempt.admission;
+        let trace = JobAttemptFallbackTrace {
+            schema_version: 1,
+            selection: selection.clone(),
+            kind: match admission.kind {
+                FallbackAdmissionKind::Initial => JobAttemptFallbackKind::Initial,
+                FallbackAdmissionKind::Resume => JobAttemptFallbackKind::Resume,
+                FallbackAdmissionKind::Fallback => JobAttemptFallbackKind::Fallback,
+            },
+            ordinal: admission.ordinal,
+            predecessor: admission.predecessor.clone(),
+            reference: admission.reference.clone(),
+            observed_environment_sha256: admission.observed_environment.identity_sha256()?,
+            admitted_at_unix_ms: admission.admitted_at_unix_ms,
+            expires_at_unix_ms: admission.expires_at_unix_ms,
+            history_only: true,
+        };
+        trace.validate_for_attempt(&attempt.request.attempt_id)?;
+        bytes = bytes
+            .checked_add(encode(&trace)?.len() + attempt.request.attempt_id.as_str().len() + 64)
+            .ok_or_else(|| invalid("fallback history snapshot byte count overflow"))?;
+        ensure(
+            bytes <= MAX_HISTORY_TRACE_BYTES,
+            "fallback history snapshot exceeds byte admission",
+        )?;
+        let manifest_sha256 = digest(encode(&attempt.request)?.as_bytes());
+        let outcome =
+            crate::job_attempt_history::read_outcome(tx, &attempt.request, &manifest_sha256)?;
+        let entry = ArchivedInferenceFallbackAttempt {
+            attempt_id: attempt.request.attempt_id.clone(),
+            manifest_sha256,
+            profile_sha256: attempt.profile_sha.clone(),
+            state: attempt.state.clone(),
+            trace,
+            observed_environment: admission.observed_environment.clone(),
+            outcome,
+        };
+        // Admit each addition before retaining it. The shared contract applies
+        // its final aggregate bound and original-manifest checks below.
+        let entry_bytes = encode(&entry)?.len();
+        ensure(
+            entry_bytes <= 128 * 1024,
+            "fallback archive entry exceeds byte admission",
+        )?;
+        archive_bytes = archive_bytes
+            .checked_add(entry_bytes)
+            .ok_or_else(|| invalid("fallback archive byte count overflow"))?;
+        ensure(
+            archive_bytes <= MAX_INFERENCE_FALLBACK_HISTORY_BYTES,
+            "fallback archive exceeds byte admission",
+        )?;
+        attempts.push(entry);
+        Ok(())
+    })?;
+    attempts.reverse();
+    let archive = InferenceFallbackHistory {
+        schema_version: 1,
+        history_only: true,
+        project_id: job.project.clone(),
+        job_id: job.id.clone(),
+        base_revision: RevisionId::new(job.revision),
+        source_version: job.source.clone(),
+        initial_attempt: job.initial.clone(),
+        current_attempt: job.current.clone(),
+        selection: job.selection.clone(),
+        attempts,
+    };
+    archive.validate_with_manifests(|id| request_row(tx, &job, id).map(|(request, _)| request))?;
+    let indices = archive
+        .attempts
+        .iter()
+        .enumerate()
+        .map(|(i, a)| (a.attempt_id.clone(), i))
+        .collect();
+    Ok(HistorySnapshot {
+        job: job_id.clone(),
+        archive: Some(archive),
+        indices,
+    })
 }
 
 fn invalid(message: &str) -> ProtocolError {
@@ -376,6 +532,10 @@ fn validate_pair(previous: &Attempt, next: &Attempt) -> PResult<()> {
     match next.admission.kind {
         FallbackAdmissionKind::Initial => Err(invalid("initial fallback record has a predecessor")),
         FallbackAdmissionKind::Fallback => {
+            ensure(
+                previous.state == "failed",
+                "fallback predecessor is not the original failed attempt",
+            )?;
             validate_inference_fallback_successor(&previous.request, &next.request)?;
             ensure(
                 previous.admission.ordinal.checked_add(1) == Some(next.admission.ordinal)
@@ -384,6 +544,16 @@ fn validate_pair(previous: &Attempt, next: &Attempt) -> PResult<()> {
             )
         }
         FallbackAdmissionKind::Resume => {
+            ensure(
+                // Older revocation cancelled consumed pauses. Preserve that
+                // terminal history; record_next still refuses new resumes of
+                // cancelled attempts and requires fresh execution admission.
+                matches!(
+                    previous.state.as_str(),
+                    "interrupted" | "assistant_paused" | "cancelled"
+                ),
+                "resume predecessor is not retained interruption/pause history",
+            )?;
             let old = &previous.request;
             let new = &next.request;
             ensure(
@@ -407,6 +577,15 @@ fn validate_pair(previous: &Attempt, next: &Attempt) -> PResult<()> {
 }
 /// Traverses one bounded manifest/admission at a time; no lifetime job cap.
 fn chain(db: &Connection, job: &Job, tail: &AttemptId, expected_count: usize) -> PResult<()> {
+    walk_chain(db, job, tail, expected_count, |_| Ok(()))
+}
+fn walk_chain(
+    db: &Connection,
+    job: &Job,
+    tail: &AttemptId,
+    expected_count: usize,
+    mut collect: impl FnMut(&Attempt) -> PResult<()>,
+) -> PResult<()> {
     ensure(
         expected_count > 0 && expected_count <= MAX_ATTEMPTS,
         "fallback chain count exceeds admission",
@@ -425,6 +604,7 @@ fn chain(db: &Connection, job: &Job, tail: &AttemptId, expected_count: usize) ->
                 "fallback profile cycle",
             )?;
         }
+        collect(&current)?;
         let Some(previous) = &current.admission.predecessor else {
             ensure(
                 current.admission.kind == FallbackAdmissionKind::Initial
@@ -1236,6 +1416,394 @@ mod tests {
         )
         .unwrap();
         tx.commit().unwrap();
+    }
+
+    #[test]
+    fn archive_contract_roundtrips_after_snapshot_transaction_and_database_close() {
+        let previous = fixture_request("initial", 3);
+        let next = fixture_request("next", 8);
+        let mut db = fixture_database(&previous);
+        fixture_declare(&mut db, &previous);
+        fixture_pending(&mut db, &previous);
+        fixture_transition(&mut db, &previous, &next);
+        let tx = db.transaction().unwrap();
+        tx.execute_batch("PRAGMA query_only=ON").unwrap();
+        let history = history_snapshot(&tx, &next.project_id, &next.job_id).unwrap();
+        let raw = history.archive.as_ref().unwrap().canonical_bytes().unwrap();
+        tx.rollback().unwrap();
+        drop(db);
+        let restored = InferenceFallbackHistory::from_canonical_bytes(&raw).unwrap();
+        restored
+            .validate_with_manifests(|id| {
+                if *id == previous.attempt_id {
+                    Ok(previous.clone())
+                } else if *id == next.attempt_id {
+                    Ok(next.clone())
+                } else {
+                    Err(ProtocolError::invalid("unresolved original attempt"))
+                }
+            })
+            .unwrap();
+        assert_eq!(restored.canonical_bytes().unwrap(), raw);
+        assert!(restored.history_only);
+        assert_eq!(restored.attempts[0].state, "failed");
+        assert_eq!(restored.attempts[1].state, "queued");
+        assert_eq!(
+            restored.attempts[1].trace.predecessor,
+            Some(previous.attempt_id)
+        );
+        assert!(restored.attempts[0]
+            .outcome
+            .as_ref()
+            .unwrap()
+            .worker_retirement
+            .as_ref()
+            .unwrap()
+            .provider_unavailable
+            .is_some());
+        assert_eq!(restored.attempts[0].trace.expires_at_unix_ms, 100);
+        assert!(previous
+            .source
+            .path
+            .to_string_lossy()
+            .starts_with("/nonexistent/"));
+    }
+
+    #[test]
+    fn archive_contract_refuses_mutated_correspondence_and_missing_settlement() {
+        let previous = fixture_request("initial", 3);
+        let next = fixture_request("next", 8);
+        let mut db = fixture_database(&previous);
+        fixture_declare(&mut db, &previous);
+        fixture_pending(&mut db, &previous);
+        fixture_transition(&mut db, &previous, &next);
+        let tx = db.transaction().unwrap();
+        let history = history_snapshot(&tx, &next.project_id, &next.job_id)
+            .unwrap()
+            .archive
+            .unwrap();
+        let resolve = |id: &AttemptId| {
+            if *id == previous.attempt_id {
+                Ok(previous.clone())
+            } else if *id == next.attempt_id {
+                Ok(next.clone())
+            } else {
+                Err(ProtocolError::invalid("foreign original attempt"))
+            }
+        };
+        type ArchiveMutation = Box<dyn Fn(&mut InferenceFallbackHistory)>;
+        let changes: Vec<ArchiveMutation> = vec![
+            Box::new(|h| h.history_only = false),
+            Box::new(|h| h.schema_version = 2),
+            Box::new(|h| h.project_id = ProjectId::new("foreign-project").unwrap()),
+            Box::new(|h| h.job_id = JobId::new("foreign-job").unwrap()),
+            Box::new(|h| h.base_revision = RevisionId::new(2)),
+            Box::new(|h| h.source_version = SourceVersionId::new("foreign-source").unwrap()),
+            Box::new(|h| h.current_attempt = h.initial_attempt.clone()),
+            Box::new(|h| h.attempts.swap(0, 1)),
+            Box::new(|h| h.attempts[1].attempt_id = h.initial_attempt.clone()),
+            Box::new(|h| {
+                h.attempts[1].trace.predecessor = Some(AttemptId::new("detached").unwrap())
+            }),
+            Box::new(|h| h.attempts[1].trace.ordinal = 2),
+            Box::new(|h| h.attempts[1].trace.admitted_at_unix_ms = 1),
+            Box::new(|h| h.attempts[0].state = "completed".into()),
+            Box::new(|h| h.attempts[0].outcome = None),
+            Box::new(|h| h.attempts[0].outcome.as_mut().unwrap().worker_retirement = None),
+            Box::new(|h| {
+                h.attempts[0]
+                    .outcome
+                    .as_mut()
+                    .unwrap()
+                    .worker_retirement
+                    .as_mut()
+                    .unwrap()
+                    .provider_unavailable = None
+            }),
+            Box::new(|h| h.attempts[1].manifest_sha256 = "f".repeat(64)),
+            Box::new(|h| h.attempts[1].profile_sha256 = "f".repeat(64)),
+            Box::new(|h| h.attempts[1].observed_environment.hardware = fixture_identity(99)),
+            Box::new(|h| h.attempts[1].trace.reference.expected_revision += 1),
+            Box::new(|h| h.attempts[1].trace.history_only = false),
+        ];
+        for (index, change) in changes.iter().enumerate() {
+            let mut altered = history.clone();
+            change(&mut altered);
+            assert!(
+                altered.validate_with_manifests(resolve).is_err(),
+                "mutation {index} accepted"
+            );
+        }
+        let mut changed = next.clone();
+        changed.source.path = "/changed/source".into();
+        changed.validate().unwrap();
+        assert!(history
+            .validate_with_manifests(|id| if *id == previous.attempt_id {
+                Ok(previous.clone())
+            } else {
+                Ok(changed.clone())
+            })
+            .is_err());
+        let mut too_many = history.clone();
+        while too_many.attempts.len() <= MAX_INFERENCE_FALLBACK_HISTORY_ATTEMPTS {
+            too_many.attempts.push(history.attempts[1].clone());
+        }
+        assert!(too_many.validate().unwrap_err().message.contains("count"));
+    }
+
+    #[test]
+    fn archive_contract_refuses_noncanonical_unknown_and_oversized_bytes() {
+        assert!(InferenceFallbackHistory::from_canonical_bytes(&[]).is_err());
+        assert!(InferenceFallbackHistory::from_canonical_bytes(&vec![
+            b' ';
+            MAX_INFERENCE_FALLBACK_HISTORY_BYTES
+                + 1
+        ])
+        .unwrap_err()
+        .message
+        .contains("byte admission"));
+        let previous = fixture_request("initial", 3);
+        let mut db = fixture_database(&previous);
+        fixture_declare(&mut db, &previous);
+        let tx = db.transaction().unwrap();
+        let history = history_snapshot(&tx, &previous.project_id, &previous.job_id)
+            .unwrap()
+            .archive
+            .unwrap();
+        let mut raw = history.canonical_bytes().unwrap();
+        raw.push(b'\n');
+        assert!(InferenceFallbackHistory::from_canonical_bytes(&raw)
+            .unwrap_err()
+            .message
+            .contains("canonical"));
+        let mut value = serde_json::to_value(&history).unwrap();
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert("execution_authority".into(), serde_json::json!(true));
+        assert!(InferenceFallbackHistory::from_canonical_bytes(
+            &serde_json::to_vec(&value).unwrap()
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn snapshot_refuses_historical_fallback_after_original_outcome_is_removed() {
+        let previous = fixture_request("initial", 3);
+        let next = fixture_request("next", 8);
+        let mut db = fixture_database(&previous);
+        fixture_declare(&mut db, &previous);
+        fixture_pending(&mut db, &previous);
+        fixture_transition(&mut db, &previous, &next);
+        db.execute(
+            "DELETE FROM job_attempt_outcomes WHERE attempt=?1",
+            [previous.attempt_id.as_str()],
+        )
+        .unwrap();
+        let tx = db.transaction().unwrap();
+        assert!(history_snapshot(&tx, &next.project_id, &next.job_id)
+            .err()
+            .unwrap()
+            .message
+            .contains("settlement"));
+    }
+
+    #[test]
+    fn history_snapshot_binds_namespace_and_manifest_without_restoring_authority() {
+        let previous = fixture_request("initial", 3);
+        let next = fixture_request("next", 8);
+        let mut db = fixture_database(&previous);
+        fixture_declare(&mut db, &previous);
+        fixture_pending(&mut db, &previous);
+        fixture_transition(&mut db, &previous, &next);
+        let tx = db.transaction().unwrap();
+        tx.execute_batch("PRAGMA query_only=ON").unwrap();
+        assert!(history_snapshot(
+            &tx,
+            &ProjectId::new("foreign-project").unwrap(),
+            &next.job_id
+        )
+        .is_err());
+        let history = history_snapshot(&tx, &next.project_id, &next.job_id).unwrap();
+        let initial = history.trace_for(&previous).unwrap().unwrap();
+        let successor = history.trace_for(&next).unwrap().unwrap();
+        assert!(initial.history_only && successor.history_only);
+        assert_eq!(initial.ordinal, 0);
+        assert_eq!(successor.ordinal, 1);
+        assert_eq!(successor.predecessor, Some(previous.attempt_id.clone()));
+        assert_eq!(successor.selection, fixture_selection().identity().unwrap());
+        assert_eq!(successor.admitted_at_unix_ms, 10);
+        assert_eq!(successor.expires_at_unix_ms, 100);
+        let mut changed = next.clone();
+        changed.source.path = "/changed/historical/source".into();
+        changed.validate().unwrap();
+        assert!(history
+            .trace_for(&changed)
+            .unwrap_err()
+            .message
+            .contains("manifest differs"));
+        changed.job_id = JobId::new("foreign-job").unwrap();
+        assert!(history
+            .trace_for(&changed)
+            .unwrap_err()
+            .message
+            .contains("another job"));
+    }
+
+    #[test]
+    fn legacy_history_snapshot_refuses_hidden_selection_and_missing_pending_mode() {
+        let tagged = fixture_request("initial", 3);
+        let mut request = tagged.clone();
+        request.dependencies.retain(|d| {
+            !d.artifact_id
+                .as_str()
+                .starts_with(INFERENCE_FALLBACK_SELECTION_ID_PREFIX)
+        });
+        let mut db = fixture_database(&request);
+        let tx = db.transaction().unwrap();
+        let history = history_snapshot(&tx, &request.project_id, &request.job_id).unwrap();
+        assert!(history.trace_for(&request).unwrap().is_none());
+        assert!(history.trace_for(&tagged).is_err());
+        tx.rollback().unwrap();
+        db.execute("UPDATE jobs SET state='fallback_pending'", [])
+            .unwrap();
+        let tx = db.transaction().unwrap();
+        assert!(history_snapshot(&tx, &request.project_id, &request.job_id).is_err());
+    }
+
+    #[test]
+    fn legacy_cancelled_resume_predecessor_is_history_not_new_resume_permission() {
+        let previous = fixture_request("initial", 3);
+        let next = fixture_request("resumed", 3);
+        let mut db = fixture_database(&previous);
+        fixture_declare(&mut db, &previous);
+        fixture_state(&db, &previous, "assistant_paused");
+        let tx = db.transaction().unwrap();
+        fixture_insert_successor(&tx, &previous, &next);
+        record_resume(
+            &tx,
+            &previous,
+            &next,
+            &fixture_admission(
+                FallbackAdmissionKind::Resume,
+                0,
+                Some(previous.attempt_id.clone()),
+                3,
+            ),
+        )
+        .unwrap();
+        tx.commit().unwrap();
+        db.execute(
+            "UPDATE attempts SET state='cancelled' WHERE id=?1",
+            [previous.attempt_id.as_str()],
+        )
+        .unwrap();
+        validate(&db).unwrap();
+        let tx = db.transaction().unwrap();
+        let history = history_snapshot(&tx, &next.project_id, &next.job_id).unwrap();
+        assert!(history.trace_for(&previous).unwrap().unwrap().history_only);
+        assert!(history.trace_for(&next).unwrap().unwrap().history_only);
+        tx.rollback().unwrap();
+
+        let cancelled = fixture_request("cancelled", 3);
+        let mut db = fixture_database(&cancelled);
+        fixture_declare(&mut db, &cancelled);
+        fixture_state(&db, &cancelled, "cancelled");
+        let tx = db.transaction().unwrap();
+        fixture_insert_successor(&tx, &cancelled, &next);
+        assert!(record_resume(
+            &tx,
+            &cancelled,
+            &next,
+            &fixture_admission(
+                FallbackAdmissionKind::Resume,
+                0,
+                Some(cancelled.attempt_id.clone()),
+                3,
+            )
+        )
+        .is_err());
+        tx.rollback().unwrap();
+    }
+
+    #[test]
+    fn completed_fallback_chain_refuses_rewritten_predecessor_state() {
+        for state in [
+            "queued",
+            "running",
+            "completed",
+            "cancelled",
+            "interrupted",
+            "assistant_paused",
+        ] {
+            let previous = fixture_request("initial", 3);
+            let next = fixture_request("next", 8);
+            let mut db = fixture_database(&previous);
+            fixture_declare(&mut db, &previous);
+            fixture_pending(&mut db, &previous);
+            fixture_transition(&mut db, &previous, &next);
+            validate(&db).unwrap();
+            assert!(retained(&db, &next).unwrap().is_some());
+            assert!(pending(&db, &previous.job_id).unwrap().is_none());
+            db.execute(
+                "UPDATE attempts SET state=?1 WHERE id=?2",
+                params![state, previous.attempt_id.as_str()],
+            )
+            .unwrap();
+            assert!(
+                retained(&db, &next).is_err(),
+                "fallback history accepted rewritten predecessor {state}"
+            );
+            assert!(
+                validate(&db).is_err(),
+                "startup validation accepted rewritten predecessor {state}"
+            );
+            let tx = db.transaction().unwrap();
+            assert!(history_snapshot(&tx, &next.project_id, &next.job_id).is_err());
+        }
+    }
+
+    #[test]
+    fn completed_resume_chain_requires_original_interruption_or_pause() {
+        for original in ["interrupted", "assistant_paused"] {
+            for state in ["queued", "running", "completed", "failed"] {
+                let previous = fixture_request("initial", 3);
+                let next = fixture_request("resumed", 3);
+                let mut db = fixture_database(&previous);
+                fixture_declare(&mut db, &previous);
+                fixture_state(&db, &previous, original);
+                let tx = db.transaction().unwrap();
+                fixture_insert_successor(&tx, &previous, &next);
+                record_resume(
+                    &tx,
+                    &previous,
+                    &next,
+                    &fixture_admission(
+                        FallbackAdmissionKind::Resume,
+                        0,
+                        Some(previous.attempt_id.clone()),
+                        3,
+                    ),
+                )
+                .unwrap();
+                tx.commit().unwrap();
+                validate(&db).unwrap();
+                assert!(retained(&db, &next).unwrap().is_some());
+                db.execute(
+                    "UPDATE attempts SET state=?1 WHERE id=?2",
+                    params![state, previous.attempt_id.as_str()],
+                )
+                .unwrap();
+                assert!(
+                    retained(&db, &next).is_err(),
+                    "resume history accepted rewritten predecessor {original}/{state}"
+                );
+                assert!(
+                    validate(&db).is_err(),
+                    "startup validation accepted rewritten predecessor {original}/{state}"
+                );
+            }
+        }
     }
 
     #[test]

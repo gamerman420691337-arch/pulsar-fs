@@ -29,7 +29,15 @@ pub use runtime_install::{
     RuntimeArchiveStageInspection, RuntimeStageInspection, RuntimeStageState, RuntimeUpdateReport,
 };
 mod authority;
+mod device_control_session;
+pub use device_control_session::{
+    DeviceControlSession, DeviceMotionCaps, LimitedMotion, SessionAuthority, SessionRefusal,
+    DEFAULT_AMPLITUDE_CAP_PERCENT, DEFAULT_DEVICE_SESSION_LIFETIME_NS,
+    MAX_DEVICE_SESSION_LIFETIME_NS,
+};
 pub mod benchmark;
+mod browser_fallback_history;
+mod browser_fallback_reader;
 mod bulk;
 mod cgroup;
 mod confinement;
@@ -60,6 +68,7 @@ mod generation_progress;
 mod handy_clock;
 mod handy_clock_sync_wire;
 mod handy_credentials;
+mod handy_token;
 mod inference_fallback_reader;
 #[cfg(target_os = "linux")]
 mod launch_cpu;
@@ -68,7 +77,11 @@ mod live_cpu_mounts;
 #[cfg(target_os = "linux")]
 #[path = "cuda_mount_bytes.rs"]
 mod native_mount_bytes;
+mod portable_browser_history_reader;
 mod portable_cpu_archives;
+mod portable_fallback_graph_reader;
+mod portable_fallback_reader;
+mod sqlite_reader_preflight;
 mod task_group;
 pub use handy_credentials::HandyRouteIdentity;
 mod handy_continuous_timing;

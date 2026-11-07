@@ -5,8 +5,19 @@ fn unavailable(message: &str) -> ProtocolError {
 }
 
 pub(crate) struct Credentials {
+    /// Application key (Handy ApplicationKey). Authenticates only the privileged
+    /// `/auth/token/issue` endpoint; never sent to a device endpoint.
     pub(crate) api: String,
     pub(crate) connection: String,
+    /// Client-token custody derived from the application key.
+    pub(crate) tokens: crate::handy_token::TokenBroker,
+}
+
+impl std::fmt::Debug for Credentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Credential values and custody are never formatted.
+        f.debug_struct("Credentials").finish_non_exhaustive()
+    }
 }
 impl Credentials {
     pub(crate) fn from_environment(
@@ -19,11 +30,38 @@ impl Credentials {
         let credentials = Self {
             api: load(&request.api_key_env)?,
             connection: load(&request.connection_key_env)?,
+            tokens: crate::handy_token::TokenBroker::new(),
         };
         credentials.validate()?;
         Ok(credentials)
     }
+    /// A current bearer token for non-privileged device endpoints. Issued once
+    /// and reused until inside its expiry margin.
+    pub(crate) fn bearer(&self) -> Result<String, ProtocolError> {
+        self.tokens.bearer(self)
+    }
+    /// Discard a token the device rejected, so the next attempt re-issues.
+    pub(crate) fn invalidate_token(&self) {
+        self.tokens.invalidate();
+    }
+    /// Fixture constructor. Supply a pre-issued token so tests never reach the
+    /// network; production code must use `from_environment`.
+    #[cfg(test)]
+    pub(crate) fn for_test(api: &str, connection: &str) -> Self {
+        let credentials = Self {
+            api: api.to_owned(),
+            connection: connection.to_owned(),
+            tokens: crate::handy_token::TokenBroker::new(),
+        };
+        credentials.tokens.seed_for_test(
+            "test-bearer-token",
+            std::time::Instant::now() + std::time::Duration::from_secs(3_600),
+        );
+        credentials
+    }
     pub(crate) fn validate(&self) -> Result<(), ProtocolError> {
+        // Handy v3 requires both credentials: X-Api-Key identifies the client
+        // application, X-Connection-Key identifies the device.
         for key in [&self.api, &self.connection] {
             if key.is_empty()
                 || key.len() > 4096
@@ -124,5 +162,45 @@ mod route_tests {
         assert!(!route.route_sha256().contains("route-test"));
         assert!(HandyRouteIdentity::from_snapshot("invalid-owner", "route-test").is_err());
         assert!(HandyRouteIdentity::from_snapshot(&"a".repeat(64), "invalid\nheader").is_err());
+    }
+
+    #[test]
+    fn both_application_and_connection_keys_are_required() {
+        // Unique names keep this test independent of the ambient environment.
+        let request = HandyInspectionRequest {
+            api_key_env: "PULSAR_TEST_APP_KEY".into(),
+            connection_key_env: "PULSAR_TEST_CONNECTION_KEY".into(),
+            allow_online_inspection: true,
+        };
+        std::env::remove_var("PULSAR_TEST_APP_KEY");
+        std::env::remove_var("PULSAR_TEST_CONNECTION_KEY");
+
+        // Handy REST v3 needs both credentials; either absence is a clear,
+        // immediate error rather than a later opaque network failure.
+        assert!(Credentials::from_environment(&request).is_err());
+
+        std::env::set_var("PULSAR_TEST_CONNECTION_KEY", "device-connection-key");
+        assert!(
+            Credentials::from_environment(&request).is_err(),
+            "connection key alone must not satisfy v3 authentication"
+        );
+
+        std::env::set_var("PULSAR_TEST_APP_KEY", "application-id");
+        let loaded = Credentials::from_environment(&request).unwrap();
+        loaded.validate().unwrap();
+        assert!(loaded.echoed_text("application-id"));
+        assert!(loaded.echoed_text("device-connection-key"));
+
+        // An empty or malformed application key still refuses.
+        for bad in ["", "bad\nheader", "bad value"] {
+            std::env::set_var("PULSAR_TEST_APP_KEY", bad);
+            assert!(
+                Credentials::from_environment(&request).is_err(),
+                "accepted invalid application key {bad:?}"
+            );
+        }
+
+        std::env::remove_var("PULSAR_TEST_APP_KEY");
+        std::env::remove_var("PULSAR_TEST_CONNECTION_KEY");
     }
 }

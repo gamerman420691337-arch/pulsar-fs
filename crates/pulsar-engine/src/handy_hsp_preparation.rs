@@ -71,6 +71,10 @@ pub(super) trait HspPreparationIo: Send + Sync {
         Ok(())
     }
     #[cfg(test)]
+    fn metadata_contended(&self) -> PResult<()> {
+        Ok(())
+    }
+    #[cfg(test)]
     fn hsp_origin(&self) -> Option<String> {
         None
     }
@@ -564,17 +568,40 @@ impl Entry {
         Ok(())
     }
     fn persist(&self) -> PResult<()> {
+        self.persist_with_journal_wait(false)
+    }
+    fn persist_until_deadline(&self) -> PResult<()> {
+        self.persist_with_journal_wait(true)
+    }
+    fn persist_with_journal_wait(&self, wait: bool) -> PResult<()> {
         let pending = self.state.lock().map_err(internal)?.pending.clone();
         let Some(pending) = pending else {
             return Ok(());
         };
         // Only this owned worker performs retry I/O. It cannot resend sync or
         // refresh an original deadline; cancellation does not discard history.
-        let mut journal = self
-            .deps
-            .journal
-            .try_lock()
-            .map_err(|_| unavailable("HSP preparation metadata is pending"))?;
+        let mut journal = loop {
+            // Only the still-active preparation may wait, under its original
+            // clocks, cancellation and wall deadline. Retirement/metadata-only
+            // retries stay nonblocking and cannot revive readiness or resync.
+            if wait {
+                self.budget()?;
+            }
+            match self.deps.journal.try_lock() {
+                Ok(journal) => break journal,
+                Err(TryLockError::WouldBlock) => {
+                    #[cfg(test)]
+                    self.io.metadata_contended()?;
+                    if !wait {
+                        return Err(unavailable("HSP preparation metadata is pending"));
+                    }
+                    thread::park_timeout(POLL);
+                }
+                Err(TryLockError::Poisoned(_)) => {
+                    return Err(unavailable("HSP preparation metadata is pending"));
+                }
+            }
+        };
         match &pending {
             PendingMetadata::Complete(claim, outcome) => {
                 journal
@@ -720,7 +747,7 @@ impl Entry {
             state.completion = Some(completion.clone());
             state.pending = Some(PendingMetadata::Complete(claim, completion.clone()));
         }
-        let persisted = self.persist();
+        let persisted = self.persist_until_deadline();
         let ClockSyncCompletion::Acknowledged(ack) = completion else {
             return Err(unavailable(
                 "original HSP synchronization outcome is unknown",

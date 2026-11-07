@@ -95,6 +95,7 @@ impl Fixture {
                 },
                 1,
                 5000,
+                None,
             )
             .unwrap()
     }
@@ -532,6 +533,7 @@ fn authenticated_pinned_inference_retains_status_and_never_changes_project() {
             mi,
             4,
             45000,
+            None,
         )
         .unwrap();
     let start = f.request(

@@ -10,10 +10,12 @@ pub(in crate::authority::handy_playback_preparation) struct RetainedPlaybackCloc
     pub(in crate::authority::handy_playback_preparation) native: NativePlaybackClock,
     pub(in crate::authority::handy_playback_preparation) sync: Arc<native_sync::Context>,
 }
-fn mismatch() -> ProtocolError {
+fn mismatch(why: &'static str) -> ProtocolError {
     ProtocolError::new(
         ErrorCode::DependencyMismatch,
-        "combined clock controller or native synchronization is unavailable or changed",
+        format!(
+            "combined clock controller or native synchronization is unavailable or changed ({why})"
+        ),
     )
 }
 fn selected(r: &Request, l: &HandyControllerLease) -> bool {
@@ -44,7 +46,7 @@ impl Engine {
             self.authorize(&db, r, actor)?;
         }
         if !self.check_handy_controller_monitor()? {
-            return Err(mismatch());
+            return Err(mismatch("clock:47"));
         }
         self.handy_playback_clock_with(
             r,
@@ -68,13 +70,13 @@ impl Engine {
             synchronization, ..
         } = &r.command
         else {
-            return Err(mismatch());
+            return Err(mismatch("clock:71"));
         };
         if report.request_id != r.request_id
             || !selected(r, &report.controller)
             || report.synchronization != *synchronization
         {
-            return Err(mismatch());
+            return Err(mismatch("clock:77"));
         }
         let live = self.controller_view(db, actor, report.controller.clone(), r, clock)?;
         let mut registry = self.handy_preparations.lock().map_err(internal)?;
@@ -130,7 +132,7 @@ impl Engine {
             check_request_identity(&db, actor.as_str(), r, fingerprint)?;
             if let Some(body) = replay(&db, actor.as_str(), r, fingerprint)? {
                 let ResponseBody::HandyPlaybackClock(v) = body else {
-                    return Err(mismatch());
+                    return Err(mismatch("clock:133"));
                 };
                 return self.playback_clock_view(&db, actor, r, *v, &mut clock);
             }
@@ -138,7 +140,7 @@ impl Engine {
             let saved = load(&db, actor, project(r)?, acquisition_request_id)?;
             let lease = self.controller_view(&db, actor, saved, r, &mut clock)?;
             if !selected(r, &lease) {
-                return Err(mismatch());
+                return Err(mismatch("clock:141"));
             }
             let (context, device, prep) = {
                 let mut registry = self.handy_preparations.lock().map_err(internal)?;
@@ -146,8 +148,8 @@ impl Engine {
                 let slot = registry
                     .syncs
                     .get(&synchronization.record_id)
-                    .ok_or_else(mismatch)?;
-                let native = slot.native.as_ref().ok_or_else(mismatch)?;
+                    .ok_or_else(|| mismatch("clock:opt"))?;
+                let native = slot.native.as_ref().ok_or_else(|| mismatch("clock:opt"))?;
                 native.error_at(now)?;
                 (
                     slot.context.clone(),
@@ -155,7 +157,7 @@ impl Engine {
                     registry
                         .entries
                         .get(&lease.preparation_id)
-                        .ok_or_else(mismatch)?
+                        .ok_or_else(|| mismatch("clock:opt"))?
                         .report
                         .clone(),
                 )
@@ -170,7 +172,7 @@ impl Engine {
                 || !Arc::ptr_eq(&context.captured.credentials, &captured.credentials)
                 || !context.captured.hosted.same_location(&captured.hosted)
             {
-                return Err(mismatch());
+                return Err(mismatch("clock:173"));
             }
             let i = &prep.correlation.inspection;
             let qualified = self
@@ -181,9 +183,9 @@ impl Engine {
                     &i.device,
                     &captured.hosted,
                 )?
-                .ok_or_else(mismatch)?;
+                .ok_or_else(|| mismatch("clock:opt"))?;
             if qualified != device.qualified {
-                return Err(mismatch());
+                return Err(mismatch("clock:186"));
             }
             let server = self.accepted_handy_server_clock(
                 &db,
@@ -195,13 +197,16 @@ impl Engine {
             let mut registry = self.handy_preparations.lock().map_err(internal)?;
             let begin = registry.sweep_controllers(&mut clock)?;
             if !sync_current(&registry, &context) {
-                return Err(mismatch());
+                return Err(mismatch("clock:198"));
             }
             let e = registry
                 .entries
                 .get_mut(&lease.preparation_id)
-                .ok_or_else(mismatch)?;
-            e.clock_attempt = e.clock_attempt.checked_add(1).ok_or_else(mismatch)?;
+                .ok_or_else(|| mismatch("clock:opt"))?;
+            e.clock_attempt = e
+                .clock_attempt
+                .checked_add(1)
+                .ok_or_else(|| mismatch("clock:opt"))?;
             e.server_clock = None;
             (
                 lease,
@@ -224,7 +229,7 @@ impl Engine {
         let ResponseBody::HandyDeviceTiming(observed) =
             self.handy_device_timing_with(&query, actor, inspect, &mut clock)?
         else {
-            return Err(mismatch());
+            return Err(mismatch("clock:227"));
         };
         if let Err(error) = device
             .check_observation(&observed.first)
@@ -250,7 +255,7 @@ impl Engine {
                                 .is_some_and(|l| selected(r, &l.report))
                     })
             {
-                return Err(mismatch());
+                return Err(mismatch("clock:253"));
             }
             device.error_at(now)?;
             Ok(now)
@@ -262,7 +267,7 @@ impl Engine {
             let mut registry = self.handy_preparations.lock().map_err(internal)?;
             registry.controller_clock_failed = true;
             let _ = registry.sweep_controllers(&mut clock);
-            return Err(mismatch());
+            return Err(mismatch("clock:265"));
         }
         let domain = ArtifactId::new(format!(
             "{:x}",
@@ -290,13 +295,13 @@ impl Engine {
         check_request_identity(&db, actor.as_str(), r, fingerprint)?;
         if let Some(body) = replay(&db, actor.as_str(), r, fingerprint)? {
             let ResponseBody::HandyPlaybackClock(v) = body else {
-                return Err(mismatch());
+                return Err(mismatch("clock:293"));
             };
             return self.playback_clock_view(&db, actor, r, *v, &mut clock);
         }
         let live = self.controller_view(&db, actor, lease.clone(), r, &mut clock)?;
         if !selected(r, &live) {
-            return Err(mismatch());
+            return Err(mismatch("clock:299"));
         }
         {
             let mut registry = self.handy_preparations.lock().map_err(internal)?;
@@ -307,7 +312,7 @@ impl Engine {
                     .get(&lease.preparation_id)
                     .is_some_and(|e| e.clock_attempt == attempt)
             {
-                return Err(mismatch());
+                return Err(mismatch("clock:310"));
             }
         }
         let at = native.server.clock.monotonic_ns;

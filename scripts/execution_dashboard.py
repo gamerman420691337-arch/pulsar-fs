@@ -215,7 +215,11 @@ def render(data):
         dependencies = ", ".join(item["depends_on"]) or "None"
         lines.append(f"| {number}. **{item['id']}** | {cell(item['title'])}<br>{cell(item['owner'])} | {label(item['state'])}<br>Depends: {dependencies} | {cell(item['exit'])} |")
     closed = sum(gate["acceptance"] == "closed" for gate in data["gates"])
-    lines += ["", "## M1–M8 acceptance ledger", "", f"All 25 original criteria are retained verbatim. **{closed} of {len(data['gates'])} acceptance gates closed.** Implementation state, evidence state and acceptance are independent; **not requalified** means this reconciliation did not establish current acceptance.", ""]
+    added = len(data["gates"]) - 25
+    retained = "All 25 original criteria are retained verbatim."
+    if added > 0:
+        retained = f"All 25 original criteria are retained verbatim; {added} added gate(s) carry later owner decisions without altering them."
+    lines += ["", "## M1–M8 acceptance ledger", "", f"{retained} **{closed} of {len(data['gates'])} acceptance gates closed.** Implementation state, evidence state and acceptance are independent; **not requalified** means this reconciliation did not establish current acceptance.", ""]
     for milestone in data["milestones"]:
         lines += [f"### {milestone['id']}: {milestone['title']}", "", "| Gate / acceptance | Required result | Implementation / verification | Next proof and basis |", "| --- | --- | --- | --- |"]
         for gate in (g for g in data["gates"] if g["milestone"] == milestone["id"]):

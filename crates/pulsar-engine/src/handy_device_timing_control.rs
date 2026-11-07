@@ -104,8 +104,15 @@ impl Engine {
                     "device timing inspection deadline expired",
                 ));
             }
+            // The question here is whether this is the same device configuration and
+            // program, not whether two reads are bit-identical: a stopped device's
+            // `current_time` advances continuously (measured on H02_pro 4.3.0), so
+            // `same_state` would refuse every idle device. `same_state` keeps its
+            // strict meaning for callers that require an exact match.
             let expected = &prep.correlation.inspection.device;
-            if !expected.same_state(&observed.before) || !expected.same_state(&observed.after) {
+            if !expected.same_configuration(&observed.before)
+                || !expected.same_configuration(&observed.after)
+            {
                 return Err(mismatch());
             }
             let db = self.db.lock().map_err(internal)?;

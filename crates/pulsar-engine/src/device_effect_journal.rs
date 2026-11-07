@@ -313,6 +313,8 @@ impl DeviceEffectJournal {
         reconciliation::upgrade(&mut db, version)?;
         browser_play::upgrade(&mut db, version)?;
         hsp::upgrade(&mut db, version)?;
+        // Runs last: it targets the final schema, whatever ladder path was taken.
+        setup::upgrade_retired(&mut db, version)?;
         hsp::preparation::retire_claims(&mut db, &boot)?;
         db.execute("INSERT INTO owner(singleton,boot) VALUES(1,?1) ON CONFLICT(singleton) DO UPDATE SET boot=excluded.boot",[boot.as_str()])?;
         Ok(Self {

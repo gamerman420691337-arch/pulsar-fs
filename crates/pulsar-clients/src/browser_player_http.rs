@@ -11,6 +11,11 @@ const JOBS: usize = 4;
 const OPERATION: Duration = Duration::from_secs(12);
 const CLEANUP: Duration = Duration::from_secs(3);
 const MAX_RESPONSE: usize = 64 * 1024 * 1024;
+fn lookahead_default_ms(maximum_analysis_age_ns: u64) -> u32 {
+    // Prefer half the age budget, subject to the input's 1ms floor and a
+    // responsive one-second cap. Admission and expiry remain authoritative.
+    (maximum_analysis_age_ns / 2_000_000).clamp(1, 1000) as u32
+}
 pub(super) fn frame_timeout_required(
     active: bool,
     requires_frames: bool,
@@ -24,6 +29,9 @@ pub(super) fn frame_timeout_required(
             .is_none_or(|age| age > Duration::from_secs(3))
 }
 pub(super) trait PreviewBackend: Send + 'static {
+    fn initial_lookahead_ms(&self) -> Option<u32> {
+        None
+    }
     fn initialize(&mut self) -> Result<()>;
     fn operation_deadline(&mut self, deadline: Instant) -> Result<()>;
     fn active(&self) -> bool;
@@ -43,6 +51,11 @@ pub(super) trait PreviewBackend: Send + 'static {
     fn stop(&mut self) -> Result<()>;
 }
 impl PreviewBackend for Preview {
+    fn initial_lookahead_ms(&self) -> Option<u32> {
+        Some(lookahead_default_ms(
+            self.options.policy.maximum_analysis_age_ns,
+        ))
+    }
     fn hsp_source_snapshot(&self) -> Result<Option<BrowserAnalysisFeedSnapshot>> {
         self.active_analysis_feed()
     }
@@ -424,6 +437,7 @@ fn run_inner(
     let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))?;
     listener.set_nonblocking(true)?;
     let authority = listener.local_addr()?.to_string();
+    let initial_lookahead_ms = preview.initial_lookahead_ms();
     let mut worker = Worker::new(preview)?;
     let mut sockets = BTreeMap::<u64, Connection>::new();
     let mut next = 0u64;
@@ -593,7 +607,10 @@ fn run_inner(
                     continue;
                 }
                 if request.method == "GET" {
-                    let result = players.page().and_then(|page| {
+                    let result = players.page().and_then(|mut page| {
+                        if let Some(ms) = initial_lookahead_ms {
+                            page["default_lookahead_ms"] = serde_json::json!(ms);
+                        }
                         Ok(PAGE
                             .replace(
                                 "/*__PULSAR_PAGE_SCOPE__*/ null",

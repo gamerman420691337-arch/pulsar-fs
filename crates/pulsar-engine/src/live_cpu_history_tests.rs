@@ -60,7 +60,7 @@ pub(crate) fn manifest(
     )
     .unwrap()
 }
-fn report() -> LiveCaptureReport {
+pub(super) fn report() -> LiveCaptureReport {
     let mut value: LiveCaptureReport = serde_json::from_str(include_str!(
         "../../pulsar-protocol/tests/fixtures/live-cpu-capture-report.json"
     ))
@@ -142,8 +142,9 @@ fn install(db: &mut Connection) -> (Request, LiveCaptureReport) {
     validate(db).unwrap();
     (request, report)
 }
-fn page(report: &LiveCaptureReport) -> LiveRecordingPage {
+pub(super) fn page(report: &LiveCaptureReport) -> LiveRecordingPage {
     LiveRecordingPage {
+        fallback: None,
         cpu_manifest: report.inference.as_ref().unwrap().cpu_manifest.clone(),
         browser_media: report.options.browser_media.clone(),
         model_pack: report.options.model_pack.clone(),

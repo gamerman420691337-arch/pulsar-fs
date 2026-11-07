@@ -104,7 +104,7 @@ pub mod session;
 
 use anyhow::{bail, Context, Result};
 use clap::{CommandFactory, Parser};
-use cli::{Cli, Commands, ModelCommands, ProjectCommands};
+use cli::{Cli, Commands, ModelCommands, ProjectCommands, RoleplayCommands};
 use pulsar_protocol::*;
 pub use session::{EngineApi, SessionClient};
 use std::{
@@ -114,6 +114,12 @@ use std::{
 
 pub use desktop::PulsarDesktop;
 mod assistant_client;
+mod roleplay_consent_state;
+pub use roleplay_consent_state::{
+    attest, create as create_consent, escalate as escalate_consent, grant as grant_consent,
+    load as load_consent, replace as replace_consent, revoke as revoke_consent,
+    status as consent_status, switch_provider as switch_consent_provider, withdraw_attestation,
+};
 mod assistant_edit_intent;
 mod assistant_generation_intent;
 mod assistant_panel;
@@ -129,6 +135,7 @@ pub fn command_needs_engine(args: &[OsString]) -> bool {
             cli.command,
             Some(
                 Commands::Completions { .. }
+                    | Commands::Roleplay { .. }
                     | Commands::ReferenceSetCreate { .. }
                     | Commands::ReferenceSetInspect { .. }
                     | Commands::LibraryAxes { .. }
@@ -298,6 +305,7 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
         return run_gui(endpoint.to_owned(), bootstrap.to_owned());
     };
     match command {
+        Commands::Roleplay { command } => run_roleplay_command(command),
         Commands::JobAttempts {project,job,after_attempt,limit} => {
             let mut client=SessionClient::connect(endpoint,bootstrap)?;
             print_response(client.execute(Command::JobAttempts {job_id:JobId::new(job)?,after_attempt:after_attempt.map(AttemptId::new).transpose()?,limit},Some(ProjectId::new(project)?),None)?)
@@ -366,6 +374,28 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
         Commands::CommitCandidate {project,candidate,revision,request_id} => {
             let mut client=SessionClient::connect(endpoint,bootstrap)?;
             print_response(client.execute_with_id(RequestId::new(request_id.unwrap_or_else(||uuid::Uuid::new_v4().to_string()))?,Command::CommitCandidate {candidate_id:CandidateId::new(candidate)?},Some(ProjectId::new(project)?),Some(RevisionId::new(revision)))?)
+        },
+        Commands::Undo {project,revision,request_id} => {
+            let id = request_id.map(RequestId::new).transpose()?.unwrap_or_else(session::new_request_id);
+            let project = ProjectId::new(project)?;
+            eprintln!("History request ID: {id}");
+            let mut client = SessionClient::connect(endpoint,bootstrap)?;
+            print_response(client.execute_with_id(id,Command::Undo,Some(project),Some(RevisionId::new(revision)))?)
+        },
+        Commands::Redo {project,revision,request_id} => {
+            let id = request_id.map(RequestId::new).transpose()?.unwrap_or_else(session::new_request_id);
+            let project = ProjectId::new(project)?;
+            eprintln!("History request ID: {id}");
+            let mut client = SessionClient::connect(endpoint,bootstrap)?;
+            print_response(client.execute_with_id(id,Command::Redo,Some(project),Some(RevisionId::new(revision)))?)
+        },
+        Commands::RebaseCandidate {project,candidate,revision,request_id} => {
+            let id = request_id.map(RequestId::new).transpose()?.unwrap_or_else(session::new_request_id);
+            let project = ProjectId::new(project)?;
+            let candidate_id = CandidateId::new(candidate)?;
+            eprintln!("Rebase request ID: {id}");
+            let mut client = SessionClient::connect(endpoint,bootstrap)?;
+            print_response(client.execute_with_id(id,Command::RebaseCandidate {candidate_id},Some(project),Some(RevisionId::new(revision)))?)
         },
         Commands::Protection {command:cli::ProtectionCommands::Status {project}} => {
             let mut client=SessionClient::connect(endpoint,bootstrap)?;modality::review(&mut client,&project,None,None)
@@ -1539,6 +1569,18 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
         Commands::HandyQualificationStatus {dossier} => {
             let mut client=SessionClient::connect(endpoint,bootstrap)?;let value=handy_qualification::status(&mut client,bootstrap.parent().context("missing private Engine directory")?,ArtifactId::new(dossier)?)?;print_response(ResponseBody::HandyQualification(Box::new(value)))
         }
+        Commands::HandyQualify {manifest,manifest_sha256,engine_epoch,device_session,note,request_id,bench_mode} => {
+            anyhow::ensure!(bench_mode,"Attended bench mode must be asserted explicitly");
+            let directory=bootstrap.parent().context("missing private Engine directory")?;
+            let mut client=SessionClient::connect(endpoint,bootstrap)?;
+            let imported=handy_qualification::import(&mut client,directory,RequestId::new(format!("{request_id}-import"))?,absolute_path(&manifest)?,manifest_sha256)?;
+            // Accept the exact dossier the import produced at the revision it reported.
+            // Evidence verification and live device binding are unchanged; only the
+            // separate human step between the commands is removed.
+            let intent=handy_qualification::Review {dossier:imported.report.dossier_id.clone(),revision:imported.report.revision,note,acceptance:Some((DeviceSessionId::new(engine_epoch)?,DeviceSessionId::new(device_session)?))};
+            let value=handy_qualification::review(&mut client,directory,RequestId::new(format!("{request_id}-accept"))?,&intent,true,true)?;
+            print_response(ResponseBody::HandyQualificationSaved(Box::new(value)))
+        }
         Commands::HandyQualificationAccept {dossier,revision,engine_epoch,device_session,note,request_id,acknowledge_physical_evidence,allow_online_inspection} => {
             anyhow::ensure!(acknowledge_physical_evidence&&allow_online_inspection,"Explicit physical evidence acceptance and online inspection consent required");
             let intent=handy_qualification::Review {dossier:ArtifactId::new(dossier)?,revision,note,acceptance:Some((DeviceSessionId::new(engine_epoch)?,DeviceSessionId::new(device_session)?))};let mut client=SessionClient::connect(endpoint,bootstrap)?;let value=handy_qualification::review(&mut client,bootstrap.parent().context("missing private Engine directory")?,RequestId::new(request_id)?,&intent,acknowledge_physical_evidence,allow_online_inspection)?;print_response(ResponseBody::HandyQualificationSaved(Box::new(value)))
@@ -1722,14 +1764,18 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
             eprintln!("Stash publication request {request_id}; retain this ID and exact arguments if the acknowledgement is lost.");
             print_response(client.execute_with_id(request_id,Command::StashExportScript {connection:StashConnection {endpoint:url,credential_env:api_key_env},source_version:SourceVersionId::new(source_version)?,scene_id:scene,file_id:file,candidate_id:CandidateId::new(candidate)?,job_id:JobId::new(job)?,owner_proof:proof,source_time,archived_origin},Some(project),Some(revision))?)
         }
-        Commands::Stash { command:cli::StashCommands::CaptureSource {project,scene,file,mappings,url,api_key_env,revision,expected_source_version} } => {
+        Commands::Stash { command:cli::StashCommands::CaptureSource {project,scene,file,mappings,url,api_key_env,revision,expected_source_version,allow_multifile_selection,expected_server_path_file} } => {
+            let expected_server_path = expected_server_path_file.map(|path| -> anyhow::Result<String> {
+                let bytes = inference::read_bounded_profile(&path).context("read expected Stash path")?;
+                serde_json::from_slice(&bytes).context("expected Stash path must be a JSON string")
+            }).transpose()?;
             let bytes=inference::read_bounded_profile(&mappings).context("read bounded Stash mappings")?;
             let mappings:Vec<StashRootMapping>=serde_json::from_slice(&bytes)?;
             let proof=project_package::read_local_owner_proof(bootstrap.parent().context("missing private engine directory")?,"stash-owner.token")?;
             let mut client=SessionClient::connect(endpoint,bootstrap)?;
             let project=ProjectId::new(project)?;
             let revision=match revision {Some(value)=>RevisionId::new(value),None=>get_snapshot(&mut client,&project)?.revision};
-            print_response(client.execute(Command::StashImportSource {connection:StashConnection {endpoint:url,credential_env:api_key_env},scene_id:scene,file_id:file,expected_server_path:None,expected_source_version:expected_source_version.map(SourceVersionId::new).transpose()?,mappings,owner_proof:proof},Some(project),Some(revision))?)
+            print_response(client.execute(Command::StashImportSource {connection:StashConnection {endpoint:url,credential_env:api_key_env},scene_id:scene,file_id:file,expected_server_path,expected_source_version:expected_source_version.map(SourceVersionId::new).transpose()?,allow_multifile_selection:allow_multifile_selection.then_some(true),mappings,owner_proof:proof},Some(project),Some(revision))?)
         }
         Commands::Stash { command:cli::StashCommands::PlanMissing {limit,url,api_key_env,mappings} } => {
             let bytes=inference::read_bounded_profile(&mappings).context("read bounded Stash mappings")?;
@@ -2070,6 +2116,82 @@ struct LibraryEntry {
     video: PathBuf,
     script: PathBuf,
     has_script: bool,
+}
+
+/// Wall-clock nanoseconds for local consent bookkeeping. Consent timestamps are
+/// recorded, not compared across machines.
+fn consent_now_ns() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .and_then(|elapsed| u64::try_from(elapsed.as_nanos()).ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(1)
+}
+
+fn consent_class(value: &str) -> Result<ContentClass> {
+    Ok(match value {
+        "general" => ContentClass::General,
+        "mature" => ContentClass::Mature,
+        "explicit" => ContentClass::Explicit,
+        other => anyhow::bail!("unknown content class: {other}"),
+    })
+}
+
+/// Local roleplay consent operations: no Engine contact, no inference, no device.
+fn run_roleplay_command(command: RoleplayCommands) -> Result<()> {
+    let now = consent_now_ns();
+    match command {
+        RoleplayCommands::Create { path } => {
+            roleplay_consent_state::create(&path, &RoleplayConsentDocument::least_permissive())?;
+            print_json(&roleplay_consent_state::status(&path, now)?)
+        }
+        RoleplayCommands::Attest { path } => {
+            roleplay_consent_state::attest(&path, now)?;
+            print_json(&roleplay_consent_state::status(&path, now)?)
+        }
+        RoleplayCommands::WithdrawAttestation { path } => {
+            roleplay_consent_state::withdraw_attestation(&path, now)?;
+            print_json(&roleplay_consent_state::status(&path, now)?)
+        }
+        RoleplayCommands::Consent {
+            path,
+            participant,
+            class,
+        } => {
+            roleplay_consent_state::grant(
+                &path,
+                ParticipantRef::new(participant)?,
+                consent_class(&class)?,
+                now,
+            )?;
+            print_json(&roleplay_consent_state::status(&path, now)?)
+        }
+        RoleplayCommands::Revoke { path, participant } => {
+            roleplay_consent_state::revoke(&path, &ParticipantRef::new(participant)?, now)?;
+            print_json(&roleplay_consent_state::status(&path, now)?)
+        }
+        RoleplayCommands::Escalate { path, class } => {
+            roleplay_consent_state::escalate(&path, consent_class(&class)?, now)?;
+            print_json(&roleplay_consent_state::status(&path, now)?)
+        }
+        RoleplayCommands::Provider {
+            path,
+            local,
+            remote,
+        } => {
+            let provider = match (local, remote) {
+                (true, None) => ProviderScope::local(),
+                (false, Some(reference)) => ProviderScope::remote(ProviderRef::new(reference)?),
+                _ => anyhow::bail!("provider requires exactly one of --local or --remote PROVIDER"),
+            };
+            roleplay_consent_state::switch_provider(&path, provider, now)?;
+            print_json(&roleplay_consent_state::status(&path, now)?)
+        }
+        RoleplayCommands::Status { path } => {
+            print_json(&roleplay_consent_state::status(&path, now)?)
+        }
+    }
 }
 
 fn print_json(value: &impl serde::Serialize) -> Result<()> {

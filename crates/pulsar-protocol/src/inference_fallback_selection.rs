@@ -2,6 +2,12 @@
 //! still owns accepted evidence, source kind, current authority, environment,
 //! retirement, deadlines and fresh resource custody. These values grant none.
 use crate::*;
+#[path = "browser_inference_semantics.rs"]
+mod browser_semantics;
+pub use browser_semantics::*;
+#[path = "browser_inference_fallback.rs"]
+mod browser_fallback;
+pub use browser_fallback::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
@@ -20,7 +26,7 @@ fn check(condition: bool, message: &str) -> Result<(), ProtocolError> {
         Err(ProtocolError::invalid(message))
     }
 }
-fn encoded<T: Serialize>(value: &T) -> Result<Vec<u8>, ProtocolError> {
+fn encoded<T: Serialize + ?Sized>(value: &T) -> Result<Vec<u8>, ProtocolError> {
     let bytes = serde_json::to_vec(value)
         .map_err(|_| ProtocolError::invalid("fallback policy serialization failed"))?;
     check(
@@ -127,6 +133,131 @@ pub enum InferenceFallbackSourceKind {
     DecodedMedia,
 }
 
+/// Domain separation from decoded-file fallback policy. This value is declared
+/// applicability only, never a native browser source or an execution grant.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BrowserInferenceFallbackSourceNamespace {
+    BrowserMediaCapture,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BrowserInferenceFallbackSourcePolicy {
+    pub schema_version: u16,
+    pub namespace: BrowserInferenceFallbackSourceNamespace,
+    /// Exact content allowlist, independently of the current capture epoch.
+    /// None permits any explicitly bound browser-media source, not raw cameras
+    /// or arbitrary producer-declared RGB streams.
+    pub sources: Option<Vec<ArtifactIdentity>>,
+}
+impl BrowserInferenceFallbackSourcePolicy {
+    pub fn any_bound_media() -> Self {
+        Self {
+            schema_version: 1,
+            namespace: BrowserInferenceFallbackSourceNamespace::BrowserMediaCapture,
+            sources: None,
+        }
+    }
+    pub fn validate(&self) -> Result<(), ProtocolError> {
+        check(
+            self.schema_version == 1,
+            "unsupported browser fallback source policy version",
+        )?;
+        if let Some(sources) = &self.sources {
+            artifact_list(sources)?;
+        }
+        encoded(self).map(|_| ())
+    }
+    pub fn identity(&self) -> Result<ArtifactIdentity, ProtocolError> {
+        self.validate()?;
+        identity(self)
+    }
+    pub fn matches_capture(
+        &self,
+        engine_epoch: &AttemptId,
+        options: &LiveCaptureOptions,
+    ) -> Result<bool, ProtocolError> {
+        self.validate()?;
+        options.validate()?;
+        let (Some(media), Some(_), Some(_)) = (
+            &options.browser_media,
+            &options.browser_analysis,
+            &options.inference,
+        ) else {
+            return Ok(false);
+        };
+        Ok(
+            options.source_time_basis == LiveSourceTimeBasis::SourceMediaPresentation
+                && options.encoded_source.is_none()
+                && media.engine_epoch == *engine_epoch
+                && self
+                    .sources
+                    .as_ref()
+                    .is_none_or(|sources| sources.contains(&media.selection.source)),
+        )
+    }
+    /// Metadata correspondence only. Engine still resolves original native
+    /// media/timing ownership, accepted evidence, cancellation and expiry.
+    pub fn matches_manifest(
+        &self,
+        engine_epoch: &AttemptId,
+        options: &LiveCaptureOptions,
+        manifest: &LiveInferenceManifest,
+    ) -> Result<bool, ProtocolError> {
+        if !self.matches_capture(engine_epoch, options)? {
+            return Ok(false);
+        }
+        manifest.validate_metadata()?;
+        let (Some(media), Some(_analysis), Some(inference)) = (
+            &options.browser_media,
+            &options.browser_analysis,
+            &options.inference,
+        ) else {
+            return Ok(false);
+        };
+        Ok(
+            options.source_time_basis == LiveSourceTimeBasis::SourceMediaPresentation
+                && options.encoded_source.is_none()
+                && media.engine_epoch == *engine_epoch
+                && media.project_id == manifest.identity.project
+                && media.revision == manifest.identity.revision
+                && media.selection.source_version == manifest.identity.source
+                && manifest.clock == options.clock(manifest.identity.epoch.clone())
+                && manifest.budget.wall_time_ms == u64::from(options.lease_ms)
+                && manifest.model.path == inference.model_path
+                && encoded(&manifest.profile)? == encoded(&inference.profile)?
+                && self
+                    .sources
+                    .as_ref()
+                    .is_none_or(|sources| sources.contains(&media.selection.source)),
+        )
+    }
+}
+
+impl LiveInferenceManifest {
+    /// Recheck the browser namespace using retained options and the original
+    /// boot identity. Absence of browser analysis keeps ordinary capture modes.
+    /// Success is not proof of source acquisition or permission to execute.
+    pub fn validate_browser_source(
+        &self,
+        engine_epoch: &AttemptId,
+        options: &LiveCaptureOptions,
+    ) -> Result<(), ProtocolError> {
+        if options.browser_analysis.is_some() {
+            check(
+                BrowserInferenceFallbackSourcePolicy::any_bound_media().matches_manifest(
+                    engine_epoch,
+                    options,
+                    self,
+                )?,
+                "browser inference source namespace, clock, profile or lifetime differs",
+            )?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum InferenceFallbackIndependentAudio {
@@ -209,23 +340,7 @@ pub struct InferenceFallbackViewPolicy {
 }
 impl InferenceFallbackViewPolicy {
     pub fn validate(&self) -> Result<(), ProtocolError> {
-        check(
-            self.schema_version == 1,
-            "unsupported fallback view policy version",
-        )?;
-        if let InferenceFallbackViewApplicability::ExactSettings { sha256 } = &self.applicability {
-            check(
-                !sha256.is_empty() && sha256.len() <= INFERENCE_EQUIVALENCE_MAX_CASES,
-                "fallback settings allowlist must be nonempty and bounded",
-            )?;
-            for hash in sha256 {
-                validate_sha256(hash)?;
-            }
-            check(
-                sha256.windows(2).all(|pair| pair[0] < pair[1]),
-                "fallback settings allowlist must be uniquely sorted",
-            )?;
-        }
+        validate_view_applicability(self.schema_version, &self.applicability)?;
         encoded(self).map(|_| ())
     }
     pub fn identity(&self) -> Result<ArtifactIdentity, ProtocolError> {
@@ -245,6 +360,30 @@ impl InferenceFallbackViewPolicy {
     }
 }
 
+fn validate_view_applicability(
+    schema_version: u16,
+    applicability: &InferenceFallbackViewApplicability,
+) -> Result<(), ProtocolError> {
+    check(
+        schema_version == 1,
+        "unsupported fallback view policy version",
+    )?;
+    if let InferenceFallbackViewApplicability::ExactSettings { sha256 } = applicability {
+        check(
+            !sha256.is_empty() && sha256.len() <= INFERENCE_EQUIVALENCE_MAX_CASES,
+            "fallback settings allowlist must be nonempty and bounded",
+        )?;
+        for hash in sha256 {
+            validate_sha256(hash)?;
+        }
+        check(
+            sha256.windows(2).all(|pair| pair[0] < pair[1]),
+            "fallback settings allowlist must be uniquely sorted",
+        )?;
+    }
+    Ok(())
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct InferenceFallbackSelection {
@@ -261,21 +400,7 @@ impl InferenceFallbackSelection {
             self.schema_version == 1,
             "unsupported fallback selection version",
         )?;
-        check(
-            !self.equivalents.is_empty()
-                && self.equivalents.len() <= MAX_INFERENCE_FALLBACK_REFERENCES
-                && (1..=MAX_INFERENCE_FALLBACKS).contains(&usize::from(self.maximum_fallbacks))
-                && usize::from(self.maximum_fallbacks) <= self.equivalents.len(),
-            "fallback selection count or attempt limit is invalid",
-        )?;
-        let mut seen = BTreeSet::new();
-        for reference in &self.equivalents {
-            reference.validate()?;
-            check(
-                seen.insert(&reference.dossier_id),
-                "fallback dossier may appear only once",
-            )?;
-        }
+        validate_fallback_references(&self.equivalents, self.maximum_fallbacks)?;
         self.source_policy.validate()?;
         self.view_policy.validate()?;
         encoded(self).map(|_| ())
@@ -302,6 +427,28 @@ impl InferenceFallbackSelection {
         Ok(self.source_policy.identity()? == scope.source_policy
             && self.view_policy.identity()? == scope.view_policy)
     }
+}
+
+fn validate_fallback_references(
+    references: &[InferenceFallbackReference],
+    maximum: u8,
+) -> Result<(), ProtocolError> {
+    check(
+        !references.is_empty()
+            && references.len() <= MAX_INFERENCE_FALLBACK_REFERENCES
+            && (1..=MAX_INFERENCE_FALLBACKS).contains(&usize::from(maximum))
+            && usize::from(maximum) <= references.len(),
+        "fallback selection count or attempt limit is invalid",
+    )?;
+    let mut seen = BTreeSet::new();
+    for reference in references {
+        reference.validate()?;
+        check(
+            seen.insert(&reference.dossier_id),
+            "fallback dossier may appear only once",
+        )?;
+    }
+    Ok(())
 }
 
 /// The projection mirrors equivalence paired-settings comparison: remove only
@@ -993,3 +1140,7 @@ mod tests {
         assert!(validate_inference_fallback_successor(&original, &successor).is_err());
     }
 }
+
+#[cfg(test)]
+#[path = "browser_inference_source_tests.rs"]
+mod browser_source_tests;

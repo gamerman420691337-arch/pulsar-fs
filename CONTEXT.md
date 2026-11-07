@@ -1,4 +1,4 @@
-> Project scope and delivery order live in [PULSAR_PROJECT.md](docs/PULSAR_PROJECT.md). This file is the supporting domain glossary; historical progress below is not the current queue.
+> Project scope and delivery order live in [PULSAR_PROJECT.md](docs/PULSAR_PROJECT.md). This is the supporting domain glossary; current work belongs in the execution ledger.
 
 # Pulsar
 

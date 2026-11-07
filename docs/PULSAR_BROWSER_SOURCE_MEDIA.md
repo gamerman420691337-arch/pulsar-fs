@@ -7,6 +7,8 @@ capture, recordings and motion-candidate provenance. Software, actual native HTT
 rendered-browser fixture checks pass. This does not establish synchronized Handy playback
 or useful learned motion.
 
+The [ordinary browser-only cutover repair](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/native-timing/verification.json) commits native source and timing lineage after actual worker join and shared-pair acceptance. The confined parent-release regression passes, and real rendered40s playback now spans three captures/383 estimates with clean server exit and unchanged limits. The historical assembly rule now permits distinct epoch leases only when source bytes, placement and declared clock remain identical, while retaining every original binding. Protocol/Engine staging tests pass, but new rendered trials fail timing before staging; complete multi-epoch review/export and runtime regression clearance remain unverified. Earlier expiry and HSP019 failures retain their separate unresolved causes. See the execution dashboard for current scope.
+
 ## Launch and use
 
 Use the development app described in [the quickstart](PULSAR_APP_QUICKSTART.md):
@@ -45,8 +47,9 @@ installed executable may not contain them.
    starts neither inference nor device motion. Playback must be visible, at
    normal speed and inside the declared trim.
 6. Pause, seek or **Stop preview** retires the current player/capture while keeping
-   this prepared source loaded. Seek within the trim and press Play explicitly to
-   start another playback. Trim end stops playback. **Release prepared source**
+   this prepared source loaded. After a seek following playback, use **Resume
+   analysis after seek** to start another playback. Trim end stops playback.
+   **Release prepared source**
    detaches the URL and requests release of the original preparation. After an
    uncertain response, use **Inspect original preparation** or release that same
    selection; do not assume a replacement has started.
@@ -62,6 +65,10 @@ project, current revision and configured options. The default server lifetime is
 300 seconds; `--duration-seconds` accepts 1–600. These arguments do not configure a
 device connection. On Unix, SIGINT/SIGTERM request normal cleanup and joined exit;
 the desktop keeps its own cancellation path. Cleanup failures remain explicit errors.
+An unconfirmed source release reports its original preparation and selection IDs
+plus an allowlisted stage, category, and optional protocol code. It excludes raw
+transport error text, which may contain private paths or credentials. A diagnostic
+does not confirm release or authorize a replacement operation.
 
 ## What the clock declaration means
 
@@ -116,7 +123,7 @@ visible with `current:false`, including after restart.
 
 Capture pins the current native binding, uses the imported source version in its
 identity, and retains that binding across continuation and recording pages.
-Assembly refuses mixed bindings or bound/unbound pages. Candidate provenance
+Assembly refuses mixed source/placement/declared-clock correspondence or bound/unbound pages. Different epoch lease identities are historical facts, not authority, and may differ for the same source correspondence. Full metadata within one epoch must remain unchanged across pages. Candidate provenance
 retains the binding and adds the review reason `browser_source_clock_declared`.
 The existing [record, review and commit workflow](PULSAR_BROWSER_RECORDING_CANDIDATES.md)
 remains explicit. The recording page displays browser presentation timestamps;

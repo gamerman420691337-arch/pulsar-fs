@@ -216,6 +216,44 @@ pub struct HspState {
     pub tail_point_stream_index: i32,
     pub tail_point_stream_index_threshold: u32,
     pub pause_on_starving: bool,
+    /// Firmware-reported fields absent from the pinned schema. They are retained
+    /// as inert metadata, never interpreted as control state, and bounded so a
+    /// hostile response cannot grow retention. Entry 0 is the unnamed tail
+    /// marker used by `from_parts` when nothing else is recorded.
+    pub extras: HspExtras,
+}
+
+/// At most three unmapped firmware fields, each with a bounded numeric or
+/// boolean value. Unrecognized shapes are dropped rather than stored verbatim.
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+pub struct HspExtras {
+    entries: [Option<HspExtra>; 3],
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum HspExtra {
+    Bool(bool),
+    Number(f64),
+}
+
+impl HspExtras {
+    pub fn len(&self) -> usize {
+        self.entries.iter().filter(|e| e.is_some()).count()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    pub fn get(&self, index: usize) -> Option<HspExtra> {
+        self.entries.get(index).copied().flatten()
+    }
+    pub fn iter(&self) -> impl Iterator<Item = HspExtra> + '_ {
+        self.entries.iter().flatten().copied()
+    }
+    fn push(&mut self, value: HspExtra) {
+        if let Some(slot) = self.entries.iter_mut().find(|e| e.is_none()) {
+            *slot = Some(value);
+        }
+    }
 }
 
 /// Decode the complete documented envelope for Setup/Add/Play/Stop/State.
@@ -237,7 +275,6 @@ pub fn decode_state(status: u16, bytes: &[u8]) -> Result<HspState, HspWireError>
         result: State,
     }
     #[derive(Deserialize)]
-    #[serde(deny_unknown_fields)]
     struct State {
         play_state: u8,
         points: u32,
@@ -252,6 +289,11 @@ pub fn decode_state(status: u16, bytes: &[u8]) -> Result<HspState, HspWireError>
         tail_point_stream_index: i32,
         tail_point_stream_index_threshold: u32,
         pause_on_starving: bool,
+        // Bounded capture of firmware fields outside the pinned schema. Values
+        // are retained as inert metadata and never become control state; text
+        // and nested values are discarded rather than stored.
+        #[serde(flatten)]
+        extras: std::collections::BTreeMap<String, serde_json::Value>,
     }
     let Envelope { result: state } =
         serde_json::from_slice(bytes).map_err(|_| HspWireError::InvalidResponse)?;
@@ -275,6 +317,21 @@ pub fn decode_state(status: u16, bytes: &[u8]) -> Result<HspState, HspWireError>
     {
         return Err(HspWireError::InvalidResponse);
     }
+    // Retain only scalar firmware extras, bounded in count and shape. Text,
+    // nested objects and non-finite numbers are discarded so no response can
+    // smuggle unbounded or credential-like content into retained state.
+    let mut extras = HspExtras::default();
+    for value in state.extras.values() {
+        match value {
+            serde_json::Value::Bool(value) => extras.push(HspExtra::Bool(*value)),
+            serde_json::Value::Number(number) => {
+                if let Some(value) = number.as_f64().filter(|v| v.is_finite()) {
+                    extras.push(HspExtra::Number(value));
+                }
+            }
+            _ => {}
+        }
+    }
     Ok(HspState {
         play_state,
         points: state.points,
@@ -289,6 +346,7 @@ pub fn decode_state(status: u16, bytes: &[u8]) -> Result<HspState, HspWireError>
         tail_point_stream_index: state.tail_point_stream_index,
         tail_point_stream_index_threshold: state.tail_point_stream_index_threshold,
         pause_on_starving: state.pause_on_starving,
+        extras,
     })
 }
 
@@ -418,6 +476,7 @@ mod tests {
                 tail_point_stream_index: 7,
                 tail_point_stream_index_threshold: 1,
                 pause_on_starving: false,
+                extras: HspExtras::default(),
             }
         );
     }
@@ -590,16 +649,31 @@ mod tests {
             fixture.replace("100.0", "1e999"),
             fixture.replace("100.0", "NaN"),
             fixture.replace("1.0", "Infinity"),
-            fixture.replace(
-                "\"current_point\":2",
-                "\"current_point\":2,\"peer_token\":\"secret\"",
-            ),
         ] {
             assert_eq!(
                 decode_state(200, envelope.as_bytes()),
                 Err(HspWireError::InvalidResponse)
             );
         }
+        // An unmapped scalar field is retained as inert metadata, never as control
+        // state. A textual value is discarded entirely rather than stored verbatim.
+        let injected = fixture.replacen(
+            "\"current_point\":2",
+            "\"current_point\":2,\"peer_token\":\"secret\"",
+            1,
+        );
+        let state = decode_state(200, injected.as_bytes()).unwrap();
+        assert_eq!(state.current_point, 2);
+        assert!(state.extras.is_empty(), "text extras must not be retained");
+
+        let scalar = fixture.replacen(
+            "\"current_point\":2",
+            "\"current_point\":2,\"jitter_filter\":true",
+            1,
+        );
+        let state = decode_state(200, scalar.as_bytes()).unwrap();
+        assert_eq!(state.extras.len(), 1);
+        assert_eq!(state.extras.get(0), Some(HspExtra::Bool(true)));
     }
 
     #[test]

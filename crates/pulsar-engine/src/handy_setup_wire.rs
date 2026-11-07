@@ -34,14 +34,17 @@ fn execute(
         .proxy(None)
         .build()
         .into();
+    let bearer = credentials.bearer().ok()?;
     let mut builder = agent
         .put(format!("{origin}/hssp/setup"))
-        .header("X-Api-Key", &credentials.api)
+        .header("Authorization", format!("Bearer {bearer}"))
         .header("X-Connection-Key", &credentials.connection)
         .header("Accept", "application/json")
         .header("Content-Type", "application/json");
-    for name in ["X-Api-Key", "X-Connection-Key"] {
-        builder.headers_mut()?.get_mut(name)?.set_sensitive(true);
+    for name in ["Authorization", "X-Connection-Key"] {
+        if let Some(value) = builder.headers_mut().and_then(|h| h.get_mut(name)) {
+            value.set_sensitive(true);
+        }
     }
     let mut response = builder.send(payload.as_slice()).ok()?;
     let status = response.status().as_u16();
@@ -115,7 +118,8 @@ mod tests {
                 headers.push_str(&line);
             }
             let lower = headers.to_ascii_lowercase();
-            assert!(lower.contains("x-api-key: fixture-api"));
+            assert!(lower.contains("authorization: bearer "));
+            assert!(!lower.contains("x-api-key:"));
             assert!(lower.contains(&format!("x-connection-key: {key}")));
             let length: usize = lower
                 .lines()
@@ -146,10 +150,10 @@ mod tests {
                 thread::sleep(Duration::from_millis(5));
             }
         });
-        let credentials = Arc::new(Credentials {
-            api: "fixture-api".into(),
-            connection: connection.into(),
-        });
+        let credentials = Arc::new(Credentials::for_test(
+            "fixture-api".into(),
+            connection.into(),
+        ));
         let hosted = crate::handy_hosting_wire::fixture_verified(b"0,20\n1000,20\n");
         let budget = if delay.is_zero() {
             Duration::from_secs(2)

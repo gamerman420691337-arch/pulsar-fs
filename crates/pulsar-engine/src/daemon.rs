@@ -306,6 +306,7 @@ fn control_inner(
 }
 
 pub(crate) fn run(config: EngineConfig) -> Result<()> {
+    crate::portable_fallback_reader::preflight_main_header(&config.state_dir)?;
     artifacts::private_directory(&config.state_dir)?;
     let lock = OpenOptions::new()
         .read(true)

@@ -717,10 +717,7 @@ fn reconciliation_other_controller(
     };
     *device_id = DeviceId::new("liveness-recovery-target").unwrap();
     let registration = handy_registration_saved(f.engine.handle(register));
-    let credentials = Arc::new(crate::handy_credentials::Credentials {
-        api: "synthetic-target-api".into(),
-        connection: "synthetic-target-route".into(),
-    });
+    let credentials = Arc::new(crate::handy_credentials::Credentials::for_test("synthetic-target-api", "synthetic-target-route"));
     let open = handy_session_open_request(f, "liveness-target-session", &registration);
     let fingerprint = format!("{:x}", Sha256::digest(request_fingerprint(&open).unwrap()));
     let connection = handy_session_report(

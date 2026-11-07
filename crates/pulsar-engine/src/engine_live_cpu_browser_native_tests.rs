@@ -97,6 +97,9 @@ mod captured_cpu_browser_native_tests {
         fixture: ArtifactReference,
         decoded: DecodedFixture,
         pixels: Vec<u8>,
+        cpu_threads: u16,
+        owner_cpu_threads: u16,
+        producer_join_wait_ms: u64,
     }
     impl Inputs {
         fn load() -> Result<Self> {
@@ -192,6 +195,15 @@ mod captured_cpu_browser_native_tests {
                 fixture,
                 decoded,
                 pixels,
+                cpu_threads: std::env::var("PULSAR_CAPTURED_CPU_BROWSER_THREADS")
+                    .unwrap_or_else(|_| "2".into())
+                    .parse()?,
+                owner_cpu_threads: std::env::var("PULSAR_CAPTURED_CPU_BROWSER_OWNER_THREADS")
+                    .unwrap_or_else(|_| "4".into())
+                    .parse()?,
+                producer_join_wait_ms: std::env::var("PULSAR_CAPTURED_CPU_BROWSER_JOIN_WAIT_MS")
+                    .unwrap_or_else(|_| "0".into())
+                    .parse()?,
             })
         }
         fn verify_unchanged(&self) -> Result<()> {
@@ -212,7 +224,7 @@ mod captured_cpu_browser_native_tests {
             Ok(())
         }
         fn subjects(&self) -> Value {
-            json!({"worker":self.worker,"policy":self.policy,"model":self.model,"media":self.media,"rgb_fixture":self.fixture,"rgb":self.decoded.rgb,"decoder":self.decoded.decoder,"decoder_arguments":self.decoded.arguments,"authored_neutral_model":true,"authored_browser_observations":true,"browser_capture":false,"physical_device":false,"qualified":false})
+            json!({"worker":self.worker,"policy":self.policy,"model":self.model,"media":self.media,"rgb_fixture":self.fixture,"rgb":self.decoded.rgb,"decoder":self.decoded.decoder,"decoder_arguments":self.decoded.arguments,"cpu_threads":self.cpu_threads,"owner_cpu_threads":self.owner_cpu_threads,"producer_join_wait_ms":self.producer_join_wait_ms,"latency_qualification":false,"authored_neutral_model":true,"authored_browser_observations":true,"browser_capture":false,"physical_device":false,"qualified":false})
         }
         fn bytes(&self, index: usize) -> Result<&[u8]> {
             ensure!(
@@ -244,7 +256,7 @@ mod captured_cpu_browser_native_tests {
                 provider: InferenceProvider::Cpu,
                 minimum_memory_bytes: 128 << 20,
                 minimum_output_bytes: 1 << 20,
-                cpu_threads: 2,
+                cpu_threads: self.cpu_threads,
                 cuda_resources: None,
             };
             profile.validate()?;
@@ -254,6 +266,9 @@ mod captured_cpu_browser_native_tests {
     struct Client<'a> {
         engine: &'a Arc<Engine>,
         actor: SessionId,
+        // Test-local paired credential, retained in memory so an independent
+        // timing observer authenticates exactly like the first-party client.
+        auth_token: String,
         project: ProjectId,
     }
     impl<'a> Client<'a> {
@@ -274,12 +289,17 @@ mod captured_cpu_browser_native_tests {
             };
             Ok(Self {
                 engine,
+                auth_token: TOKENS
+                    .with(|tokens| tokens.borrow().get(actor.as_str()).cloned())
+                    .context("paired fixture credential absent")?,
                 actor,
                 project: project.project_id.clone(),
             })
         }
         fn intent(&self, revision: Option<u64>, command: Command) -> Request {
-            request(&self.actor, Some(&self.project), revision, command)
+            let mut value = request(&self.actor, Some(&self.project), revision, command);
+            value.auth_token = Some(self.auth_token.clone());
+            value
         }
         fn call(&self, revision: Option<u64>, command: Command) -> Result<ResponseBody> {
             Ok(self.engine.handle(self.intent(revision, command)).result?)
@@ -306,7 +326,54 @@ mod captured_cpu_browser_native_tests {
         value.validate()?;
         Ok(*value)
     }
-    fn prepare_media(client: &Client<'_>, inputs: &Inputs) -> Result<BrowserMediaBinding> {
+    #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+    fn prepare_native_image(client: &Client<'_>) -> Result<NativeImagePreparationStatus> {
+        let ResponseBody::NativeImagePreparationLimits(limits) =
+            client.call(Some(1), Command::NativeImagePreparationLimits)?
+        else {
+            bail!("native image preparation limits missing")
+        };
+        limits.validate()?;
+        ensure!(limits.supported, "native image preparation is unavailable");
+        let options = NativeImagePreparationOptions {
+            preparation_ms: limits.preparation_max_ms.min(300_000),
+            retention_ms: limits.retention_max_ms.min(900_000),
+        };
+        let ResponseBody::NativeImagePreparation(started) = client.call(
+            Some(1),
+            Command::StartNativeImagePreparation {
+                engine_epoch: limits.engine_epoch.clone(),
+                options,
+            },
+        )?
+        else {
+            bail!("native image preparation start missing")
+        };
+        let operation = started.report.intent.operation_id.clone();
+        let deadline = Instant::now() + Duration::from_millis(options.preparation_ms);
+        loop {
+            let ResponseBody::NativeImagePreparation(status) = client.call(
+                Some(1),
+                Command::NativeImagePreparationStatus {
+                    operation_id: operation.clone(),
+                },
+            )?
+            else {
+                bail!("native image preparation status missing")
+            };
+            status.report.validate()?;
+            if status.report.state == NativeImagePreparationState::Retained && status.available {
+                return Ok(*status);
+            }
+            ensure!(
+                !status.report.state.is_terminal() && Instant::now() < deadline,
+                "native image preparation failed or timed out: {:?}",
+                status.report
+            );
+            std::thread::park_timeout(Duration::from_millis(25));
+        }
+    }
+    fn place_media(client: &Client<'_>, inputs: &Inputs) -> Result<()> {
         let ResponseBody::Source { source_version } = client.call(
             None,
             Command::ImportSource {
@@ -331,6 +398,9 @@ mod captured_cpu_browser_native_tests {
                 replace: None,
             },
         )?;
+        Ok(())
+    }
+    fn prepare_media(client: &Client<'_>) -> Result<BrowserMediaBinding> {
         let ResponseBody::BrowserMediaCatalog(catalog) =
             client.call(Some(1), Command::BrowserMediaCatalog)?
         else {
@@ -406,6 +476,7 @@ mod captured_cpu_browser_native_tests {
                 generation: 1,
                 time_basis: LiveSourceTimeBasis::SourceMediaPresentation,
             };
+            let open_started = Instant::now();
             let ResponseBody::BrowserTiming(report) = client.call(
                 Some(1),
                 Command::OpenBrowserTiming {
@@ -418,6 +489,11 @@ mod captured_cpu_browser_native_tests {
                 bail!("timing binding missing")
             };
             report.validate()?;
+            ensure!(
+                report.current,
+                "new browser timing binding was already not current: open_elapsed_ms={}, observation_timeout_ms={}",
+                open_started.elapsed().as_millis(), timing_policy().observation_timeout_ms
+            );
             Ok(Self {
                 binding: report.binding,
                 origin: Instant::now(),
@@ -486,7 +562,9 @@ mod captured_cpu_browser_native_tests {
             report.validate()?;
             ensure!(
                 report.current && report.binding == self.binding && !report.qualified,
-                "authored observation lost original native timing ownership"
+                "authored observation lost original native timing ownership: current={}, binding_matches={}, qualified={}, sequence={}, media_time_us={}, presented_frames={}",
+                report.current, report.binding == self.binding, report.qualified, self.sequence,
+                media_time_us, presented_frames
             );
             self.last_observation = Some(report.observation.context("native observation absent")?);
             Ok(())
@@ -564,7 +642,8 @@ mod captured_cpu_browser_native_tests {
                         .context("CPU owner absent")?
                         .image()?
                         .identity()?
-                && actual.stream.budget.wall_time_ms == u64::from(LEASE_MS)
+                && actual.stream.budget.wall_time_ms == u64::from(original.options.lease_ms)
+                && original.options.lease_ms <= LEASE_MS
                 && current.options.policy.maximum_analysis_age_ns == MAX_AGE_NS,
             "original captured image/worker/budget differs"
         );
@@ -579,6 +658,53 @@ mod captured_cpu_browser_native_tests {
         );
         Ok(())
     }
+    fn native_ready_within_original_lease(
+        state: LiveCaptureInferenceState,
+        observed_at: Instant,
+        deadline: Instant,
+    ) -> Result<bool> {
+        ensure!(
+            observed_at < deadline,
+            "Ready exceeded original capture lease"
+        );
+        Ok(state == LiveCaptureInferenceState::Running)
+    }
+
+    #[test]
+    fn browser_ready_rejects_running_at_or_after_original_deadline() {
+        let deadline = Instant::now();
+        assert!(native_ready_within_original_lease(
+            LiveCaptureInferenceState::Running,
+            deadline,
+            deadline
+        )
+        .is_err());
+        assert!(native_ready_within_original_lease(
+            LiveCaptureInferenceState::Running,
+            deadline + Duration::from_nanos(1),
+            deadline
+        )
+        .is_err());
+        assert!(native_ready_within_original_lease(
+            LiveCaptureInferenceState::Starting,
+            deadline,
+            deadline
+        )
+        .is_err());
+        assert!(native_ready_within_original_lease(
+            LiveCaptureInferenceState::Running,
+            deadline - Duration::from_nanos(1),
+            deadline
+        )
+        .unwrap());
+        assert!(!native_ready_within_original_lease(
+            LiveCaptureInferenceState::Starting,
+            deadline - Duration::from_nanos(1),
+            deadline
+        )
+        .unwrap());
+    }
+
     fn start(
         client: &Client<'_>,
         inputs: &Inputs,
@@ -587,6 +713,7 @@ mod captured_cpu_browser_native_tests {
     ) -> Result<(LiveCaptureReport, Instant)> {
         player.observe(client)?;
         let end = Instant::now() + Duration::from_millis(u64::from(LEASE_MS));
+        let start_call_began = Instant::now();
         let initial = capture(client.call(
             Some(1),
             Command::StartLiveCapture {
@@ -594,9 +721,20 @@ mod captured_cpu_browser_native_tests {
                 options: options(inputs, media, player)?,
             },
         )?)?;
+        let start_call_elapsed = start_call_began.elapsed();
+        let mut poll_count = 0u64;
+        let mut timing_observe_max = Duration::ZERO;
+        let mut capture_status_max = Duration::ZERO;
         loop {
-            player.observe(client)?;
-            let current = client.capture(&initial.identity.epoch)?;
+            poll_count = poll_count.saturating_add(1);
+            let began = Instant::now();
+            let observed = player.observe(client);
+            timing_observe_max = timing_observe_max.max(began.elapsed());
+            observed.context("native Ready timing observation")?;
+            let began = Instant::now();
+            let status = client.capture(&initial.identity.epoch);
+            capture_status_max = capture_status_max.max(began.elapsed());
+            let current = status.context("native Ready capture status")?;
             assert_scope(client.engine, &initial, &current)?;
             let info = current.inference.as_ref().unwrap();
             ensure!(
@@ -604,13 +742,16 @@ mod captured_cpu_browser_native_tests {
                 "captured browser worker refused: {:?}",
                 info.error
             );
-            if info.state == LiveCaptureInferenceState::Running {
+            if native_ready_within_original_lease(info.state, Instant::now(), end).with_context(|| {
+                format!(
+                    "native Ready diagnostics: start_call_ns={}, polls={}, timing_observe_max_ns={}, capture_status_max_ns={}, last_state={:?}, cpu_start_phase={:?}",
+                    start_call_elapsed.as_nanos(), poll_count, timing_observe_max.as_nanos(),
+                    capture_status_max.as_nanos(), info.state,
+                    client.engine.cpu_startup_test_phases.read(&info.attempt_id)
+                )
+            })? {
                 return Ok((current, end));
             }
-            ensure!(
-                Instant::now() < end,
-                "Ready exceeded original capture lease"
-            );
             std::thread::park_timeout(Duration::from_millis(5));
         }
     }
@@ -662,6 +803,39 @@ mod captured_cpu_browser_native_tests {
         );
         Ok(header)
     }
+    fn require_pair_correspondence(
+        gap_ns: u64,
+        source_matches: impl FnOnce() -> Result<bool>,
+    ) -> Result<()> {
+        ensure!(
+            gap_ns <= 500_000_000,
+            "original pair no longer within native correspondence bound: capture_tick_gap_ns={gap_ns}, max_gap_ns=500000000"
+        );
+        ensure!(
+            source_matches()?,
+            "original pair no longer within native correspondence bound: source_time_mismatch"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn browser_pair_correspondence_diagnostic_keeps_bound_and_short_circuit() {
+        let called = std::cell::Cell::new(false);
+        let gap_error = require_pair_correspondence(500_000_001, || {
+            called.set(true);
+            Ok(true)
+        })
+        .unwrap_err()
+        .to_string();
+        assert!(gap_error.contains("capture_tick_gap_ns=500000001"));
+        assert!(!called.get());
+        assert!(require_pair_correspondence(500_000_000, || Ok(true)).is_ok());
+        let source_error = require_pair_correspondence(500_000_000, || Ok(false))
+            .unwrap_err()
+            .to_string();
+        assert!(source_error.contains("source_time_mismatch"));
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn estimate(
         client: &Client<'_>,
@@ -680,15 +854,13 @@ mod captured_cpu_browser_native_tests {
             .0
             .checked_sub(old.capture_tick.0)
             .context("capture tick regressed")?;
-        ensure!(
-            gap <= 500_000_000
-                && new.source_time
-                    == SourceTimestamp::new(
-                        i64::try_from(inputs.decoded.frames[new_index].source_time_us)?,
-                        1_000_000
-                    )?,
-            "original pair no longer within native correspondence bound"
-        );
+        require_pair_correspondence(gap, || {
+            Ok(new.source_time
+                == SourceTimestamp::new(
+                    i64::try_from(inputs.decoded.frames[new_index].source_time_us)?,
+                    1_000_000,
+                )?)
+        })?;
         let expected = LiveInferenceInput {
             sequence,
             pair: RawFramePair {
@@ -726,7 +898,9 @@ mod captured_cpu_browser_native_tests {
                         && !latest.qualified
                         && latest.capture_tick == new.capture_tick
                         && latest.capture_to_analysis_ns <= MAX_AGE_NS,
-                    "original 200ms freshness or unqualified status differs"
+                    "original 200ms freshness or unqualified status differs: fresh={}, qualified={}, estimate_tick={:?}, frame_tick={:?}, accepted_at={:?}, capture_to_analysis_ns={}, capture_age_ns={}, limit_ns={}",
+                    latest.fresh, latest.qualified, latest.capture_tick, new.capture_tick,
+                    latest.accepted_at, latest.capture_to_analysis_ns, latest.capture_age_ns, MAX_AGE_NS
                 );
                 captured_manifest(original)?.validate_estimated(&expected, &latest.result)?;
                 let LiveInferenceReply::CapturedCpuEstimated { position, .. } = &latest.result
@@ -903,8 +1077,12 @@ mod captured_cpu_browser_native_tests {
         );
         let stopped = stop(client, &ready.identity.epoch)?;
         release(client, media, player)?;
+        let cpu_start_phase = ready
+            .inference
+            .as_ref()
+            .and_then(|info| client.engine.cpu_startup_test_phases.read(&info.attempt_id));
         Ok(
-            json!({"case":"clean_input_eof","ready":ready,"estimates":[one,two],"observed_actual_estimates":2,"sealed":sealed,"stopped":stopped,"media":media,"timing_binding":player.binding,"last_authored_timing_observation":player.last_observation,"captured_clean_completion_observed":true,"clean_completion_basis":"Sealed with captured manifest requires private CapturedClean proof after worker final-byte verification, output EOF, successful child exit and joined custody","ingress_refused_after_close":true,"original_lease_ms":LEASE_MS,"freshness_limit_ns":MAX_AGE_NS,"source_acceptance_called":false,"physical_device":false,"qualified":false} ),
+            json!({"case":"clean_input_eof","cpu_start_phase_observed":cpu_start_phase,"ready":ready,"estimates":[one,two],"observed_actual_estimates":2,"sealed":sealed,"stopped":stopped,"media":media,"timing_binding":player.binding,"last_authored_timing_observation":player.last_observation,"captured_clean_completion_observed":true,"clean_completion_basis":"Sealed with captured manifest requires private CapturedClean proof after worker final-byte verification, output EOF, successful child exit and joined custody","ingress_refused_after_close":true,"original_lease_ms":LEASE_MS,"freshness_limit_ns":MAX_AGE_NS,"source_acceptance_called":false,"physical_device":false,"qualified":false} ),
         )
     }
     fn prepare_successor(
@@ -1012,9 +1190,14 @@ mod captured_cpu_browser_native_tests {
                 Instant::now() < end,
                 "successor preparation exceeded original predecessor lease"
             );
-            let ResponseBody::BrowserAnalysisSuccessor(value) =
+            let response = if original.options.inference_fallback.is_some() {
+                with_timing_observers(client, &mut [&mut *player, &mut child_player], || {
+                    Ok(client.engine.handle(intent.clone()).result?)
+                })?
+            } else {
                 client.engine.handle(intent.clone()).result?
-            else {
+            };
+            let ResponseBody::BrowserAnalysisSuccessor(value) = response else {
                 bail!("successor preparation absent")
             };
             value.validate()?;
@@ -1092,11 +1275,47 @@ mod captured_cpu_browser_native_tests {
         media: &BrowserMediaBinding,
         player: &mut AuthoredPlayer,
     ) -> Result<Value> {
+        let mut phases = Vec::new();
+        let result = successor_transfer_traced(client, inputs, media, player, &mut phases);
+        match result {
+            Ok(mut value) => {
+                value["native_transfer_phase_trace"] = json!(phases);
+                Ok(value)
+            }
+            Err(error) => Err(error.context(format!(
+                "native_transfer_phase_trace={}",
+                serde_json::to_string(&phases)?
+            ))),
+        }
+    }
+    fn transfer_phase(
+        phases: &mut Vec<Value>,
+        name: &'static str,
+        report: Option<&BrowserAnalysisTransferReport>,
+    ) -> Result<()> {
+        ensure!(phases.len() < 32, "bounded native phase trace exhausted");
+        phases.push(
+            json!({"phase":name,"boottime_ns":crate::handy_clock::boottime_ns()?,
+            "transfer_phase":report.map(|r| r.phase),
+            "predecessor_worker_joined":report.map(|r| r.predecessor_worker_joined),
+            "successor_pair_accepted":report.map(|r| r.successor_pair_accepted)}),
+        );
+        Ok(())
+    }
+    fn successor_transfer_traced(
+        client: &Client<'_>,
+        inputs: &Inputs,
+        media: &BrowserMediaBinding,
+        player: &mut AuthoredPlayer,
+        phases: &mut Vec<Value>,
+    ) -> Result<Value> {
         let (ready, end) = start(client, inputs, media, player)?;
+        transfer_phase(phases, "predecessor_ready", None)?;
         // The actual successor must exist before F is captured. Preparing before
         // any accepted input also avoids aging an original stamp during startup.
         let (child_media, mut child_player, prepare, child) =
             prepare_successor(client, &ready, media, player, end)?;
+        transfer_phase(phases, "successor_prepared", None)?;
         child_player.observe(client)?;
         let base = player.frame_base()?;
         let first = upload(client, inputs, &ready, player, base, 0, end)?;
@@ -1111,6 +1330,7 @@ mod captured_cpu_browser_native_tests {
             1,
             end,
         )?;
+        transfer_phase(phases, "predecessor_pair_observed", None)?;
         child_player.observe(client)?;
         let transfer = client.intent(
             Some(1),
@@ -1126,6 +1346,7 @@ mod captured_cpu_browser_native_tests {
             bail!("boundary reservation absent")
         };
         reserved.validate()?;
+        transfer_phase(phases, "boundary_reserved", Some(&reserved))?;
         ensure!(
             reserved.phase == BrowserAnalysisTransferPhase::BoundaryReserved
                 && reserved.boundary == second
@@ -1159,8 +1380,81 @@ mod captured_cpu_browser_native_tests {
             old_project == child_project,
             "shared frame changed exact project phase"
         );
+        // Wait for the actual predecessor join before capturing G. Otherwise
+        // G can be accepted fresh and age out while A's custody is retiring.
+        ensure!(
+            inputs.producer_join_wait_ms <= 350,
+            "controlled producer pause exceeds test bound"
+        );
+        let wait_started = Instant::now();
+        let mut join_state = None;
+        let mut poll_count = 0u64;
+        let mut parent_observe_max = Duration::ZERO;
+        let mut child_observe_max = Duration::ZERO;
+        let mut transfer_status_max = Duration::ZERO;
+        let mut inter_poll_max = Duration::ZERO;
+        let mut previous_poll_end = None;
+        let join_result = (|| -> Result<()> {
+            loop {
+                let started = Instant::now();
+                if let Some(previous) = previous_poll_end {
+                    inter_poll_max = inter_poll_max.max(started.duration_since(previous));
+                }
+                poll_count = poll_count.saturating_add(1);
+                let result = player.observe(client);
+                parent_observe_max = parent_observe_max.max(started.elapsed());
+                result.context("native join predecessor timing observation")?;
+                let started = Instant::now();
+                let result = child_player.observe(client);
+                child_observe_max = child_observe_max.max(started.elapsed());
+                result.context("native join successor timing observation")?;
+                let started = Instant::now();
+                let result = transfer_status(client, &transfer.request_id);
+                transfer_status_max = transfer_status_max.max(started.elapsed());
+                let status = result.context("native join transfer status")?;
+                let state = (status.phase, status.predecessor_worker_joined);
+                if join_state != Some(state) {
+                    transfer_phase(phases, "predecessor_join_observed", Some(&status))?;
+                    join_state = Some(state);
+                }
+                ensure!(
+                    status.phase != BrowserAnalysisTransferPhase::Aborted
+                        && status.error.is_none()
+                        && Instant::now() < end,
+                    "predecessor join did not settle before original lease: {status:?}"
+                );
+                ensure!(
+                    !status.successor_pair_accepted,
+                    "successor pair exists before G capture"
+                );
+                if status.predecessor_worker_joined
+                    && wait_started.elapsed() >= Duration::from_millis(inputs.producer_join_wait_ms)
+                {
+                    ensure!(
+                        status.predecessor_delivery_settled,
+                        "join precedes settled delivery"
+                    );
+                    break;
+                }
+                previous_poll_end = Some(Instant::now());
+                std::thread::park_timeout(Duration::from_millis(2));
+            }
+            Ok(())
+        })();
+        ensure!(phases.len() < 32, "bounded native phase trace exhausted");
+        phases.push(
+            json!({"phase":"join_poll_diagnostics", "boottime_ns":crate::handy_clock::boottime_ns().ok(), "poll_count":poll_count,
+            "predecessor_observe_max_ns":parent_observe_max.as_nanos(),
+            "successor_observe_max_ns":child_observe_max.as_nanos(),
+            "transfer_status_max_ns":transfer_status_max.as_nanos(),
+            "inter_poll_gap_max_ns":inter_poll_max.as_nanos(),
+            "inter_poll_gap_includes_requested_2ms_park":true}),
+        );
+        join_result?;
         // Only frame1 may enter while transfer is pending. Do not resend F.
+        transfer_phase(phases, "successor_upload_started", None)?;
         let next = upload(client, inputs, &child, &mut child_player, base + 2, 1, end)?;
+        transfer_phase(phases, "successor_uploaded", None)?;
         let successor_first = estimate(
             client,
             inputs,
@@ -1171,9 +1465,20 @@ mod captured_cpu_browser_native_tests {
             1,
             end,
         )?;
+        transfer_phase(phases, "successor_pair_observed", None)?;
+        let mut previous_state = None;
         let transferred = loop {
             child_player.observe(client)?;
             let value = transfer_status(client, &transfer.request_id)?;
+            let state = (
+                value.phase,
+                value.predecessor_worker_joined,
+                value.successor_pair_accepted,
+            );
+            if previous_state != Some(state) {
+                transfer_phase(phases, "transfer_state_observed", Some(&value))?;
+                previous_state = Some(state);
+            }
             if value.phase == BrowserAnalysisTransferPhase::Transferred {
                 break value;
             }
@@ -1224,6 +1529,11 @@ mod captured_cpu_browser_native_tests {
                 && active.transfer_request_id.as_ref() == Some(&transfer.request_id),
             "prepared successor did not promote under original request"
         );
+        // The preview adapter releases predecessor custody after native promotion.
+        release(client, media, player)?;
+        child_player.observe(client).context(
+            "successor timing must remain current after predecessor source/timing release",
+        )?;
         let later = upload(client, inputs, &child, &mut child_player, base + 3, 2, end)?;
         let successor_second = estimate(
             client,
@@ -1238,9 +1548,8 @@ mod captured_cpu_browser_native_tests {
         let sealed = close_input(client, &child, &mut child_player, &later, end)?;
         let stopped = stop(client, &child.identity.epoch)?;
         release(client, &child_media, &child_player)?;
-        release(client, media, player)?;
         Ok(
-            json!({"case":"prepared_successor_transfer","ready":ready,"prepared":child,"boundary":second,"mapped_seed":seed,"boundary_reserved":reserved,"transferred":transferred,"predecessor_retired":retired,"successor_sealed":sealed,"successor_stopped":stopped,"observed_actual_estimates":3,"estimates":[predecessor_estimate,successor_first,successor_second],"original_media":media,"successor_media":child_media,"original_timing_binding":player.binding,"successor_timing_binding":child_player.binding,"last_authored_timing_observation":child_player.last_observation,"captured_mode_preserved":true,"original_boundary_seeded_by_engine":true,"boundary_uploaded_to_successor":false,"predecessor_clean_join_observed":true,"promoted_successor_clean_eof_observed":true,"prepared_ingress_refused":true,"predecessor_ingress_refused_after_transfer":true,"original_lease_ms":LEASE_MS,"freshness_limit_ns":MAX_AGE_NS,"source_acceptance_called":false,"physical_device":false,"qualified":false}),
+            json!({"case":"prepared_successor_transfer","predecessor_source_and_timing_released_before_successor_refresh":true,"ready":ready,"prepared":child,"boundary":second,"mapped_seed":seed,"boundary_reserved":reserved,"transferred":transferred,"predecessor_retired":retired,"successor_sealed":sealed,"successor_stopped":stopped,"observed_actual_estimates":3,"estimates":[predecessor_estimate,successor_first,successor_second],"original_media":media,"successor_media":child_media,"original_timing_binding":player.binding,"successor_timing_binding":child_player.binding,"last_authored_timing_observation":child_player.last_observation,"captured_mode_preserved":true,"original_boundary_seeded_by_engine":true,"boundary_uploaded_to_successor":false,"predecessor_clean_join_observed":true,"promoted_successor_clean_eof_observed":true,"prepared_ingress_refused":true,"predecessor_ingress_refused_after_transfer":true,"original_lease_ms":LEASE_MS,"freshness_limit_ns":MAX_AGE_NS,"source_acceptance_called":false,"physical_device":false,"qualified":false}),
         )
     }
     fn custody_diagnostic_error(error: impl std::fmt::Display) -> String {
@@ -1292,7 +1601,8 @@ mod captured_cpu_browser_native_tests {
             .map_err(|_| anyhow::anyhow!("browser timing registry unavailable"))?
             .retired_metadata_for_test()?;
         ensure!(
-            metadata_entries == expected_timing_entries && metadata_bytes > 0,
+            metadata_entries == expected_timing_entries
+                && (metadata_entries == 0) == (metadata_bytes == 0),
             "retained browser timing metadata count differs from actual case"
         );
         let available = engine
@@ -1318,7 +1628,9 @@ mod captured_cpu_browser_native_tests {
                 match engine.pool.reserve_memory(available) {
                     Ok(claim) => {
                         drop(claim);
-                        let extra = match engine.pool.reserve_memory(available + 1) {
+                        let extra = match engine.pool.reserve_memory(
+                            available.checked_add(1).context("RAM overshoot overflow")?,
+                        ) {
                             Ok(claim) => {
                                 drop(claim);
                                 bail!("retained timing metadata does not occupy its exact declared pool budget");
@@ -1399,21 +1711,119 @@ mod captured_cpu_browser_native_tests {
         };
         let fixture_directory = directory.path().to_path_buf();
         let mut engine: Option<Arc<Engine>> = None;
+        let mut cuda_timing_entries = 0;
+        #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+        let mut release_preparation: Option<Request> = None;
+        #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+        let mut discard_recording: Option<Request> = None;
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<Value> {
+            #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+            let cuda = if matches!(mode, "browser_cuda_handover" | "browser_cuda_recording") {
+                Some(CudaHandoverInputs::load(inputs)?)
+            } else {
+                None
+            };
             let mut config =
                 EngineConfig::new(directory.path().join("state"), inputs.worker.path.clone());
             config.cpu_owner_policy = Some(inputs.policy.path.clone());
+            #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+            if let Some(cuda) = &cuda {
+                config.cuda_owner_policy = Some(cuda.policy.path.clone());
+            }
+            config.max_cpu_threads = inputs.owner_cpu_threads;
             config.worker_timeout = Duration::from_secs(60);
             engine = Some(Engine::open(config)?);
             let client = Client::new(engine.as_ref().unwrap())?;
-            let media = prepare_media(&client, inputs)?;
+            place_media(&client, inputs)?;
+            #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+            let preparation = if matches!(mode, "browser_cuda_handover" | "browser_cuda_recording")
+            {
+                Some(prepare_native_image(&client)?)
+            } else {
+                None
+            };
+            #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+            if let Some(prepared) = &preparation {
+                release_preparation = Some(client.intent(
+                    Some(1),
+                    Command::ReleaseNativeImagePreparation {
+                        operation_id: prepared.report.intent.operation_id.clone(),
+                    },
+                ));
+            }
+            let media = prepare_media(&client)?;
             let original = client.snapshot()?;
+            #[cfg(target_arch = "x86_64")]
+            let fallback = if mode == "browser_fallback_admission" {
+                Some(browser_fallback_fixture(&client, inputs, &media)?)
+            } else if matches!(mode, "browser_cuda_handover" | "browser_cuda_recording") {
+                #[cfg(feature = "cuda")]
+                {
+                    let profiles = cuda.as_ref().context("CUDA profiles absent")?;
+                    Some(browser_fallback_fixture_for_profiles(
+                        &client,
+                        inputs,
+                        &media,
+                        &profiles.from,
+                        &profiles.to,
+                    )?)
+                }
+                #[cfg(not(feature = "cuda"))]
+                {
+                    bail!("CUDA feature required")
+                }
+            } else {
+                None
+            };
+            #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+            let preparation = if let Some(prepared) = &preparation {
+                let ResponseBody::NativeImagePreparation(status) = client.call(
+                    Some(1),
+                    Command::NativeImagePreparationStatus {
+                        operation_id: prepared.report.intent.operation_id.clone(),
+                    },
+                )?
+                else {
+                    bail!("native image pre-capture status missing")
+                };
+                ensure!(
+                    status.report.state == NativeImagePreparationState::Retained
+                        && status.available,
+                    "native image unavailable before live timing: {:?}",
+                    status.report
+                );
+                Some(*status)
+            } else {
+                None
+            };
             let mut player = AuthoredPlayer::open(&client, &media)?;
+            if matches!(mode, "browser_cuda_handover" | "browser_cuda_recording") {
+                cuda_timing_entries = 1;
+            }
             let mut value = match mode {
                 "clean_input_eof" => clean_eof(&client, inputs, &media, &mut player)?,
                 "prepared_successor_transfer" => {
                     successor_transfer(&client, inputs, &media, &mut player)?
                 }
+                #[cfg(target_arch = "x86_64")]
+                "browser_fallback_admission" => browser_fallback_admission(
+                    &client,
+                    inputs,
+                    &media,
+                    &mut player,
+                    fallback.as_ref().expect("selected fixture"),
+                )?,
+                #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+                "browser_cuda_handover" | "browser_cuda_recording" => browser_cuda_handover(
+                    &client,
+                    inputs,
+                    &media,
+                    &mut player,
+                    fallback.as_ref().expect("selected fixture"),
+                    cuda.as_ref().expect("CUDA profiles"),
+                    mode == "browser_cuda_recording",
+                    &mut discard_recording,
+                )?,
                 _ => bail!("unknown browser campaign case"),
             };
             let after = client.snapshot()?;
@@ -1423,8 +1833,40 @@ mod captured_cpu_browser_native_tests {
                 "ephemeral browser native campaign changed committed motion"
             );
             value["committed_motion_unchanged"] = json!(true);
+            #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+            if let Some(preparation) = preparation {
+                value["native_image_preparation"] = json!(preparation);
+            }
+            #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+            if let Some(cuda) = &cuda {
+                cuda.verify_unchanged()?;
+            }
             Ok(value)
         }));
+        #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+        let recording_discard_error = discard_recording.and_then(|request| {
+            engine
+                .as_ref()
+                .expect("recording requires engine")
+                .handle(request)
+                .result
+                .err()
+                .map(|error| format!("{error:#}"))
+        });
+        #[cfg(not(all(target_arch = "x86_64", feature = "cuda")))]
+        let recording_discard_error: Option<String> = None;
+        #[cfg(all(target_arch = "x86_64", feature = "cuda"))]
+        let preparation_release_error = release_preparation.and_then(|request| {
+            engine
+                .as_ref()
+                .expect("preparation requires engine")
+                .handle(request)
+                .result
+                .err()
+                .map(|error| format!("{error:#}"))
+        });
+        #[cfg(not(all(target_arch = "x86_64", feature = "cuda")))]
+        let preparation_release_error: Option<String> = None;
         let shutdown = engine
             .as_ref()
             .map(|engine| engine.finish_shutdown())
@@ -1436,6 +1878,8 @@ mod captured_cpu_browser_native_tests {
         let expected_timing_entries = match mode {
             "clean_input_eof" => 1,
             "prepared_successor_transfer" => 2,
+            "browser_fallback_admission" => 2,
+            "browser_cuda_handover" | "browser_cuda_recording" => cuda_timing_entries,
             _ => 0,
         };
         let worker_custody = engine
@@ -1471,7 +1915,11 @@ mod captured_cpu_browser_native_tests {
             })
             .transpose();
         // Owner destruction must not hide a failed pre-drop worker/byte proof.
-        let joined = shutdown.is_ok() && worker_custody.is_ok() && all_resources.is_ok();
+        let joined = recording_discard_error.is_none()
+            && preparation_release_error.is_none()
+            && shutdown.is_ok()
+            && worker_custody.is_ok()
+            && all_resources.is_ok();
         let custody_after_engine_drop = pool_observer.as_ref().map(|(pool, maximum, engine)| {
             json!({"atomic_snapshot":false,"observation":"after_original_engine_owner_drop",
                 "engine_strong_count":engine.strong_count(),"pool":custody_pool_diagnostic(pool,*maximum),
@@ -1507,6 +1955,8 @@ mod captured_cpu_browser_native_tests {
         value["private_state_removed"] = json!(removed);
         value["retained_scratch"] = json!(retained);
         value["shutdown_error"] = json!(shutdown.err().map(|error| format!("{error:#}")));
+        value["preparation_release_error"] = json!(preparation_release_error);
+        value["recording_discard_error"] = json!(recording_discard_error);
         value["worker_custody_error"] =
             json!(worker_custody.err().map(|error| format!("{error:#}")));
         value["metadata_custody_error"] =
@@ -1529,6 +1979,7 @@ mod captured_cpu_browser_native_tests {
         file.sync_all()?;
         Ok(())
     }
+    include!("engine_live_browser_fallback_native_tests.rs");
     #[test]
     #[ignore = "requires explicitly pinned sterile40s decoded fixture, current captured CPU worker/closure, delegated cgroups and owned host-parent supervisor; run exactly and serially"]
     fn native_captured_cpu_browser_input_seals_and_transfers_successor() {
@@ -1539,7 +1990,17 @@ mod captured_cpu_browser_native_tests {
             ensure!(output.is_dir(), "output directory must already exist");
             let inputs = Inputs::load()?;
             receipt["subjects"] = inputs.subjects();
+            let selected_case = std::env::var("PULSAR_CAPTURED_CPU_BROWSER_CASE").ok();
+            ensure!(
+                selected_case
+                    .as_deref()
+                    .is_none_or(|case| CASES.contains(&case)),
+                "unknown selected native browser case"
+            );
             for mode in CASES {
+                if selected_case.as_deref().is_some_and(|case| case != mode) {
+                    continue;
+                }
                 let value = campaign_case(&inputs, mode);
                 let passed = value["passed"] == true;
                 receipt["cases"].as_array_mut().unwrap().push(value);

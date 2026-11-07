@@ -158,6 +158,7 @@ pub(super) fn verify_native_portable(
         candidates: vec![candidate],
         authored_lineage: vec![],
         sources: vec![PackageSource {
+            browser_fallback_history: None,
             source_version: request.source.source_version.clone(),
             kind: SourceKind::Media,
             label: "authored media".into(),
@@ -168,6 +169,7 @@ pub(super) fn verify_native_portable(
         }],
         legacy_cells: vec![],
         generated_origins: vec![PackageGeneratedOrigin {
+            fallback_history: None,
             cpu_runtime: None,
             image_origin: None,
             annotated_model: Some(model.identity.clone()),

@@ -32,14 +32,17 @@ fn execute(
         .proxy(None)
         .build()
         .into();
+    let bearer = credentials.bearer().ok()?;
     let mut request = agent
         .get(format!("{origin}/hstp/clocksync?s=true"))
-        .header("X-Api-Key", &credentials.api)
+        .header("Authorization", format!("Bearer {bearer}"))
         .header("X-Connection-Key", &credentials.connection)
         .header("Accept", "application/json")
         .header("Cache-Control", "no-cache, no-store");
-    for name in ["X-Api-Key", "X-Connection-Key"] {
-        request.headers_mut()?.get_mut(name)?.set_sensitive(true);
+    for name in ["Authorization", "X-Connection-Key"] {
+        if let Some(value) = request.headers_mut().and_then(|h| h.get_mut(name)) {
+            value.set_sensitive(true);
+        }
     }
     let sent_boottime_ns = clock().ok()?;
     let mut response = request.call().ok()?;
@@ -85,10 +88,7 @@ mod tests {
         listener.set_nonblocking(true).unwrap();
         let origin = format!("http://{}", listener.local_addr().unwrap());
         let key = key.to_owned();
-        let keys = Arc::new(Credentials {
-            api: "fixture-api".into(),
-            connection: key.clone(),
-        });
+        let keys = Arc::new(Credentials::for_test("fixture-api", &key));
         let worker = thread::spawn(move || {
             let until = Instant::now() + Duration::from_secs(3);
             let mut count = 0;
@@ -119,7 +119,8 @@ mod tests {
                             }
                             headers.push_str(&line);
                         }
-                        assert!(headers.to_lowercase().contains("x-api-key: fixture-api"));
+                        assert!(headers.to_lowercase().contains("authorization: bearer "));
+                        assert!(!headers.to_lowercase().contains("x-api-key:"));
                         assert!(headers
                             .to_lowercase()
                             .contains(&format!("x-connection-key: {key}")));
@@ -191,10 +192,7 @@ mod tests {
     fn handy_clock_sync_wire_expired_budget_sends_nothing() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         listener.set_nonblocking(true).unwrap();
-        let keys = Arc::new(Credentials {
-            api: "fixture-api".into(),
-            connection: "fixture-device".into(),
-        });
+        let keys = Arc::new(Credentials::for_test("fixture-api", "fixture-device"));
         assert!(execute(
             &format!("http://{}", listener.local_addr().unwrap()),
             keys,

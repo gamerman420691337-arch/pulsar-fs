@@ -200,12 +200,17 @@ pub fn decode_info(status: u16, bytes: &[u8]) -> Result<DeviceIdentity, WireErro
     }
     let info: Info = result(status, bytes)?;
     // Missing model identity is not sufficient to bind an exact configuration,
-    // even though the vendor schema makes model fields optional.
+    // even though the vendor schema makes model fields optional. Firmware version
+    // strings legitimately contain build separators such as `4.3.0+dcee7e58`, so
+    // reject only control characters and surrounding whitespace here; the shared
+    // HandyIdentity validator applies the authoritative structural rules.
     let text = |s: &str, limit| {
         !s.is_empty()
             && s.len() <= limit
-            && s.bytes()
-                .all(|c| c.is_ascii_alphanumeric() || b"._-".contains(&c))
+            && s.trim() == s
+            && !s
+                .chars()
+                .any(|c| c.is_control() || !(c.is_ascii_graphic() || c == ' '))
     };
     if !text(&info.fw_version, 64)
         || !text(&info.hw_model_name, 64)
@@ -295,7 +300,31 @@ pub fn decode_slider_settings(
     status: u16,
     bytes: &[u8],
 ) -> Result<pulsar_protocol::HandySliderSettings, WireError> {
-    let settings: pulsar_protocol::HandySliderSettings = result(status, bytes)?;
+    // The pinned schema requires `x_limit_stop`; its own endpoint example uses
+    // `x_limit_end`. Refuse the alias explicitly so a silently ignored field
+    // cannot leave the usable range unset or contradicted.
+    #[derive(serde::Deserialize)]
+    struct AliasProbe {
+        result: std::collections::BTreeMap<String, serde_json::Value>,
+        // Reuses the envelope policy: any `error` member refuses, even null.
+        #[serde(rename = "error", default, deserialize_with = "reject_error")]
+        _error: (),
+    }
+    if status != 200 {
+        return Err(WireError::HttpFailure);
+    }
+    if bytes.len() > RESPONSE_LIMIT {
+        return Err(WireError::OversizedResponse);
+    }
+    let probe: AliasProbe =
+        serde_json::from_slice(bytes).map_err(|_| WireError::InvalidResponse)?;
+    if probe.result.contains_key("x_limit_end") {
+        return Err(WireError::InvalidResponse);
+    }
+    let settings: pulsar_protocol::HandySliderSettings = serde_json::from_value(
+        serde_json::Value::Object(probe.result.into_iter().collect()),
+    )
+    .map_err(|_| WireError::InvalidResponse)?;
     settings
         .validate()
         .map_err(|_| WireError::InvalidResponse)?;
@@ -532,7 +561,7 @@ mod tests {
         for (from, to) in [
             ("H02", ""),
             ("H02", "H02\\nsecret"),
-            ("H02", "H02 secret"),
+            ("H02", " H02"),
             ("\"fw_status\":0", "\"fw_status\":3"),
         ] {
             let body = String::from_utf8(INFO.to_vec()).unwrap().replace(from, to);
@@ -547,6 +576,27 @@ mod tests {
         assert_eq!(
             decode_info(200, body.as_bytes()),
             Err(WireError::InvalidResponse)
+        );
+    }
+    #[test]
+    fn real_firmware_build_string_and_spaced_model_name_are_accepted() {
+        // Observed on a Handy 2 Pro (H02_pro): firmware carries a build suffix
+        // and the model name contains an underscore. A spaced model name is also
+        // valid firmware-reported text.
+        let body = String::from_utf8(INFO.to_vec())
+            .unwrap()
+            .replace("4.0.16", "4.3.0+dcee7e58")
+            .replace("\"H02\"", "\"H02_pro\"");
+        let identity = decode_info(200, body.as_bytes()).unwrap();
+        assert_eq!(identity.firmware, "4.3.0+dcee7e58");
+        assert_eq!(identity.model_name, "H02_pro");
+
+        let spaced = String::from_utf8(INFO.to_vec())
+            .unwrap()
+            .replace("\"H02\"", "\"Handy 2 Pro\"");
+        assert_eq!(
+            decode_info(200, spaced.as_bytes()).unwrap().model_name,
+            "Handy 2 Pro"
         );
     }
     #[test]

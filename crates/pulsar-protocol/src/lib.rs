@@ -130,6 +130,8 @@ mod inference_environment;
 mod inference_equivalence;
 mod inference_fallback_selection;
 pub use inference_fallback_selection::*;
+mod inference_fallback_history;
+pub use inference_fallback_history::*;
 mod inference_profile;
 mod job_attempts;
 pub use annotated_preview::*;
@@ -143,6 +145,7 @@ pub use motion_retime_receipt::*;
 mod motion;
 mod motion_evidence;
 pub use motion_evidence::*;
+mod roleplay_consent;
 mod project_package;
 mod project_package_download;
 pub mod project_package_format;
@@ -173,6 +176,7 @@ pub use inference_environment::*;
 pub use inference_equivalence::*;
 pub use inference_profile::*;
 pub use motion::*;
+pub use roleplay_consent::*;
 pub use project_package::*;
 pub use project_package_download::*;
 pub use project_package_import_operations::*;
@@ -1153,10 +1157,18 @@ impl Request {
                 scene_id,
                 file_id,
                 expected_server_path,
+                allow_multifile_selection,
                 mappings,
                 owner_proof,
                 ..
             } => {
+                if *allow_multifile_selection == Some(false)
+                    || (allow_multifile_selection.is_some() && expected_server_path.is_none())
+                {
+                    return Err(ProtocolError::invalid(
+                        "explicit multifile selection requires true and an expected server path",
+                    ));
+                }
                 if let Some(path) = expected_server_path {
                     bounded_text(path, 8192, "expected Stash server path")?;
                 }
@@ -2793,6 +2805,9 @@ pub enum Command {
         expected_server_path: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         expected_source_version: Option<SourceVersionId>,
+        /// Explicitly select a file from a multifile scene; never automatic.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        allow_multifile_selection: Option<bool>,
         mappings: Vec<StashRootMapping>,
         owner_proof: String,
     },

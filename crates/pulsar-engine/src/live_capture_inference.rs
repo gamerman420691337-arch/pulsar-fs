@@ -3,6 +3,8 @@ use super::*;
 #[cfg(target_os = "linux")]
 #[path = "live_capture_cpu.rs"]
 mod captured_cpu;
+#[cfg(all(test, target_os = "linux"))]
+pub(in crate::authority) use captured_cpu::CpuStartupTestPhases;
 #[cfg(target_os = "linux")]
 #[path = "live_capture_cuda.rs"]
 mod cuda;
@@ -67,6 +69,28 @@ fn same_final(header: &LiveFrameHeader, stamp: &NativeAcceptedCapture) -> bool {
         && header.capture_tick == stamp.frame.capture_tick
         && header.sha256 == stamp.frame.artifact.as_str()
 }
+fn profile_budget(
+    profile: &DeclaredInferenceProfile,
+    lease_ms: u32,
+    owner_memory_bytes: u64,
+) -> PResult<ResourceBudget> {
+    crate::inference_budget::admit(
+        ResourceBudget {
+            memory_bytes: WORKER_MEMORY,
+            output_bytes: if profile.provider == InferenceProvider::Cuda {
+                OUTPUT_LIMIT
+            } else {
+                1024 * 1024
+            },
+            wall_time_ms: u64::from(lease_ms),
+            cpu_threads: profile.cpu_threads,
+        },
+        Some(profile),
+        None,
+        owner_memory_bytes,
+    )
+}
+
 pub(super) fn manifest(
     engine: &Engine,
     options: &LiveCaptureOptions,
@@ -84,20 +108,9 @@ pub(super) fn manifest(
     if !launch::available() {
         return Err(ProtocolError::unsupported("live inference confinement"));
     }
-    let gpu = inference.profile.provider == InferenceProvider::Cuda;
-    let budget = crate::inference_budget::admit(
-        ResourceBudget {
-            memory_bytes: WORKER_MEMORY,
-            output_bytes: if gpu { OUTPUT_LIMIT } else { 1024 * 1024 },
-            wall_time_ms: u64::from(options.lease_ms),
-            cpu_threads: if gpu {
-                inference.profile.cpu_threads
-            } else {
-                2
-            },
-        },
-        Some(&inference.profile),
-        None,
+    let budget = profile_budget(
+        &inference.profile,
+        options.lease_ms,
         engine.config.max_ram_bytes,
     )?;
     let manifest = LiveInferenceManifest {
@@ -125,12 +138,19 @@ pub(super) fn manifest(
     } else {
         manifest.validate()?;
     }
+    manifest.validate_browser_source(
+        &AttemptId::new(engine.engine_epoch.clone()).map_err(internal)?,
+        options,
+    )?;
     Ok(Some(manifest))
 }
+
 pub(super) fn initial_report(
     manifest: &LiveInferenceManifest,
 ) -> PResult<LiveCaptureInferenceReport> {
     Ok(LiveCaptureInferenceReport {
+        fallback_transition: None,
+        fallback: None,
         cpu_manifest: None,
         cuda_manifest_sha256: None,
         cuda_evidence: None,
@@ -354,7 +374,7 @@ pub(super) fn spawn(
     ))
 }
 
-fn active<'a>(
+pub(super) fn active<'a>(
     registry: &'a mut Registry,
     epoch: &AttemptId,
     attempt: &AttemptId,
@@ -634,6 +654,7 @@ impl Engine {
         let Some(entry) = active(&mut registry, epoch, attempt) else {
             return Ok(false);
         };
+        fallback::require_evidence(&db, entry)?;
         if finishing(entry) {
             return Ok(false);
         }
@@ -790,6 +811,7 @@ impl Engine {
         let Some(entry) = active(&mut registry, epoch, attempt) else {
             return Ok(false);
         };
+        fallback::require_evidence(&db, entry)?;
         if entry
             .report
             .inference
@@ -1053,5 +1075,42 @@ impl Engine {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod budget_tests {
+    use super::*;
+
+    #[test]
+    fn live_profile_budget_preserves_declared_threads_and_original_resource_classes() {
+        let request: WorkerRequest =
+            serde_json::from_str(include_str!("../tests/fixtures/cuda-intent-request.json"))
+                .unwrap();
+        let WorkerOperation::Generate { settings, .. } = request.operation else {
+            panic!("fixture generation")
+        };
+        let mut profile = settings.inference_profile.unwrap();
+        profile.provider = InferenceProvider::Cpu;
+        profile.schema_version = 1;
+        profile.cuda_resources = None;
+        profile.minimum_memory_bytes = 128 << 20;
+        profile.minimum_output_bytes = 1 << 20;
+        for threads in [1, 2, 4] {
+            profile.cpu_threads = threads;
+            let admitted = profile_budget(&profile, 12_345, 8 << 30).unwrap();
+            assert_eq!(admitted.cpu_threads, threads);
+            assert_eq!(admitted.wall_time_ms, 12_345);
+            assert_eq!(admitted.output_bytes, 1 << 20);
+            assert_eq!(admitted.memory_bytes, WORKER_MEMORY);
+        }
+        assert_eq!(
+            profile_budget(&profile, 12_345, 128 << 20)
+                .unwrap_err()
+                .code,
+            ErrorCode::ResourceExhausted
+        );
+        profile.cpu_threads = 0;
+        assert!(profile_budget(&profile, 12_345, 8 << 30).is_err());
     }
 }

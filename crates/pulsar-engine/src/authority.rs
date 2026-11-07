@@ -18,6 +18,11 @@ use std::sync::{
 };
 use uuid::Uuid;
 
+#[path = "portable_browser_history.rs"]
+pub(crate) mod portable_browser_history;
+#[path = "portable_fallback_payload.rs"]
+pub(crate) mod portable_fallback_payload;
+
 #[path = "generation_attempt_origin.rs"]
 mod generation_attempt_origin;
 #[path = "inference_fallback_execution.rs"]
@@ -256,6 +261,8 @@ pub struct Engine {
     worker_fence: Arc<crate::worker_fence::WorkerFence>,
     #[cfg(target_os = "linux")]
     native_image_reuse: crate::native_capture::LiveNativeImageReuse,
+    #[cfg(all(test, target_os = "linux"))]
+    cpu_startup_test_phases: live_captures::CpuStartupTestPhases,
     #[cfg(target_os = "linux")]
     native_retention_slots: Arc<std::sync::atomic::AtomicUsize>,
     #[cfg(target_os = "linux")]
@@ -493,6 +500,7 @@ impl Engine {
         phase.complete();
         #[cfg(all(test, target_os = "linux"))]
         let phase = StartupPhaseGuard::begin("open.state_probe");
+        crate::portable_fallback_reader::preflight_main_header(&config.state_dir)?;
         artifacts::private_directory(&config.state_dir)?;
         config.state_dir = config.state_dir.canonicalize()?;
         let database_path = config.state_dir.join("projects.sqlite3");
@@ -507,6 +515,9 @@ impl Engine {
             crate::cpu_runtime_db::validate(&probe)?;
             inference_fallback_store::validate(&probe)?;
             crate::live_cpu_history::validate(&probe)?;
+            crate::portable_browser_history_reader::validate_metadata(&probe)?;
+            crate::browser_fallback_reader::validate_metadata(&probe)?;
+            crate::browser_fallback_history::validate(&probe)?;
             handy_registrations::validate(&probe)?;
             handy_qualification::validate(&probe)?;
             handy_browser_start_qualification::validate(&probe)?;
@@ -522,7 +533,7 @@ impl Engine {
             crate::job_attempt_history::validate(&probe)?;
             wasm_edits::validate(&probe)?;
             assistant_operations::validate(&probe)?;
-            anyhow::ensure!(matches!(version,0|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38|39),"project database schema requires an explicit recoverable migration; original was not modified");
+            anyhow::ensure!(version == 0 || (2..=crate::portable_fallback_reader::MAX_STORAGE_VERSION).contains(&version),"project database schema requires an explicit recoverable migration; original was not modified");
             crate::portable_annotated_db::validate_metadata(&probe)?;
             stash_batches::validate_annotated_reader(&probe)?;
             crate::annotated_generation_db::validate(
@@ -695,11 +706,14 @@ impl Engine {
             crate::cpu_runtime_db::validate(&probe)?;
             inference_fallback_store::validate(&probe)?;
             crate::live_cpu_history::validate(&probe)?;
+            crate::portable_browser_history_reader::validate_metadata(&probe)?;
+            crate::browser_fallback_reader::validate_metadata(&probe)?;
+            crate::browser_fallback_history::validate(&probe)?;
             handy_registrations::validate(&probe)?;
             handy_qualification::validate(&probe)?;
             handy_browser_start_qualification::validate(&probe)?;
             handy_hsp_source_qualification::validate(&probe)?;
-            anyhow::ensure!(matches!(version,0|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38|39),"project database schema requires an explicit recoverable migration; original was not modified");
+            anyhow::ensure!(version == 0 || (2..=crate::portable_fallback_reader::MAX_STORAGE_VERSION).contains(&version),"project database schema requires an explicit recoverable migration; original was not modified");
             library_batches::validate_reader(&probe, &config)?;
             crate::native_preparation_db::validate(&probe)?;
             crate::job_attempt_history::validate(&probe)?;
@@ -759,7 +773,10 @@ impl Engine {
         crate::cpu_runtime_db::validate(&db)?;
         inference_fallback_store::validate(&db)?;
         crate::live_cpu_history::validate(&db)?;
-        anyhow::ensure!(matches!(version,0|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38|39), "project database schema requires an explicit recoverable migration; original was not modified");
+        crate::portable_browser_history_reader::validate_metadata(&db)?;
+        crate::browser_fallback_reader::validate_metadata(&db)?;
+        crate::browser_fallback_history::validate(&db)?;
+        anyhow::ensure!(version == 0 || (2..=crate::portable_fallback_reader::MAX_STORAGE_VERSION).contains(&version), "project database schema requires an explicit recoverable migration; original was not modified");
         library_batches::validate_reader(&db, &config)?;
         crate::native_preparation_db::validate(&db)?;
         crate::job_attempt_history::validate(&db)?;
@@ -893,6 +910,8 @@ impl Engine {
             worker_fence,
             #[cfg(target_os = "linux")]
             native_image_reuse: crate::native_capture::LiveNativeImageReuse::default(),
+            #[cfg(all(test, target_os = "linux"))]
+            cpu_startup_test_phases: live_captures::CpuStartupTestPhases::default(),
             #[cfg(target_os = "linux")]
             native_retention_slots: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
             #[cfg(target_os = "linux")]
@@ -1009,10 +1028,18 @@ impl Engine {
                 Err(error) => Response::failure(request.request_id, error),
             };
         }
-        let _ = self.sweep_live_captures();
+        // Timing history validates its own source and lifetime. An unrelated
+        // live-capture sweep can block its bounded response; active captures
+        // have their own owned lease sweeper.
+        let timing_history = browser_timing::is_history_command(&request.command);
+        if !timing_history {
+            let _ = self.sweep_live_captures();
+        }
         let result = self.dispatch(&request);
         self.sweep_browser_timing();
-        let _ = self.sweep_live_captures();
+        if !timing_history {
+            let _ = self.sweep_live_captures();
+        }
         match result {
             Ok(body) => Response::success(request.request_id, body),
             Err(error) => Response::failure(request.request_id, error),
@@ -1025,7 +1052,11 @@ impl Engine {
         // I/O. Release, historical status, cancellation and stop cleanup remain
         // independent; exact registry retirement fences already queued play.
         let _handy_admission = self.handy_reconciliation_admission(&request.command)?;
-        self.transfers.lock().map_err(internal)?.sweep();
+        // Timing history has no transfer dependency; the owned transfer
+        // sweeper continues to retire leases independently.
+        if !browser_timing::is_history_command(&request.command) {
+            self.transfers.lock().map_err(internal)?.sweep();
+        }
         if let Command::Pair {
             client_name,
             pairing_token,
@@ -1932,6 +1963,7 @@ impl Engine {
                 file_id,
                 expected_server_path,
                 expected_source_version,
+                allow_multifile_selection,
                 mappings,
                 ..
             } => {
@@ -1942,6 +1974,7 @@ impl Engine {
                         scene_id,
                         file_id,
                         expected_server_path,
+                        allow_multifile_selection,
                         mappings,
                     );
                     return Err(ProtocolError::unsupported(
@@ -1951,19 +1984,28 @@ impl Engine {
                 #[cfg(unix)]
                 {
                     let scene = crate::stash::scene(connection, scene_id)?;
-                    if scene.files.len() != 1
-                        || scene.files[0].id != *file_id
-                        || expected_server_path
-                            .as_ref()
-                            .is_some_and(|path| path != &scene.files[0].path)
-                    {
-                        return Err(ProtocolError::new(
-                            ErrorCode::RequestConflict,
-                            "Stash selected file is ambiguous or changed",
-                        ));
-                    }
+                    let mut matching = scene.files.iter().filter(|file| file.id == *file_id);
+                    let selected = matching.next().filter(|_| matching.next().is_none());
+                    let explicit =
+                        *allow_multifile_selection == Some(true) && expected_server_path.is_some();
+                    let selected = selected
+                        .filter(|file| {
+                            (scene.files.len() == 1 || explicit)
+                                && expected_server_path
+                                    .as_ref()
+                                    .is_none_or(|path| path == &file.path)
+                        })
+                        .ok_or_else(|| {
+                            ProtocolError::new(
+                                ErrorCode::RequestConflict,
+                                "Stash selected file is ambiguous or changed",
+                            )
+                        })?;
+                    let selected_id = selected.id.clone();
+                    let selected_path = selected.path.clone();
                     let (snapshot, hash, bytes, plan) = crate::stash_files::capture(
                         &scene,
+                        explicit.then_some(file_id.as_str()),
                         mappings,
                         &self.config.state_dir.join("snapshots"),
                         self.config.max_snapshot_bytes,
@@ -1987,8 +2029,8 @@ impl Engine {
                         source_version,
                         identity,
                         scene_id: scene.id,
-                        file_id: scene.files[0].id.clone(),
-                        server_path: scene.files[0].path.clone(),
+                        file_id: selected_id,
+                        server_path: selected_path,
                         local_source: original.clone(),
                         script_destination: plan.script_destination.expect("captured destination"),
                     };
@@ -2811,13 +2853,15 @@ impl Engine {
                 after_attempt,
                 limit,
             } => {
+                let history =
+                    inference_fallback_store::history_snapshot(&tx, project(request)?, job_id)?;
                 ResponseBody::JobAttempts(Box::new(crate::job_attempt_history::page_with_fallback(
                     &tx,
                     project(request)?,
                     job_id,
                     after_attempt.as_ref(),
                     *limit,
-                    |manifest| self.fallback_history_trace(&tx, manifest),
+                    |manifest| history.trace_for(manifest),
                 )?))
             }
             Command::CancelJob { job_id } => {
@@ -3005,7 +3049,7 @@ impl Engine {
                     .map_err(internal)?;
                 for job in ids {
                     tx.execute("UPDATE jobs SET state='cancelled',error='authorizing grant revoked' WHERE id=?1",[&job]).map_err(internal)?;
-                    tx.execute("UPDATE attempts SET state='cancelled' WHERE job=?1 AND state IN ('queued','running','assistant_paused')",[&job]).map_err(internal)?;
+                    tx.execute("UPDATE attempts SET state='cancelled' WHERE id=(SELECT attempt FROM jobs WHERE id=?1) AND state IN ('queued','running','interrupted','assistant_paused')",[&job]).map_err(internal)?;
                     inference_fallback_store::clear_pending(
                         &tx,
                         &JobId::new(job.clone()).map_err(internal)?,
@@ -6408,6 +6452,9 @@ fn remember(
     body: &ResponseBody,
 ) -> PResult<()> {
     claim_request_identity(tx, session, request, fingerprint)?;
+    crate::browser_fallback_reader::remember(tx, body).map_err(internal)?;
+    crate::browser_fallback_history::remember(tx, session, request, fingerprint, body)
+        .map_err(internal)?;
     crate::live_cpu_history::remember(tx, session, request, fingerprint, body).map_err(internal)?;
     tx.execute(
         "INSERT INTO requests VALUES(?1,?2,?3,?4)",
@@ -6901,6 +6948,7 @@ pub(crate) mod tests {
     use super::*;
     include!("live_recording_candidate_tests.rs");
     include!("engine_live_capture_clock_tests.rs");
+    include!("engine_live_fallback_target_tests.rs");
     include!("engine_live_capture_delivery_tests.rs");
     #[cfg(target_os = "linux")]
     include!("annotated_engine_generation_tests.rs");
@@ -7104,7 +7152,7 @@ pub(crate) mod tests {
                 .count(),
             0
         );
-        #[cfg(unix)]
+        #[cfg(target_os = "linux")]
         assert!(!f.engine.worker_fence.has_pending_worker_custody().unwrap());
     }
 
@@ -8931,6 +8979,7 @@ pub(crate) mod tests {
     }
     fn capture_options() -> LiveCaptureOptions {
         LiveCaptureOptions {
+            inference_fallback: None,
             browser_analysis: None,
             browser_media: None,
             model_pack: None,
@@ -12032,6 +12081,35 @@ pub(crate) mod tests {
                 .unwrap();
             assert_eq!(protected, "[]");
         }
+        let before = f
+            .engine
+            .handle(request(
+                &editor,
+                Some(&f.project),
+                None,
+                Command::GetSnapshot,
+            ))
+            .result
+            .unwrap();
+        assert_eq!(
+            f.engine
+                .handle(request(&editor, Some(&f.project), Some(3), Command::Redo))
+                .result
+                .unwrap_err()
+                .code,
+            ErrorCode::Forbidden
+        );
+        let after = f
+            .engine
+            .handle(request(
+                &editor,
+                Some(&f.project),
+                None,
+                Command::GetSnapshot,
+            ))
+            .result
+            .unwrap();
+        assert_eq!(encode(&before).unwrap(), encode(&after).unwrap());
         f.engine
             .handle(request(
                 &f.session,

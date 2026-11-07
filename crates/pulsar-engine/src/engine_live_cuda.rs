@@ -7,6 +7,11 @@ use crate::{
 };
 use std::time::{Duration, Instant};
 
+pub(super) enum LiveCudaStartup {
+    Ready(Box<(LiveCudaInferenceManifest, LiveCudaWorker)>),
+    ProviderUnavailable(Box<crate::live_cuda_stream::SettledLiveCudaProviderFailure>),
+}
+
 impl Engine {
     pub(super) fn start_live_cuda(
         &self,
@@ -16,7 +21,7 @@ impl Engine {
         cancel: Arc<AtomicBool>,
         origin: Instant,
         lease_end: Instant,
-    ) -> PResult<(LiveCudaInferenceManifest, LiveCudaWorker)> {
+    ) -> PResult<LiveCudaStartup> {
         if !cfg!(feature = "cuda") {
             return Err(ProtocolError::unsupported(
                 "live CUDA requires a CUDA-enabled build",
@@ -46,6 +51,7 @@ impl Engine {
             }
         };
         options.validate()?;
+        stream.validate_browser_source(engine_epoch, options)?;
         let declaration = options
             .inference
             .as_ref()
@@ -94,6 +100,12 @@ impl Engine {
                 "live CUDA startup cancelled",
             ));
         }
+        let fallback_stream = if options.inference_fallback.is_some() {
+            live_captures::fallback::verify_dispatch(self, &stream)?;
+            Some(stream.clone())
+        } else {
+            None
+        };
         {
             let mut db = self.db.lock().map_err(internal)?;
             let tx = db.transaction().map_err(internal)?;
@@ -110,6 +122,11 @@ impl Engine {
             tx.commit().map_err(internal)?;
         }
         let devices = PinnedCudaDevices::open(&owner.policy().device).map_err(unavailable)?;
+        #[cfg(test)]
+        eprintln!(
+            "live CUDA startup phase=native_capture_begin elapsed_ms={}",
+            origin.elapsed().as_millis()
+        );
         let image = self.native_image_reuse.capture_with(
             &owner.policy().native_dependencies,
             &cancel,
@@ -132,6 +149,11 @@ impl Engine {
                 )
             },
         )?;
+        #[cfg(test)]
+        eprintln!(
+            "live CUDA startup phase=native_capture_complete elapsed_ms={}",
+            origin.elapsed().as_millis()
+        );
         let prepared = crate::live_staging::prepare(
             &self.config,
             &self.pool,
@@ -151,6 +173,11 @@ impl Engine {
             Some(self.worker_fence.clone()),
         )?
         .into_gpu()?;
+        #[cfg(test)]
+        eprintln!(
+            "live CUDA startup phase=worker_staging_complete elapsed_ms={}",
+            origin.elapsed().as_millis()
+        );
         stream.model.path = "/input/model".into();
         stream.runtime.path = image
             .captured()
@@ -219,6 +246,11 @@ impl Engine {
             &cancel,
         )
         .map_err(unavailable)?;
+        #[cfg(test)]
+        eprintln!(
+            "live CUDA startup phase=gpu_observation_complete elapsed_ms={}",
+            origin.elapsed().as_millis()
+        );
         let admitted = observed
             .admit(&self.pool, owner, &manifest)
             .map_err(unavailable)?;
@@ -232,15 +264,33 @@ impl Engine {
             check_revision(&db, request)?;
             self.require_worker_fence(&db)?;
         }
-        let worker = LiveCudaWorker::start(
+        if let Some(original) = &fallback_stream {
+            live_captures::fallback::verify_dispatch(self, original)?;
+        }
+        let started = LiveCudaWorker::start(
             &self.config,
             manifest.clone(),
             admitted,
             prepared,
             scope,
             cancel,
-        )
-        .map_err(unavailable)?;
-        Ok((manifest, worker))
+        );
+        #[cfg(test)]
+        eprintln!(
+            "live CUDA startup phase=worker_start_returned elapsed_ms={}",
+            origin.elapsed().as_millis()
+        );
+        match started {
+            Ok(worker) => Ok(LiveCudaStartup::Ready(Box::new((manifest, worker)))),
+            Err(error) => {
+                match error.downcast::<crate::live_cuda_stream::SettledLiveCudaProviderFailure>() {
+                    Ok(settled) => {
+                        settled.matches_manifest(&manifest).map_err(unavailable)?;
+                        Ok(LiveCudaStartup::ProviderUnavailable(Box::new(settled)))
+                    }
+                    Err(error) => Err(unavailable(error)),
+                }
+            }
+        }
     }
 }

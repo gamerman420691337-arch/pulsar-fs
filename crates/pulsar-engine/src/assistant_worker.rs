@@ -277,25 +277,57 @@ fn runtime_command(
             .arg("--system-prompt-file")
             .arg(system);
     }
+    // Declared limits replace the pinned 2048/256/CPU-only defaults. A profile that
+    // declares nothing keeps the historical command line byte for byte.
+    let context_tokens = request
+        .execution
+        .as_ref()
+        .map_or(2048, |execution| execution.context_tokens);
+    let output_tokens = match request.execution.as_ref().and_then(|e| e.max_output_tokens) {
+        Some(tokens) => tokens,
+        None if request.scope.creative_patterns.is_some() => 1024,
+        None => 256,
+    };
+    let gpu_layers = request
+        .execution
+        .as_ref()
+        .map_or(0, |execution| execution.gpu_layers);
     command
         .arg("--json-schema-file")
         .arg(schema)
-        .args(["-c", "2048", "-n"])
-        .arg(if request.scope.creative_patterns.is_some() {
-            "1024"
-        } else {
-            "256"
-        })
+        .args([
+            "-c",
+            &context_tokens.to_string(),
+            "-n",
+            &output_tokens.to_string(),
+        ])
         .arg("-t")
         .arg(request.cpu_threads.to_string())
         .arg("-tb")
         .arg(request.cpu_threads.to_string())
-        .args(["-b", "256", "-ub", "128", "-ngl", "0"]);
+        .args(["-b", "256", "-ub", "128", "-ngl"])
+        .arg(gpu_layers.to_string());
     if vision_image.is_none() {
         command.args(["--no-context-shift", "--no-display-prompt", "--simple-io"]);
     }
+    // Greedy decoding is the contract for schema-constrained proposals. A sampled
+    // roleplay profile declares its own sampler instead of inheriting temperature 0.
+    let deterministic = request
+        .execution
+        .as_ref()
+        .is_none_or(|execution| execution.sampling.is_deterministic());
+    if deterministic {
+        command.args(["--seed", "42", "--temp", "0"]);
+    } else if let Some(execution) = &request.execution {
+        let sampling = &execution.sampling;
+        command
+            .args(["--seed", &sampling.seed.to_string()])
+            .args(["--temp", &sampling.temperature.to_string()])
+            .args(["--top-p", &sampling.top_p.to_string()])
+            .args(["--min-p", &sampling.min_p.to_string()])
+            .args(["--repeat-penalty", &sampling.repeat_penalty.to_string()]);
+    }
     command
-        .args(["--seed", "42", "--temp", "0"])
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -468,6 +500,7 @@ mod tests {
             byte_len: 3,
         };
         let mut request = AssistantWorkerRequest {
+            execution: None,
             vision: None,
             version: PROTOCOL_VERSION,
             attempt_id: AttemptId::new("test").unwrap(),
@@ -539,6 +572,7 @@ mod tests {
             byte_len: 3,
         };
         let mut request = AssistantWorkerRequest {
+            execution: None,
             vision: None,
             version: PROTOCOL_VERSION,
             attempt_id: AttemptId::new("palette-check").unwrap(),
@@ -802,7 +836,7 @@ mod tests {
                 | "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031"
         ));
         let work = tempfile::tempdir().unwrap();
-        let request=AssistantWorkerRequest { vision: None,version:PROTOCOL_VERSION,attempt_id:AttemptId::new("probe").unwrap(),runtime:runtime_identity,model:model_identity,system_context:"You are Pulsar. Return one JSON action. Observed targets: cup1 is the first cup, cup2 is the second cup. Use {\"kind\":\"select_target\",\"target_id\":\"ID\"} to select a supplied target, or {\"kind\":\"no_action\"} for unsupported actions.".into(),user_request:"Track the second cup.".into(),scope:AssistantProposalScope {target_ids:vec!["cup1".into(),"cup2".into()],..Default::default()},cpu_threads:4,wall_time_ms:45_000};
+        let request=AssistantWorkerRequest { vision: None,version:PROTOCOL_VERSION,attempt_id:AttemptId::new("probe").unwrap(),runtime:runtime_identity,model:model_identity,system_context:"You are Pulsar. Return one JSON action. Observed targets: cup1 is the first cup, cup2 is the second cup. Use {\"kind\":\"select_target\",\"target_id\":\"ID\"} to select a supplied target, or {\"kind\":\"no_action\"} for unsupported actions.".into(),user_request:"Track the second cup.".into(),scope:AssistantProposalScope {target_ids:vec!["cup1".into(),"cup2".into()],..Default::default()},cpu_threads:4,wall_time_ms:45_000,execution:None};
         assert_eq!(
             execute(&request, &runtime, &model, work.path()).unwrap(),
             AssistantProposal::SelectTarget {

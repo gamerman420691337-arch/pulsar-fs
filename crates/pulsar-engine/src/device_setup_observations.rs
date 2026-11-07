@@ -52,7 +52,12 @@ pub(super) fn read(db: &Connection, value: &mut SetupEffectObservation) -> Resul
     };
     if let Some((sha, text)) = raw {
         ensure!(
-            value.state == SetupJournalState::Acknowledged && digest(&value.id, &text)? == sha,
+            // A retired setup keeps the observation it was acknowledged with; the
+            // record stays verifiable even though it no longer holds the device.
+            matches!(
+                value.state,
+                SetupJournalState::Acknowledged | SetupJournalState::Retired
+            ) && digest(&value.id, &text)? == sha,
             "setup observation binding differs"
         );
         let observed: HandySetupAcknowledgment = serde_json::from_str(&text)?;

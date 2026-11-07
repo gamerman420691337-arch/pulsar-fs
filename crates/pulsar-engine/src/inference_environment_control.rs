@@ -246,6 +246,11 @@ impl ObservationValidity {
 }
 #[cfg(target_os = "linux")]
 impl HeldInferenceEnvironment {
+    /// Check only the original observation lifetime and clock watermark. This
+    /// performs no file or hardware observation and cannot refresh either.
+    pub(super) fn check_lifetime(&self) -> PResult<()> {
+        self.validity.check(|| Ok(()))
+    }
     pub(super) fn report(&self) -> &InferenceEnvironmentReport {
         &self.report
     }

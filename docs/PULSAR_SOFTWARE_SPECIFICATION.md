@@ -207,3 +207,35 @@ See [this section in the consolidated specification](PULSAR_PROJECT.md#d3-supers
 ### D.4 Scope boundaries and remaining open items
 
 See [this section in the consolidated specification](PULSAR_PROJECT.md#d4-scope-boundaries-and-remaining-open-items).
+
+## Appendix E. Owner decision 2026-11-04 — in-product roleplay assistant
+
+See [the consolidated specification](PULSAR_PROJECT.md#appendix-e-owner-decision-2026-11-04--in-product-roleplay-assistant).
+
+### E.1 Assistant and tool requirements
+
+See [the consolidated specification](PULSAR_PROJECT.md#e1-assistant-and-tool-requirements).
+
+### E.2 New capability requiring its own qualification
+
+See [the consolidated specification](PULSAR_PROJECT.md#e2-new-capability-requiring-its-own-qualification).
+
+### E.3 Open items added by this decision
+
+See [the consolidated specification](PULSAR_PROJECT.md#e3-open-items-added-by-this-decision).
+
+### E.4 Owner answers, 2026-11-04: optional image pack, 18+ and participant consent
+
+See [the consolidated specification](PULSAR_PROJECT.md#e4-owner-answers-2026-11-04-optional-image-pack-18-and-participant-consent).
+
+### E.5 Owner answers, 2026-11-04: pipeline shape and remote providers
+
+See [the consolidated specification](PULSAR_PROJECT.md#e5-owner-answers-2026-11-04-pipeline-shape-and-remote-providers).
+
+### E.6 Owner answers, 2026-11-04: hardware tiers and model provenance
+
+See [the consolidated specification](PULSAR_PROJECT.md#e6-owner-answers-2026-11-04-hardware-tiers-and-model-provenance).
+
+### E.7 Owner answer, 2026-11-04: one toggle, not one approval per action
+
+See [the consolidated specification](PULSAR_PROJECT.md#e7-owner-answer-2026-11-04-one-toggle-not-one-approval-per-action).
