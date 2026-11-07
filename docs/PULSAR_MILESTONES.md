@@ -6,9 +6,9 @@ Reconciled **2026-11-06 (America/New_York)**. Full roadmap: **INCOMPLETE**. Auto
 
 ## Now
 
-**Current working tree: UNVERIFIED.** Working Linux Player demo implemented: Open, explicit Enable Handy, Play/Pause, seek, STOP and Close over the shared Engine. Five HSP wire tests and the actual Engine/mpv workflow pass; a live approximately 6-second HSP run was stopped and disarmed. User physical-motion confirmation remains pending. Separate mpv video window; full editor/model/platform/release scope remains open.
+**Current working tree: UNVERIFIED.** Desktop Player adds a session-local Handy sync offset that defaults to zero and takes effect on Play. The evidence link retains the earlier playback checkpoint. Editor, platform and release scope remain open.
 
-Linux Desktop Player: 5 loopback HSP tests and actual Engine/headless mpv workflow pass; visible GUI opens/plays local media with software-renderer fallback. Live HSP ran to 5967ms; Stop reset media to zero and firmware reported Stopped/current_point7; session disarmed. User confirmation of physical motion/sync remains pending. Separate mpv window, one controlling Desktop; not broad device/platform qualification. Evidence: [EV-DESKTOP-PLAYER-001](/mnt/4tb/artifacts/Funscripts/keep/pulsar-session-takeover-2026-11-06/desktop-player-result.json).
+Linux Desktop Player checkpoint: loopback HSP and Engine/mpv workflow passed. During the later sync demo the operator confirmed physical movement and reported that timing looked close by eye. Measured timing and broader device/platform qualification remain open. Evidence: [EV-DESKTOP-PLAYER-001](/mnt/4tb/artifacts/Funscripts/keep/pulsar-session-takeover-2026-11-06/desktop-player-result.json).
 
 **First action — APP-PLAYBACK: Verify and repair the local-video plus existing-script Desktop workflow.** Exit required: Launch checked Desktop and companion worker; open sterile local video and a known script, verify aligned preview, edit, save/reopen and export to a new file. Exercise errors and Stop controls; record executable/source identity and reproducible app-guide steps. No physical device qualification is implied.
 

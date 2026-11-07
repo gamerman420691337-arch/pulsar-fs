@@ -1,5 +1,5 @@
 //! One ephemeral Desktop playback owner, with bounded HSP buffering and player custody.
-use crate::desktop_hsp::{build_points, HspClient, HspStream};
+use crate::desktop_hsp::{build_points, offset_points, HspClient, HspStream};
 use crate::desktop_mpv::MpvPlayer;
 use anyhow::{ensure, Context, Result};
 use pulsar_protocol::{
@@ -165,6 +165,7 @@ struct Player {
     max_speed: u16,
     min_pct: u8,
     max_pct: u8,
+    sync_offset_ms: i16,
 }
 impl Default for Player {
     fn default() -> Self {
@@ -179,6 +180,7 @@ impl Default for Player {
             max_speed: 150,
             min_pct: 35,
             max_pct: 65,
+            sync_offset_ms: 0,
         }
     }
 }
@@ -212,18 +214,24 @@ impl Player {
             self.max_pct as f32,
         ));
     }
+    fn end_ms(&self) -> u64 {
+        let end = self.points.last().map_or(0, |p| u64::from(p.0));
+        if self.hsp.is_some() {
+            end + self.sync_offset_ms.max(0) as u64
+        } else {
+            end
+        }
+    }
     fn play(&mut self, shared: &Shared, epoch: u64) -> Result<()> {
+        let end = self.end_ms();
         let mpv = self.mpv.as_mut().context("Open a video and script first")?;
         let state = mpv.state()?;
         mpv.pause(true)?;
-        if state.eof || state.position_ms >= self.points.last().map_or(0, |p| p.0 as u64) {
+        if state.eof || state.position_ms >= end {
             mpv.seek(0)?;
         }
         let position = mpv.state()?.position_ms;
-        ensure!(
-            position < self.points.last().map_or(0, |p| p.0 as u64),
-            "seek before the end of the script"
-        );
+        ensure!(position < end, "seek before the end of the script");
         if let Some(hsp) = self.hsp.as_mut() {
             ensure!(
                 self.armed_until.is_some_and(|t| t > Instant::now()),
@@ -231,7 +239,12 @@ impl Player {
             );
             hsp.stop()?;
             hsp.ensure_hsp_mode()?;
-            let mut stream = HspStream::begin(hsp, self.points.clone(), position as i64)?;
+            let points = if self.sync_offset_ms == 0 {
+                self.points.clone()
+            } else {
+                Arc::new(offset_points(&self.points, self.sync_offset_ms))
+            };
+            let mut stream = HspStream::begin(hsp, points, position as i64)?;
             while !stream.loaded_until(position + AHEAD_MS) {
                 ensure!(
                     shared.epoch.load(Ordering::SeqCst) == epoch,
@@ -369,7 +382,10 @@ impl Player {
                     self.armed_until = Some(Instant::now() + SESSION_LIFETIME);
                 }
             }
-            Action::Play => self.play(shared, epoch)?,
+            Action::Play { sync_offset_ms } => {
+                self.sync_offset_ms = sync_offset_ms;
+                self.play(shared, epoch)?;
+            }
             Action::Pause => self.stop(false)?,
             Action::Seek { position_ms } => {
                 let resume = self.playing;
@@ -408,7 +424,7 @@ impl Player {
             if let (Some(stream), Some(hsp)) = (self.stream.as_mut(), self.hsp.as_mut()) {
                 stream.load_until(hsp, state.position_ms + AHEAD_MS)?;
             }
-            if state.position_ms >= self.points.last().map_or(0, |p| p.0 as u64) {
+            if state.position_ms >= self.end_ms() {
                 self.stop(false)?;
             }
         }

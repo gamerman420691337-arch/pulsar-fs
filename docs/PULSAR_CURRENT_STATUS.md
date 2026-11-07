@@ -6,7 +6,7 @@ The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue
 
 Reconciled **2026-11-06**. Roadmap **INCOMPLETE**; autonomous runner observation **paused**.
 
-**Working tree: UNVERIFIED.** Working Linux Player demo implemented: Open, explicit Enable Handy, Play/Pause, seek, STOP and Close over the shared Engine. Five HSP wire tests and the actual Engine/mpv workflow pass; a live approximately 6-second HSP run was stopped and disarmed. User physical-motion confirmation remains pending. Separate mpv video window; full editor/model/platform/release scope remains open.
+**Working tree: UNVERIFIED.** Desktop Player adds a session-local Handy sync offset that defaults to zero and takes effect on Play. The evidence link retains the earlier playback checkpoint. Editor, platform and release scope remain open.
 
 **Next: APP-PLAYBACK — Verify and repair the local-video plus existing-script Desktop workflow.** Exit required: Launch checked Desktop and companion worker; open sterile local video and a known script, verify aligned preview, edit, save/reopen and export to a new file. Exercise errors and Stop controls; record executable/source identity and reproducible app-guide steps. No physical device qualification is implied.
 

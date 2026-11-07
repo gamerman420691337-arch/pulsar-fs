@@ -1,6 +1,8 @@
 //! Ephemeral, host-owned Desktop player controls; no project mutation or model actions.
 use crate::*;
 
+pub const DESKTOP_SYNC_OFFSET_LIMIT_MS: i16 = 2_000;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 pub enum DesktopPlaybackAction {
@@ -14,7 +16,11 @@ pub enum DesktopPlaybackAction {
         min_pct: u8,
         max_pct: u8,
     },
-    Play,
+    Play {
+        /// Negative advances the Handy; positive delays it.
+        #[serde(default, skip_serializing_if = "is_zero_offset")]
+        sync_offset_ms: i16,
+    },
     Pause,
     Seek {
         position_ms: u64,
@@ -22,6 +28,10 @@ pub enum DesktopPlaybackAction {
     Stop,
     Status,
     Close,
+}
+
+fn is_zero_offset(offset: &i16) -> bool {
+    *offset == 0
 }
 
 impl DesktopPlaybackAction {
@@ -54,6 +64,13 @@ impl DesktopPlaybackAction {
             }
             Self::Seek { position_ms } if *position_ms > 86_400_000 => {
                 return Err(ProtocolError::invalid("player seek exceeds 24 hours"));
+            }
+            Self::Play { sync_offset_ms }
+                if sync_offset_ms.unsigned_abs() > DESKTOP_SYNC_OFFSET_LIMIT_MS as u16 =>
+            {
+                return Err(ProtocolError::invalid(
+                    "player sync offset must be within ±2000 ms",
+                ));
             }
             _ => {}
         }
@@ -97,6 +114,27 @@ pub(crate) fn validate_request(request: &Request) -> Result<(), ProtocolError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn play_offset_is_signed_bounded_and_defaults_to_zero_on_the_wire() {
+        let old_play = serde_json::json!({"action": "play"});
+        let decoded: DesktopPlaybackAction = serde_json::from_value(old_play.clone()).unwrap();
+        assert!(matches!(
+            decoded,
+            DesktopPlaybackAction::Play { sync_offset_ms: 0 }
+        ));
+        assert_eq!(serde_json::to_value(decoded).unwrap(), old_play);
+        for sync_offset_ms in [-2_000, 2_000] {
+            assert!(DesktopPlaybackAction::Play { sync_offset_ms }
+                .validate()
+                .is_ok());
+        }
+        for sync_offset_ms in [-2_001, 2_001, i16::MIN] {
+            assert!(DesktopPlaybackAction::Play { sync_offset_ms }
+                .validate()
+                .is_err());
+        }
+    }
+
     #[test]
     fn limits_and_paths_are_checked_without_effects() {
         assert!(DesktopPlaybackAction::Arm {

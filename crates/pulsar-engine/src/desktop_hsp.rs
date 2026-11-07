@@ -393,9 +393,63 @@ pub fn build_points(
     bounded
 }
 
+/// Express the normalized points from `build_points` in video time. A delay holds
+/// the initial position; an advance starts at the interpolated skipped position.
+pub fn offset_points(points: &[(u32, u8)], offset_ms: i16) -> Vec<(u32, u8)> {
+    let Some(&(end, final_position)) = points.last() else {
+        return Vec::new();
+    };
+    if offset_ms >= 0 {
+        let delay = offset_ms as u32;
+        let mut shifted = Vec::with_capacity(points.len() + 1);
+        if delay > 0 {
+            shifted.push((0, points[0].1));
+        }
+        shifted.extend(points.iter().map(|&(t, x)| (t + delay, x)));
+        return shifted;
+    }
+
+    let advance = u32::from(offset_ms.unsigned_abs());
+    let first_future = points.partition_point(|&(t, _)| t <= advance);
+    let initial = if let Some(&(next_t, next_x)) = points.get(first_future) {
+        let (prev_t, prev_x) = points[first_future - 1];
+        let fraction = f64::from(advance - prev_t) / f64::from(next_t - prev_t);
+        (f64::from(prev_x) + fraction * (f64::from(next_x) - f64::from(prev_x))).round() as u8
+    } else {
+        final_position
+    };
+    let mut shifted = Vec::with_capacity(points.len() - first_future + 2);
+    shifted.push((0, initial));
+    shifted.extend(
+        points[first_future..]
+            .iter()
+            .map(|&(t, x)| (t - advance, x)),
+    );
+    // Preserve the video endpoint when the last motion point moves earlier.
+    if end > 0 {
+        shifted.push((end, final_position));
+    }
+    shifted
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn offset_holds_or_interpolates_at_video_boundaries() {
+        let points = [(0, 20), (1_000, 80), (2_000, 80)];
+        assert_eq!(offset_points(&points, 0), points);
+        assert_eq!(
+            offset_points(&points, 250),
+            [(0, 20), (250, 20), (1_250, 80), (2_250, 80)]
+        );
+        assert_eq!(
+            offset_points(&points, -250),
+            [(0, 35), (750, 80), (1_750, 80), (2_000, 80)]
+        );
+        assert_eq!(offset_points(&points, -2_000), [(0, 80), (2_000, 80)]);
+    }
+
     #[test]
     fn long_segments_keep_a_five_second_preload_bound() {
         let points = build_points(&[(0, 40), (60_000, 60)], 150.0, 0.0, 100.0);
