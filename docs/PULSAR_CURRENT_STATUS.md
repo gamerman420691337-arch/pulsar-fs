@@ -6,7 +6,7 @@ The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue
 
 Reconciled **2026-11-06**. Roadmap **INCOMPLETE**; autonomous runner observation **paused**.
 
-**Working tree: UNVERIFIED.** Fast PR CI compiles all targets on Linux, Windows and macOS, runs deterministic/wire/browser checks, and avoids media installs and Engine/GUI test-binary code generation. Duplicate edited-trigger runs are removed and superseded runs cancel. Unix-only consent tests are scoped correctly for Windows; full suites remain nightly/manual. Existing integration receipts retain their original subjects; current hosted results are on PR34. Working product workflows are the delivery priority.
+**Working tree: UNVERIFIED.** Working Linux Player demo implemented: Open, explicit Enable Handy, Play/Pause, seek, STOP and Close over the shared Engine. Five HSP wire tests and the actual Engine/mpv workflow pass; a live approximately 6-second HSP run was stopped and disarmed. User physical-motion confirmation remains pending. Separate mpv video window; full editor/model/platform/release scope remains open.
 
 **Next: APP-PLAYBACK — Verify and repair the local-video plus existing-script Desktop workflow.** Exit required: Launch checked Desktop and companion worker; open sterile local video and a known script, verify aligned preview, edit, save/reopen and export to a new file. Exercise errors and Stop controls; record executable/source identity and reproducible app-guide steps. No physical device qualification is implied.
 

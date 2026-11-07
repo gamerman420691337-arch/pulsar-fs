@@ -29,6 +29,9 @@ pub use runtime_install::{
     RuntimeArchiveStageInspection, RuntimeStageInspection, RuntimeStageState, RuntimeUpdateReport,
 };
 mod authority;
+mod desktop_hsp;
+mod desktop_mpv;
+mod desktop_player;
 mod device_control_session;
 pub use device_control_session::{
     DeviceControlSession, DeviceMotionCaps, LimitedMotion, SessionAuthority, SessionRefusal,

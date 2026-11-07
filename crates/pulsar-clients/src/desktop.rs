@@ -22,6 +22,7 @@ use std::{
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Tab {
+    Player,
     Studio,
     Cinema,
     Generator,
@@ -394,6 +395,7 @@ pub struct PulsarDesktop {
     audio_panel: crate::audio_panel::AudioPanel,
     script_import_path: String,
     repair_panel: crate::repair_panel::RepairPanel,
+    desktop_player: crate::desktop_player_panel::PlayerPanel,
     handy_panel: crate::handy_panel::HandyPanel,
     handy_registration_panel: crate::handy_registration_panel::HandyRegistrationPanel,
     diagnostics: Option<DiagnosticsReport>,
@@ -468,6 +470,8 @@ impl PulsarDesktop {
         visuals.selection.bg_fill = Color32::from_rgb(0, 99, 113);
         visuals.selection.stroke.color = Color32::from_rgb(69, 222, 230);
         context.egui_ctx.set_visuals(visuals);
+        let desktop_player =
+            crate::desktop_player_panel::PlayerPanel::new(endpoint.clone(), bootstrap.clone());
         let (sender, requests) = mpsc::sync_channel::<RpcWork>(8);
         let (replies, receiver) = mpsc::sync_channel(8);
         let repaint = context.egui_ctx.clone();
@@ -622,7 +626,7 @@ impl PulsarDesktop {
             sender,
             receiver,
             busy: false,
-            tab: Tab::Studio,
+            tab: Tab::Player,
             browser_live_panel,
             browser_close_pending: false,
             project: None,
@@ -756,6 +760,7 @@ impl PulsarDesktop {
             audio_panel: Default::default(),
             script_import_path: String::new(),
             repair_panel: Default::default(),
+            desktop_player,
             handy_panel: Default::default(),
             handy_registration_panel: Default::default(),
             diagnostics: None,
@@ -4991,6 +4996,10 @@ impl eframe::App for PulsarDesktop {
         }
         self.assistant_settings.poll();
         self.portable.poll();
+        self.desktop_player.poll();
+        if self.desktop_player.needs_repaint() {
+            context.request_repaint_after(Duration::from_millis(100));
+        }
         self.poll(context);
         let fallback_binding = self.fallback_binding();
         self.fallback_panel.sync(fallback_binding);
@@ -5047,6 +5056,7 @@ impl eframe::App for PulsarDesktop {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.horizontal_wrapped(|ui| {
                         for (tab, label) in [
+                            (Tab::Player, "Player"),
                             (Tab::Studio, "Studio"),
                             (Tab::Cinema, "Cinema"),
                             (Tab::Generator, "Generator"),
@@ -5087,6 +5097,9 @@ impl eframe::App for PulsarDesktop {
                 }
             });
         egui::CentralPanel::default().show(context, |ui| match self.tab {
+            Tab::Player => {
+                self.desktop_player.ui(ui);
+            }
             Tab::Settings => {
                 egui::ScrollArea::vertical().show(ui, |ui| self.assistant_settings.ui(ui));
             }

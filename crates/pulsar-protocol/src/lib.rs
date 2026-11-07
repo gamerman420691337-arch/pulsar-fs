@@ -12,6 +12,8 @@ fn test_host_path(coordinate: &str) -> String {
         .to_owned()
 }
 
+mod desktop_playback;
+pub use desktop_playback::*;
 mod library_batch;
 pub use library_batch::*;
 mod media_probe;
@@ -259,6 +261,7 @@ impl Request {
                 "operation requires expected_revision",
             ));
         }
+        desktop_playback::validate_request(self)?;
         handy_player_guard::validate_request(self)?;
         browser_media::validate_browser_media_request(self)?;
         browser_timing::validate_request(self)?;
@@ -1913,6 +1916,10 @@ pub fn request_fingerprint(request: &Request) -> Result<Vec<u8>, serde_json::Err
     deny_unknown_fields
 )]
 pub enum Command {
+    DesktopPlayback {
+        action: DesktopPlaybackAction,
+        owner_proof: String,
+    },
     AssistantEditRecipes,
     ApplyAssistantEdit {
         approval: AssistantEditApproval,
@@ -3043,6 +3050,7 @@ impl std::fmt::Debug for Command {
         // Arguments can contain pairing credentials, private paths or media
         // prompts. Debug logging intentionally exposes only operation names.
         f.write_str(match self {
+            Self::DesktopPlayback { .. } => "DesktopPlayback",
             Self::AssistantEditRecipes => "AssistantEditRecipes",
             Self::ApplyAssistantEdit { .. } => "ApplyAssistantEdit",
             Self::AssistantTargets => "AssistantTargets",
@@ -3317,6 +3325,9 @@ impl Command {
         )
     }
     pub fn requires_project(&self) -> bool {
+        if matches!(self, Self::DesktopPlayback { .. }) {
+            return false;
+        }
         if matches!(
             self,
             Self::InspectInferenceEnvironment { .. }
@@ -3405,6 +3416,9 @@ impl Command {
     }
 
     pub fn requires_revision(&self) -> bool {
+        if matches!(self, Self::DesktopPlayback { .. }) {
+            return false;
+        }
         if matches!(
             self,
             Self::InspectInferenceEnvironment { .. }
@@ -3522,6 +3536,9 @@ impl Command {
     }
 
     pub fn is_mutating(&self) -> bool {
+        if let Self::DesktopPlayback { action, .. } = self {
+            return !matches!(action, DesktopPlaybackAction::Status);
+        }
         if matches!(
             self,
             Self::InspectInferenceEnvironment { .. }
@@ -3711,6 +3728,7 @@ impl Response {
     deny_unknown_fields
 )]
 pub enum ResponseBody {
+    DesktopPlayback(Box<DesktopPlaybackStatus>),
     InferenceEnvironment(Box<InferenceEnvironmentReport>),
     InferenceEquivalenceStatus(Box<InferenceEquivalenceStatus>),
     InferenceEquivalenceList(Box<InferenceEquivalencePage>),
@@ -3861,6 +3879,7 @@ pub enum ResponseBody {
 impl std::fmt::Debug for ResponseBody {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::DesktopPlayback(_) => f.write_str("DesktopPlayback"),
             Self::InferenceEnvironment(_) => f.write_str("InferenceEnvironment"),
             Self::InferenceEquivalenceStatus(_) => f.write_str("InferenceEquivalenceStatus"),
             Self::InferenceEquivalenceList(_) => f.write_str("InferenceEquivalenceList"),

@@ -9,6 +9,17 @@ Pulsar is a local motion workstation under active implementation. **Pulsar Deskt
 
 Start with the [single project specification and roadmap](docs/PULSAR_PROJECT.md). It defines the feature set, stack, shared API, delivery order and parallel-agent ownership. Current integration branch: `codex/pulsar-integration`. The [app guide](docs/PULSAR_APP_QUICKSTART.md) covers existing controls; the linked execution ledger owns current task and evidence state.
 
+## Play a local video and funscript on Handy
+
+The **Player** tab owns Open, Enable Handy, Play/Pause, Seek, STOP and Close through the shared Engine. Video/audio opens in an mpv window; motion uses the working buffered HSP API. After building both executables:
+
+```sh
+./scripts/demo-desktop-player.sh
+# Or: ./scripts/demo-desktop-player.sh /absolute/video.mp4 /absolute/video.funscript
+```
+
+Choose **Open video + script**, then **Enable Handy**, wait for the enabled state, and **Play**. See the [demo guide](docs/PULSAR_APP_QUICKSTART.md#local-video--handy-demo). No model is needed; analysis preview remains separate.
+
 ## Open the desktop app
 
 Build both companion executables from this checkout:
@@ -31,7 +42,7 @@ The model-free demo needs no model download. Media decoding and visual inference
 | Library batches / Stash | Bounded media discovery and retained generation/publication workflows. Installed-Stash compatibility remains unqualified. |
 | Portable projects | Explicit private project packaging and clone import, plus neutral script exports. |
 | Automation / Settings | Explicit local assistant configuration and proposals; useful default model selection remains open. |
-| Devices | Handy inspection, device-motion proposals and a [guarded CLI playback path](docs/PULSAR_HANDY_PLAY_SUBMISSION.md). Desktop playback and physical qualification remain open. |
+| Devices | Handy inspection, device-motion proposals and a [guarded CLI playback path](docs/PULSAR_HANDY_PLAY_SUBMISSION.md). The Player tab now provides local-video/HSP playback; broader physical qualification remains open. |
 
 Existing authored work, protected regions, revisions and original request identities are preserved by the shared Engine contracts. Unsupported options refuse rather than silently selecting another implementation. Six-axis synthetic patterns and neutral exports are implemented; that does not establish faithful six-axis recovery or physical playback.
 

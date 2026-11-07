@@ -41,6 +41,7 @@ pub struct CandidateSnapshot {
 #[derive(Clone, Serialize)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub enum ResponseBody {
+    DesktopPlayback(Box<pulsar_protocol::DesktopPlaybackStatus>),
     MediaProbe(Box<wire::MediaProbeReport>),
     NativeImagePreparation(Box<wire::NativeImagePreparationStatus>),
     NativeImagePreparationLimits(Box<wire::NativeImagePreparationLimits>),
@@ -276,6 +277,7 @@ impl std::fmt::Debug for ResponseBody {
             Self::HandyQualificationSaved(_) => "HandyQualificationSaved",
             Self::HandyHosting(_) => "HandyHosting",
             Self::HandyStrokeScript(_) => "HandyStrokeScript",
+            Self::DesktopPlayback(_) => "DesktopPlayback",
             Self::HandyInspection(_) => "HandyInspection",
             Self::HandyRegistrationSaved(_) => "HandyRegistrationSaved",
             Self::HandyRegistrationResolution(_) => "HandyRegistrationResolution",
@@ -1066,6 +1068,7 @@ impl MotionCache {
                 value.validate()?;
                 ResponseBody::HandyStrokeScript(value)
             }
+            wire::ResponseBody::DesktopPlayback(value) => ResponseBody::DesktopPlayback(value),
             wire::ResponseBody::HandyInspection(value) => {
                 value.validate()?;
                 ResponseBody::HandyInspection(value)
