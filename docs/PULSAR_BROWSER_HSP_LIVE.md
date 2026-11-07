@@ -19,6 +19,10 @@ the Engine restores history without native authority or temporary test permits.
 The model and device contract are authored fixtures. Rendered fault cases and
 physical qualification remain open; see [current status](PULSAR_CURRENT_STATUS.md).
 
+The later [sterile clip evaluation](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-07/live-sterile-demo-001/result.json) ran the actual browser player and a CPU tracker trained on independent synthetic outlines. The browser recorded 154 fresh estimates. On the 146 within the complete reference window, mean position error was 17.94 points and correlation was 0.745 at zero offset. This missed the demo screen of at most 15 points and at least 0.85 correlation. The Handy test remains pending.
+
+To reproduce the model, run [the training script](../scripts/train-sterile-browser-tracker.py) with a new output directory in a Python environment with PyTorch, NumPy, Pillow and ONNX. Inspect the resulting ONNX with `pulsar model profile MODEL --width 64 --height 64 --class-count 1 --temporal-script-position` and launch the prepared-source workflow below with the pinned profile and device output disabled. Select **Record accepted estimates for the next playback**, request 500 ms of analysis lead, then save the stopped inference record. The [scoring script](../scripts/score-sterile-browser-recording.py) takes that record, the model, the sterile reference folder, a new output directory and the product commit. It uses NumPy and Matplotlib, writes the score and plot, and returns 2 if the motion screen fails.
+
 ## Prepare the source and two readers
 
 Use the [imported-source workflow](PULSAR_BROWSER_SOURCE_MEDIA.md) to import media,

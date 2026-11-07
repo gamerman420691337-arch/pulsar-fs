@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "reconciled_on": "2026-11-06",
+  "reconciled_on": "2026-11-07",
   "timezone": "America/New_York",
   "full_roadmap": "incomplete",
   "runner_state": "paused",
@@ -17,10 +17,10 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-DESKTOP-PLAYER-001",
-    "scope": "Linux Desktop Player checkpoint: loopback HSP and Engine/mpv workflow passed. During the later sync demo the operator confirmed physical movement and reported that timing looked close by eye. Measured timing and broader device/platform qualification remain open.",
-    "active_work": "APP-PLAYBACK",
-    "failure_summary": "Desktop Player adds a session-local Handy sync offset that defaults to zero and takes effect on Play. The evidence link retains the earlier playback checkpoint. Editor, platform and release scope remain open.",
+    "evidence": "EV-STERILE-BROWSER-MOTION-001",
+    "scope": "The rendered browser produced 154 fresh estimates with a trained outline tracker. On the 146 estimates within complete supplied reference anchors, position error averaged 17.94 points and correlation was 0.745 at zero shift.",
+    "active_work": "BROWSER-DEMO",
+    "failure_summary": "The sterile browser workflow generated motion, but the tracker missed the motion screen. Physical live playback remains pending. Desktop local-file HSP playback and its zero-default offset retain their prior evidence.",
     "source_stamp": [
       {
         "path": "Cargo.lock",
@@ -4396,6 +4396,7 @@
         "EV-NATIVE-FRESHNESS-DIAGNOSTIC",
         "EV-RENDERED-420-REPEAT",
         "EV-RENDERED-CURRENT-RECORDING-EXPORT",
+        "EV-STERILE-BROWSER-MOTION-001",
         "EV-RENDERED-200MS-RECORDING",
         "EV-RENDERED-200MS-RECORDING-EXPORT",
         "EV-RENDERED-SEEK-200MS",
@@ -18510,6 +18511,21 @@
           ],
           "equals": 2
         }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-MOTION-001",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-07/live-sterile-demo-001/result.json",
+      "sha256": "3e9f8b4b7988b156bd683acd61e57405f2c810f5e6ab32e0aac393b1419ae73d",
+      "kind": "json",
+      "outcome": "fail",
+      "freshness": "pinned_checkpoint",
+      "scope": "Actual browser and CPU model inference ran on the supplied sterile animation with device output disabled. The separately trained synthetic-outline tracker produced 154 fresh estimates, and the zero-shift motion screen failed on the 146 samples within the supplied complete reference window. Model output covered about 37–74 points on the 0–100 scale. The sterile clip and reference were evaluation only.",
+      "assertions": [
+        {"pointer": ["status"], "equals": "FAIL_MOTION_SCREEN"},
+        {"pointer": ["rendered_browser"], "equals": true},
+        {"pointer": ["accepted_fresh_estimates"], "equals": 154},
+        {"pointer": ["physical_handy_test"], "equals": false}
       ]
     }
   ],
