@@ -1,3 +1,5 @@
+> Project scope and delivery order live in [PULSAR_PROJECT.md](docs/PULSAR_PROJECT.md). This file is the supporting domain glossary; historical progress below is not the current queue.
+
 # Pulsar
 
 Language for Pulsar's motion proposals, live lifetimes and retained resource obligations.

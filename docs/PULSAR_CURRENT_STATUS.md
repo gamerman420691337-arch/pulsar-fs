@@ -8,7 +8,7 @@ Reconciled **2026-11-06**. Roadmap **INCOMPLETE**; autonomous runner observation
 
 **Working tree: UNVERIFIED.** Development snapshot preserved while roadmap execution is paused. Latest client edits add redacted timing failure phase/class/protocol-code diagnostics and start explicit-continuity successor preparation at one quarter of the lease after CPU Ready. Focused and serial client checks have retained results, but the current rendered continuity path and physical Handy operation are unverified. All acceptance gates remain open.
 
-**Next: BROWSER-DEMO — Verify the real rendered-browser-to-recording/export demo.** Exit required: Actual rendered frame acquisition, source clocks, capture, review/export and stop/reconnect/fault lifecycle pass with sterile inputs; authored callbacks alone do not close this task.
+**Next: APP-PLAYBACK — Verify and repair the local-video plus existing-script Desktop workflow.** Exit required: Launch checked Desktop and companion worker; open sterile local video and a known script, verify aligned preview, edit, save/reopen and export to a new file. Exercise errors and Stop controls; record executable/source identity and reproducible app-guide steps. No physical device qualification is implied.
 
 Last verified checkpoint: Engine **1884 passed / 110 ignored**, clients **695 passed / 14 ignored**, Protocol **395 passed**. Pinned pre-format15 checkpoints, not a passing result for the current working tree.
 

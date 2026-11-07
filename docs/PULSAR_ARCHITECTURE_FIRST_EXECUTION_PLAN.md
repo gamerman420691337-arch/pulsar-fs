@@ -1,3 +1,5 @@
+> **Consolidated:** [PULSAR_PROJECT.md](PULSAR_PROJECT.md) defines current scope and delivery order; the [execution dashboard](PULSAR_MILESTONES.md) supplies current state. This document retains technical decisions and historical plans/evidence. Its dated status and task ordering are not the current queue. Confirmed technical requirements remain binding unless explicitly superseded.
+
 > Current execution state, priority and verification scope are maintained in the [execution dashboard](PULSAR_MILESTONES.md). This document retains its design/acceptance obligations and historical checkpoints; dated “current” entries below are not the current work queue.
 
 # Pulsar Architecture-First Execution Plan

@@ -1,5 +1,7 @@
 # Use the current Pulsar app
 
+Start with the [project specification and delivery roadmap](PULSAR_PROJECT.md) for scope and priorities. This guide describes existing controls; it does not establish completed workflow or hardware qualification.
+
 
 2026-10-24. Development build; full roadmap PARTIAL. The desktop and CLI share a local Engine.
 Model-free patterns, script import/editing and export are available. Media analysis requires an
@@ -18,13 +20,17 @@ selected existing playback on player loss; it does not start or synchronize the 
 Browser-generated HSP streaming now passes its positive localhost demo; fault
 coverage and physical synchronization remain unfinished.
 
-## Launch on this workstation
+## Build and launch
+
+On the development workstation, build the two companion executables using the shared build wrapper:
 
 ```sh
-/home/brianklam/.cache/pulsar-roadmap-validation/debug/pulsar gui
+priority-build cargo build -p pulsar -p pulsar-worker
 ```
 
-The companion `pulsar-worker` is beside this executable. No arguments also opens the desktop. This is the current development build; an older installed `pulsar` or retained runtime candidate may not contain these controls. Model-free patterns and script editing do not need a neural model. Media preview requires configured FFmpeg/FFprobe; visual inference requires the admitted model/profile and ONNX runtime. A running Engine keeps its existing startup configuration until it is restarted deliberately.
+Run the resulting `pulsar` executable with `gui` (or no arguments), using the path printed by that build. No current executable is asserted to exist at a historical cache path.
+
+Keep the companion `pulsar-worker` beside the executable. No arguments also opens the desktop. An older installed `pulsar` or retained runtime candidate may not contain these controls. Model-free patterns and script editing do not need a neural model. Media preview requires configured FFmpeg/FFprobe; visual inference requires the admitted model/profile and ONNX runtime. A running Engine keeps its existing startup configuration until it is restarted deliberately.
 
 ## Desktop demo without models, media or hardware
 

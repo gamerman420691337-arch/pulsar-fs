@@ -1,3 +1,5 @@
+> **Consolidated:** [PULSAR_PROJECT.md](PULSAR_PROJECT.md) defines current scope and delivery order; the [execution dashboard](PULSAR_MILESTONES.md) supplies current state. This document retains technical decisions and historical plans/evidence. Its dated status and task ordering are not the current queue. Confirmed technical requirements remain binding unless explicitly superseded.
+
 # Portable-project implementation plan
 
 Status: **IN PROGRESS. P1a foundation and P1b retained export/scoped download are implemented and locally exercised on Linux. P1b is committed as b4c038a. P1c clone import has nine repaired defects and a passing full local gate: 104 architecture checks, 517 Rust test executions and 36 scanner regressions, including worker and large-file cases. The scanner false positive is resolved; external review remains unavailable. P1d complete user-facing/platform qualification remains unfinished.**

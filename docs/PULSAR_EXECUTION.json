@@ -6,20 +6,8 @@
   "runner_state": "paused",
   "authority": [
     {
-      "path": "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
-      "role": "Product requirements and numeric acceptance contract"
-    },
-    {
-      "path": "docs/PULSAR_ARCHITECTURE_DECISIONS.md",
-      "role": "Recorded product-owner and architecture decisions"
-    },
-    {
-      "path": "docs/PULSAR_ARCHITECTURE_FIRST_EXECUTION_PLAN.md",
-      "role": "Architecture-first Phase A/B/C execution principles"
-    },
-    {
-      "path": "docs/PULSAR_MAJOR_ROADMAP.md",
-      "role": "M1–M8 scope and acceptance obligations"
+      "path": "docs/PULSAR_PROJECT.md",
+      "role": "Canonical feature scope, complete product requirements, delivery roadmap and supporting-contract hierarchy"
     }
   ],
   "archive": {
@@ -31,7 +19,7 @@
     "build_state": "unverified",
     "evidence": "EV-BROWSER-TIMING-DIAG-BUILD-001",
     "scope": "Protocol, Engine and client library test targets compile with zero errors; CPU archive and full native two-clone roundtrip/refusal campaign pass on the current Engine source.",
-    "active_work": "BROWSER-DEMO",
+    "active_work": "APP-PLAYBACK",
     "failure_summary": "Development snapshot preserved while roadmap execution is paused. Latest client edits add redacted timing failure phase/class/protocol-code diagnostics and start explicit-continuity successor preparation at one quarter of the lease after CPU Ready. Focused and serial client checks have retained results, but the current rendered continuity path and physical Handy operation are unverified. All acceptance gates remain open.",
     "source_stamp": [
       {
@@ -932,54 +920,96 @@
   ],
   "queue": [
     {
-      "id": "CPU-BUILD",
-      "title": "Repair portable CPU transaction/assembly ownership and module reference",
+      "id": "APP-PLAYBACK",
+      "title": "Verify and repair the local-video plus existing-script Desktop workflow",
       "parents": [
-        "M2-INTERCHANGE",
-        "M6-INSTALL"
-      ],
-      "state": "verified",
-      "owner": "Codex",
-      "depends_on": [],
-      "exit": "Compile the current Protocol, Engine and client library tests successfully with zero errors. Collect checked image declarations inside the same DB snapshot as attempts, carry them into assembly, and preserve metadata admission bounds.",
-      "evidence": [
-        "EV-CPU-BUILD-003",
-        "EV-CPU-ROUNDTRIP-BUILD",
-        "EV-CPU-WORKTREE-003"
-      ]
-    },
-    {
-      "id": "CPU-ARCHIVE",
-      "title": "Verify format-15 CPU archival correspondence and mutation refusals",
-      "parents": [
+        "M2-DOMAIN",
+        "M2-EDITS",
         "M2-INTERCHANGE"
       ],
-      "state": "verified",
-      "owner": "Codex",
+      "state": "ready",
+      "owner": "Codex + rendered-workflow operator",
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Exact image/profile/model/dependency binding for successful, failed, cancelled, interrupted and captured-running attempts; stripped/changed/contradictory/hidden current or ancestor declarations refuse.",
-      "evidence": [
-        "EV-CPU-ARCHIVE-CURRENT"
-      ]
+      "exit": "Launch checked Desktop and companion worker; open sterile local video and a known script, verify aligned preview, edit, save/reopen and export to a new file. Exercise errors and Stop controls; record executable/source identity and reproducible app-guide steps. No physical device qualification is implied.",
+      "evidence": []
     },
     {
-      "id": "CPU-ROUNDTRIP",
-      "title": "Prove complete CPU export/clone/restart/re-export/second-clone lifecycle",
+      "id": "HANDY-QUALIFY",
+      "title": "Prepare and qualify Handy 2 Pro sync and stop behavior",
       "parents": [
-        "M2-INTERCHANGE",
-        "M6-INSTALL"
+        "M5-DEVICE",
+        "M5-ADAPTATION"
       ],
-      "state": "verified",
-      "owner": "Codex",
+      "state": "awaiting_external",
+      "owner": "Operator + Codex",
       "depends_on": [
-        "CPU-ARCHIVE"
+        "APP-PLAYBACK"
       ],
-      "exit": "Actual confined CPU attempts retain exact inert history across two clones; no origin execution authority revives. Preceding reader refuses before mutation; processes, storage and memory release are verified.",
-      "evidence": [
-        "EV-CPU-ROUNDTRIP-CURRENT"
-      ]
+      "exit": "Actual firmware/configuration and encrypted secret references are supplied; authorized bench observations establish synchronization, stopping and recovery for the exact configuration. No acceptance is fabricated. Existing reviewed-script playback is qualified independently of live browser capture. Repair and exercise the Desktop control path; retain separate live-source qualification before browser-to-device claims.",
+      "evidence": []
+    },
+    {
+      "id": "GENERATION-WORKFLOW",
+      "title": "Complete a useful offline generate/review/edit/export workflow",
+      "parents": [
+        "M1-MOTION",
+        "M3-MODELS",
+        "M7-QUALITY"
+      ],
+      "state": "planned",
+      "owner": "Codex + data/model evaluator",
+      "depends_on": [
+        "APP-PLAYBACK"
+      ],
+      "exit": "Exercise an actual admitted model/runtime on permitted media through the user app, review confidence/target/view/timing, protect edits, regenerate selectively and export approved motion. Retain held-out quality and human-effort measurements under QUALITY-DATA; synthetic/diagnostic fixtures do not establish useful defaults.",
+      "evidence": []
+    },
+    {
+      "id": "QUALITY-DATA",
+      "title": "Build checked annotation/alignment and held-out evaluation coverage",
+      "parents": [
+        "M1-DATA",
+        "M1-MOTION",
+        "M3-MODELS",
+        "M7-QUALITY"
+      ],
+      "state": "awaiting_external",
+      "owner": "Operator/data reviewer + Codex",
+      "depends_on": [],
+      "exit": "Source-matched target/view labels and reference timing are independently checked; permitted live references train, sterile references remain evaluation-only; score held-out quality and human effort.",
+      "evidence": []
+    },
+    {
+      "id": "CLIENT-CORRECTNESS",
+      "title": "Close shared-client correctness and editing fault scenarios",
+      "parents": [
+        "M1-GEOMETRY",
+        "M2-DOMAIN",
+        "M2-EDITS"
+      ],
+      "state": "planned",
+      "owner": "Codex + rendered-workflow operator",
+      "depends_on": [
+        "CPU-BUILD"
+      ],
+      "exit": "Verify source/view/time correspondence and target loss/reacquisition through real consumers; exercise protected editing, review/commit/rebase/undo/restart and crash/storage faults in CLI/desktop. Retain real-media limitations under M1-DATA.",
+      "evidence": []
+    },
+    {
+      "id": "STASH-COMPAT",
+      "title": "Verify the configured user Stash library workflow",
+      "parents": [
+        "M2-INTERCHANGE"
+      ],
+      "state": "awaiting_external",
+      "owner": "Operator + Codex",
+      "depends_on": [
+        "CPU-BUILD"
+      ],
+      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped.",
+      "evidence": []
     },
     {
       "id": "BROWSER-DEMO",
@@ -1006,22 +1036,6 @@
       "next_proof": "Diagnose the rendered Observe dependency_mismatch during successor handoff and validate the earlier quarter-lease preparation through a full 40-second rendered run. A passing unit boundary test does not establish continuous browser operation or physical Handy synchronization."
     },
     {
-      "id": "CLIENT-CORRECTNESS",
-      "title": "Close shared-client correctness and editing fault scenarios",
-      "parents": [
-        "M1-GEOMETRY",
-        "M2-DOMAIN",
-        "M2-EDITS"
-      ],
-      "state": "planned",
-      "owner": "Codex + rendered-workflow operator",
-      "depends_on": [
-        "CPU-BUILD"
-      ],
-      "exit": "Verify source/view/time correspondence and target loss/reacquisition through real consumers; exercise protected editing, review/commit/rebase/undo/restart and crash/storage faults in CLI/desktop. Retain real-media limitations under M1-DATA.",
-      "evidence": []
-    },
-    {
       "id": "STARTUP-CAUSE",
       "title": "Localize the retained intermittent startup/Ready stall",
       "parents": [
@@ -1035,50 +1049,6 @@
       "evidence": [
         "EV-STARTUP"
       ]
-    },
-    {
-      "id": "HANDY-QUALIFY",
-      "title": "Prepare and qualify Handy 2 Pro sync and stop behavior",
-      "parents": [
-        "M5-DEVICE",
-        "M5-ADAPTATION"
-      ],
-      "state": "awaiting_external",
-      "owner": "Operator + Codex",
-      "depends_on": [
-        "BROWSER-DEMO"
-      ],
-      "exit": "Actual firmware/configuration and encrypted secret references are supplied; authorized bench observations establish synchronization, stopping and recovery for the exact configuration. No acceptance is fabricated.",
-      "evidence": []
-    },
-    {
-      "id": "QUALITY-DATA",
-      "title": "Build checked annotation/alignment and held-out evaluation coverage",
-      "parents": [
-        "M1-DATA",
-        "M1-MOTION",
-        "M3-MODELS",
-        "M7-QUALITY"
-      ],
-      "state": "awaiting_external",
-      "owner": "Operator/data reviewer + Codex",
-      "depends_on": [],
-      "exit": "Source-matched target/view labels and reference timing are independently checked; permitted live references train, sterile references remain evaluation-only; score held-out quality and human effort.",
-      "evidence": []
-    },
-    {
-      "id": "STASH-COMPAT",
-      "title": "Verify the configured user Stash library workflow",
-      "parents": [
-        "M2-INTERCHANGE"
-      ],
-      "state": "awaiting_external",
-      "owner": "Operator + Codex",
-      "depends_on": [
-        "CPU-BUILD"
-      ],
-      "exit": "Use the actual endpoint, encrypted credential references and server/local mappings to verify bounded discovery, matched-source generation/publication, cancellation/restart and no-overwrite behavior. Prior owned-fixture compatibility stays scoped.",
-      "evidence": []
     },
     {
       "id": "LIVE-FALLBACK-HISTORY",
@@ -1150,10 +1120,62 @@
         "LIVE-FALLBACK-HISTORY",
         "CLIENT-CORRECTNESS",
         "STASH-COMPAT",
-        "ASSISTANT-CONTENTION"
+        "ASSISTANT-CONTENTION",
+        "APP-PLAYBACK",
+        "GENERATION-WORKFLOW"
       ],
       "exit": "Every applicable specification/test gate has current subject-bound evidence and required human/release disposition; no percentage or test count substitutes for coverage.",
       "evidence": []
+    },
+    {
+      "id": "CPU-BUILD",
+      "title": "Repair portable CPU transaction/assembly ownership and module reference",
+      "parents": [
+        "M2-INTERCHANGE",
+        "M6-INSTALL"
+      ],
+      "state": "verified",
+      "owner": "Codex",
+      "depends_on": [],
+      "exit": "Compile the current Protocol, Engine and client library tests successfully with zero errors. Collect checked image declarations inside the same DB snapshot as attempts, carry them into assembly, and preserve metadata admission bounds.",
+      "evidence": [
+        "EV-CPU-BUILD-003",
+        "EV-CPU-ROUNDTRIP-BUILD",
+        "EV-CPU-WORKTREE-003"
+      ]
+    },
+    {
+      "id": "CPU-ARCHIVE",
+      "title": "Verify format-15 CPU archival correspondence and mutation refusals",
+      "parents": [
+        "M2-INTERCHANGE"
+      ],
+      "state": "verified",
+      "owner": "Codex",
+      "depends_on": [
+        "CPU-BUILD"
+      ],
+      "exit": "Exact image/profile/model/dependency binding for successful, failed, cancelled, interrupted and captured-running attempts; stripped/changed/contradictory/hidden current or ancestor declarations refuse.",
+      "evidence": [
+        "EV-CPU-ARCHIVE-CURRENT"
+      ]
+    },
+    {
+      "id": "CPU-ROUNDTRIP",
+      "title": "Prove complete CPU export/clone/restart/re-export/second-clone lifecycle",
+      "parents": [
+        "M2-INTERCHANGE",
+        "M6-INSTALL"
+      ],
+      "state": "verified",
+      "owner": "Codex",
+      "depends_on": [
+        "CPU-ARCHIVE"
+      ],
+      "exit": "Actual confined CPU attempts retain exact inert history across two clones; no origin execution authority revives. Preceding reader refuses before mutation; processes, storage and memory release are verified.",
+      "evidence": [
+        "EV-CPU-ROUNDTRIP-CURRENT"
+      ]
     }
   ],
   "evidence": [
@@ -2113,8 +2135,8 @@
     }
   ],
   "execution_rules": [
-    "Use this ledger for current status and priority; keep specifications/ADRs authoritative and historical receipts immutable.",
-    "Finish the active build/verification repair before adding unrelated feature work. Follow task dependencies; parallel independent external preparation may proceed.",
+    "PULSAR_PROJECT.md defines the single feature scope and delivery roadmap; this ledger owns task priority, dependencies and evidence. Supporting confirmed technical contracts remain binding; historical plans do not define a competing queue.",
+    "Finish one useful user workflow at a time in the canonical delivery order. Fix structural blockers within that slice; follow dependencies. External preparation may proceed independently. Existing-script Handy playback does not depend on live browser completion.",
     "At a code change, mark working-tree build state unverified until a new subject-bound result exists. Keep the last passing checkpoint separate.",
     "A scoped software completion does not close its parent gate or milestone. Close a gate only against its full criterion and required evidence/human authority.",
     "Preserve all 25 original gates and numeric thresholds. Missing labels, timing, hardware, signatures or acceptance remain explicit; never synthesize them.",

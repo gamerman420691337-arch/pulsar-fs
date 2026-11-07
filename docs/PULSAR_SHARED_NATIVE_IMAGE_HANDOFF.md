@@ -1,3 +1,5 @@
+> **Historical planning/status:** Current feature scope and delivery order are in [PULSAR_PROJECT.md](PULSAR_PROJECT.md); current task/evidence state is in the [execution dashboard](PULSAR_MILESTONES.md). Technical contracts and scoped receipts below remain references, not a separate work queue.
+
 # Shared native image handoff checkpoint
 
 The real generation/annotated-preview overlap now completes on one captured native image. This closes the reproduced shared-loader mutation defect for the authored Linux CUDA campaign. Cold preview readiness and full roadmap qualification remain open.

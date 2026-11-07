@@ -1,3 +1,5 @@
+> **Historical planning/status:** Current feature scope and delivery order are in [PULSAR_PROJECT.md](PULSAR_PROJECT.md); current task/evidence state is in the [execution dashboard](PULSAR_MILESTONES.md). Technical contracts and scoped receipts below remain references, not a separate work queue.
+
 # Durable Handy stop handoff — 2026-10-10
 
 The conditional Handy coordinator now has durable stop handoff paths for explicit requests, controller loss, revocation and stops produced by unknown play completion. `PreparedStopEffect` pairs the exact sealed stop with its committed metadata receipt. Its constructor and fields remain engine-owned. The owner must recheck current authority and `prepared_stop_is_current` immediately before transport handoff. No physical transport or public playback command is enabled.

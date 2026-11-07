@@ -1,3 +1,5 @@
+> **Consolidated:** [PULSAR_PROJECT.md](PULSAR_PROJECT.md) defines current scope and delivery order; the [execution dashboard](PULSAR_MILESTONES.md) supplies current state. This document retains technical decisions and historical plans/evidence. Its dated status and task ordering are not the current queue. Confirmed technical requirements remain binding unless explicitly superseded.
+
 # Pulsar Phase B defect and evidence inventory
 
 Status: B1 baseline. Historical cases are retained obligations, not automatically

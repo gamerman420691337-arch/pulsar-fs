@@ -1,14 +1,17 @@
-# Execution tracking
+# Pulsar work routing
 
-For implementation, status, or roadmap work, start with
-[the execution dashboard](docs/PULSAR_MILESTONES.md). Its queue and dependencies
-drive current work; its linked specification and decisions retain authority.
+Start implementation, feature, planning and status work at
+[the project specification and roadmap](docs/PULSAR_PROJECT.md). It owns feature
+scope, delivery order and the supporting-document hierarchy. Its document catalog
+covers technical references and preserved historical plans; do not revive their
+old queues or append another dated status narrative.
 
-Update `docs/PULSAR_EXECUTION.json` as work changes. Mark a changed working tree
-unverified until a fresh source-bound result exists, and retain the last passing
-checkpoint separately. Update existing tasks rather than appending dated status
-narratives. Scoped software results leave unmet parent acceptance criteria open.
+Task state, dependencies and evidence belong only in `docs/PULSAR_EXECUTION.json`.
+Follow its active slice and dependencies. Mark changed source unverified until a
+fresh source-bound result exists; retain the last passing checkpoint and failures.
+Scoped software results do not close unmet product/device/human acceptance gates.
 
-Regenerate the views with `python3 scripts/execution_dashboard.py --write`, then
-run `--check`. Run `--audit` on the evidence host when recording or reconciling
-retained receipts. The dashboard's operating rules define evidence and closure.
+Regenerate existing views with `python3 scripts/execution_dashboard.py --write`
+and run `--check`. Use `--audit` on the evidence host when reconciling receipts.
+Use relevant focused tests and real workflow checks; the roadmap defines release
+checkpoint obligations. Update the existing app guide when user controls change.

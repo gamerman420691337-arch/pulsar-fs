@@ -1,3 +1,5 @@
+> **Historical planning/status:** Current feature scope and delivery order are in [PULSAR_PROJECT.md](PULSAR_PROJECT.md); current task/evidence state is in the [execution dashboard](PULSAR_MILESTONES.md). Technical contracts and scoped receipts below remain references, not a separate work queue.
+
 > Successor: [P1D-008 is now locally repaired](PULSAR_P1D008_REPAIR.md). Its external review remains unavailable. Historical results below remain bound to their original source.
 
 # Portable project P1d: seven-repair checkpoint

@@ -1,3 +1,5 @@
+> **Historical planning/status:** Current feature scope and delivery order are in [PULSAR_PROJECT.md](PULSAR_PROJECT.md); current task/evidence state is in the [execution dashboard](PULSAR_MILESTONES.md). Technical contracts and scoped receipts below remain references, not a separate work queue.
+
 # Portable project P1b: retained export and scoped download
 
 Status: **Export slice implemented and locally exercised on Linux. Portable clone import, GUI parity, cross-platform qualification, and the Good phase remain incomplete.**

@@ -1,3 +1,5 @@
+> **Consolidated:** [PULSAR_PROJECT.md](PULSAR_PROJECT.md) defines current scope and delivery order; the [execution dashboard](PULSAR_MILESTONES.md) supplies current state. This document retains technical decisions and historical plans/evidence. Its dated status and task ordering are not the current queue. Confirmed technical requirements remain binding unless explicitly superseded.
+
 # Pulsar Architecture Phase A1-A6 completion record
 
 Date: 2026-09-11

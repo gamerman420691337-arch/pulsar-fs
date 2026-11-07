@@ -7,21 +7,17 @@
 
 Pulsar is a local motion workstation under active implementation. **Pulsar Desktop**, the command-line client, and the experimental local browser player use one authenticated Engine. The roadmap remains **PARTIAL**: useful model defaults, real-media accuracy, supported-platform releases and physical-device synchronization are not qualified.
 
-Start with the [current app guide and model-free demo](docs/PULSAR_APP_QUICKSTART.md). The [execution dashboard](docs/PULSAR_MILESTONES.md), [generated current status](docs/PULSAR_CURRENT_STATUS.md), [software specification](docs/PULSAR_SOFTWARE_SPECIFICATION.md), and [architecture-first roadmap](docs/PULSAR_MAJOR_ROADMAP.md) separate implemented behavior from remaining requirements.
+Start with the [single project specification and roadmap](docs/PULSAR_PROJECT.md). It defines the feature set, delivery order and document hierarchy. The [app guide](docs/PULSAR_APP_QUICKSTART.md) covers existing controls; the linked execution ledger owns current task and evidence state.
 
 ## Open the desktop app
 
 Build both companion executables from this checkout:
 
 ```sh
-cargo build -p pulsar -p pulsar-worker
+priority-build cargo build -p pulsar -p pulsar-worker
 ```
 
-Run the resulting `pulsar` executable with no arguments or with `gui`. Keep `pulsar-worker` beside it. On the development workstation, the current validation build is:
-
-```sh
-/home/brianklam/.cache/pulsar-roadmap-validation/debug/pulsar gui
-```
+Run the resulting `pulsar` executable with no arguments or with `gui`. Keep `pulsar-worker` beside it. Use the executable path printed by the checked build; retained cache paths and installed shortcuts may be stale. The local-video plus existing-script Desktop workflow is the next verification target, followed by Handy 2 Pro playback.
 
 The model-free demo needs no model download. Media decoding and visual inference need the explicitly configured FFmpeg/FFprobe and ONNX runtime respectively. A source build is not a qualified portable release. Older installed shortcuts and retained runtime candidates can contain older software; use the executable belonging to the checked source.
 
