@@ -34,6 +34,7 @@ mod browser_live;
 mod browser_live_panel;
 mod browser_player_control;
 mod desktop;
+mod desktop_player_panel;
 mod editor;
 mod equivalence_panel;
 mod evidence_panel;

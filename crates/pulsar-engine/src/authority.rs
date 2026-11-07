@@ -244,6 +244,7 @@ enum ExportKind<'a> {
 }
 
 pub struct Engine {
+    desktop_player: crate::desktop_player::Service,
     shutdown_requested: Arc<AtomicBool>,
     background: crate::task_group::TaskGroup,
     handy_controller_monitor: Mutex<Option<handy_playback_preparation::ControllerMonitor>>,
@@ -896,6 +897,7 @@ impl Engine {
                 .match_runtime(current.onnx_runtime.as_ref())?;
         }
         let engine = Arc::new(Self {
+            desktop_player: crate::desktop_player::Service::new(config.state_dir.join("player"))?,
             shutdown_requested,
             background: crate::task_group::TaskGroup::default(),
             config,
@@ -1077,6 +1079,7 @@ impl Engine {
             self.authorize(&db, request, session)?;
             check_request_identity(&db, session.as_str(), request, &fingerprint)?;
             if request.command.is_mutating()
+                && !matches!(request.command, Command::DesktopPlayback { .. })
                 && !request.command.is_native_preparation()
                 && !live_captures::is_command(&request.command)
                 && !browser_timing::is_history_command(&request.command)
@@ -1135,6 +1138,12 @@ impl Engine {
         }
         if inference_equivalence_control::is_command(&request.command) {
             return self.inference_equivalence_control(request, session, &fingerprint);
+        }
+        if let Command::DesktopPlayback { action, .. } = &request.command {
+            return self
+                .desktop_player
+                .request(session.as_str(), request.request_id.as_str(), action)
+                .map(|status| ResponseBody::DesktopPlayback(Box::new(status)));
         }
         if handy_hsp_source_qualification::is_command(&request.command) {
             return self.handy_hsp_source_qualification_control(request, session, &fingerprint);
@@ -2244,6 +2253,13 @@ impl Engine {
                         })?;
                 ResponseBody::RetainedLiveCudaEvidence((report).into())
             }
+            Command::DesktopPlayback { action, .. } => {
+                ResponseBody::DesktopPlayback(Box::new(self.desktop_player.request(
+                    session.as_str(),
+                    request.request_id.as_str(),
+                    action,
+                )?))
+            }
             Command::Capabilities => ResponseBody::Capabilities(self.capabilities()),
             Command::AssistantProfiles
             | Command::StartAssistant { .. }
@@ -3269,6 +3285,20 @@ impl Engine {
         }
         if !self.stash_batch_permitted(db, request, session)? {
             self.authenticate(db, session, request.auth_token.as_deref())?;
+        }
+        if let Command::DesktopPlayback { owner_proof, .. } = &request.command {
+            let difference = self
+                .handy_owner_token
+                .bytes()
+                .zip(owner_proof.bytes())
+                .fold(0u8, |sum, (a, b)| sum | (a ^ b));
+            if owner_proof.len() != self.handy_owner_token.len() || difference != 0 {
+                return Err(ProtocolError::new(
+                    ErrorCode::Forbidden,
+                    "player requires the host-local Handy owner capability",
+                ));
+            }
+            return Ok(());
         }
         if let Command::CheckModelPackCatalog { owner_proof, .. }
         | Command::RefreshModelCatalog { owner_proof, .. }

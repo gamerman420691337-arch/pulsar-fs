@@ -17,10 +17,10 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-INTEGRATION-BUILD-002",
-    "scope": "All workspace targets compile with default features and no warnings after conservative assistant setup defaults are wired. Rust tests are compiled, not executed; optional-feature, native, physical-device and release acceptance are not established.",
+    "evidence": "EV-DESKTOP-PLAYER-001",
+    "scope": "Linux Desktop Player: 5 loopback HSP tests and actual Engine/headless mpv workflow pass; visible GUI opens/plays local media with software-renderer fallback. Live HSP ran to 5967ms; Stop reset media to zero and firmware reported Stopped/current_point7; session disarmed. User confirmation of physical motion/sync remains pending. Separate mpv window, one controlling Desktop; not broad device/platform qualification.",
     "active_work": "APP-PLAYBACK",
-    "failure_summary": "Fast PR CI compiles all targets on Linux, Windows and macOS, runs deterministic/wire/browser checks, and avoids media installs and Engine/GUI test-binary code generation. Duplicate edited-trigger runs are removed and superseded runs cancel. Unix-only consent tests are scoped correctly for Windows; full suites remain nightly/manual. Existing integration receipts retain their original subjects; current hosted results are on PR34. Working product workflows are the delivery priority.",
+    "failure_summary": "Working Linux Player demo implemented: Open, explicit Enable Handy, Play/Pause, seek, STOP and Close over the shared Engine. Five HSP wire tests and the actual Engine/mpv workflow pass; a live approximately 6-second HSP run was stopped and disarmed. User physical-motion confirmation remains pending. Separate mpv video window; full editor/model/platform/release scope remains open.",
     "source_stamp": [
       {
         "path": "Cargo.lock",
@@ -4198,13 +4198,16 @@
         "M2-EDITS",
         "M2-INTERCHANGE"
       ],
-      "state": "ready",
+      "state": "in_progress",
       "owner": "Codex + rendered-workflow operator",
       "depends_on": [
         "CPU-BUILD"
       ],
       "exit": "Launch checked Desktop and companion worker; open sterile local video and a known script, verify aligned preview, edit, save/reopen and export to a new file. Exercise errors and Stop controls; record executable/source identity and reproducible app-guide steps. No physical device qualification is implied.",
-      "evidence": []
+      "evidence": [
+        "EV-DESKTOP-PLAYER-001"
+      ],
+      "next_proof": "The local-video/HSP Player demo is implemented and tested; obtain the operator physical observation, then continue the separate editor/save/reopen/export workflow and broader platform coverage without blocking this working player."
     },
     {
       "id": "UNIFIED-API",
@@ -18468,6 +18471,44 @@
             "exit_code"
           ],
           "equals": 0
+        }
+      ]
+    },
+    {
+      "id": "EV-DESKTOP-PLAYER-001",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-session-takeover-2026-11-06/desktop-player-result.json",
+      "sha256": "c6b1ea2a20746ea4062c472273390e99d553fd3a2eb0d2d4080c46d6878c5cec",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Linux Desktop Player: 5 loopback HSP tests and actual Engine/headless mpv workflow pass; visible GUI opens/plays local media with software-renderer fallback. Live HSP ran to 5967ms; Stop reset media to zero and firmware reported Stopped/current_point7; session disarmed. User confirmation of physical motion/sync remains pending. Separate mpv window, one controlling Desktop; not broad device/platform qualification.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_SCOPED"
+        },
+        {
+          "pointer": [
+            "software",
+            "hsp_wire_tests"
+          ],
+          "equals": 5
+        },
+        {
+          "pointer": [
+            "software",
+            "headless_workflow_tests"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "live_api",
+            "reported_hsp_play_state"
+          ],
+          "equals": 2
         }
       ]
     }

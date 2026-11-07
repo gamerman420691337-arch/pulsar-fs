@@ -10,21 +10,58 @@ Scoped Handy CLI operations now cover setup, preparation, controller leases, tim
 [guarded play/status/cancellation](PULSAR_HANDY_PLAY_SUBMISSION.md),
 [stop history](PULSAR_HANDY_EMERGENCY_STOP.md), and
 [qualified command recovery](PULSAR_HANDY_RECONCILIATION.md). They require exact current
-configuration, evidence and authority; the software tests do not qualify a real device. Desktop
-Arm and the broad physical-playback capability remain disabled. The default browser preview has
+configuration, evidence and authority; the software tests do not qualify a real device. The older Devices
+pane remains for inspection; use Player for the HSP workflow. Broader physical qualification remains open. The default browser preview has
 no device linkage. An optional [player stop guard](PULSAR_BROWSER_PLAYER_CONTROL.md) can retire
 selected existing playback on player loss; it does not start or synchronize the device.
 [Continuous timing refresh](PULSAR_HANDY_CONTINUOUS_TIMING.md) has scoped CLI/software validation.
 Browser-generated HSP streaming now passes its positive localhost demo; fault
 coverage and physical synchronization remain unfinished.
 
+## Local video + Handy demo
+
+Use the **Player** tab for synchronized local video/audio and funscript playback through the Engine-owned REST v3/HSP transport. Video opens in a separate mpv window. No model is needed. This is the working Linux development path; full platform/device qualification remains separate.
+
+Build both companion executables:
+
+```sh
+env CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_OPT_LEVEL=0 priority-build cargo build -p pulsar -p pulsar-worker --locked
+```
+
+Launch the generated 12-second video/script demo, or supply your own pair:
+
+```sh
+./scripts/demo-desktop-player.sh
+./scripts/demo-desktop-player.sh /absolute/video.mp4 /absolute/video.funscript
+```
+
+The workstation needs `mpv`, `ffmpeg`, and the encrypted-secret CLI. The launcher supplies `HANDY_API_KEY` and `HANDY_CONNECTION_KEY` through `secrets run`; never put key values in arguments or files.
+
+1. Click **Open video + script**, and wait for the paused video window.
+2. Click **Enable Handy** and wait for **Handy enabled**.
+3. Click **Play**. Pulsar preloads a short window and schedules video and HSP against the same start anchor.
+4. **Pause** pauses both. **Apply seek** rebinds the script at the selected video time and resumes if it was playing. **STOP** stops both and seeks to zero.
+5. Disable Handy or **Close player** when finished. Use STOP before leaving the demo.
+
+Initial limits: 150 units/s, 35–65% stroke mapping, five-second look-ahead, 20-minute session. The generated script moves within about 41–59% travel. A lost Desktop heartbeat or video window stops/disarms the session. Failures never auto-enable motion. Use one controlling Desktop for this player. Studio's analysis preview/editor remains separate.
+
+A GPU startup failure falls back to X11 software rendering. `PULSAR_PLAYER_SOFTWARE=1` selects software directly for diagnosis. Demo media/state default to `/mnt/4tb/artifacts/Funscripts/expire/desktop-player-demo`; `PULSAR_DEMO_STATE_DIR` can select an isolated Engine state.
+
+Focused checks use a loopback Handy with dummy credentials, plus the actual Engine and headless mpv:
+
+```sh
+env CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_DEV_OPT_LEVEL=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_TEST_OPT_LEVEL=0 priority-build cargo test -p pulsar --test desktop_hsp_wire --test desktop_player_workflow -- --include-ignored --nocapture
+```
+
+These exercise token/header/wire behavior, bounded uploads, Open/Play/Pause/Seek/Stop/Close and controller loss. They do not contact a real device.
+
 ## Launch on this workstation
 
 ```sh
-/home/brianklam/.cache/pulsar-roadmap-validation/debug/pulsar gui
+./target/debug/pulsar gui
 ```
 
-The companion `pulsar-worker` is beside this executable. No arguments also opens the desktop. This is the current development build; an older installed `pulsar` or retained runtime candidate may not contain these controls. Model-free patterns and script editing do not need a neural model. Media preview requires configured FFmpeg/FFprobe; visual inference requires the admitted model/profile and ONNX runtime. A running Engine keeps its existing startup configuration until it is restarted deliberately.
+The companion `pulsar-worker` is beside this executable. No arguments also opens the desktop. Use the executable from the checked source; an older installed `pulsar` or retained runtime candidate may not contain these controls. Model-free patterns and script editing do not need a neural model. Media preview requires configured FFmpeg/FFprobe; visual inference requires the admitted model/profile and ONNX runtime. A running Engine keeps its existing startup configuration until it is restarted deliberately.
 
 ## Desktop demo without models, media or hardware
 
@@ -47,7 +84,7 @@ This is a deterministic authored pattern. It neither analyzes a video nor drives
 ## Equivalent checked CLI demo
 
 ```sh
-/home/brianklam/.cache/pulsar-roadmap-validation/debug/pulsar synthesize 'pattern=triangle axis=stroke duration=2s frequency=1hz amplitude=0.1 offset=0.5 sample_hz=8' --output /absolute/new-demo.funscript
+./target/debug/pulsar synthesize 'pattern=triangle axis=stroke duration=2s frequency=1hz amplitude=0.1 offset=0.5 sample_hz=8' --output /absolute/new-demo.funscript
 ```
 
 Unlike the desktop's staged workflow, this convenience command creates a project, generates, commits and exports in one operation. It prints the retained project ID to stderr. You can enter that ID in **Existing project ID**, then click **Open project**. The destination must be new. Repeating against an existing destination refuses and preserves its bytes, but can retain another attempted project's history.
@@ -262,7 +299,7 @@ For a committed project, the CLI can now prepare a Stroke CSV without credential
 network access:
 
 ```sh
-/home/brianklam/.cache/pulsar-roadmap-validation/debug/pulsar handy-prepare-stroke PROJECT /absolute/new-script.csv --revision REVISION --request-id ORIGINAL_ID
+./target/debug/pulsar handy-prepare-stroke PROJECT /absolute/new-script.csv --revision REVISION --request-id ORIGINAL_ID
 ```
 
 It reports exact output bytes, the source revision/hash, rounding error, omitted axes

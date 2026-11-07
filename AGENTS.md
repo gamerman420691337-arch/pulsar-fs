@@ -22,7 +22,8 @@ checkpoint obligations. Update the existing app guide when user controls change.
 
 ## Integration and parallel work
 
-`codex/pulsar-integration` is the integration branch. Read the canonical document's
+`main` is the published integration authority; start each task branch from
+`origin/main`. Read the canonical document's
 API/ownership sections before dispatching agents or changing shared contracts.
 The orchestrator owns specification, ledger and integration; assign agents exact
 file/module scope on isolated short-lived worktrees. Hand back a commit, changed
