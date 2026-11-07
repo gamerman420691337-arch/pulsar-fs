@@ -231,7 +231,7 @@ fn desktop_player_local_media_workflow_and_controller_loss() -> Result<()> {
     assert!(!opened.armed && !opened.playing);
     assert!(opened.duration_ms >= 19_000);
 
-    call(&mut client, &proof, Action::Play)?;
+    call(&mut client, &proof, Action::Play { sync_offset_ms: 0 })?;
     wait_for(&mut client, &proof, "video advancing", |s| {
         s.playing && s.position_ms >= 300
     })?;
@@ -246,7 +246,7 @@ fn desktop_player_local_media_workflow_and_controller_loss() -> Result<()> {
     wait_for(&mut client, &proof, "paused seek", |s| {
         !s.playing && s.position_ms.abs_diff(5_000) <= 200
     })?;
-    call(&mut client, &proof, Action::Play)?;
+    call(&mut client, &proof, Action::Play { sync_offset_ms: 0 })?;
     wait_for(&mut client, &proof, "resume from seek", |s| {
         s.playing && s.position_ms >= 5_200
     })?;
@@ -256,7 +256,7 @@ fn desktop_player_local_media_workflow_and_controller_loss() -> Result<()> {
     })?;
     assert!(stopped.loaded && !stopped.armed);
 
-    call(&mut client, &proof, Action::Play)?;
+    call(&mut client, &proof, Action::Play { sync_offset_ms: 0 })?;
     wait_for(&mut client, &proof, "playing before controller loss", |s| {
         s.playing
     })?;
@@ -281,11 +281,11 @@ fn desktop_player_local_media_workflow_and_controller_loss() -> Result<()> {
     wait_for(&mut client, &proof, "seek near end", |s| {
         s.position_ms >= 18_900
     })?;
-    call(&mut client, &proof, Action::Play)?;
+    call(&mut client, &proof, Action::Play { sync_offset_ms: 0 })?;
     wait_for(&mut client, &proof, "video EOF", |s| {
         !s.playing && s.position_ms >= 19_800
     })?;
-    call(&mut client, &proof, Action::Play)?;
+    call(&mut client, &proof, Action::Play { sync_offset_ms: 0 })?;
     wait_for(&mut client, &proof, "replay after EOF", |s| {
         s.playing && (300..2000).contains(&s.position_ms)
     })?;

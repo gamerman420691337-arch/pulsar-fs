@@ -124,6 +124,25 @@ fn buffered_hsp_uses_token_auth_shared_clock_and_bounded_uploads() {
     let before = clock.now_ms();
     client.play(0, 1.0, &clock.advanced(1500)).unwrap();
     client.stop().unwrap();
+    // Match the 17-second sync demo's full-range pattern, with Desktop's
+    // default stroke mapping. Start playback on the same video timeline.
+    let mut actions = vec![(0, 50), (2_000, 0)];
+    let cue_times = [4_000, 6_500, 8_000, 10_500, 12_500, 15_000];
+    for (index, t) in cue_times.into_iter().enumerate() {
+        let from = (index as i32 % 2) * 100;
+        actions.extend([(t, from), (t + 800, 100 - from)]);
+    }
+    actions.push((17_000, 0));
+    let demo = hsp::build_points(&actions, 150.0, 35.0, 65.0);
+    for offset in [-250, 0, 250] {
+        let shifted = Arc::new(hsp::offset_points(&demo, offset));
+        let mut stream = hsp::HspStream::begin(&mut client, shifted, 0).unwrap();
+        for position in (0..=15_000).step_by(5_000) {
+            stream.load_until(&mut client, position + 5_000).unwrap();
+        }
+        client.play(0, 1.0, &clock.advanced(1500)).unwrap();
+        client.stop().unwrap();
+    }
     stop.store(true, Ordering::SeqCst);
     server.join().unwrap();
     let seen = events.lock().unwrap();
@@ -140,4 +159,24 @@ fn buffered_hsp_uses_token_auth_shared_clock_and_bounded_uploads() {
     assert!(play["server_time"].as_u64().unwrap() >= before + 1500);
     assert_eq!(play["loop"], false);
     assert_eq!(seen.last().unwrap().0, "/hsp/stop");
+    let mut sessions = seen.split(|(route, _)| route == "/hsp/setup").skip(2);
+    for offset in [-250_i64, 0, 250] {
+        let commands = sessions.next().unwrap();
+        let points: Vec<_> = commands
+            .iter()
+            .filter(|(route, _)| route == "/hsp/add")
+            .flat_map(|(_, body)| body["points"].as_array().unwrap())
+            .map(|p| (p["t"].as_i64().unwrap(), p["x"].as_i64().unwrap()))
+            .collect();
+        let actual_cues: Vec<_> = points
+            .windows(2)
+            .filter(|pair| (pair[0].1 - pair[1].1).abs() == 30)
+            .map(|pair| (pair[0].0, pair[1].0 - pair[0].0))
+            .collect();
+        assert_eq!(
+            actual_cues,
+            cue_times.map(|t| (t + offset, 800)),
+            "offset {offset} ms"
+        );
+    }
 }

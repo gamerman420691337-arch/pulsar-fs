@@ -1,7 +1,9 @@
 //! Responsive presentation for the Engine-owned local video/Handy player.
 use crate::{motion::ResponseBody, EngineApi, SessionClient};
 use eframe::egui;
-use pulsar_protocol::{Command, DesktopPlaybackAction, DesktopPlaybackStatus};
+use pulsar_protocol::{
+    Command, DesktopPlaybackAction, DesktopPlaybackStatus, DESKTOP_SYNC_OFFSET_LIMIT_MS,
+};
 use std::{
     path::{Path, PathBuf},
     sync::mpsc::{self, Receiver, SyncSender, TryRecvError},
@@ -33,6 +35,7 @@ pub(crate) struct PlayerPanel {
     max_speed: u16,
     min_pct: u8,
     max_pct: u8,
+    sync_offset_ms: i16,
     seek_ms: u64,
     status: DesktopPlaybackStatus,
     error: Option<String>,
@@ -80,6 +83,7 @@ impl PlayerPanel {
             max_speed: 150,
             min_pct: 35,
             max_pct: 65,
+            sync_offset_ms: 0,
             seek_ms: 0,
             status: DesktopPlaybackStatus::default(),
             error,
@@ -314,6 +318,20 @@ impl PlayerPanel {
                 );
             });
         });
+        ui.add_enabled_ui(!self.status.playing && !self.busy(), |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Handy sync offset");
+                ui.add(
+                    egui::DragValue::new(&mut self.sync_offset_ms)
+                        .range(-DESKTOP_SYNC_OFFSET_LIMIT_MS..=DESKTOP_SYNC_OFFSET_LIMIT_MS)
+                        .suffix(" ms"),
+                );
+                if ui.button("Reset").clicked() {
+                    self.sync_offset_ms = 0;
+                }
+                ui.small("Negative = earlier, positive = later");
+            });
+        });
         ui.small("Credentials: HANDY_API_KEY and HANDY_CONNECTION_KEY, supplied by secrets run.");
         ui.horizontal(|ui| {
             if ui
@@ -323,7 +341,12 @@ impl PlayerPanel {
                 )
                 .clicked()
             {
-                self.send(DesktopPlaybackAction::Play, Lane::Normal);
+                self.send(
+                    DesktopPlaybackAction::Play {
+                        sync_offset_ms: self.sync_offset_ms,
+                    },
+                    Lane::Normal,
+                );
             }
             if ui
                 .add_enabled(self.status.loaded, egui::Button::new("Pause"))

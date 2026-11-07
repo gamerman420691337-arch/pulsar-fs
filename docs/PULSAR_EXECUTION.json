@@ -18,9 +18,9 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-DESKTOP-PLAYER-001",
-    "scope": "Linux Desktop Player: 5 loopback HSP tests and actual Engine/headless mpv workflow pass; visible GUI opens/plays local media with software-renderer fallback. Live HSP ran to 5967ms; Stop reset media to zero and firmware reported Stopped/current_point7; session disarmed. User confirmation of physical motion/sync remains pending. Separate mpv window, one controlling Desktop; not broad device/platform qualification.",
+    "scope": "Linux Desktop Player checkpoint: loopback HSP and Engine/mpv workflow passed. During the later sync demo the operator confirmed physical movement and reported that timing looked close by eye. Measured timing and broader device/platform qualification remain open.",
     "active_work": "APP-PLAYBACK",
-    "failure_summary": "Working Linux Player demo implemented: Open, explicit Enable Handy, Play/Pause, seek, STOP and Close over the shared Engine. Five HSP wire tests and the actual Engine/mpv workflow pass; a live approximately 6-second HSP run was stopped and disarmed. User physical-motion confirmation remains pending. Separate mpv video window; full editor/model/platform/release scope remains open.",
+    "failure_summary": "Desktop Player adds a session-local Handy sync offset that defaults to zero and takes effect on Play. The evidence link retains the earlier playback checkpoint. Editor, platform and release scope remain open.",
     "source_stamp": [
       {
         "path": "Cargo.lock",
@@ -4207,7 +4207,7 @@
       "evidence": [
         "EV-DESKTOP-PLAYER-001"
       ],
-      "next_proof": "The local-video/HSP Player demo is implemented and tested; obtain the operator physical observation, then continue the separate editor/save/reopen/export workflow and broader platform coverage without blocking this working player."
+      "next_proof": "The operator confirmed motion and close visual sync in the local-video/HSP demo. Continue the separate editor/save/reopen/export workflow and broader platform coverage."
     },
     {
       "id": "UNIFIED-API",
