@@ -43,7 +43,9 @@ Existing legacy Buttplug, serial/TCode, VR, media/tracking/model/backend and GPU
 
 Durable artifact root: `/mnt/4tb/artifacts/Funscripts/keep/pulsar-consolidation-2026-11-06/`. `inventory.json`, `worktrees-before.txt`, `refs-before.txt`, per-worktree `tracked.patch`, `working-files.tar` and `files.json` capture the original heads, dirty source, deletions, untracked files and SHA-256 identities. `archive-tags.json` records local recovery tags. No original refs were deleted or remote history rewritten.
 
-All 281 retained evidence records audit successfully at reconciliation. Original outcomes, failures and pinned subjects are preserved; this is not acceptance of the new source. The canonical scope includes all original requirements plus the newer roleplay/consent/session/model-provenance/optional-image requirements. All 29 gates remain open. Build, lint, test and reconciliation logs are retained in the same artifact root.
+All 281 predecessor evidence records are retained, plus failed and repaired integration-build receipts (283 records total). The default-feature all-target compile passes; the original E0063 failure remains preserved. Original outcomes, failures and pinned subjects are preserved; this is not acceptance of the new source. The initial integration history is committed at `c28b9d2` and published through [draft PR #34](https://github.com/gamerman420691337-arch/pulsar-fs/pull/34); the follow-up launcher repair is source-bound by its build receipt. All 35 initial branch tips are ancestors of the integration branch.
+
+The canonical scope includes all original requirements plus the newer roleplay/consent/session/model-provenance/optional-image requirements. All 29 gates remain open. Build, lint, test and reconciliation logs are retained in the same artifact root.
 
 ## Initial ref register
 

@@ -361,6 +361,8 @@ fn run() -> Result<()> {
                     cpu_threads,
                     wall_time_ms,
                     worker_memory_bytes,
+                    execution: None,
+                    tier: pulsar_protocol::AssistantHardwareTier::default(),
                     absolute_assets,
                     approve_host_inference,
                 },
@@ -456,6 +458,8 @@ fn handle_assistant_host_request_with_config(
                     cpu_threads: options.cpu_threads,
                     wall_time_ms: options.wall_time_ms,
                     worker_memory_bytes: options.worker_memory_bytes,
+                    execution: None,
+                    tier: pulsar_protocol::AssistantHardwareTier::default(),
                     absolute_assets: false,
                     approve_host_inference: options.approve_host_inference,
                 },
@@ -642,6 +646,11 @@ mod tests {
                 .unwrap();
         assert!(created.saved_policy_sha256.is_none());
         let source = std::fs::read(&policy).unwrap();
+        let declaration: serde_json::Value = serde_json::from_slice(&source).unwrap();
+        assert_eq!(declaration["tier"], "constrained");
+        assert!(declaration
+            .get("execution")
+            .is_none_or(|value| value.is_null()));
         let selected = handle_assistant_host_request_with_config(
             &config,
             AssistantHostRequest::Select {

@@ -16,35 +16,1003 @@
     "original_gate_ledger_sha256": "4632e9da03de2fac2e86c6d6464e70f8de337ef849efaf4562edf84a8a4d5b90"
   },
   "working_tree": {
-    "build_state": "unverified",
-    "evidence": "EV-ASSISTANT-FIXTURE-INTERRUPTED",
-    "scope": "Integration of the development snapshot, consolidated architecture/assistant/device-control source, CPU Handy fixes, and retained branch/worktree histories. Fresh integration checks are recorded separately; earlier receipts remain pinned to their original source.",
+    "build_state": "verified",
+    "evidence": "EV-INTEGRATION-BUILD-002",
+    "scope": "All workspace targets compile with default features and no warnings after conservative assistant setup defaults are wired. Rust tests are compiled, not executed; optional-feature, native, physical-device and release acceptance are not established.",
     "active_work": "APP-PLAYBACK",
-    "failure_summary": "Branch and worktree consolidation is in progress on codex/pulsar-integration. No current whole-product or physical-device qualification is claimed. Historical platform/native failures, rendered continuity, useful model quality and all acceptance gates remain open. APP-PLAYBACK is the next product slice; runtime execution remains paused.",
+    "failure_summary": "The single integration branch is established and all workspace targets compile with default features. The initial launcher E0063 failure is retained and repaired with constrained/no-custom-limit assistant defaults. No Rust runtime suite or physical device operation was executed during consolidation. Historical platform/native failures, rendered continuity, useful model quality and all 29 acceptance gates remain open. APP-PLAYBACK is the next product slice; the autonomous runtime runner remains paused.",
     "source_stamp": [
       {
-        "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
-        "sha256": "cce9c26c43ed2b59b2c1c581eec212a9ec673bc167c256c49fa831f6becb6914"
+        "path": "Cargo.lock",
+        "sha256": "aa188c1b3a3d02838c7e839964833d5e9cf90abcac3839db1dbc7ddf95d323e2"
       },
       {
-        "path": "crates/pulsar-engine/src/engine_live_browser_fallback_native_tests.rs",
-        "sha256": "7337905cd259bd2c691c1735cda0fca220a32f7e3ed7ed741cc228f51430e65a"
+        "path": "Cargo.toml",
+        "sha256": "ad3de9613ced19e495ee7f6f7f221a15d190a26af6cab70e2c5a2f25207bea6f"
       },
       {
-        "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
-        "sha256": "f751dc323dd57bf30e0abb1efa66d0a2dbd8a20713686b5675a096e436ab0dd9"
+        "path": "crates/pulsar-clients/Cargo.toml",
+        "sha256": "78b6426a86ecf50deabc88a6375e4502c3a4f750b6f47fb3fc6fb2790ba09f10"
       },
       {
-        "path": "crates/pulsar-engine/src/browser_timing.rs",
-        "sha256": "0eb6d76f9fffc8fd4cf226b56908b7137001d188fa365d15fd4635894446ab27"
+        "path": "crates/pulsar-clients/README.md",
+        "sha256": "7619259a38360e70969769a4fd282ed42c2ae947b7a1a728aaf10aa902e3336a"
       },
       {
-        "path": "crates/pulsar-engine/src/engine_live_cuda.rs",
-        "sha256": "fbf6f47c2525b91c85c1a1519a61fb329ba49f4eefe4f1f33adff27e2215aa4c"
+        "path": "crates/pulsar-clients/examples/axis-pattern-fixture.rs",
+        "sha256": "f26fd58dd57b7110faf8596f90f93afe4d189ffd0ee83efa6f40de255d11eae0"
+      },
+      {
+        "path": "crates/pulsar-clients/examples/creative-candidate-fixture.rs",
+        "sha256": "932cc256c1114a549494d7609be03d51711663bc6bdadb7814add6040e76d810"
+      },
+      {
+        "path": "crates/pulsar-clients/examples/desktop-audio-bundle-fixture.rs",
+        "sha256": "fbc0d21a4b595ecd180a546d15969b445893c66dd19f8192207365efccd43cd1"
+      },
+      {
+        "path": "crates/pulsar-clients/examples/desktop-handy-fixture.rs",
+        "sha256": "3744d75ff8797de4556e2358d55e91258333a71100284a970c087405453fb681"
+      },
+      {
+        "path": "crates/pulsar-clients/examples/desktop-library-fixture.rs",
+        "sha256": "db1ebb0a271c72232c563c37d7e11c40795a64cebe6cc90a3884cca49df9f94e"
+      },
+      {
+        "path": "crates/pulsar-clients/examples/desktop-library-recovery-fixture.rs",
+        "sha256": "a080da478aab909947e649b1d38ce37abefa402560d6cdae51f12469314be32e"
+      },
+      {
+        "path": "crates/pulsar-clients/examples/desktop-repair-fixture.rs",
+        "sha256": "d33e376ee8cb887bd322cbb5b5bd6e2305cc1eadc3ffa47680084fbf9817b8f2"
+      },
+      {
+        "path": "crates/pulsar-clients/examples/encoded-capture-fixture.rs",
+        "sha256": "85af3e84cfb1a95b3821c59f7a25e585355e423342fcafb483e6de2d9aa2bdcc"
+      },
+      {
+        "path": "crates/pulsar-clients/examples/pack-recovery-fixture.rs",
+        "sha256": "dd30964ba2ec1d80105053d31d3a8938dd1625aa7fc583c037e4da5632744fde"
+      },
+      {
+        "path": "crates/pulsar-clients/examples/script-repair-fixture.rs",
+        "sha256": "3ae3722377beab55bc24ce075464458a45fbeb7f2b4e7c1539f00c0379bf64a5"
+      },
+      {
+        "path": "crates/pulsar-clients/src/assistant_client.rs",
+        "sha256": "d1cd5144a3975101d516f9cdb702e85162a654644926957011e084a8387ea799"
+      },
+      {
+        "path": "crates/pulsar-clients/src/assistant_edit_intent.rs",
+        "sha256": "124bebcef39c892b7fb5ee4a1fc403353d0a406f9583863642bb59e8990661b0"
+      },
+      {
+        "path": "crates/pulsar-clients/src/assistant_generation_intent.rs",
+        "sha256": "f13efa55cf72ca6da1288346aca55772537a5f4075512f44d634d5bfafb7ae49"
+      },
+      {
+        "path": "crates/pulsar-clients/src/assistant_panel.rs",
+        "sha256": "e067d8d4c2d7db00a94464726ae50964060ea6e323bbc86e6f9e3a96d8a488b9"
+      },
+      {
+        "path": "crates/pulsar-clients/src/assistant_settings.rs",
+        "sha256": "7df54ca114271c3c1c0aa671d71e3f722381595493cfbca107ace43727bfd7ce"
+      },
+      {
+        "path": "crates/pulsar-clients/src/audio_panel.rs",
+        "sha256": "7df0cb85770c9cfa23020a825d322dbc3ae558db88d757a01922a6bb95eedcbc"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_analysis_feed_tests.rs",
+        "sha256": "80cf6b080ab73dcd14bdc6bc506a715698f08eb564ff306267c594961764dc23"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_captured_cpu_tests.rs",
+        "sha256": "a63a01e47a39cf82ccc3fcb92f318f436ed5ae979789965402912302e75188cd"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_handy_hsp.rs",
+        "sha256": "8bde6f44a1eab05ff6c8b0b15b98746b650cf2c69d3c67f5b4e4239ccb34187a"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_handy_hsp_tests.rs",
+        "sha256": "d0ce26e50025825135998a2bb7ef2c29d8f9645b95caa42ccd88ee6cc1f6e2c0"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_handy_playback.rs",
+        "sha256": "3f2815d95681fab314f8ecb479b99cb9fa7c886780787dbbeccf94fb1000f3c4"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_handy_playback_tests.rs",
+        "sha256": "83f4ac1bcfc3c36aff18ed9a640a61158469f87c62351ad7111d5bc00a1acec0"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_live.html",
+        "sha256": "dc717cf2585aa30f89df6210ed55b50815b5cc137521e8a2cdb499b7afbfbd28"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_live.rs",
+        "sha256": "8b66bda259b9fa89bda5ce97f83586475bb65b2760b252bc311a54cc2a15ac82"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_live_fallback.rs",
+        "sha256": "a5dfdf56912e89530c5bb82dbb27b322d0ba5d61dbfc68b5f1f5f0a49326e4ed"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_live_fallback_tests.rs",
+        "sha256": "3518f673471ec117cdb4442ac00f88f97ce4577b4d06aca384ca5cd8ad63aaeb"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_live_handoff_tests.rs",
+        "sha256": "612a1603db2d95d8e23af3e564d1b23e4470af83c41d0b49b873acabfbf783fa"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_live_panel.rs",
+        "sha256": "36732a56894f7f5a41058d7aac6fb9ba2421761ac205406a521213631ea250f8"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_live_panel_tests.rs",
+        "sha256": "753ae1bb5b8cdcf6e2babe8daabb6c0285f5469440c79d05aa925352b6d307fb"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_control.rs",
+        "sha256": "5078e6340671747711236bf935417d2b1f574520032669135ad84b38bbb1e012"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_control_tests.rs",
+        "sha256": "7cbd28a24a94ce3da7a58cc7ed2099541ba39cef15edcad5f8ad2349331b4cb9"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_guard_io_tests.rs",
+        "sha256": "1ecf77a29ed6713369b466ec0f4a1417ebbee43571fb5acb40b5a819a0c1b163"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_http.rs",
+        "sha256": "a814213f8521914176de3021faece02bca45895e7108afa52cd1487f38a7b206"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_http_tests.rs",
+        "sha256": "c4473e8223963f770be4569b91aa7d2c5d222666ba5aa297bcb7fa2ca3d9dca5"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_timing.rs",
+        "sha256": "9b0e15c9912292bef4a805ae0d97f1e5a1ccc30679e26fce1b4b776e7650b3e5"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_timing_native_tests.rs",
+        "sha256": "d8ddb59d0d1f9d3e5070f239565e805c72cfc150364d4570643eb379d76d65f1"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_player_timing_tests.rs",
+        "sha256": "739151a62d5c212c96bb7fb33670213acacb40af2d80bd6c985cf3e07836ddef"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_source_media.rs",
+        "sha256": "76f873f070964f8b62033a3380e3a5dd12843c3c367aa39d43d3d46c687a53bf"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_source_media_native_tests.rs",
+        "sha256": "190889975bd6511f0d53784142a8321c4c84b3b598b2b3db63a142b568eb5e6a"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_source_media_tests.rs",
+        "sha256": "0612d0df99741a56092196411716591f4623e2bf3b5668365a1f5494cad39fe0"
+      },
+      {
+        "path": "crates/pulsar-clients/src/browser_timing_native_tests.rs",
+        "sha256": "4185bf6774624bbd54d4bf3fe94fa2ca815456a38bdfa9f777023347f3e3392b"
+      },
+      {
+        "path": "crates/pulsar-clients/src/bundled_models.rs",
+        "sha256": "c2dbbc5ea86e165722aa93566b0b9faf16ca7f49c71f33e68cd3d496c592db64"
+      },
+      {
+        "path": "crates/pulsar-clients/src/candidate_evidence.rs",
+        "sha256": "5ec7d96926dd9ff71ea669385ab5a8fd441f4b3f0bb6528a24c2c6f62413ae45"
+      },
+      {
+        "path": "crates/pulsar-clients/src/cli.rs",
+        "sha256": "665ba6616db61c003bc320f216d8f61841574eb1d7e8bf98794acbdb92b6ce91"
+      },
+      {
+        "path": "crates/pulsar-clients/src/desktop.rs",
+        "sha256": "806a47aa52a5537919f7d15b0b4e065e002b36b3b56b3eb9f2f28d9a0f1209be"
+      },
+      {
+        "path": "crates/pulsar-clients/src/editor.rs",
+        "sha256": "42509210d67df9748fd788118c90f902d7298d9459ec7f2d471c587b7b45cc1b"
+      },
+      {
+        "path": "crates/pulsar-clients/src/equivalence_panel.rs",
+        "sha256": "1196c752302f4fc4cc1343836c96dac0928bb67b61ef382e08ece6156cdd7cbe"
+      },
+      {
+        "path": "crates/pulsar-clients/src/evidence_panel.rs",
+        "sha256": "9cf72859fb45091250238804ec800adbb703e7d6f91ee254e8d9fb28807df5ea"
+      },
+      {
+        "path": "crates/pulsar-clients/src/evidence_recovery.rs",
+        "sha256": "c12c1268bae6eb25eeac35dd7ba6e93aed46798bea43013e9aa6d2fd2c784dcb"
+      },
+      {
+        "path": "crates/pulsar-clients/src/gap_resolution.rs",
+        "sha256": "5e6984d4ad828b84f21803254c33a90db6893e84c23f3c9a1b1af3fcd612b622"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_browser_start.rs",
+        "sha256": "40396a5120d2b4289999896782107d6af6e281eff999b4438507573556ff672c"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_continuous_timing.rs",
+        "sha256": "e514431d1a512be0ec66444e6c6a258f9c7757a5184f061444d9a18bbc82606e"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_hosting.rs",
+        "sha256": "5d3d3f097b7255edf8aa73b4773eca17196fa700ce3d721a385ccee389e6d2d3"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_hsp.rs",
+        "sha256": "ce784eeaa82c74d495204f7876a08c1eedc5c21380a94b3a7a5b731d501a41a5"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_hsp_continuity_client_tests.rs",
+        "sha256": "3df2487c6556fc6964da5d38619f483c73e6723b703f5783f64c7a91b2835867"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_hsp_live.rs",
+        "sha256": "b3346208fb6066edd3e90bd8773ed3664ad90cae8b7f31bf04ee5a985d568868"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_hsp_preparation.rs",
+        "sha256": "3458fa78e9099a385dbc486c7415ffbf76e57d1bf0cf7aa0da9a9da39ed971e0"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_hsp_source_qualification.rs",
+        "sha256": "8f8dcb5a07ab167cd989971a480ad40754b07406e23daf2cdfde0e797e433e77"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_panel.rs",
+        "sha256": "aa2050e0be1fe563092ed591bf6b1e6beccea47944a232f8cd5090aa3e2c7748"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_playback.rs",
+        "sha256": "8779e2830cc891cc4e9703bd9b227dafc4ed28e298d0f9514609d256d25dc5cc"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_qualification.rs",
+        "sha256": "8ad4cda0661b50b8821343f50e41739e0952a4c4cd0018d2211498e74ac811c9"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_reconciliation.rs",
+        "sha256": "967a3bb622002ebe86a55addcc13bef50dc20ad17461459cc8f5571fa4de644e"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_registration.rs",
+        "sha256": "bea3d3199b14f8c63c92e504c955fd904709b0294774c05bbaf1c05ed7c68279"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_registration_panel.rs",
+        "sha256": "6c911d9b461ab30783f5ffe40dee4f64975a1295a1c8554483fce635670f01dc"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_registration_recovery.rs",
+        "sha256": "dbad05c061a9aa58107931802760903948c7e034de516503d2766ce2ba32936e"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_registration_recovery_tests.rs",
+        "sha256": "d0f0d9013e92ef37e436c59451db7b1ab45a967df8a6cf422782b4bf52cf0ae0"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_script.rs",
+        "sha256": "c62fa39f0619fc51f7608433b2344d6eab08388327ae4ad924acc57429a76d15"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_session.rs",
+        "sha256": "6c06aa73b8763906a40c009c812b390041e806131a53a47b6e879fbdb9b0b3fe"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_setup.rs",
+        "sha256": "dcd62bd569c4ce7ed2ba9d678ea711457317e8c998239d6ac88a022b452e4dba"
+      },
+      {
+        "path": "crates/pulsar-clients/src/handy_stop.rs",
+        "sha256": "aca6c60b1bdc7d3bb942ea9d4e573684236b6fd1bde287aa2de48cacb9243944"
+      },
+      {
+        "path": "crates/pulsar-clients/src/image_origin_pixels.rs",
+        "sha256": "621da586801a19e223582630f20087b2bc70a609dc4b9c62bb1b606ee9ebf157"
+      },
+      {
+        "path": "crates/pulsar-clients/src/inference.rs",
+        "sha256": "b5a28d83eed121130d73672fc0daa2681332928826ba76d85b5ff9ab3e4201b1"
+      },
+      {
+        "path": "crates/pulsar-clients/src/inference_equivalence.rs",
+        "sha256": "7eb0c59d4487da6a20591c11d265698df582d566198cc494030b9654eb694cdf"
+      },
+      {
+        "path": "crates/pulsar-clients/src/inference_equivalence_recovery.rs",
+        "sha256": "204ff33b775c0dad9e6ba63a9eb72e3161f536b8416a732f494c335daeb0a1ed"
+      },
+      {
+        "path": "crates/pulsar-clients/src/inference_fallback_panel.rs",
+        "sha256": "54f01370312719a774c67d970ff28bc9e7feee900d8a34c77f0fb27e77fe07a1"
+      },
+      {
+        "path": "crates/pulsar-clients/src/lib.rs",
+        "sha256": "bb29e9bb8b3bad82e3356e6e6a890e59faec08524090143465425cc58026ca7b"
+      },
+      {
+        "path": "crates/pulsar-clients/src/library_axis_inventory.rs",
+        "sha256": "742b8ccd451c5e2cffaf1fe4f63e6905a705d77793a25fa0a9243990762daf8c"
+      },
+      {
+        "path": "crates/pulsar-clients/src/library_generation.rs",
+        "sha256": "4c1279fdff18e6760720f74c520269091b694d56605b18cac46787049e7c7287"
+      },
+      {
+        "path": "crates/pulsar-clients/src/library_panel.rs",
+        "sha256": "801b9e54f5e3b4433b3c65d24843ffec2a5923d0f1038bc42f8a45cadb5c8956"
+      },
+      {
+        "path": "crates/pulsar-clients/src/library_partial_publication.rs",
+        "sha256": "8eca12de694c3e50e9846d30b80ca6dfa7858e2177ec9efa57de5910f2081fed"
+      },
+      {
+        "path": "crates/pulsar-clients/src/library_pending_retirement.rs",
+        "sha256": "0bcb38aa48d43a250bb8a0b26099efbc7431931f34d2cf72fa2b4433aae9e70e"
+      },
+      {
+        "path": "crates/pulsar-clients/src/library_publication.rs",
+        "sha256": "a2fdfa0c28e4398fbcf4f95c342a5c1219668447e23b48068b424082b282f6a6"
+      },
+      {
+        "path": "crates/pulsar-clients/src/library_visual_panel.rs",
+        "sha256": "5c85ddb479649c5dc8d4306e018e6e3c2615d2e4bc6582756143c6e190212315"
+      },
+      {
+        "path": "crates/pulsar-clients/src/live_evidence.rs",
+        "sha256": "5efa615583f2614a3a9390132d5e128e43e3324a04a6281c0f5caa8b7cef5815"
+      },
+      {
+        "path": "crates/pulsar-clients/src/live_stream.rs",
+        "sha256": "410dd16e56f58e8ff25dbbe2cd8033e26809d2e311c9f6bcc6d5a84470276cd8"
+      },
+      {
+        "path": "crates/pulsar-clients/src/modality.rs",
+        "sha256": "409895d8719173a77b3eae5d348cddb204fc4a414b1595cd2b093846c6419f2a"
+      },
+      {
+        "path": "crates/pulsar-clients/src/motion.rs",
+        "sha256": "43987d949a3df7fa1a6b943b9ba6a9d56be144e9c427173f86cbce8d8efb06f3"
+      },
+      {
+        "path": "crates/pulsar-clients/src/motion_evidence.rs",
+        "sha256": "9759e0806a01df039788466b0c1a33176ace6e528efc482d824c40d45668bed0"
+      },
+      {
+        "path": "crates/pulsar-clients/src/motion_evidence_export.rs",
+        "sha256": "b465c0ddcf6bf72dfe7e1a9d9b84aaf3cf2634335ca9ab99813203ed64bd579d"
+      },
+      {
+        "path": "crates/pulsar-clients/src/native_preparation_panel.rs",
+        "sha256": "a649a93c4f21828efb82922fbc38b3c634567b6c73431686b6d97ddb8b9d9180"
+      },
+      {
+        "path": "crates/pulsar-clients/src/native_preparation_recovery.rs",
+        "sha256": "0344490065e93da682d014f2997202cc2bf839a39e216ac787b66ec0f74468df"
+      },
+      {
+        "path": "crates/pulsar-clients/src/neutral_bundle.rs",
+        "sha256": "26a84e34d94e7cf2c3927839c258a37265b318c28b381fc70d3c6ff7ed82e530"
+      },
+      {
+        "path": "crates/pulsar-clients/src/neutral_bundle_panel.rs",
+        "sha256": "911b39fd29bee09776b5730494c867725c83433be2913251878fa3d98d31722d"
+      },
+      {
+        "path": "crates/pulsar-clients/src/pack_panel.rs",
+        "sha256": "dff8b322a58058fa5b99592f54be1c2581f6fba073764e6615e30d3d5998ab46"
+      },
+      {
+        "path": "crates/pulsar-clients/src/pack_recovery.rs",
+        "sha256": "029d9da3bdde010f82696856279bd4e908f177894072b454f4855ed7f935420b"
+      },
+      {
+        "path": "crates/pulsar-clients/src/package_cleanup_receipt.rs",
+        "sha256": "0e7b43ea4b1c0a54b8937ec2653352114f6e72f13bd9af426d07fb182fdb3aec"
+      },
+      {
+        "path": "crates/pulsar-clients/src/package_staging_recovery.rs",
+        "sha256": "8526065e2633474f7168fe54cd572f5d6c672f1d065c8457032c1ccf698e3601"
+      },
+      {
+        "path": "crates/pulsar-clients/src/package_staging_recovery_tests.rs",
+        "sha256": "cad49caaf44e42ad7b7970ecd2c9d97bc663975f0f52105b92ef432c81584f4d"
+      },
+      {
+        "path": "crates/pulsar-clients/src/pattern_review.rs",
+        "sha256": "c80eddc1446769990eb9ca10daff550d4cf26a1c00345e654dad79ced3b3b76f"
+      },
+      {
+        "path": "crates/pulsar-clients/src/patterns.rs",
+        "sha256": "2c2a90476fcbc63cc36d8e835267ce1f284e4c0790b16e8ac30897a82e603bcd"
+      },
+      {
+        "path": "crates/pulsar-clients/src/portable.rs",
+        "sha256": "436fe4f2ccf1e0a9f59280638a34be9f602056f697fd01cda95757df2aae8233"
+      },
+      {
+        "path": "crates/pulsar-clients/src/preview.rs",
+        "sha256": "1a58b9dd32bfbac88cdec60f5729dbdbb02520acf08410df823aa4838d926d83"
+      },
+      {
+        "path": "crates/pulsar-clients/src/private_recovery.rs",
+        "sha256": "9748ed610f5c7ca44fcf6d8a69a9ed2c23615df3e43e4041753789b47990eb2e"
+      },
+      {
+        "path": "crates/pulsar-clients/src/project_package.rs",
+        "sha256": "11caa4262e69db89f7d5f37d78078dd54f2a633cefe06122406253f6497141a3"
+      },
+      {
+        "path": "crates/pulsar-clients/src/project_package_import.rs",
+        "sha256": "8bcae2754517edbc568265d733cfda720a9c9d6785a23f642e730e1d191bce86"
+      },
+      {
+        "path": "crates/pulsar-clients/src/receipt_write.rs",
+        "sha256": "d4a43b796ee87bca53cb8f7be74b8b3345f0e1303f20f07e790b6e5ffe58b149"
+      },
+      {
+        "path": "crates/pulsar-clients/src/reference_panel.rs",
+        "sha256": "6c3d9b66a6ae188196a245095e867449eedadc5f103b0cbc2f65ba701f7b03eb"
+      },
+      {
+        "path": "crates/pulsar-clients/src/reference_set.rs",
+        "sha256": "81839b4e1e23ffb70525803370ffda14cd83adaaa0bd943be4b97f3c6ba5e7cb"
+      },
+      {
+        "path": "crates/pulsar-clients/src/repair_panel.rs",
+        "sha256": "6db0485e3343abe82c07ef5f2561de8db077512310b4328ec877dc406b011fb8"
+      },
+      {
+        "path": "crates/pulsar-clients/src/roleplay_consent_state.rs",
+        "sha256": "e14d98cfc0a8a17ae02268e5cfa0c8b364bf987671c2bcde7e5ff00791f96523"
+      },
+      {
+        "path": "crates/pulsar-clients/src/runtime_bootstrap.rs",
+        "sha256": "e5f891c42e790bcf59f79b7e0aca73d13524fdf95dfe4349bfcf1faed531a1c5"
+      },
+      {
+        "path": "crates/pulsar-clients/src/script_repair.rs",
+        "sha256": "e220d2e34292191934f6f9f899e4f6573ca6717da9a4302f529903466184466d"
+      },
+      {
+        "path": "crates/pulsar-clients/src/session.rs",
+        "sha256": "5f1541dbd4dceee005dbe5777598a5728726b3a6637add76650395325c573f9f"
+      },
+      {
+        "path": "crates/pulsar-clients/src/stash_flow.rs",
+        "sha256": "d618763d75422da001709e4f3b02ccb822da76bc48ecd1cf52c9f909cb9858a0"
+      },
+      {
+        "path": "crates/pulsar-clients/src/target_picker.rs",
+        "sha256": "f14bb21b37e3690f863a8c1446d1cff7e3345604f02ca5141ac299461b4a8bed"
+      },
+      {
+        "path": "crates/pulsar-clients/src/target_view_authoring.rs",
+        "sha256": "ee60d3a5316e4bb6e8074b7d8f4be97629c8c6cf1378563b6231535d7c651c3b"
+      },
+      {
+        "path": "crates/pulsar-clients/src/video_view_panel.rs",
+        "sha256": "71546a9cf1bc7c268d9bd1848397427ce914dc7b374d8f36c7aae92ff5f7b4c9"
+      },
+      {
+        "path": "crates/pulsar-clients/src/wasm_archive_recovery.rs",
+        "sha256": "43ab3b72e29b6cfc6770e9664bdf7c3c86741861d22fa9b6004a4609be2775fb"
+      },
+      {
+        "path": "crates/pulsar-clients/src/wasm_archive_recovery_tests.rs",
+        "sha256": "dcdbf2ba12fd859d1ab6312dfdd777e1ea0f460c90c38b255d9791042ebbde9f"
+      },
+      {
+        "path": "crates/pulsar-clients/src/wasm_cleanup.rs",
+        "sha256": "f856575aeaff7d2f1b2aa006b538e0e051c3d08184f57ce2b9a1e4ad3aa1e011"
+      },
+      {
+        "path": "crates/pulsar-clients/src/wasm_cleanup_tests.rs",
+        "sha256": "e5549080428d0347eb288697aaffa0926d899e9dbbeb5c7db61ab0900dd9a0fb"
+      },
+      {
+        "path": "crates/pulsar-clients/src/wasm_edit_client.rs",
+        "sha256": "37a073dbffef7f76b034dab999c4309db47b03c969eeb92ec5a163ce7e83f310"
+      },
+      {
+        "path": "crates/pulsar-clients/src/wasm_panel.rs",
+        "sha256": "f931a1e0f5be7ad46d828a48ae43d4e8557361b915aae513c3d4b489ae96f8b9"
+      },
+      {
+        "path": "crates/pulsar-clients/src/wasm_panel_tests.rs",
+        "sha256": "a048e212be4ffe2c605579ce0fad672a22d2cf5239225ec4d85065c3c8fbb058"
+      },
+      {
+        "path": "crates/pulsar-clients/src/wasm_recovery.rs",
+        "sha256": "6c36f1fd6461bc51a335aeed50007b71e91f01d33082a401a274cefc01364014"
+      },
+      {
+        "path": "crates/pulsar-clients/src/wasm_recovery_tests.rs",
+        "sha256": "7a66873210f43fa6b439f928e3cd673a2cdc32b5c8a7c2d9cb81aa481286c02b"
+      },
+      {
+        "path": "crates/pulsar-clients/tests/response_storage.rs",
+        "sha256": "b17fd8ad8b71cc95bc1a1ce2847dbf0c215ca0c82167e470aa8de224524a6608"
+      },
+      {
+        "path": "crates/pulsar-core/Cargo.toml",
+        "sha256": "22ce6bc900a35af5934f346d49d8ea4d9dd4cc2847b967777d94bdae008e5bef"
+      },
+      {
+        "path": "crates/pulsar-core/src/adaptation.rs",
+        "sha256": "972b97341267c3529e93d0e8f98734cf4d467f3e6c94836df9133b043c262ae7"
+      },
+      {
+        "path": "crates/pulsar-core/src/audio_analysis.rs",
+        "sha256": "6e90953fa9f21679915a5cabf1e968fe8285e3a9b192fec1fcf7faf7f8d7fc0c"
+      },
+      {
+        "path": "crates/pulsar-core/src/audio_oscillation.rs",
+        "sha256": "ec0814b13d0665f764099f1f13a1eba96ca5e3010e50eb23c0d6d582dc25ae16"
+      },
+      {
+        "path": "crates/pulsar-core/src/authority.rs",
+        "sha256": "1da9fbfc399df8a70953598d6b9287ef05b479d1dd9d1026628738dc8edd41ba"
+      },
+      {
+        "path": "crates/pulsar-core/src/browser_clock.rs",
+        "sha256": "70f226da7ad8d59e27b8a4ee8c4ce7495b901368e6d5d049d35d93b9cd97afb3"
+      },
+      {
+        "path": "crates/pulsar-core/src/browser_start.rs",
+        "sha256": "0bafd3aba723d109d76e78624aa53de1fb6da98a2f483a6be6b6026787eeadb8"
+      },
+      {
+        "path": "crates/pulsar-core/src/declared_source_clock.rs",
+        "sha256": "3a23f21d87653406a6a758f91fb8d83d28f47830bcad78f4665b366f205a68f1"
+      },
+      {
+        "path": "crates/pulsar-core/src/device.rs",
+        "sha256": "62ad18d376cd68f6823f5b795d4756cdb2a1ac6fea483f4249e5b84075714df5"
+      },
+      {
+        "path": "crates/pulsar-core/src/dsp.rs",
+        "sha256": "bb5a1a2bc67d8299212f32d1c69f5056e19040ee25ee1c16203686fa744dd0be"
+      },
+      {
+        "path": "crates/pulsar-core/src/edit_recipes.rs",
+        "sha256": "a73f94ab33dafae57aa73bb889781cc2535bfaf8a60dea9896b5c3bde7b41b8d"
+      },
+      {
+        "path": "crates/pulsar-core/src/edit_values.rs",
+        "sha256": "0900095d67f05be04488661296b28d6b38603742ba15a71fe39128ecd2830c7d"
+      },
+      {
+        "path": "crates/pulsar-core/src/editing.rs",
+        "sha256": "2fa5331741d10af151b4cffe220855097613f949d858956c716fd64796b83d34"
+      },
+      {
+        "path": "crates/pulsar-core/src/gap_resolution.rs",
+        "sha256": "1b76ea15c2f51fb6fc09d5fe5ade9f32e8e93c399169f4e83607655e0042d8eb"
+      },
+      {
+        "path": "crates/pulsar-core/src/generation_interval.rs",
+        "sha256": "45c008ca1782cd779632dd56de141174801494482ad7bb7a4787953b9a15f2af"
+      },
+      {
+        "path": "crates/pulsar-core/src/geometry.rs",
+        "sha256": "aa7f39406bf9c0e51ee9a4533ed7cc78b965b3d3815cecf445a7814363b91756"
+      },
+      {
+        "path": "crates/pulsar-core/src/handy_stream.rs",
+        "sha256": "973a7d7b214729101212409a83f0493ef7e5c88c476364b858d198cc8d6eb8e4"
+      },
+      {
+        "path": "crates/pulsar-core/src/handy_stream_envelope.rs",
+        "sha256": "773c96860a73ecefbc974a48a590e3d3de509048a22a9ce5804b09b8eaf3d055"
+      },
+      {
+        "path": "crates/pulsar-core/src/handy_stream_finite_tests.rs",
+        "sha256": "db671326504567c7f8220475c62c4ae9f2b93d381477cb31f839babfd05e319f"
+      },
+      {
+        "path": "crates/pulsar-core/src/handy_stream_passage_tests.rs",
+        "sha256": "b4691c201219c1b33223d3e169ecbad0d978cab21a9fe6022d2448efaab1ae86"
+      },
+      {
+        "path": "crates/pulsar-core/src/handy_stream_transition_tests.rs",
+        "sha256": "b051a612bea1215a4d7072b47bcd8c7239a7cfb248f089541a70c873d79b7b67"
+      },
+      {
+        "path": "crates/pulsar-core/src/ids.rs",
+        "sha256": "2cb5cdafdb55b27deeaf42df1dd3e41d19b58135db1740b295b40661e85d922a"
+      },
+      {
+        "path": "crates/pulsar-core/src/jobs.rs",
+        "sha256": "1a34b1dc21919f783ed39f214154a0358c5b2b470bff0ae030c3a21524b86107"
+      },
+      {
+        "path": "crates/pulsar-core/src/lib.rs",
+        "sha256": "d74cf9dc2cf55a103a36520d13ea08f443f130dfa973eafdb93ec04245fd4c8b"
+      },
+      {
+        "path": "crates/pulsar-core/src/live.rs",
+        "sha256": "3b3050bca1938e71af46251057b9304a51a411992e0137d65f46875a9f74b119"
+      },
+      {
+        "path": "crates/pulsar-core/src/live_clock.rs",
+        "sha256": "9aa076580141abde0857f155f54a34c62d91a8f899c38b9652be6fdc7c9e91dc"
+      },
+      {
+        "path": "crates/pulsar-core/src/live_clock_probe.rs",
+        "sha256": "81086467ece5103487c65409d0a93315cb86ec7f3b490261f4c1beda29df7b9f"
+      },
+      {
+        "path": "crates/pulsar-core/src/live_decode_clock.rs",
+        "sha256": "6a92ca46ddd2abaa1611fc2af7b64706ceba6d4b6f0bee4da042ed661b26308c"
+      },
+      {
+        "path": "crates/pulsar-core/src/live_motion_assembly.rs",
+        "sha256": "88e8e0da819e365454687ac8da1770cf4a24c6cf6399d6c5e13244eb0bcbcb15"
+      },
+      {
+        "path": "crates/pulsar-core/src/motion.rs",
+        "sha256": "b5ea5066a1ee38e1223a5773d809dbeb7606182c812e467e01171be8f27d9c84"
+      },
+      {
+        "path": "crates/pulsar-core/src/motion_retiming.rs",
+        "sha256": "f85a69f3c7b6198dd50bd12b0bf44b21eccd301f738311d02e38c62a167ba8e8"
+      },
+      {
+        "path": "crates/pulsar-core/src/multimodal.rs",
+        "sha256": "f47fe7fa71e8d45e851fa906b2fa5f369b11dddf6ea93451b0ea83f593aaa7ae"
+      },
+      {
+        "path": "crates/pulsar-core/src/perception.rs",
+        "sha256": "d32409a8eaf75a719c282cda6118391e5685f01066fba1be96cbaabed3522d24"
+      },
+      {
+        "path": "crates/pulsar-core/src/perception_checkpoint.rs",
+        "sha256": "3738af512c1f5f3b262b1621da8ca6d040120b05bebc040635df2991cb16c972"
+      },
+      {
+        "path": "crates/pulsar-core/src/perception_multiscale.rs",
+        "sha256": "e3dbefc4b9f66cebffa9c1e11273926152e7d6f022f45e1bee9f5cfb4e62d3df"
+      },
+      {
+        "path": "crates/pulsar-core/src/placed_generation.rs",
+        "sha256": "47ac7cc70e4752f7aab4dc7a3f19c3f41d0021194448b3cc6205f2f1a1bf11bd"
+      },
+      {
+        "path": "crates/pulsar-core/src/project.rs",
+        "sha256": "f434db4cea165ddaeac1b906f626b7ec094688a9a0bb1607da1fec0ecb1b8c4c"
+      },
+      {
+        "path": "crates/pulsar-core/src/proofs.rs",
+        "sha256": "faef7e7e2cd738be979653b031fb4f3e8680c7ed284b29dee360826ffad51cd1"
+      },
+      {
+        "path": "crates/pulsar-core/src/reference_curve.rs",
+        "sha256": "d32082b279a29e127ed733e8b1a6e285089076cf171389c1ed479aa8f4534530"
+      },
+      {
+        "path": "crates/pulsar-core/src/script_repair.rs",
+        "sha256": "ce6a37389e4502b41279b6224de7e15c5f70f32cc737c461630d0179dfa7599e"
+      },
+      {
+        "path": "crates/pulsar-core/src/segment_speed.rs",
+        "sha256": "b19d0b486064c063115b0e66136c1fc7402e6c6afa95517d4274fcbf5d3eb870"
+      },
+      {
+        "path": "crates/pulsar-core/src/source_clock_motion.rs",
+        "sha256": "1cbf642bf735acae13ca5b3882f91037e567431dcebd5d5aa73e5f747f1cbac0"
+      },
+      {
+        "path": "crates/pulsar-core/src/source_clock_selection.rs",
+        "sha256": "efb3652808af24b5d57b7cf186f652b3b880ca50f788616442767af60931d8cb"
+      },
+      {
+        "path": "crates/pulsar-core/src/source_placement.rs",
+        "sha256": "fa31867abea8fda56598e5002f37b70c392274c9c6f994e4b7e735161e9c2f65"
+      },
+      {
+        "path": "crates/pulsar-core/src/source_seek.rs",
+        "sha256": "cb644020b910711df0a3d89a6115b6057caa6de74b1d6336012d7b68aaa8c32d"
+      },
+      {
+        "path": "crates/pulsar-core/src/synthesis.rs",
+        "sha256": "277f395f22edef9eb9dbe8a5e6190e12cbecfcef08f8e649b8d81b1dc430e2c0"
+      },
+      {
+        "path": "crates/pulsar-core/src/time.rs",
+        "sha256": "6e055d5cabc3ae3b786ed8bfb9372f2efa6f2b2fe63894f931e78c94741629dc"
+      },
+      {
+        "path": "crates/pulsar-core/src/video_view.rs",
+        "sha256": "a96219f2cb3e8813f27d62ad85300fab12a0780720fb7361ffb856215996c2b9"
+      },
+      {
+        "path": "crates/pulsar-core/src/view_coordinates.rs",
+        "sha256": "6a627cf1083bfefc425308a101f7af469c72a663fcfc745925ae12cb0232ed13"
+      },
+      {
+        "path": "crates/pulsar-core/tests/audio_analysis.rs",
+        "sha256": "9434fb148ab16ee7cac65782f2d3e12e46841f6e4d634c6c9a4ce56458ea41fd"
+      },
+      {
+        "path": "crates/pulsar-core/tests/audio_oscillation.rs",
+        "sha256": "2977996cc76ac7ac9abc5124141a83bff8f1db30c9099258193680c5be758d71"
+      },
+      {
+        "path": "crates/pulsar-core/tests/contracts.rs",
+        "sha256": "0e520eb0e6bc341c9ce76c24ffb50914b81e6c82cedd0ab84bf073084130a178"
+      },
+      {
+        "path": "crates/pulsar-core/tests/device_adaptation.rs",
+        "sha256": "88a99af38b7db1dfdc48bd6beb7ca57dd47326b27be7721536f0e0dc7368cc88"
+      },
+      {
+        "path": "crates/pulsar-core/tests/dsp.rs",
+        "sha256": "389469931e13d813bad4c68800f5de778b122e68012cc252d2251a6e0745ddb6"
+      },
+      {
+        "path": "crates/pulsar-core/tests/edit_values.rs",
+        "sha256": "ea610c1a7927f7c7a7f6b57bc0934e60770a432e67b52a03b01cba1200e67034"
+      },
+      {
+        "path": "crates/pulsar-core/tests/editing.rs",
+        "sha256": "42e74b5c0216f4b98a22148236592f77996428e3721700f6537c061e6e00c1b2"
+      },
+      {
+        "path": "crates/pulsar-core/tests/generation_interval.rs",
+        "sha256": "97c5814c94ce12e76eade1199f370eb812a884e08d717fb9cadd6e1bac14e6e7"
+      },
+      {
+        "path": "crates/pulsar-core/tests/manual_protection.rs",
+        "sha256": "bbefb4b6cf32590b51f0bc1e00aa3c00a21d2b9ca46766d91337b02913a42571"
+      },
+      {
+        "path": "crates/pulsar-core/tests/motion_retiming.rs",
+        "sha256": "7a1b9bf81b69a10eaae63a20a4447fe484615890a95ae52f44d3291fd736af53"
+      },
+      {
+        "path": "crates/pulsar-core/tests/pattern_samples.rs",
+        "sha256": "71e93671c61aaf2683dd026d6357d8b33f53909c561debac6b70b6f8974d79b9"
+      },
+      {
+        "path": "crates/pulsar-core/tests/perception.rs",
+        "sha256": "a7e94870d1fa7aecf46a5b4507a76d1f9dc080782509e9be4f7eb378dfaf279c"
+      },
+      {
+        "path": "crates/pulsar-core/tests/perception_checkpoint.rs",
+        "sha256": "ec65b5a162d51b9e70646f8a2338f1bd19f0ad3f2e496ad4a493c88c1f5aca6c"
+      },
+      {
+        "path": "crates/pulsar-core/tests/script_repair.rs",
+        "sha256": "b5045d692cc372b4c7b8c22128e5cb19c324a744283fb3c1ec254321a0b90e36"
+      },
+      {
+        "path": "crates/pulsar-core/tests/synthesis.rs",
+        "sha256": "f934a897cfb85225efbfffd1aba5677638618f71d33a7b756eb3a556745fc6f9"
+      },
+      {
+        "path": "crates/pulsar-engine/Cargo.toml",
+        "sha256": "d95f8bc1ff9dbcf45242d0b00d9b80cdeff76709744f9517a88e4894cf895bfa"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/benchmark-attempt.rs",
+        "sha256": "c3864969fca8713bbaa09fa4df6d6754fd626ead4a55758d08a8183bc7303602"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/benchmark-generate.rs",
+        "sha256": "cc8601d8b98b9903ac315ece92586ad78255145dc263fd696e527f19b15c3e44"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/benchmark-motion.rs",
+        "sha256": "65e7ad3eb8a6ee12d530679461b704e5c5ceda522aceab804742e6427a4b1929"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/benchmark-smoke.rs",
+        "sha256": "0ebe7a7ae42a1e828f9f7b395c05418dd812901e126116379e14035ca313a35d"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/cuda-intent-fixture.rs",
+        "sha256": "64333b9d2a3cdd80d1717fe9d2ba5190c12ae3c015f45a00d92581659d71f8a7"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/cuda-mount-check.rs",
+        "sha256": "1f456588d1c6bcc0ec2bd64c727d810e84d05aaed2fcf2e48866f2bfc4441de5"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/cuda-owner-policy-check.rs",
+        "sha256": "169617538dd00fb9189d30b2465ea346423f083de5acf9752263622379705db4"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/cuda-sdk-check.rs",
+        "sha256": "e2c382932c55557a1c6a51de42e2ed2c4f3aa75215d5af5b348a61dd23f534ca"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/cuda-worker-check.rs",
+        "sha256": "9a56f050dcc155a4bf36a7f9a8aa618de5c75bc36836c380717a43bf3afde44e"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/desktop-wasm-engine.rs",
+        "sha256": "a5d51d5395a5d1cb90905740722922253be353735b471c2c229b84cba74fb096"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/gpu-reservation-check.rs",
+        "sha256": "ffc463c12c1fde09d815daa093c41b5bca8bb39fb06f7f4afa934607c6d8ae69"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/inference-trace-check.rs",
+        "sha256": "9a5d24caa7c232759475cdd84f0b9bd684b2297fc0df0550924a7fe4eaacc3e3"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/live-inference-fixture.rs",
+        "sha256": "08eabb511861d7b82095cd451beeeeb7b416d471e23781ef80c939ebd87b31df"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/live-inference-reader.rs",
+        "sha256": "d046c26c17efc534a333f9bf71533281cdc5ed3b9717baa9ca4fdf8bd1a9a26b"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/live-source-fixture.rs",
+        "sha256": "c66720a6ef32fcf5aee59c35622592bd80de2aa63a4c70201160aaca6ea3fafd"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/live-staging-io-check.rs",
+        "sha256": "394da2744878ac220399c9526975bb3c36877a51ebd8034ddbc56c9ede1daf78"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/model-deadline-check.rs",
+        "sha256": "4390ff62a98a3f7d1da1c70137a5ae0a857f13c592c7a40359cad47b0df66380"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/native-dependency-probe.rs",
+        "sha256": "7088a9ceb37c4b3bc84ab5c73f6d0366be3205ce1c0435621f424a749f7ab2cf"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/rust-cuda-adapter-probe.rs",
+        "sha256": "e8e2fe1c5c5a8f0e98100902dc95b43f223fc9f833c3aa490cb156812306c672"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/rust-cuda-probe.rs",
+        "sha256": "23c7bd2c62803ceb0799ba8710b1fe831e22d85c7d32bc33342339641710e9e9"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/snapshot-capture-fixture.rs",
+        "sha256": "381ca5151c520a81c263d7ffd56b7a3dd762a7478f714680cadf3717e2de605a"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/supervised-native-capture-check.rs",
+        "sha256": "4f805398e116f727290f73475ef027dce094db6be956727043cd127f7b07ddf3"
+      },
+      {
+        "path": "crates/pulsar-engine/examples/wasm-worker.rs",
+        "sha256": "a85a8b972ed69f229d457782655ed59dd8ce97984fc10c7133499092bebcdb0c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/admitted_engine_crash_tests.rs",
+        "sha256": "bd58c8d7297dbf8e96c41f1f4f5b747de094ba3ff05504b4a09e7bfae0f2b57f"
+      },
+      {
+        "path": "crates/pulsar-engine/src/annotated_engine_generation_tests.rs",
+        "sha256": "7eb8a22e39fb370e7faccd47efda5218318ce5bf1237eb9fdb48f98a299dd554"
+      },
+      {
+        "path": "crates/pulsar-engine/src/annotated_generation_db.rs",
+        "sha256": "a8d0c429464a54c4484050841c4294b2f8886468181a0c227b2b3d12a5c3f1b3"
+      },
+      {
+        "path": "crates/pulsar-engine/src/archived_generation.rs",
+        "sha256": "e42c9b0a9d6a83c227ad4012d4ad812b5ddbf6d451d03b3a81385254ec3d2585"
+      },
+      {
+        "path": "crates/pulsar-engine/src/archived_motion_retimes.rs",
+        "sha256": "c074d3abce753e65bb7f4173ce534baa58023924eb67efbf20f57113fd0d98c9"
+      },
+      {
+        "path": "crates/pulsar-engine/src/archived_project_origins.rs",
+        "sha256": "126911d3c2266e2e13cc85f40950e6714995e0fcf06c0d5e2bd643336859133a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/artifacts.rs",
+        "sha256": "d6d7caf5cec02b9b34beab7db1a82a1ee02db88af50c89514a929807e004dfa3"
+      },
+      {
+        "path": "crates/pulsar-engine/src/artifacts/pinned_export.rs",
+        "sha256": "aeca5dc8c576046ec13162211a466764eb8a4541caeac7569a226f8ebfe5bd5b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_admission.rs",
+        "sha256": "f50c272f3d03f9b86cae1e561fbcac030a4273064900ad7bcfd3f3cd4bfd6fc0"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_assets.rs",
+        "sha256": "deec6491b1c30e0f8e7e30685469feab93f89aca0da10be62c7872949f4b97f6"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_creative.rs",
+        "sha256": "01b51fdf0e619becde051338a603643d44d475f48f92d12cfe21a642f95f1019"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_edits.rs",
+        "sha256": "43f086ef23695e10a58ac06b325eca7296c1db81c2d5b58aeaa94fd6c82834e8"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_handoff.rs",
+        "sha256": "0aa79dd46a71c548ea41f6d54a2d8c1474b8b675364534233277e2c846530392"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_image_origin.rs",
+        "sha256": "39bbce76b591d917e42ad0cb4c0bb27d0b0b80082fd9c9557bd1d546f031861a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_images.rs",
+        "sha256": "f15911c0dab9aae194e2dfdb42bdb0daa1217208c8d13055bc8e53e33c0cfb05"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_launch.rs",
+        "sha256": "50cd3e2e59a107ba4a96e1e56d37d8d760afd6f6b08ed2271ed22e57f3f8f5ab"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_launch_tests.rs",
+        "sha256": "2b78c58e534ea20b4a552110b13fee1033c82e34503d4f957c36d9b4c8eecdac"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_native_handoff_tests.rs",
+        "sha256": "150878614a4c3bfa9b805a77cccae8714eed1d4c17faaaff980f69dfe547b0f7"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_operations.rs",
+        "sha256": "9ca47194064b493a999a2a8863ea9a5708dd15dc050413a872118cee56e3cf73"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_operations_tests.rs",
+        "sha256": "09cde745b27683081ce732cc1bfe58ba4cf155b8f2cf8332bb08eab43e1ed884"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_owner_policy.rs",
+        "sha256": "08fe9017bdd1610fece04c0c6c23a89be3d1b37191024d0dc8daad0392e3f0e3"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_palette.rs",
+        "sha256": "6acf518849d84bb7a40bce78d6ebfafd790c09308df934f083b69e1f9026b5c8"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_recovery.rs",
+        "sha256": "1f34004be5ba6651285358ad5cc2203e34438b4b53a33dc92e7a1fed2c700cd0"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_schema.rs",
+        "sha256": "d78112d17741774b105e25937df13cc68f13a7ff35673a736facdeeb4b9731ec"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_start_resolution.rs",
+        "sha256": "7b4543faaf55a53aec6f585c273c141a79a424c754e039304dce7386d302eb22"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_targets.rs",
+        "sha256": "dd0ee02471a3c5ed1832f52ac3604af6ab2e8358abc31c4e21de9459bc3e4941"
+      },
+      {
+        "path": "crates/pulsar-engine/src/assistant_worker.rs",
+        "sha256": "8e2b8890a288bf41d5401aadb4e970cef500d49d7b9df2c6a928b9042d17c28f"
       },
       {
         "path": "crates/pulsar-engine/src/authority.rs",
-        "sha256": "a99cfd9f3fae5a11f50524ffdc986baf4a336aabf7ba2ae65b703bd69129296b"
+        "sha256": "0bead3c98c1244ecc0e5d1696c4d8598586c9f77e8a8fbe054416807ff966b44"
+      },
+      {
+        "path": "crates/pulsar-engine/src/benchmark.rs",
+        "sha256": "b3153ad626fcfb255588feec171156d37d8734e6d4269d0cb060052df947ebb9"
       },
       {
         "path": "crates/pulsar-engine/src/browser_fallback_history.rs",
@@ -59,16 +1027,1132 @@
         "sha256": "942b63006545a4e851c43994e4d0dfe54de13f06de4eb27fb3d71dff084dbc02"
       },
       {
+        "path": "crates/pulsar-engine/src/browser_fallback_reader_native_tests.rs",
+        "sha256": "a4493c2ab4ffacf9f1e8a38f76fc3e97becc2d82fbcf3e36b85051661df9ed1b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/browser_media.rs",
+        "sha256": "4c1e6d1413e36efed5390654ec270f94a800fef9844b9bbb742a1dbf72ad3392"
+      },
+      {
+        "path": "crates/pulsar-engine/src/browser_media_reader.rs",
+        "sha256": "9ad0fc3e0007f1aadfe4c8c6ce139dbed9e1109e26651b6968941c108c69b386"
+      },
+      {
+        "path": "crates/pulsar-engine/src/browser_timing.rs",
+        "sha256": "0eb6d76f9fffc8fd4cf226b56908b7137001d188fa365d15fd4635894446ab27"
+      },
+      {
+        "path": "crates/pulsar-engine/src/bulk.rs",
+        "sha256": "57aec5c3496b28c93f1f9c4b9d52c52876c8a5ea254af80e5082ba05d4727f84"
+      },
+      {
+        "path": "crates/pulsar-engine/src/candidate_image_origin.rs",
+        "sha256": "0c0b72768a6190ed00be00b7bccbc2a8db390df711afa7b664e99e3894949004"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cgroup.rs",
+        "sha256": "457771c2b752152a4224d1aaf7f7e105e028dc63f6db84532a4d7fa17297abe9"
+      },
+      {
+        "path": "crates/pulsar-engine/src/confinement.rs",
+        "sha256": "353468954a21f9db9450d5eebcee815c903d394156fe84a27d08bbfaa9f04508"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cpu_generation.rs",
+        "sha256": "d99fc7d6d437ebf0504d1ab998c218b8957d29fc3aca92e5f25571b75aa41b52"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cpu_mounts.rs",
+        "sha256": "fa168733cce572d8622912277eac89128ca56c92dc3fee30792d38018092b8dc"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cpu_owner_policy.rs",
+        "sha256": "627c16f31d6992d1e781b98008d05c448b1b9660d558fc223655f4721be2b2ea"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cpu_runtime_db.rs",
+        "sha256": "723b680149949d3eeaad5300be5171d28a2adbde9058c24764060634b9965b8a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cpu_runtime_reader.rs",
+        "sha256": "d3e1ff2050312534c190ad215eef86a2c5d7b3742727c0b39460b40fb3c3e3de"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cuda_acceptance.rs",
+        "sha256": "277ea63f4b14f44ab5d9bfd37f6d2a591c25160747f0ad210fa73774f54a5322"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cuda_attempts.rs",
+        "sha256": "db38b72f9d36e94c7485dac1f65f09802356e1ad2904d3281950c22681563f54"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cuda_bootstrap.rs",
+        "sha256": "4075a4c06dae9dc6e7cfc59d9aa2a0dca4777aeb3ad4d953f27787298accf307"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cuda_devices.rs",
+        "sha256": "9438c7c2fc451726bf8270948a02be5e59d1d47b671d9bc7484e4db2ff967b14"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cuda_generation.rs",
+        "sha256": "c8eaca83d707b883cd5200b14b52a0e1bd209a9ebdfa87e1e173eb53e18bf623"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cuda_memory.rs",
+        "sha256": "e1384254f9f49a2c49e1fe5ee3770bf9d483083874fa08c9d897ac1616626b1a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cuda_memory_tests.rs",
+        "sha256": "f20f0b3cbfaea9d59500050faea588269370931cd4f43eda84369dd344661920"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cuda_mount_bytes.rs",
+        "sha256": "dab6638744c8332c7c21a97cf714da5337c710b26ddef720af2636b60b060af9"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cuda_mounts.rs",
+        "sha256": "a2cbe9b8463a0e45fb0758ff34ae2a7567e3dec58072dc3809a5809b49e4eee3"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cuda_owner_policy.rs",
+        "sha256": "c1f97feea9df5cd0640f260d681b174c2b5a2a8fea5088c4822eb62dae014942"
+      },
+      {
+        "path": "crates/pulsar-engine/src/cuda_result.rs",
+        "sha256": "cb2a9d9cdfd76f6bc9250504e64cc7ef618e2f13d599a74b21f00594226bbedf"
+      },
+      {
+        "path": "crates/pulsar-engine/src/daemon.rs",
+        "sha256": "701a295e34106dfb82eb72666f667c41f14372015d6a7d69fe0ae74138e3822f"
+      },
+      {
+        "path": "crates/pulsar-engine/src/daemon_test_response_gate.rs",
+        "sha256": "5991b79e650ddfbefc434665ab03f38662cfa5bdeb8a04c91c03c63a6b850a5c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_browser_play_journal.rs",
+        "sha256": "89d676e1bd7498d7f1983b274cbce65298739256231dc5ec9885bc357771b07e"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_browser_play_journal_native_tests.rs",
+        "sha256": "241ad43275a514ba558707be2fa0db42a31124bcb44f0b12db4fe690920820aa"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_browser_play_journal_tests.rs",
+        "sha256": "ec5fff251fc66b32d5ae48c48453375f08760c75700ec52f8140c3a8e6582a72"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_clock_sync_journal.rs",
+        "sha256": "d7108b23fadace375770a8641cbf8b03941307ae6f17d889cd7bfe2de5167927"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_clock_sync_journal_tests.rs",
+        "sha256": "48f3f8d32f0efb63364e0923371e0522aadc2b3a0afa00f94ce6b12f20bbdb63"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_control_session.rs",
+        "sha256": "dad09d29b4b9cf41d02f6264ad8ff961cbe73e506d5b8b7921a7d137e9b4d069"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_effect_journal.rs",
+        "sha256": "aa2c414829c1e764c5d3c12869d70c2c8876005707015087ead248ae212ce362"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_emergency_stop_journal.rs",
+        "sha256": "3ca329af6d3a083b726016a60fab9a83b6e818e4a049d5436f7fd91eb4a66524"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_emergency_stop_journal_tests.rs",
+        "sha256": "41219743941ff9eef0b954afc72f80c9ad661fdbb6babacd9908e24d0973c3f7"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_hsp_journal.rs",
+        "sha256": "03244a4d08f177db2fb6ba7e109b78943172b9867552da0c0d59b03f45a5bc11"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_hsp_journal_native_tests.rs",
+        "sha256": "6a08463faadbf76fad33cf30862e3f57d5bf0e6063e3b40231fb6fb23702f380"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_hsp_journal_tests.rs",
+        "sha256": "4d63727eb32e9df401f881aa9ed582c1fef5eea879aeee53180bc52afee6a965"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_hsp_preparation_journal.rs",
+        "sha256": "6c6b64a48ed73af8d1854e7348f47401ef80926f5fffa2615af3d84715d99141"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_hsp_preparation_journal_tests.rs",
+        "sha256": "f30e244f1664f9e8ebfd038a06da853ed62ee9fb49f65fe3ee8b5f3968291239"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_hsp_provenance_journal_tests.rs",
+        "sha256": "208cb0813a68b141924cdfac427271a706c0df47ed1dfd65fa0488e43f86dcb0"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_hsp_recovery_journal.rs",
+        "sha256": "faa27c0a28983785c4f50ede167ab86d1feab3bc6f0b217919d454fa84e9c85c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_hsp_recovery_journal_tests.rs",
+        "sha256": "b9fef5b1076b1a1363ad8a18c9edcbe0d47edb0defc6e9daa57642fb7e5295c4"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_motion.rs",
+        "sha256": "74e744378b74e33697909ab324e9e222184f8e8d9e543117ffa6d8ac80bef9a3"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_play_journal.rs",
+        "sha256": "7a5978296c3cbd0e01a4805922c5b2581229c04f21ae163ec05790baa0cbd8bd"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_play_journal_tests.rs",
+        "sha256": "c78a104c79645f0073e15ae70817a9059887bc0f72cd03c7a3e422e86ddf5fd9"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_reconciliation_journal.rs",
+        "sha256": "dea3349b6a27500a26a8505182a2eeda8227ddd20c12879af1b1637abe2ca2e2"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_reconciliation_journal_snapshot.rs",
+        "sha256": "8ae47ef50ead3b645898dd3953b5a3d91c266f1d272db7abe1a25127a3c42695"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_reconciliation_journal_tests.rs",
+        "sha256": "cd4a05c8aedd7d930d67b29a561ba620f8c02ac6242656be6fd4ab54079934b5"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_setup_journal.rs",
+        "sha256": "dffe6654041af8e61a7d0c03b4963f8c288ff89a76d336ba852f2ca7ddfebf85"
+      },
+      {
+        "path": "crates/pulsar-engine/src/device_setup_observations.rs",
+        "sha256": "3ca6c2e2379027a0c455d69dfe07a0eb9789046713c7f361393fe229753260ef"
+      },
+      {
+        "path": "crates/pulsar-engine/src/edit_clock_origins.rs",
+        "sha256": "182e33137eec586be577cbdb482272a160ef73cf8df0165f9b06d709f970f0ad"
+      },
+      {
+        "path": "crates/pulsar-engine/src/editing.rs",
+        "sha256": "f48824ec1b6bc03d690666d1edadf69f03d7d304218b0afbe7194914a0cc1047"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_browser_media_capture_tests.rs",
+        "sha256": "b65226a394a7467a61106547a6caf426700b4deeeea087ce850854bbc8f18eac"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_browser_media_tests.rs",
+        "sha256": "b84917170924909e497f1cba964166b7f0b1848bc47e2cff557567ee085a1a75"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_browser_timing_tests.rs",
+        "sha256": "0058485927d12555c0d862c65684b02142d26048937c1e6688b12a5c7340e5cf"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_cpu_generation_tests.rs",
+        "sha256": "7a99b58c0438a1a4de4ed595a546b48c3be8412d08df21392c5e8703335daf62"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_cuda_generation_tests.rs",
+        "sha256": "a540dbbd6a307f3cb745b050c4408259587b48f353cb454c13215413e85e47e5"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_device_archive_tests.rs",
+        "sha256": "9c81fee5a3ed7f90d448085e3be319431402b25d191ad3d2ed07bcc939152b58"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_browser_playback_tests.rs",
+        "sha256": "746062a16a046035352f714a73ee9630c9d667803f9c261c5b08cd98a6dc7157"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_browser_start_qualification_tests.rs",
+        "sha256": "8a0214e85d5159931eec5dcf4898478c95122b7c80062ea92fa0b66fe52e7918"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_clock_sync_tests.rs",
+        "sha256": "deb62a8eb14173045209105203903e1600eb002f63dfaf275468dac996256167"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_continuous_timing_tests.rs",
+        "sha256": "19e708f1d165a537e6578d8fb462e446d7669247a33006988bc872b416be38ce"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_controller_tests.rs",
+        "sha256": "9e33bccb57911fb28c729e0a334192a942edf80eff2b015a4213a6f1c1143054"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_device_timing_tests.rs",
+        "sha256": "feed8f1788c6808d7876e1df04456313edbaf266190041923b3b6623252a02b7"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_emergency_tests.rs",
+        "sha256": "2629dd47269071db2f7e79126aea57d66ab3b62b59cf099e777904c30185b63b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_execution_tests.rs",
+        "sha256": "e2aaa03e1acb694b863cd2be4d860cb41ebab8c08c1960740e0350b9f2f4c794"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hosting_tests.rs",
+        "sha256": "d222e741753a5f65d0dfc2e5794ac62c3dfa470db24df354189287a49afe5b69"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_browser_continuity_fixture.rs",
+        "sha256": "30c9f6f7559ebf1542dccf877179be568623102a68b6aeebe6084adb76d8c842"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_browser_delayed_bind_fixture.rs",
+        "sha256": "7f90db687f12c173f22e6d1ef209a6f65f119189b6eef6fec4c70fa51aec629c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_browser_fault_fixture.rs",
+        "sha256": "87db58437f90b0b0b6ffd21d80851f50ff91411140ecf80f0e6bf9026e2bcbae"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_browser_stale_inspect_fixture.rs",
+        "sha256": "ea9ad25b30bf64d4fd4da0421f01f4c1e8d1833de86cc6249b29e0215bf8d3df"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_continuity_clock_tests.rs",
+        "sha256": "33ef3e6bdc62f74e993f33bccd146b8267b36fbb70c9bed90bf8ad7268b4c073"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_continuity_control_tests.rs",
+        "sha256": "f1feae3409d7669d1d3220206ea8b743d2d82595fc1786d28aa9b04e4aac2335"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_control.rs",
+        "sha256": "79ea1dba8ce2e4f05964a56768c5af4bcb94fa468770b1d73e1945e44eb42ba8"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_execution_tests.rs",
+        "sha256": "60a087987cd3862eafd8a0602d9aeda5cb50f6b5dc8a30f1f308c9cee00314aa"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_finite_execution_tests.rs",
+        "sha256": "d024a0f4f73c3047f840de6c1e94d885bc80a8f428e367826df8fa082b75e477"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_fresh_observation_execution_tests.rs",
+        "sha256": "f6aee10e10ccfbc1d75996a65d4410330220b782a128274bb4945bce2d74fdd4"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_live_cpu_continuity_tests.rs",
+        "sha256": "9fc8534a94bfb9fc239eb38a6f6efed10e819b31bfde0bd616529dd9f78c232d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_live_cpu_native_tests.rs",
+        "sha256": "284eca30a91643859afd2f8b66d4bcc1d555683c1fc38e30f7b2453ee9f87284"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_live_cpu_preclaim_tests.rs",
+        "sha256": "fef4db55977d9f7c1684eccbf5dd76a57e20bcdc6331664b7463d1ebe825e32d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_live_cpu_tail_tests.rs",
+        "sha256": "487c5ee00eb0f24ce63eeab750a502fd8f0c587fe0e77bd5638db58686766c9c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_preclaim_tests.rs",
+        "sha256": "04980e2c73c930b597839c965fb5a4cc401a169ae07455f2900cf50d1657919e"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_preparation_tests.rs",
+        "sha256": "0c6f03a72a00c8d0b6f5d4dc4fec1bc0b99b8d52635ffdfb5c184a302a700693"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_producer_read_order_native_tests.rs",
+        "sha256": "df8639139f2ee23797fc6489845647910a0d002de53bfb7a26163f0f5f27fba4"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_public_preparation_io_tests.rs",
+        "sha256": "110bff5cf2c650beab4cc6808560e74d667c0f923b7cc00f3bd477364f42e9fe"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_recovery_execution_tests.rs",
+        "sha256": "b1fbea9bde4e27028bd235ba6067b491c4f710f9efd9fff2bf6147ccf7912e1a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_source_qualification_tests.rs",
+        "sha256": "eda25a12096b734a21d50b59a4249d3394f009518a87aba38339011111fa137a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_hsp_timing_copy_native_tests.rs",
+        "sha256": "b34fe2ade99278171a1654705a796bf4f8fdb71405bb401c2ead54582d7807a2"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_playback_clock_tests.rs",
+        "sha256": "f70065549a523747d63a3f6cb8466f78bedd99ab8570fa7ada9080bd20e98b5d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_playback_tests.rs",
+        "sha256": "09bbf18c92dc5195ae0bbe7a8f890644ed3a322c37024291e0f6afbe12346eb4"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_player_guard_tests.rs",
+        "sha256": "c96f9434efb0482a3a3acac3c087c32b2eea11bc83e7d7f2359abc78ced3d3db"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_preparation_tests.rs",
+        "sha256": "3ef851c32cf06831fd877c0e72ae6d2fef7d87508dee0cc4c17748617c548808"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_program_tests.rs",
+        "sha256": "ac5a0553d3eb8ce2830cb5d40c3cc15c2f693aca6d8ed08719b92e16b71df9f1"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_qualification_tests.rs",
+        "sha256": "c29bd2e935df45a2e7cb47c282d81b50cc99fd2d640415729cb0962e5ea23d0d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_reconciliation_tests.rs",
+        "sha256": "72bd8fd8f7c9df8ca4ded77666bee28c7c8ab15afa6ee2451167925058b16579"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_registration_tests.rs",
+        "sha256": "47110d8b58aff02df4c5afbb1457f4dbf0cd911445c1cd7951b38f66abf7a507"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_script_tests.rs",
+        "sha256": "76a71f2f01e9bb510ea98954893386a045e40530b7a044f937ddd52f286af80d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_server_clock_tests.rs",
+        "sha256": "1168c60163d1d0139df0d38fd639d3d5ca4f8c925dce2650dfa692f49ce3b63e"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_session_tests.rs",
+        "sha256": "b8b94950aff77a1365289b1f8a02d39deae042a5b5e61172ee77553c415bd87c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_setup_cancel_tests.rs",
+        "sha256": "6462327aa40ce81ecbde955818d09c4edca73c722edb3a1d6c3bdb20ae9f4f57"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_setup_send_tests.rs",
+        "sha256": "51d170f495cca123d48ab6ed05e2ddf3fd0b7ee011e942f067c76279d5fba9a2"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_setup_status_tests.rs",
+        "sha256": "cc1680021612f235fa291b83f34baf83a0f23d3ef44cf49777eb886cc43add3e"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_handy_setup_tests.rs",
+        "sha256": "129320526132cec918969dc944647db567a272046fe152973e920d41a25a3259"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_inference_attempt_native_tests.rs",
+        "sha256": "dbba196e43d92ff33369c642f96c36c0eab129ad7f88741c923face9b045dee5"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_inference_equivalence_tests.rs",
+        "sha256": "22285f0982d88e61ce2085c2e8eadf89eb07a1ddf745bb769fb5bb949a0de3db"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_inference_fallback_active_tests.rs",
+        "sha256": "a8d50e5191fa6bc925eb0a43f325b4f5eec1ccc1fd367ba87a229d76ed352618"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_inference_fallback_archive_native_tests.rs",
+        "sha256": "79ebd17dd131801b82e5ab40478ab2f123af5b31e863badfb0f6448e0a75bb74"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_inference_fallback_interruption_native_tests.rs",
+        "sha256": "816bc0bb583a0b5bd790e5f66f539f9faaaf457c61a4993b6ec6ecb8fa1894c0"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_inference_fallback_native_tests.rs",
+        "sha256": "cce9c26c43ed2b59b2c1c581eec212a9ec673bc167c256c49fa831f6becb6914"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_inference_fallback_pack_native_fixture.rs",
+        "sha256": "6dab09536aa7bb6e3f03bc65195c53f2672edf4d891769c8c94852a1775916a3"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_inference_fallback_tests.rs",
+        "sha256": "1235bbb157a1a38b3b21374f6a06db7cd7bc8bd86562b6b51b67caac26a9dbe8"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_browser_fallback_native_tests.rs",
+        "sha256": "7337905cd259bd2c691c1735cda0fca220a32f7e3ed7ed741cc228f51430e65a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_capture_basis_read_order_native_tests.rs",
+        "sha256": "340db756fad2577e7fb13e9725ccacc0c2f1ebb9a8e33e8fe339aec37e0c245d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_capture_clock_tests.rs",
+        "sha256": "fdb04beb121f701942f77445c21bf7d320b29ad0d725be1dd6d6767c514b6298"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_capture_delivery_tests.rs",
+        "sha256": "5d5ce77c8297ee5ebf7e4114d4373eef2b36603b481b6941b55d2f546f96be69"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_capture_input_tests.rs",
+        "sha256": "273c5039ec15a070270d59bc42b75bc58935b9e01da1957b7af1935d9525f854"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_capture_successor_tests.rs",
+        "sha256": "219dd1a84dad7240004b57259cd0172d1dea0b6a8450b054dbf95c519a401968"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_cpu_browser_native_tests.rs",
+        "sha256": "f751dc323dd57bf30e0abb1efa66d0a2dbd8a20713686b5675a096e436ab0dd9"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_cpu_native_tests.rs",
+        "sha256": "12719658f99bfe074b8f1f61aac2c80607adce060e2bdd12d9b6ef78a71481e2"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_cpu_reader_native_tests.rs",
+        "sha256": "d8b0186a7de4737a050c6e43129b926a5094755f331105b240c8e63fb486bc49"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_cuda.rs",
+        "sha256": "fbf6f47c2525b91c85c1a1519a61fb329ba49f4eefe4f1f33adff27e2215aa4c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_live_fallback_target_tests.rs",
+        "sha256": "2aec953b7a83267b3bdc8ac97a4efd3d778e117b0b2363e1834d3fe994a8e904"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_media_probe_tests.rs",
+        "sha256": "acea286df573198ab40fabccb301574f3222e0cb73d3c8df6b10dc48725352b5"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_native_preparation_control_tests.rs",
+        "sha256": "d41755713d95390e266c897402a38285f294e3f9042327991aacd55ef70069e2"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_native_preparation_db_tests.rs",
+        "sha256": "cd6999b0d016be0845e7eaa9e28f5f0c81cc63513044fe92d12b6f4f8bff759b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_shutdown.rs",
+        "sha256": "5cd9eba376ba01886ecfb2631a1a6f975d1f94ae0783f9b027201a28334401ba"
+      },
+      {
+        "path": "crates/pulsar-engine/src/engine_shutdown_tests.rs",
+        "sha256": "983924a9b89e733b0414d3c310ccb1cd7edf1599454841f87c786bd230420763"
+      },
+      {
+        "path": "crates/pulsar-engine/src/generation_attempt_origin.rs",
+        "sha256": "6963d19a91934f67ddfea434d9ba2aa9713ae42e5062c7dd00080cdf145d9850"
+      },
+      {
+        "path": "crates/pulsar-engine/src/generation_progress.rs",
+        "sha256": "189ae0414595887fbe786efad4f3216cba9585dc7468ab12d5a9fec39966fcf0"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_browser_playback.rs",
+        "sha256": "00bb9cc8549e2fb66377d529bbae2c26ac3f39ea363abb08aaac7cddef6ac9cc"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_browser_start_qualification.rs",
+        "sha256": "deef5dc1629f743f15e00f00c343c6cabf029b3fa8f8e4ae89a9875264282c31"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_clock.rs",
+        "sha256": "04fc66ce8a24cb1190cb1925dc5c3e5a6dd4bdae87ceb257d7d49ffc83871f70"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_clock_control.rs",
+        "sha256": "741e0bdb13f16d79e531c009ff674f4e8104e6e17c26ab91642d04af58215845"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_clock_sync_control.rs",
+        "sha256": "4545cee862f3e45b13936a3ad6cdc304ab1fa0469289221f5bc544449903f7ea"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_clock_sync_wire.rs",
+        "sha256": "0875babd1f25878f0a29528e9101afb391d0ff44293d390050271eff79f1273a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_continuous_timing.rs",
+        "sha256": "ef7891d23226bd3298bcd98ccb506ad36837f6aaf8b171e32c67b2b1bfeb3ff7"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_continuous_timing_control.rs",
+        "sha256": "64e923204ee0376aa46ac64d48d1eafc58cdfa6bec956172abc4482b8c9915f6"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_continuous_timing_tests.rs",
+        "sha256": "9d44f63daa5da403b91fee5305a3c92a247c627523529f434a177b32d93e4428"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_controller.rs",
+        "sha256": "302c1d3eed119eab6f6853d1b5476e4f75f7bbaa4756a5698aeb21bfce070b22"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_credentials.rs",
+        "sha256": "e5320067e61c49e821d303fe2c60ff5fc752a778c6457903979e5207fdb5a24b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_device_timing_control.rs",
+        "sha256": "5fec8da3289194287fc406d503bfe1bf373b355e26c207ddb80f00e970fa35c6"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_execution.rs",
+        "sha256": "daab0716697705665545a1946f3bc37a2d5885c443c632e1662fe153780703f7"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_execution_drain_tests.rs",
+        "sha256": "f606c2d906924993e6530056fd77d22bdc702f9d8cc8f65295a6d3ab86f00a98"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hosting.rs",
+        "sha256": "4ac45b75ac2644272d7598ac4639945e00616224c75343e54777c534df27f007"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hosting_wire.rs",
+        "sha256": "f70a6077cbd95d9c2655587ed405cc2b0a497d34e16908d2abcaf277afa6c96e"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_clock_owner.rs",
+        "sha256": "1af41f3eb4b906bdefb5b4f0ec100f7d8d894f056411c9390ea1697a39fb0435"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_dispatch.rs",
+        "sha256": "0c58a6119feaf30fa788780c9add927aaa7f747b086697d54576355d35323b7b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_dispatch_preclaim_tests.rs",
+        "sha256": "ee25e081857d2d9befa915ebea5c5ebde312f5d4bad9cf28f1edb4e5a8299343"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_dispatch_tests.rs",
+        "sha256": "1d862235493d68a99ecc5aab3986a0cd5b3dfdb4b71487b7adbf696fd6f0e708"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_emergency_tests.rs",
+        "sha256": "d23942c712661985efc8a6791d1146884954c304f26afb2aa46f3fa30b118806"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_execution.rs",
+        "sha256": "f6503389349014d6fab0bbcfb001ababe115980ceac31faa7c75fe6afe765213"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_live.rs",
+        "sha256": "70469f256edbb45720428dd59238826eae1c2b2d8c124d220095459e76675770"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_live_continuity.rs",
+        "sha256": "d001a17336393caa650c084e3ed2db7103f2b63b79d57f06ad1692ab183defdd"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_live_cpu_tests.rs",
+        "sha256": "02551b67eaaa1502e78a547b2bf1a8f5716f8a344825319525c9063e0cff9aaf"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_native_lifecycle_tests.rs",
+        "sha256": "a143a74168583e9bb4d73775cb70a1233c8f17520f3305bc61f80f0d02500d16"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_preparation.rs",
+        "sha256": "5cb114d671ea9c325fb01c153612b891e0502c2a1e48ebe1b96ebec7b6987a6f"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_preparation_records.rs",
+        "sha256": "8398f46d7f9dd844058d55fca4a37bf033e1c0c1d22bc7d06b5bd0bc823d9250"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_producer_read_test_hooks.rs",
+        "sha256": "3dd3afd345697be917dc3cf139c666263646d93c501f38402ff521ad5e70aba4"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_records.rs",
+        "sha256": "9324822176e23aff2c0bae3060b3787eb0ce1eefe06f0349a64a5e8b182780c8"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_runtime.rs",
+        "sha256": "f758d291b2e7b679f7fdc81c0d19ee5e01bb1f9f6882cc6fc59623622dfea1bc"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_runtime_tests.rs",
+        "sha256": "9c9c453785adc01fd21557be47a7346db2e68b4e1ae29534ae8cf6b0e568554c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_runtime_transition_tests.rs",
+        "sha256": "7c747d707c8c5ce99a221948e91764128c311e08ae6af008892d4741f843748a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_source_qualification.rs",
+        "sha256": "3e457a747e16d3ecf6e0e59ca2585f006baf6de64013657c68935f6ddc7c62f9"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_hsp_wire.rs",
+        "sha256": "63a79547662cdf55f828d1cf978c5d58e7dcd1d5c3461bc6dfd473a09f5a1e8c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_native_sync.rs",
+        "sha256": "faec767c49d9698e18d592b27aba668b9c5e92e90d03ae42dd8f7b9ecf1ea5f5"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_online.rs",
+        "sha256": "841ba3936895cf6001edd658cab01ec11bf77ad22d95bcf7f24fc7b6964e2c5c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_playback_clock.rs",
+        "sha256": "1ca46e35be960a11cdeca928ab35737ede46bdbcf88378941dcf7d6e55493029"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_playback_clock_control.rs",
+        "sha256": "6142c88d9f9ef4ec1cad467a05f3baa2c6612e8f128270e4b9ba8bc3a0c4f41b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_playback_control.rs",
+        "sha256": "6992723e2325beae4513564572fbad9b4445c541957f56ca0a7d14d4e8a6941e"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_playback_preparation.rs",
+        "sha256": "d98ffb9ffcff34d770211ab7d47d60dfc414a7bd55ad9dcafb68779342e5d723"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_player_guard_control.rs",
+        "sha256": "35723f8ffe07a5c37a931616f99a6b3f9d180ef4617c377a1ac5d656843aeb01"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_program.rs",
+        "sha256": "68cbc372da0d223a9e2e77ba220491b6d5a8f950b514c6d1769b1b0d72635629"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_qualification.rs",
+        "sha256": "5d852812d0e8422bf9d4c3176da45b6e02137837ed9c6f12f543d2b24bd92eff"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_reconciliation.rs",
+        "sha256": "6c3fcfb9d72bef637fb19464a198be07b6d1c9c331b14e81b8d8a4ec16eb8ab4"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_reconciliation_retirement.rs",
+        "sha256": "f74c929f0f1c5163457b1b1137f67a43e59c59af37b61a19d86eb4e03bba6a0c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_registrations.rs",
+        "sha256": "764f6532cacc5ecc6a817947e74a0c303c37f8e227286f450011d43c54638cb9"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_rpc.rs",
+        "sha256": "990412e70584e5e969548ce072bf8bfbb388a7b0ca686387d53a43487eddbd81"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_script.rs",
+        "sha256": "88ef6d83194f3a4c108ff772e40371f62f79999f3f94c016314d3bfc9f0e781a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_server_clock.rs",
+        "sha256": "b52b7ec132c15a4450adc2ac462d480d41b07561f490becd95d5685fd037f5d1"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_server_clock_tests.rs",
+        "sha256": "90d281d1d4901135693e867a56481a5e41c33842cb14c608e3207fcde43e3522"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_sessions.rs",
+        "sha256": "0c18b2537c8ca03b497e64576ff685eb71849a90527419b6e791458f06aa8400"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_setup.rs",
+        "sha256": "7ca9173fafd8b2061b81ec2206860afe360cb4427b545c8b31f6474d74e70c9e"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_setup_cancel.rs",
+        "sha256": "8c8a47a4a9e26b2839cd2e2a4e1dc5bef7f07ebc4799eb54d8ac89788303fd69"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_setup_send.rs",
+        "sha256": "4a659746eeeb33682a228014edb3ce54e1378e78d3381e82d946a35311db0d86"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_setup_wire.rs",
+        "sha256": "181e65682a59ea03dc7673434d362130a679483c34493b076b8950d0b33e05ce"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_stop_control.rs",
+        "sha256": "31ccf67911f44ac2055253480292666f1bd3b859b8486127f802be14205698a3"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_token.rs",
+        "sha256": "de6873ed6c8f94ebde8192ea03c00d95f89bdaf06f195c1ec1abf3dfe2770465"
+      },
+      {
+        "path": "crates/pulsar-engine/src/handy_wire.rs",
+        "sha256": "965c50324c55af022e3de705432be908a822df71c300dc68ccb6ddc95217b9fd"
+      },
+      {
+        "path": "crates/pulsar-engine/src/imported_candidate_intervals.rs",
+        "sha256": "95b5bd97cbd9badc71c797b23c3a24409f212f3eeb2d8fa8bf6973d22aac9d7b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/inference_budget.rs",
+        "sha256": "bf962a4d89a21583788af15036fc7182732fa4370ea2a5811e5fe30349b17cba"
+      },
+      {
+        "path": "crates/pulsar-engine/src/inference_environment_control.rs",
+        "sha256": "29b923bdf0bcc1f956e4333dd40b793163ddcdcd6a141d44d9b44147701685d1"
+      },
+      {
+        "path": "crates/pulsar-engine/src/inference_equivalence_control.rs",
+        "sha256": "a4b86131b7e7733049ceee0b19f02ceccb2d62b3f164882de8bccbe7cc3244bc"
+      },
+      {
+        "path": "crates/pulsar-engine/src/inference_equivalence_fixture.rs",
+        "sha256": "0d64a91df48ec9e42a7a56d7f2d51cf77f38119a2df3e2161b18a4381900ddc1"
+      },
+      {
+        "path": "crates/pulsar-engine/src/inference_equivalence_reader.rs",
+        "sha256": "9c9f007871cc95751f7652b2a59e62c1281732ad05d08baf55522deb44ab8688"
+      },
+      {
         "path": "crates/pulsar-engine/src/inference_equivalence_resolver_store_tests.rs",
         "sha256": "fb6846351cdc7f22a848b681650a00019ceca5452239f266547abd2374b13321"
       },
       {
+        "path": "crates/pulsar-engine/src/inference_equivalence_store.rs",
+        "sha256": "f00cdcb82c3f11a484f8794197d126d7c6e455bfd5250abe9f4b460f9a512da0"
+      },
+      {
+        "path": "crates/pulsar-engine/src/inference_fallback_execution.rs",
+        "sha256": "ea96db172c68ebee595d954b5aad683ccd2047d09aef40ad628436863eea9297"
+      },
+      {
+        "path": "crates/pulsar-engine/src/inference_fallback_lifetime.rs",
+        "sha256": "60ea6c356cf2ed090ae80a15d5e84dfd6228b17599273d41b1a21be039ad032b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/inference_fallback_reader.rs",
+        "sha256": "762c4232d70cf7536d8287f29101990b906dbb8c98e35e33abd7f03ff7138fac"
+      },
+      {
+        "path": "crates/pulsar-engine/src/inference_fallback_store.rs",
+        "sha256": "a9509b7600e60b38ed3c52231224f93e64f2b2269d11afa292738431e1cc6956"
+      },
+      {
+        "path": "crates/pulsar-engine/src/inference_host_observation.rs",
+        "sha256": "c73db8921440cf56ec1ee27fc65da67b0dedab83c301eba7d24ef69e9a7fed64"
+      },
+      {
+        "path": "crates/pulsar-engine/src/inference_profiles.rs",
+        "sha256": "ba846d44ef7ea1ea52ebfc9f3346f1a7f8d7df15dc1da94bd451d0cf8a648e5e"
+      },
+      {
+        "path": "crates/pulsar-engine/src/inference_trace.rs",
+        "sha256": "2bfb8342111de2f05565cefd56868571a18757e08e402107376f56008faf553a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/instance.rs",
+        "sha256": "b52baf5f4d51731dc875d0d9ead45c53726d4667a72545a8f49dc047de5c075c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/job_attempt_history.rs",
+        "sha256": "3b7604f7a4490b0a5e75f2b151aa5217016d269c0b5612a46efb703cafa683ae"
+      },
+      {
+        "path": "crates/pulsar-engine/src/launch.rs",
+        "sha256": "610943baf0d0b6a93eb6707802a92a1522180db3d28941fbbbea42b7a4b53cff"
+      },
+      {
+        "path": "crates/pulsar-engine/src/launch_attempt_tests.rs",
+        "sha256": "95133f7ccf89c13da24842167e64d69b69e09b4b27e3e684624a10e4912d93df"
+      },
+      {
+        "path": "crates/pulsar-engine/src/launch_cpu.rs",
+        "sha256": "08d2c0e08cc51295017564ea954384d2204cabed2a8601cfc8118cd117f72733"
+      },
+      {
+        "path": "crates/pulsar-engine/src/launch_cuda.rs",
+        "sha256": "67d3e009a086f7054000aa096000ab61e5429d458667b3c422f6e93338fd29a8"
+      },
+      {
+        "path": "crates/pulsar-engine/src/launch_pipes.rs",
+        "sha256": "75dc5cc93380547f1611cfe894b5a3be74b52865991562bd74bb6374368183e8"
+      },
+      {
         "path": "crates/pulsar-engine/src/lib.rs",
-        "sha256": "914d0c784f4bdc453bf5efb2e9cc1f7b71e6607572862bceb57cb9c59c9288fc"
+        "sha256": "fb5eab82f03106e25ef0bc0953187343db915900ed00bdb2b1de9c230f928dca"
+      },
+      {
+        "path": "crates/pulsar-engine/src/library_batch_db.rs",
+        "sha256": "ff8c6d1bacd1fe0636cbd1bc2b47580cff78cdb1c3c63ab32756a33c04c0643e"
+      },
+      {
+        "path": "crates/pulsar-engine/src/library_batches.rs",
+        "sha256": "7dba03a5a654fd3f8f5b6d6d37f91d2037bcd0b4571d27d6a814e2a97c0f109e"
+      },
+      {
+        "path": "crates/pulsar-engine/src/library_migration.rs",
+        "sha256": "ec5cddd82b225747395be39575c8d96fe179cc2052306f6f661ab15afc4d5c18"
+      },
+      {
+        "path": "crates/pulsar-engine/src/lineage.rs",
+        "sha256": "f40a489e1838437a3a6367b7ef73a8e546a36adb92b8ff0cf2837a592cf446be"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_clock.rs",
+        "sha256": "c7ea922e348411e235239c5869b999ff9513272233aea46aac180fd1d6774fef"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_cpu.rs",
+        "sha256": "725720da196cba7280473126d9d08ac128364403b5bc229bcbde9245c0dbdbe9"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_cuda.rs",
+        "sha256": "3d3ed4a7fc8208fd3d66c26c143e44aa4cb48b358890be4b638b9912f7c87ac0"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_fallback.rs",
+        "sha256": "b0c32e4fa24e1cd8e74886362bb6f7244313ef04329da07cdfc2fb9ce4ea6efd"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_fallback_target.rs",
+        "sha256": "ff7957e4a83bb6362b8684852d3c648d1e400419efdec46f0eb7aecae5815399"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_finalize.rs",
+        "sha256": "eaf40149a6becf3be57d31d2cbe759146af1955606076fc32f4b782b4bbf2aa1"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_inference.rs",
+        "sha256": "766b3240eec5ed37034354eecbd356aaa69ebd664960878d5955133883ce4c68"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_pack.rs",
+        "sha256": "b433caa786ef4be0e388eea580db98c42932f91910f66a4e992166dc4a8d49ba"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_read_order_test_hooks.rs",
+        "sha256": "10417a594312e3afdffbc3420c1db05c211c78f3a60c09860ceade11e711b34c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_source.rs",
+        "sha256": "13b3b933d4737eea7d73b1dc1cb555144602061fa242f69f81ce868fd17c2b51"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_stamp.rs",
+        "sha256": "169a295fe446bd68f41df818aac7f8d07da407d7d4596a43f7ff7bc10027d202"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_capture_successor.rs",
+        "sha256": "ed123b2c54621a263474ededcb4283b19e8c7c9d29714be94196003decb3fe54"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_captures.rs",
+        "sha256": "8426c077c242e3b5dfa9cf4995c61a1e6d7c63c8c973c34e1a8e458a4f991e71"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cpu_history.rs",
+        "sha256": "979931f20766439c8eb197866d8ff67ee776a2d9e90bc2587ed516862e44eba7"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cpu_history_tests.rs",
+        "sha256": "9ab3d5a7963b4c6a19121f38987d9fe03ce7ef694ee4ddaaf56464e157eefcaa"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cpu_hsp_history_tests.rs",
+        "sha256": "0e305f0367de400ec2d500036ce805091d3eaef1fa59b78b93aadca53b0722ae"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cpu_mounts.rs",
+        "sha256": "6d50d309a8f8939dbe2bac39d1a687ce5053f2c49a551d4f905fe633cd466873"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cpu_reader.rs",
+        "sha256": "06f0cdcff48240800bfd3286fe09531a5ae50f9f40981ac987c4ba6c1d76d3e1"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cuda_bootstrap.rs",
+        "sha256": "005949e7481d89e8bf047d6687e9e9f43aeac2ca5d150f02fd9b772d3681512b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cuda_capture_db.rs",
+        "sha256": "0f74498d34b88399daf782e492d21e7760fb1c25b67a03d40a5cad4d54c09be1"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cuda_evidence.rs",
+        "sha256": "f955281390a04efeb25519a2a97535f19aefe1e0af64a90be3ad502c71501783"
       },
       {
         "path": "crates/pulsar-engine/src/live_cuda_evidence_db.rs",
         "sha256": "05c5412b59754863a0ae1a481ea25c2fc4e832e3ac36baee293b1f67badd67e9"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cuda_failure_tests.rs",
+        "sha256": "987cd1b059081f4af12fc76450d6ecc1ef5fb2482392ad0b4d1f6f14938f403f"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cuda_memory.rs",
+        "sha256": "8817109314d8fdeee40d5eb35f3baa4782d609b4fcde420eb7a7a588fef5a241"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cuda_memory_tests.rs",
+        "sha256": "b2acd222714e46fb8ac765ba32baa35cc4d235f98ed988a4a3acf504f2bf99e1"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cuda_mounts.rs",
+        "sha256": "8c07bfeb47c1c5f6d88e7adc6afaa6f1421f5d0dd1a6b746042f2d83edc53d22"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cuda_native_tests.rs",
+        "sha256": "f7eb36d9e9bda7ae93a9056d2579cd9cf207057a6fd82cae86da20a55345ec46"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cuda_preparation.rs",
+        "sha256": "ce812634f0e0961c989a879248987212525fb8e1e0b406c8fe6ff1ce90258c58"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cuda_result.rs",
+        "sha256": "1139a1b21d3fc343f11c95a28a1c65b01e4503f85e2dde7e39ac44ddb4421eb2"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_cuda_stream.rs",
+        "sha256": "3d1a75f0cb6e5b6b920537794d15575116f072df033a305acdfc571159f9359d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_frames.rs",
+        "sha256": "b1ca051f8b7513cc143df4d78a232f314b636a8d259bfe5f44389f8ea329f34c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_inference.rs",
+        "sha256": "404ab2ab8c3b20c3e17eb62abd0c3377e8463ad5dde508da14cb836040dc0c2d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_recording.rs",
+        "sha256": "4e1f57707458a232d158871f8307a6d4cd04e843be72f78c788a4ad8b09f06cd"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_recording_candidate.rs",
+        "sha256": "abca2da83949c55e81d59b349e4de3f877bdfd5c70d4191cf856ede784774484"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_recording_candidate_tests.rs",
+        "sha256": "71ae458633512b0ef3694b9a3ef4b01ce43c2674d91d4cbfd7e45e1a928e5c5b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_source.rs",
+        "sha256": "3df4bfc44d9ef8462d51b7021916931d9515278e5832a26248a71d9a0e999c71"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_staging.rs",
+        "sha256": "752768850038bf5e99903642ee4b64f206acc653b30427cc6eec34c572033962"
+      },
+      {
+        "path": "crates/pulsar-engine/src/live_worker_lifetime.rs",
+        "sha256": "898c2a3a98fa4a8d9c18b56f344246d1c660acba420bb090c1f94992bc757530"
+      },
+      {
+        "path": "crates/pulsar-engine/src/media_probe.rs",
+        "sha256": "d7d971a56d2e8576a1b364f6376c68837073dd067636f8b861b12d649ac1394b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/model_pack_admission.rs",
+        "sha256": "e39cc16b66d010bc96d571e21d5bfa6834f36771b92e3d32f5712a64a5417d94"
+      },
+      {
+        "path": "crates/pulsar-engine/src/model_pack_selection.rs",
+        "sha256": "e007fdcf2cb5540fe4319e7319e01f6a472b6bbca36320d460f7a29f2847c77a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/model_pack_withdrawal.rs",
+        "sha256": "12a1ed5ca72a0c1d5d04b957b209ac421ade1bc4c3d57d331f8a94015aa380f8"
+      },
+      {
+        "path": "crates/pulsar-engine/src/model_pack_withdrawal_tests.rs",
+        "sha256": "815a85389f4fc62a24e2b2388c423b5b617334ab24df8c249a81b2e62f6206dc"
+      },
+      {
+        "path": "crates/pulsar-engine/src/model_packs.rs",
+        "sha256": "851a26230b19914cb1d5d3e06c4d476ba1ca3930960cf24b47d604947a0400b1"
+      },
+      {
+        "path": "crates/pulsar-engine/src/motion_artifacts.rs",
+        "sha256": "f4e6e77c2ef2c7f51a897e09ee72a8fd37cfd387eeea727bec63deee70b9a5d7"
+      },
+      {
+        "path": "crates/pulsar-engine/src/motion_retime_receipts.rs",
+        "sha256": "086d57391e665b600800b72f9f1a7bf758bbb55a3c28cc8c74c184b8aeab69b8"
+      },
+      {
+        "path": "crates/pulsar-engine/src/motion_state.rs",
+        "sha256": "11caf29dad686066194821de1a4532e6216d4f7ff1e8fc2c95fd984be61839d0"
+      },
+      {
+        "path": "crates/pulsar-engine/src/native_capture.rs",
+        "sha256": "85c65fcdad1a245e5c8a599891580baf0f47d941ef090824b6b18cf9d3b93644"
+      },
+      {
+        "path": "crates/pulsar-engine/src/native_capture_engine_tests.rs",
+        "sha256": "9cec36946ebfc373daa2156788877165232a33d1ef87e61528d9afba92ba7bb0"
+      },
+      {
+        "path": "crates/pulsar-engine/src/native_capture_retirement_assets_tests.rs",
+        "sha256": "ef24a07a7a86433f60327dd5e27beb0aa4e0347a1f5207be4920680be29ff017"
+      },
+      {
+        "path": "crates/pulsar-engine/src/native_dependencies.rs",
+        "sha256": "df1536dc1c330d2bb2af0aa6ce4a7c874f073cfa8ec354e282571c6a79bbdc8a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/native_mounts.rs",
+        "sha256": "a500c9ebe3e94f80ada26a8047e91e3e4d731e671ba825eca7c57046f9d35099"
+      },
+      {
+        "path": "crates/pulsar-engine/src/native_preparation_db.rs",
+        "sha256": "d7513ae1d56fea21664fd8ada88b5fdf8484d1bb277f9a4f4556489e5d27e5ff"
+      },
+      {
+        "path": "crates/pulsar-engine/src/native_preparations.rs",
+        "sha256": "3f0c259a283a90e6b5258df57745415e1f3e8b68a1aaed4f054efff365f276af"
+      },
+      {
+        "path": "crates/pulsar-engine/src/offline_catalog.rs",
+        "sha256": "4a39a0f39ffab0d9a2d76f3c469d07402be6766ee62a8651d53b59b12e030e18"
+      },
+      {
+        "path": "crates/pulsar-engine/src/owned_cuda_mount_tests.rs",
+        "sha256": "fe95b2ab2cfd739b885ce39d0b8e527db42423c317cb1ba452c2e17cab9198ad"
+      },
+      {
+        "path": "crates/pulsar-engine/src/pack_catalog.rs",
+        "sha256": "0546b6360df47eb9b4785e118ae043ee9dafdef6f5aff46bf4f21ba9d5906a58"
+      },
+      {
+        "path": "crates/pulsar-engine/src/pack_discard.rs",
+        "sha256": "cf6901a1195e2e91ba4537ef8a09005f6389cccdb6838700004bc8c5d5103db7"
+      },
+      {
+        "path": "crates/pulsar-engine/src/pack_onnx.rs",
+        "sha256": "36c18e25617ea3469d13fb9cadf2ac7f0c2b96019637584cd0e8736017b0ddce"
+      },
+      {
+        "path": "crates/pulsar-engine/src/package_wasm_values.rs",
+        "sha256": "4ecc7b311b1f7144064f17ad68f463cb160d740ecbe7e59c36bca5a22021ae21"
+      },
+      {
+        "path": "crates/pulsar-engine/src/playback_runtime.rs",
+        "sha256": "463d83729caf3eda406c60badade8dbdc1218447c58ad2afb4d736e696c850a0"
+      },
+      {
+        "path": "crates/pulsar-engine/src/playback_runtime/dispatch.rs",
+        "sha256": "b71bc8a103720368e258d0f0c7adfc0dc30b2e434580f3a7b2b8961832ccd1e1"
+      },
+      {
+        "path": "crates/pulsar-engine/src/playback_runtime/dispatch/tests.rs",
+        "sha256": "f5e82f19ca9fff9ea216efbcef5f4a1ec906062c1971497ef6ae410ab3367e70"
+      },
+      {
+        "path": "crates/pulsar-engine/src/playback_runtime/emergency_stop.rs",
+        "sha256": "17592d4ed158136141aedf1648b07885f2d67ed77966be1ad21badde16c920ce"
+      },
+      {
+        "path": "crates/pulsar-engine/src/playback_runtime/play_completion_tests.rs",
+        "sha256": "8b721aaf440f7651bd51ef213c507309fce561b8e843d11d40eb2cc77d190afc"
+      },
+      {
+        "path": "crates/pulsar-engine/src/portable_annotated_db.rs",
+        "sha256": "7ec1e38ae362bf924cc8fc84616a9937191e9dca45efcf3205281a135f4666af"
       },
       {
         "path": "crates/pulsar-engine/src/portable_browser_history.rs",
@@ -87,8 +2171,32 @@
         "sha256": "d58266c1b8ea145e8ff65cd7e593384ae98df02128b24a4b0f55f6a8d411d94c"
       },
       {
+        "path": "crates/pulsar-engine/src/portable_cpu_archives.rs",
+        "sha256": "b800b9f1314a58bd1c0b6233c8aba48f442875ae01d85d160ddab029b4154409"
+      },
+      {
+        "path": "crates/pulsar-engine/src/portable_cuda_db.rs",
+        "sha256": "82b9b0ba7e1464431c8b97f621d4b57b2e8232d6534ecd6a33f432dbc242c95b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/portable_fallback_graph_reader.rs",
+        "sha256": "b378850d97921bae20e5cd48199d66f93c9c35c8b395e8e08a37a8108b9bc0b6"
+      },
+      {
+        "path": "crates/pulsar-engine/src/portable_fallback_payload.rs",
+        "sha256": "3db0bf08049d3ad593767f9b2179fd87559aefda30fc807492cef7f44c231c69"
+      },
+      {
         "path": "crates/pulsar-engine/src/portable_fallback_reader.rs",
         "sha256": "69213148c66f322afc1a2ca9ff35153d9ddca71b8d2946c2229dbdb4d5017dd3"
+      },
+      {
+        "path": "crates/pulsar-engine/src/portable_wasm_db.rs",
+        "sha256": "7423d50b0862a47c6899a2cd03109103b89b34c4edb11cfaed731e03def13c22"
+      },
+      {
+        "path": "crates/pulsar-engine/src/profile_ram_engine_tests.rs",
+        "sha256": "7e6fc0e6ecc76bdaaee4c2ee15c4ca68046fe8b0c54bee9960760d5d1e88ac1d"
       },
       {
         "path": "crates/pulsar-engine/src/project_package_browser_history_tests.rs",
@@ -97,6 +2205,10 @@
       {
         "path": "crates/pulsar-engine/src/project_package_exports.rs",
         "sha256": "7844f6ebcecd8c93480a48a37c94243e20d4ebca723cabea99d06c25863032f3"
+      },
+      {
+        "path": "crates/pulsar-engine/src/project_package_format.rs",
+        "sha256": "d7d025e642347c7d42d67b82675d52f8d8b16ccbd3593399cf1802488ac07a94"
       },
       {
         "path": "crates/pulsar-engine/src/project_package_import_plan.rs",
@@ -108,19 +2220,739 @@
       },
       {
         "path": "crates/pulsar-engine/src/project_package_imports.rs",
-        "sha256": "2c56808c39abd9ba070881e362f8cc369903dae2bc4dd409f748f67f1daf888c"
+        "sha256": "6fb3d8c5aba4630822d8128956af14b45ac9229e908d039c75d66768dde2302c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/project_package_storage.rs",
+        "sha256": "bbc721c472fe095e297fd3f6d0d3e70d717259fbcc08fb366dc81ab763e16102"
       },
       {
         "path": "crates/pulsar-engine/src/project_packages.rs",
-        "sha256": "e6438ca7e0e97145f2545a6810552d2ce4c4d27007031e0f0d8e35646c757809"
+        "sha256": "c58420e575cfa1c3b8741db347b11a3fde8ad4eb172dfd3b48faf3a8442466e3"
+      },
+      {
+        "path": "crates/pulsar-engine/src/project_packages_native_cpu_support.rs",
+        "sha256": "543f3f0ab9f5d6283773628f3d121448bb707c11c0e407e1183071d24bcff881"
+      },
+      {
+        "path": "crates/pulsar-engine/src/resource_cpu_tests.rs",
+        "sha256": "3180a09187dc0fa3870310a0bc41c00c6ee77ae82a6bb547cac7f61e38fb0902"
+      },
+      {
+        "path": "crates/pulsar-engine/src/resources.rs",
+        "sha256": "c0dd5783defd0bc03750aedd00a2a7004eead837c84cd0e1a87e1768b336eec1"
+      },
+      {
+        "path": "crates/pulsar-engine/src/review_interval_receipts.rs",
+        "sha256": "451fed69498f254bdc973d7aacc68e35a53c978a38f536fa39d5f5b4df7100aa"
+      },
+      {
+        "path": "crates/pulsar-engine/src/runtime_archive.rs",
+        "sha256": "b98122adc8344ed768db84be25777d04daadc54fe45e5c4a46d27c0e1f3d34ed"
+      },
+      {
+        "path": "crates/pulsar-engine/src/runtime_archive_recovery.rs",
+        "sha256": "5390682a75bfdef776001dbab3acc75ca015bc2c19930d11581a1b19df7dfbff"
+      },
+      {
+        "path": "crates/pulsar-engine/src/runtime_delta.rs",
+        "sha256": "18fb85d3c3781f2e1fce04f3a899f64caa21d0b0985065b00ff41a162d7de19a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/runtime_first_use.rs",
+        "sha256": "230c647442575e1b4e1c661bb69cd5d2506f125fd138382b444cbd7cd000a9b8"
+      },
+      {
+        "path": "crates/pulsar-engine/src/runtime_generation.rs",
+        "sha256": "65d93b542a3ddc0465945532531cea2e8d5ee6683d186525e1850897e5dcfd38"
+      },
+      {
+        "path": "crates/pulsar-engine/src/runtime_install.rs",
+        "sha256": "26f2db432969dee9394b8acf97ca9ac6ab2f43840890479147014841c198fc02"
+      },
+      {
+        "path": "crates/pulsar-engine/src/runtime_install_recovery.rs",
+        "sha256": "562c1f3f30d550f8a6d5115802903d046e4fecfab3d15f2fe0a7fbb830208f5c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/runtime_update.rs",
+        "sha256": "120ba4df51b471d4949ad4e34ed134b5383296cdb2c81501c54d6ab1541b3b3f"
+      },
+      {
+        "path": "crates/pulsar-engine/src/source_clock_origins.rs",
+        "sha256": "c8e9a78ed6a69435fde7f3345f8466f7d936caaf93e6343f290746eff869bc1d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/source_clock_receipts.rs",
+        "sha256": "e04019b3d5cb831d6da00d319d3b2b0f21a6087eafe37583396300a395564b9c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/source_kinds.rs",
+        "sha256": "4d2c467bb32dd44e9a4217b0c7c884eb2b1cf8c2538a19da2582a262f181589b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/source_placements.rs",
+        "sha256": "94813a1a7caca9b9b5a6e3ec1e9350ea65a77c690fd67c5eff105b1ff406aa7c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/sqlite_reader_preflight.rs",
+        "sha256": "0e9fb9dc8df9d82abacc430483c5549664eb2497aa03cc55328b44000d6db7ef"
+      },
+      {
+        "path": "crates/pulsar-engine/src/sqlite_reader_preflight_tests.rs",
+        "sha256": "a6d5903ac6cc57b567fee14d97a1de5d398b94664012d6153821b136d6114ca6"
+      },
+      {
+        "path": "crates/pulsar-engine/src/sqlite_sync_delay_tests.rs",
+        "sha256": "0df18e9d068e9b13737648d21e01e1c2a2017c420022cf852f17ab4e3a5f57c6"
+      },
+      {
+        "path": "crates/pulsar-engine/src/staging_cleanup.rs",
+        "sha256": "5c3a821a497a42c769eccde8c37ef3e010ae3c6cb2e99761840ef9fcdc6e2d38"
+      },
+      {
+        "path": "crates/pulsar-engine/src/staging_crash_tests.rs",
+        "sha256": "2037b937eba5d188f1e8c9409bedb1bb89721ac6e14ba26c22adcc25c0f8ec28"
+      },
+      {
+        "path": "crates/pulsar-engine/src/staging_creation.rs",
+        "sha256": "36996d769fa3d5227c0c7223b213e774eca61afb2a611b432afa2e3c041b8a17"
+      },
+      {
+        "path": "crates/pulsar-engine/src/staging_obligation.rs",
+        "sha256": "8afa213969e28c065e8db84fc869ee133125a7af69d7ea7d0950ac3bb94f099e"
+      },
+      {
+        "path": "crates/pulsar-engine/src/staging_obligation_crash_tests.rs",
+        "sha256": "815a273b11c7fd7ec6a4739dd5e212197a6ead72171bc957243666b5bda58096"
+      },
+      {
+        "path": "crates/pulsar-engine/src/stash.rs",
+        "sha256": "60385191fdc71b3eacc556f1e4ede37859e8259f203a1ec36dbb0fbe858de91d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/stash_action_ancestry.rs",
+        "sha256": "0e2c8365da745e029b03a28ac4e13d9bd84096e88b46197f9cc33c46c447ada9"
+      },
+      {
+        "path": "crates/pulsar-engine/src/stash_archived_lineage.rs",
+        "sha256": "6b1066de179feb7b12f2746ad69938d876278fe6f68ebc9b2806bc70d9d52e76"
+      },
+      {
+        "path": "crates/pulsar-engine/src/stash_batch_annotations.rs",
+        "sha256": "faaeaf0447695c12f5b97f359f66994b7865fff5fe093b43787d1231c046367b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/stash_batch_source_plans.rs",
+        "sha256": "e062474451b54beebaa77af806c717b5b481312e87c8c28b9f865160cc50d628"
+      },
+      {
+        "path": "crates/pulsar-engine/src/stash_batches.rs",
+        "sha256": "538a6fda54f8db0aeb21f06c1c7d522dbd2524803380c9f6690337c4255aea60"
+      },
+      {
+        "path": "crates/pulsar-engine/src/stash_clock_proofs.rs",
+        "sha256": "a48f6399cbbec7062db90979f10cf5934a542efba1ac394f04a57f4d15ce7679"
+      },
+      {
+        "path": "crates/pulsar-engine/src/stash_files.rs",
+        "sha256": "7c4bc719dfa626dc0ea9c8afa1b506e5cf7430f04fe8515ddb7d66d7fe2a79e8"
+      },
+      {
+        "path": "crates/pulsar-engine/src/stash_lineage.rs",
+        "sha256": "57f37e99c7218610c7ce7c3fc69699190bf7bdc8b385f77e5fd1152cb76b3e3d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/stash_publications.rs",
+        "sha256": "fb3a5007d365600de5857867f47c058f5780bc471bf09326173560af391fd268"
+      },
+      {
+        "path": "crates/pulsar-engine/src/stash_scans.rs",
+        "sha256": "e4c3d24607c13fde7cf6a322929b6973b3eb7a190730166a7ab83641fee7f04b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/stash_tags.rs",
+        "sha256": "6a19c4fa4cf04102f2316f71c1a166731122582c7545e6cd3772bc9911b4d825"
+      },
+      {
+        "path": "crates/pulsar-engine/src/task_group.rs",
+        "sha256": "97ceaa9478442b25559855fbc4c28007082b50ccc76ef8ea25d28580696b8c0a"
+      },
+      {
+        "path": "crates/pulsar-engine/src/transfers.rs",
+        "sha256": "a6d50828cf13134f5bc29dc06e6917a035e468c859f16fb9cfa6202fd4a36e0e"
+      },
+      {
+        "path": "crates/pulsar-engine/src/wasm_archive_db.rs",
+        "sha256": "9d9c070f879696d51f7de23933bf3b52265c581b24ae906bd46787f213d5f2f2"
+      },
+      {
+        "path": "crates/pulsar-engine/src/wasm_archive_tests.rs",
+        "sha256": "457c261b14cba16dfa6875164a910d2a660941a925c7f8aec23c67074af61df8"
+      },
+      {
+        "path": "crates/pulsar-engine/src/wasm_edit_archives.rs",
+        "sha256": "611de6d36c58143fbb5f370b20ce93664526b33460a79e129d82a469bdeda077"
+      },
+      {
+        "path": "crates/pulsar-engine/src/wasm_edit_execution.rs",
+        "sha256": "e76a2b4a616defcfe2a3caeab12796949b9ba378b78fa101bb1528e27cdf9ca3"
+      },
+      {
+        "path": "crates/pulsar-engine/src/wasm_edit_tests.rs",
+        "sha256": "bd6d954e6ae0a43137841965eb0cda588a991fed3283ec1f25b496d6b3251097"
+      },
+      {
+        "path": "crates/pulsar-engine/src/wasm_edits.rs",
+        "sha256": "ec0de25cfdc9be3f6733df4928acf76d7dd6e96b533ddedd7e87f79a1707c298"
+      },
+      {
+        "path": "crates/pulsar-engine/src/wasm_executable.rs",
+        "sha256": "9b39646e1b74260a031873960eb1a3800b63fc8300fa09ed8a102ead1cd5863e"
+      },
+      {
+        "path": "crates/pulsar-engine/src/wasm_launch.rs",
+        "sha256": "6a799d5c99d7e5fd11ab5ad6bc966fe7c49cf451f3c882140d38d869f82dc68e"
+      },
+      {
+        "path": "crates/pulsar-engine/src/wasm_launch_tests.rs",
+        "sha256": "43cda3dc9c9d5f338849cc0f3af8e328bb7d7e527df367d3a260b225e586d6d7"
+      },
+      {
+        "path": "crates/pulsar-engine/src/wasm_start_resolution.rs",
+        "sha256": "bd231fe50f3f15a3b5399571404844af97ba68104709eb2a05840d38bcee364b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/wasm_start_resolution_tests.rs",
+        "sha256": "2e135ab73517ec88a80326764f7116deb164e1a8ca33ac1115707b19daabc295"
+      },
+      {
+        "path": "crates/pulsar-engine/src/wasm_worker.rs",
+        "sha256": "523b6b02626ff3938f66061888909ab85423306f2d355d682442797572a0a1c6"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/annotated_generation_tests.rs",
+        "sha256": "f18470bbe12799da2b4eed7221c249962bc2b70995a56000a009fc8849c49c75"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/annotated_input.rs",
+        "sha256": "fb794d722450baa40626e13f2c6963d11a04628ff1f5f1c141568dd2b727737c"
       },
       {
         "path": "crates/pulsar-engine/src/worker/annotated_portable_tests.rs",
         "sha256": "c688ffb422a7ab3faa3f94bd5561ee2740bdc1c722df760c2123278a266d9a87"
       },
       {
+        "path": "crates/pulsar-engine/src/worker/annotated_preview.rs",
+        "sha256": "665432ffa42d9539e79c4dd196c89f13e1e69247a8547dc6ce380d497fff4527"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/annotated_receipt.rs",
+        "sha256": "c9739cfc8f4f556760ad1f6dcdea52ab30f1627265c36d34735505e94c4d8d81"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/artifacts.rs",
+        "sha256": "6a77098c7dad5ba17f7bd83edebca2ec3519c6f6cee8f8552949516a8a052351"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/audio.rs",
+        "sha256": "c54ffa76fbb3faa09b4c1fd3c88d369a9ab9526f70048d999aa3e76b40b8a85b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/capture_stream.rs",
+        "sha256": "5ecec8ccc4cece5067db7ce4f8451981e49bc5effd125ddd3332b1ac626b2226"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/cuda_identity.rs",
+        "sha256": "2d6c1588d77e0195bcc95dded06aa914a8b12cefd37dc00b11a31f4bda642cc6"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/cuda_memory.rs",
+        "sha256": "d03462031745af2704544d1a09cfae409227a9060effcebaf65bcd62898ec28f"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/cuda_session.rs",
+        "sha256": "84d71688497531d3bdaf8f8c8eb6484d0c18699406e44c6b268ae18d4876b4b1"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/detector.rs",
+        "sha256": "c8c1e32d75f0aa7901aabba728bf285ff4f5075656ddd24de364a178eafa6629"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/detector_letterbox.rs",
+        "sha256": "fe7f55faf3c2e3fa54072a84b5a6103bfa487b12e76ab2e2b7662fe5d9528ae9"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/detector_parity.rs",
+        "sha256": "5269be16f0ecaf5f18cfba594ab90a4ea145f4555773626d7b68be5cc7e4c368"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/good_tests.rs",
+        "sha256": "fe9d00cdba81a901cf36703ede742a9b4dfda83130825d309c72fa4a94fd273b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/inputs.rs",
+        "sha256": "852f0b7efaec762f7c50813f0b9ff4ebe412d0ee1bc38dd9678eb90128e89e16"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/integration_tests.rs",
+        "sha256": "a301e9a36eb2439cadb3d0bb63175042afb9010fafe69260b2776f1a4e3a6ee4"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/live_cuda_stream.rs",
+        "sha256": "156f9fdf9b4f2d8b8c8b69059898d0ad2356841f03950b5f7019e75ce460c673"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/live_stream.rs",
+        "sha256": "c687cd85fc0d6c4ac01e5edc23b44ddd234061304d7113b60c42a482b4b6c71f"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/media.rs",
+        "sha256": "ae1ea333e61aff2799414d97a4a0d19c8f2ef205cc1f1e4df7464a82b6d3cbd8"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/media_probe.rs",
+        "sha256": "dcf510a0516a90c666ef9c06d22f71ee6e9fb82cb5ebea749062c47ec0947595"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/mixed_audio.rs",
+        "sha256": "311595331303ee5f4be038dc9a8271d63ad68d6ff827388eab2ecb80c15c6460"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/mod.rs",
+        "sha256": "bd1802f09ff3c67c84520a93991226546dc69d96b9183da5524f4eaf36b4c82d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/model_session.rs",
+        "sha256": "cb76efee8e8d7a749635dec58d0245e4541b47ae66d55bbb5e830763f4e7659d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/progress.rs",
+        "sha256": "7204855106350cf36f27208b7a35a68141d8eeba3e5c23f4022dc8f55b9e2615"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/provider_failure.rs",
+        "sha256": "f167e7593c0f430231d161744ec78612b96a20d7ea50809bd67b0f7ff146e63f"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/raw_frame_pair.rs",
+        "sha256": "fe42b8a4afc138c9620dcf9b4848d69f35cfbe87a029f289fc0802fbb475fe36"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/telemetry.rs",
+        "sha256": "f4287860c697027d48e53608a8537a2fabca77793a1e833b1206dc46dbfc7ea5"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/temporal_position.rs",
+        "sha256": "02fb3adc9066c23ea276b171bc7ff9f9bfe43c67d187fbb615f2baa90af4f1fd"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/timestamped_decode.rs",
+        "sha256": "8ca66ac9336e772994f3c9468c65ebfd1fa62a0cf043557e70547225f89cfcea"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/tracking.rs",
+        "sha256": "a4575d4d65fecb8403db1ae67e74f2042f74d769ab612f62e6ba4a10fc5e8b16"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/tracking_checkpoint.rs",
+        "sha256": "a1524ad4bdfccf5253741d2fa8e4363bd4214c5fd1d5e4fcb04e7309c9df758b"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/tracking_plan.rs",
+        "sha256": "c8d93b84e1c4b7a4b07fa4ea5879371bc0f7f627ebda03de945ed2c8b7c6d920"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/training_views.rs",
+        "sha256": "4a9dc0e42c893a3544d1eb845705f98f7eedaba706ea1e260beafa9bcb2343ed"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker/video_views.rs",
+        "sha256": "5ddea714a18acd0ef14379c63ad4b6640c3827dce89f6d935c74538774511eb6"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker_cgroup_creation.rs",
+        "sha256": "ad7422f647a83ccfdf24699ebbc893b19c9a1010c9162cf9f9c90e9def8e3a95"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker_cgroup_creation_tests.rs",
+        "sha256": "0dc8d7e9f24d3b5a6872f57811ffce24b886d9b3284d1f242c6ec5114d6ccda1"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker_entry.rs",
+        "sha256": "ec7c8a307d013cc7850cb9a0181666db0d319705fade436ede14175b23321eee"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker_fence.rs",
+        "sha256": "bb1ea6e60d6b1b04f8a3c8f49667c735da4d3939daf109a4932d23841012eb2d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker_fence_creation.rs",
+        "sha256": "2c44491249dbff0aed1d668f7c0ab23235b3998ede5b26c3250cecf26a8d1b5c"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker_fence_creation_tests.rs",
+        "sha256": "a8d2fcf42c42594dca96da9d673ebc62f83880faeafd4fbed35faff51e65f44d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker_fence_db.rs",
+        "sha256": "9e31f0ab1f7a79a116cd11d397e834a9af875a343edeeda76d5450d9be21ebcb"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker_retirement.rs",
+        "sha256": "607128f0a6013bac1e14779116d8f4dd385013b5ea8e71c0d5d779d06fa4f27d"
+      },
+      {
+        "path": "crates/pulsar-engine/src/worker_staging_transfer_tests.rs",
+        "sha256": "f51891e8d79d87e7f0a6d5173a22e9e8c811ac6ef75f2e8b9c660b39984f5e03"
+      },
+      {
+        "path": "crates/pulsar-engine/tests/benchmark_motion.rs",
+        "sha256": "0c8d804f92c1e18e3c23bac748da76740489eec04479c4773afeeb5c4c7b48f3"
+      },
+      {
+        "path": "crates/pulsar-engine/tests/benchmark_profiles.rs",
+        "sha256": "323fc71ec95d14db5d72463b970231dbb33bbb24a4d92ae864a1f5fda1fb8cf7"
+      },
+      {
+        "path": "crates/pulsar-engine/tests/benchmark_review.rs",
+        "sha256": "1f1c32512e4959445e3f5138ac28b231428832b9482f0155e56aaf10fdde05b5"
+      },
+      {
+        "path": "crates/pulsar-engine/tests/fixtures/authored-live-cuda-manifest.json",
+        "sha256": "920dee2fba07f6bdd8b693eae335ac01bf188306d7426f43d432524dfdb0ffee"
+      },
+      {
+        "path": "crates/pulsar-engine/tests/fixtures/cuda-intent-request.json",
+        "sha256": "bc1bff0123d91c5d270534851f5330d8c2a5e0887391649f4f737318bceb502e"
+      },
+      {
+        "path": "crates/pulsar-engine/tests/fixtures/handy-rpc-stop-vectors.rs",
+        "sha256": "3e64c7eac3748f7bb4d934adbcfd46ff8932773447ee81b840f33841cb3fbf36"
+      },
+      {
+        "path": "crates/pulsar-engine/tests/fixtures/rotation-h264.md",
+        "sha256": "0d793dd824842d26290cab398fe3622e399025eb068b9b12fb9729cbea670512"
+      },
+      {
+        "path": "crates/pulsar-engine/tests/fixtures/rotation-h264.mp4",
+        "sha256": "779ae931551922845396f8fdc621874c45eb837531dadf36c4052322d346c6d6"
+      },
+      {
+        "path": "crates/pulsar-engine/tests/project_package_closure/mod.rs",
+        "sha256": "621f4204bf27cd6b29ff4ff2d50beea9b103fa4229fd047eea5acd1e0df8c20b"
+      },
+      {
+        "path": "crates/pulsar-protocol/Cargo.toml",
+        "sha256": "8f04a2999cc7f8d878eae6f730782886ab14526d774bfa93e7540e5857296fa0"
+      },
+      {
+        "path": "crates/pulsar-protocol/PROTOCOL.md",
+        "sha256": "c1d93641ab029d1e744c10907ecef94431740d431311542d2da4077f47104ca5"
+      },
+      {
+        "path": "crates/pulsar-protocol/examples/recording-assembly-fixture.rs",
+        "sha256": "c4de82469e46ff79d7a0b2ede2c43143f33096ad780fd07e1c5295111635252d"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/annotated_preview.rs",
+        "sha256": "cefea9d118a20808006e69e10085fa1840019b79436c666b15e774ff354dd12a"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/assistant.rs",
+        "sha256": "a12202c05872c7dd62ecb3ffcab0e08c13a9471d35cf3b290e776652409f196e"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/browser_analysis.rs",
+        "sha256": "a12c8da7d34261a3a5703e13deb9e62dedbe7362fb7dcf765dfd06147ad57c95"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/browser_analysis_input.rs",
+        "sha256": "830b1ff08338fd22568c79621fe2c0445944c43ae2032792bc58c821cee9279f"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/browser_inference_fallback.rs",
+        "sha256": "60fad509dec9384aed3606ea4199431e1d3a3a1db321f8f046bb7974ae1eac14"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/browser_inference_semantics.rs",
+        "sha256": "64e0455cace8b4bac651cfff50e7fbabc8bb97fd00f9a8d05698bc9792fc0f93"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/browser_inference_source_tests.rs",
+        "sha256": "7d4cbc5fc2a28bfe60db6379ef097c0fa11c4224f3bb0d1f67ed30861285d312"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/browser_media.rs",
+        "sha256": "0777dffeedb2e9cf127e01bd3f720315c067bdda1e9f1a403efe0cd6b206a12d"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/browser_media_bulk.rs",
+        "sha256": "6c2520f6ed708924eda9175b210cf621999fbaf34e4d0c70e09046d6d4c66c04"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/browser_timing.rs",
+        "sha256": "b538919c4eafd77030ccb98d5ad9df3ce3ad557f109d5d31ac8443a37ed3a700"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/bulk.rs",
+        "sha256": "437307377b7e89a7c819b232b9b9417dc9f86eee4c96dbc118c392d73a26e96a"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/cpu_runtime.rs",
+        "sha256": "69bcec8ef39a278864205a0b8c56b5e7d8f8d588c07a07a3e6e684a456f45ccf"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/creative_patterns.rs",
+        "sha256": "21c3d88afda474e05385fdc672ca236c9be1894514f68f8b179b99fe276a16c6"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/framing.rs",
+        "sha256": "7357c90e465860e87eae1424cc7b6a44de875ce270211a7d34af226290671569"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/generation.rs",
+        "sha256": "220a0adfd62b127d43cdb002a95a32d6e6b133a1c704fc98a37a88f793b6fde4"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy.rs",
+        "sha256": "9dd39d9967772509c95e32d39582c0606997bbf465a17311090f02bae6d181ea"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_browser_start.rs",
+        "sha256": "90a69b36c7c479db3ed167ab0937bceef566eab3d8c1c247a877715a32be79f1"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_clock_sync.rs",
+        "sha256": "b1393ea19d63abb3e581dfdc96d22d62a2955da5d9aca8990165b72ce43b0238"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_continuous_timing.rs",
+        "sha256": "9eebc6919e948ea37541ad912c3ae4d3cff30efdb75fe20dce6ad6b7a3cad119"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_controller.rs",
+        "sha256": "e7ae4c2186f36a7465ec312598384d0fc9673474d06ab38eae30057f503c3deb"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_device_timing.rs",
+        "sha256": "d8e8854609955c68f69e379e5a35b8915b59ef385df9d40268acc4a633cd97a4"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_hosting.rs",
+        "sha256": "52b00e94dd644bf1340fab289940becf1c36b47d889865f884ac428e06760db1"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_hsp.rs",
+        "sha256": "0d57e480a936340bcb8acb4e68a179c9fed59d4215092df153d167013effc119"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_hsp_continuity.rs",
+        "sha256": "679059d2c8dc44773181f779bd8c8055ce6737c0610ea386586cf2098c395721"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_hsp_live.rs",
+        "sha256": "f880cacccc00e8e5dd8c8d147fb7faa02185891df1768f0c2bdaea6b1e6fa0f9"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_hsp_preparation.rs",
+        "sha256": "530c7906aad6c98372c566812a1a0b4c4142c907d72a53be9af3bd89631aff8e"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_hsp_qualification.rs",
+        "sha256": "ac498a4a9cf369c6adb52e7abb4d9f345968ca76ef44c61ce86b03e5cf515743"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_hsp_source_qualification.rs",
+        "sha256": "f3d078950676572de2fd81f4e440986102ab3edd16bc9cd31ae97ce2001e8203"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_playback.rs",
+        "sha256": "bf7d8321fea4d05ff8ad08de4c421cf428501920bbfa30b5234032a2245150c6"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_playback_clock.rs",
+        "sha256": "d5b77783b7c996048da3201909963a04a05e8b938efbd61451ac373b0efa1cdc"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_playback_preparation.rs",
+        "sha256": "d978701c68ab8b0089998315601cd3bb70816e5a99258423da6bb468d236c29a"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_player_guard.rs",
+        "sha256": "0d4e23e0c2796cbf486f38301e5e2d7b58d7c2bff8fea8815fb869ef86aebfd2"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_program.rs",
+        "sha256": "6f32d6801205daafc8f1d6704194a55aaf0f2ec496e54df0962f794254a49e12"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_qualification.rs",
+        "sha256": "772645aa4c6a7bfaca8c536c09a8b84b4ac30c755cd90e2c1c7c911ab654b05f"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_reconciliation.rs",
+        "sha256": "575809f4f8a581d6e1dc3e8b6f913d66db3f6a39625aaac5e78337efac08f108"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_recovery_contract.rs",
+        "sha256": "0a4613c37c59a98e9b185ad12653f64546530ac8aab627717e7e2301b6b29d73"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_registration.rs",
+        "sha256": "03a9c7940263109cf9035709bb4ff97a1ae4bfb53f9a4aaa1d917ad24b31c64f"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_script.rs",
+        "sha256": "0a3317b206264205ac213a81a59cecdc270cd18aff6ea0c800039ed233a9c099"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_server_clock.rs",
+        "sha256": "eb5248ecb987c9aa2b57dee3d9aa80bff077b59ff693190e6fbbcd969bbd84b4"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_session.rs",
+        "sha256": "bfbc272c71b5731b65b66203f5a76910f477f26ee920f3c8455cf1b8c2ffe0bd"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_settings.rs",
+        "sha256": "63f9c0e212ccf3e4d1d52e1a900afc7b293953526722adecf4883e114350f86f"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_setup.rs",
+        "sha256": "a7512441f2a193ec6fb7dae006b0e0e020f3566f3e76716ab6eec493bde47f3f"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_setup_status.rs",
+        "sha256": "fcc8ca61c23a095d2b0be4934f078239f0cbc6d0670b86b7e5f98cd00a82aab8"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/handy_stop.rs",
+        "sha256": "42269dc8ae036dda872fccca23273db73c68d69affa5714f58c253e73776af77"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/image_generation_origin.rs",
+        "sha256": "bce2697bef9bec62d5be14f9ecc389b8df54a0f7ff4997ace375e4193f0bb85f"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/inference_environment.rs",
+        "sha256": "8aac038f68926be957820e4161576fae89510dd50716a3fcce740a04b6a35086"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/inference_equivalence.rs",
+        "sha256": "2684d0d5daf004e4b47f60e9f477eca47f65fce3c95a54f9c86a42df0de47cb6"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/inference_equivalence_fixture.rs",
+        "sha256": "0d64a91df48ec9e42a7a56d7f2d51cf77f38119a2df3e2161b18a4381900ddc1"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/inference_fallback_history.rs",
+        "sha256": "92d17f1fa96a71c3645a4d43a5ebfeb2d2f93247f6a65215e34799eb2f0a488a"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/inference_fallback_selection.rs",
+        "sha256": "6ba1af4f645e8e3f075acf06eeb80679559cd9bd7a04742286092d6d666608d5"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/inference_profile.rs",
+        "sha256": "d10f8b2b76867775dc06eaae2a049cfe410da9e76ba2ed28baeed58c3a2a8339"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/job_attempts.rs",
+        "sha256": "400d47e237ee0920a34dbf55d03c2eb9c137960339950ad3da30f3d97cc6e51a"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/lib.rs",
+        "sha256": "8074a297b667a50e058deedfa10a2e489ffc8d372559cd2c91d6f6502279509b"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/library_batch.rs",
+        "sha256": "ca9918187bcbb197dc665161b03c88b3128f52d48fb17f863393da57de9519a7"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/live_bulk.rs",
+        "sha256": "382d87d61794b8be13bfa95a1777a1632bc55c9a33ddbc326c6ea549eb4d5c5f"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/live_capture.rs",
+        "sha256": "d3353b6f245121ee67bd5b6e127e166319e0435a8360589f6edbe32f34fa5bbd"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/live_clock_observation.rs",
+        "sha256": "ab001c06440ded26cc44e5abe5f7a0822038657d84c184f5d2d97f54eeae78fb"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/live_cpu.rs",
+        "sha256": "c532734b1a37a841ff4d4a8e9b62e684127faad9d54d76183d645d878b582d6d"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/live_cuda.rs",
+        "sha256": "c0645eb5872c094f0e16cada3997f350fb6dfb1ab1ed6a12c083e61092ffb904"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/live_decode.rs",
+        "sha256": "327e1ecde6f888b922fc0a25df0b40d8d2274fdec43a094854c53ce802f84d2e"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/live_decode_delivery.rs",
+        "sha256": "37d63e5bf44f79b015a4462dfcf7790d39c452d451cee7b99878c619da5a0a65"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/live_encoded.rs",
+        "sha256": "9c537bc9535f5666d29af38e27a18d5eaa1e65df77f2879f0150bee825158ba3"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/live_encoded_client.rs",
+        "sha256": "ca31bf6b7c6066f2e19a03c3938efb0b509dd21c67814ad0299e6179eb272c12"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/live_inference.rs",
+        "sha256": "5acbea93cb597ab7963b886c5952dcbaa2dde9e14d6818e81a79a682f4b5b53c"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/live_recording_assembly.rs",
+        "sha256": "3121bebbc0566dd341e4e9c1e8fb40617a47438205f73ddb9d62cb98d0294640"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/media_probe.rs",
+        "sha256": "3e15cce89d32be9ee4d62a0666fd5b21a292ff0d560db227296a2dcb8e49f8ef"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/model_pack.rs",
+        "sha256": "c5dcb86fe61117cf4804bc4421fa2be5aa3aee2d491113c828d8d9819bd5135b"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/motion.rs",
+        "sha256": "49664b77b5bdba67641a94f3d070eef63ecc14555ee0b8e186b01b06e4b34261"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/motion_evidence.rs",
+        "sha256": "5941a8cd3385ccc548a1fe0862b45ceec224f75237783a91519b7610e9900137"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/motion_retime_receipt.rs",
+        "sha256": "05a25c7301d0762b8269a8d03986f2dd6719130631fa0fa1e0f37b7804bb374b"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/native_capture.rs",
+        "sha256": "ca9bca255fab09af3efb1b60dc6f966d6a941169161d1c81432736ceaf2c09c4"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/native_image_preparation.rs",
+        "sha256": "6199c7316c7ea895be9341a7e79a17bf041df6778eae451ae5b226a7da2700f9"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/package_wasm.rs",
+        "sha256": "35ecb473b8dda33ffba1967be874f471e70bc51a25e3dac9723b7002ae5e8c11"
+      },
+      {
         "path": "crates/pulsar-protocol/src/project_package.rs",
         "sha256": "27e329ca85c5ed876c83ca7d9e171527847786e5d01bcc5736604fb1540668c8"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/project_package_download.rs",
+        "sha256": "c5f4da2fff066d8b5e2317abf1257ff96df814099c75da974f606636786dd038"
       },
       {
         "path": "crates/pulsar-protocol/src/project_package_format.rs",
@@ -135,132 +2967,212 @@
         "sha256": "640c0aa596f6727a562d88c48fd581bbf08eb1ac31297d06b06f937b8972c1f3"
       },
       {
-        "path": "docs/PULSAR_LIVE_FALLBACK.md",
-        "sha256": "db7637cb290afe2b6a536de3643b18a2417111ab4547e0c344cec4295d973c89"
+        "path": "crates/pulsar-protocol/src/project_package_origins.rs",
+        "sha256": "204613e48f1c37e85d73d7237521805d7b63a7aa897544b93752bbc8b76fd033"
       },
       {
-        "path": "docs/PULSAR_PORTABLE_FALLBACK_HISTORY.md",
-        "sha256": "6583cf7250eb1fb9d121d7e04a9bc539f0bdf66b178ab6836262843695f2440b"
+        "path": "crates/pulsar-protocol/src/project_package_placements.rs",
+        "sha256": "42b31ea11f4956c0768610aa0b89ff9efa2e039203924ec4be029de6d2ee7978"
       },
       {
-        "path": "crates/pulsar-clients/src/cli.rs",
-        "sha256": "50376031ba4ca66088b48ccf9272082f830fa13ba9d8b73d82cfd69ea3349275"
+        "path": "crates/pulsar-protocol/src/project_package_upload.rs",
+        "sha256": "e27155a8f65c8bb623dec04c0f95b71880a211b7a60473cd04e39a5c8d31e8ac"
       },
       {
-        "path": "crates/pulsar-clients/src/lib.rs",
-        "sha256": "1804a3d4b7483a6cfdcac912956dc953d649a6297507f02ce7eccc39eb14e2ad"
+        "path": "crates/pulsar-protocol/src/review_dispositions.rs",
+        "sha256": "bf2dc3be73480deb8fc45d4daf97b757ebe3934dce680fe9a510264a9b136ce1"
       },
       {
-        "path": "crates/pulsar-clients/src/browser_live.html",
-        "sha256": "dc717cf2585aa30f89df6210ed55b50815b5cc137521e8a2cdb499b7afbfbd28"
+        "path": "crates/pulsar-protocol/src/roleplay_consent.rs",
+        "sha256": "6f7bcbfd95e431b966729c4213551631f788bc98cb9625d4d54582003366fc8a"
       },
       {
-        "path": "scripts/browser-live-player.test.mjs",
-        "sha256": "4eeeef39e5b2d3736a5e25c7e71856e642b8c4c83926729e5f059bd3133299eb"
-      },
-      {
-        "path": ".github/workflows/ci.yml",
-        "sha256": "07058684ccc5a7d97af8e8e7fabf0616dad17164d121600da228e8fdfbe34e00"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_source_media.rs",
-        "sha256": "76f873f070964f8b62033a3380e3a5dd12843c3c367aa39d43d3d46c687a53bf"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_source_media_tests.rs",
-        "sha256": "0612d0df99741a56092196411716591f4623e2bf3b5668365a1f5494cad39fe0"
-      },
-      {
-        "path": "crates/pulsar-engine/src/live_capture_cpu.rs",
-        "sha256": "725720da196cba7280473126d9d08ac128364403b5bc229bcbde9245c0dbdbe9"
-      },
-      {
-        "path": "crates/pulsar-engine/src/live_capture_inference.rs",
-        "sha256": "766b3240eec5ed37034354eecbd356aaa69ebd664960878d5955133883ce4c68"
-      },
-      {
-        "path": "crates/pulsar-engine/src/live_captures.rs",
-        "sha256": "8426c077c242e3b5dfa9cf4995c61a1e6d7c63c8c973c34e1a8e458a4f991e71"
-      },
-      {
-        "path": "crates/pulsar-clients/src/desktop.rs",
-        "sha256": "806a47aa52a5537919f7d15b0b4e065e002b36b3b56b3eb9f2f28d9a0f1209be"
-      },
-      {
-        "path": "crates/pulsar-engine/src/editing.rs",
-        "sha256": "f48824ec1b6bc03d690666d1edadf69f03d7d304218b0afbe7194914a0cc1047"
-      },
-      {
-        "path": "crates/pulsar-engine/src/stash_batches.rs",
-        "sha256": "538a6fda54f8db0aeb21f06c1c7d522dbd2524803380c9f6690337c4255aea60"
-      },
-      {
-        "path": "crates/pulsar-engine/src/stash_files.rs",
-        "sha256": "7c4bc719dfa626dc0ea9c8afa1b506e5cf7430f04fe8515ddb7d66d7fe2a79e8"
-      },
-      {
-        "path": "crates/pulsar-protocol/src/lib.rs",
-        "sha256": "e175d3a510b6f1504e81e7eeb287393dc45c4ac323377f878abfba87398a5428"
+        "path": "crates/pulsar-protocol/src/source_placements.rs",
+        "sha256": "995ad7bb9c13c6f09991122d5873862770294311d4679172637356c28b99371c"
       },
       {
         "path": "crates/pulsar-protocol/src/stash.rs",
         "sha256": "655c704f44637ebbef203f5771322483c35620791af7fbe2f939d4a767e75875"
       },
       {
-        "path": "crates/pulsar-clients/src/session.rs",
-        "sha256": "61910e0ac71215317bed77cf5b5a1a9633f2fc9d17cd472e5fdba0e184ff38e8"
+        "path": "crates/pulsar-protocol/src/stash_source_plans.rs",
+        "sha256": "8de820d2e3737b85d4ac78b2297fbc2756afb5ae7becfad4f6d734fb7d704e2f"
       },
       {
-        "path": "crates/pulsar-clients/src/browser_player_timing.rs",
-        "sha256": "9b0e15c9912292bef4a805ae0d97f1e5a1ccc30679e26fce1b4b776e7650b3e5"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_player_timing_tests.rs",
-        "sha256": "3e828ef55f55c98f95a1815f00d648122e8936725c2844d052ea2070b9feb109"
+        "path": "crates/pulsar-protocol/src/temporal_recipe.rs",
+        "sha256": "f1f3ee51f98012579a567deaa59587698fc8b4cfdc998042eafeee179e0335f4"
       },
       {
         "path": "crates/pulsar-protocol/src/transport.rs",
-        "sha256": "bf0f1d2086b12f6f65ad68b3e45216b9ecee60a4250ae50a6c179b21418e1c64"
+        "sha256": "b0abcb355f486c3fd0989ae3eceb3130a486f18927738fc75983365d2c99c365"
       },
       {
-        "path": "crates/pulsar-engine/src/engine_browser_timing_tests.rs",
-        "sha256": "0058485927d12555c0d862c65684b02142d26048937c1e6688b12a5c7340e5cf"
+        "path": "crates/pulsar-protocol/src/wasm_archive_history.rs",
+        "sha256": "16b0e03d078a8ad201623c43bdcbb2fe1867ed23db317b5cf703d925a1e5a077"
       },
       {
-        "path": "crates/pulsar-protocol/src/live_recording_assembly.rs",
-        "sha256": "fa4011507cf9a4bde161baa29f2500f1b6f8b8b1eb413c24f36c390f68d886fb"
+        "path": "crates/pulsar-protocol/src/wasm_edits.rs",
+        "sha256": "ce676a318028a93599e38b0a7cb69b3b2f26a888e0fff837cc687d04e80789b1"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/wasm_processing.rs",
+        "sha256": "79ee47d326bc6df0e21a2e37b650ef33f00168c3d73273194e1fba4b047ab63d"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/wasm_start_resolution.rs",
+        "sha256": "42956354015eeade5100e5b24f5704b7449e32aac07a5754698a32f402503cea"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/worker.rs",
+        "sha256": "5ff058304cf0acdd8991b8af9342de1d4cbf150d68c40441854bfc8b467a361f"
+      },
+      {
+        "path": "crates/pulsar-protocol/src/worker_cuda.rs",
+        "sha256": "7f60f91e9cdab803092e84233e5b2237f48de447888efe46583f80b2e49d6f3e"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/annotated_generation.rs",
+        "sha256": "28e88b95c6793caff874f47b9c1134a1492c5d70c648e702582628ec8dd52b37"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/axis_export_contracts.rs",
+        "sha256": "808a030d1914dd302124e93032c1a8a62a14cf8ae8090f468513830662e3ab3f"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/boxed_control_wire.rs",
+        "sha256": "daf1e4999bfd887c79cb336ba625f132d12b5b9562023d28787f12a5b03d65a3"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/bulk_transport.rs",
+        "sha256": "85e8f41e29f7fc8beef7339c33fe249d8a33a9b1973170c78191b3a33edd0241"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/connect_deadline.rs",
+        "sha256": "b3f7df84eb1ee9fa2772162523c01957009d8203c28145201dda5ad5bc7b078c"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/contracts.rs",
+        "sha256": "af4efb621aea721be9a44920e9e96a35159a713a7d43c1b1a44279d43a1723b7"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/fixtures/boxed-control-wire.json",
+        "sha256": "314ad34e0f6ad795e47d50e2c403855549c109f3c5c96945d5f06d064fc2dabf"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/fixtures/handy-clock-sync.json",
+        "sha256": "9099a00c3b37a8ef0c3eb6f51db218d2e1bed9dc9beea3753eedb9204d9ec4b6"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/fixtures/handy-controller.json",
+        "sha256": "abcc63f0fac895ebbba5c77ccfc5041d6eba22b618e97d37a2ddb4faa4ec4c22"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/fixtures/handy-device-timing.json",
+        "sha256": "8ec047a5a527e48fbd38867ad1fecde09e16bdba578414077eab8cfc45413f6d"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/fixtures/handy-operative-settings.json",
+        "sha256": "73ab279fcad198d8f86e230aefd31ec8128ebb0a34e503e85ee97212fdc32d1a"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/fixtures/handy-playback-clock.json",
+        "sha256": "10159a11337907b03a3c9f73df997cccd8c75da615c810906d7f6115573169d0"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/fixtures/handy-playback-preparation.json",
+        "sha256": "6acb0fc18de96ad8ec4cb548133720f21edf96c9f0c15ac8080e59ae42bcd555"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/fixtures/handy-program-correlation.json",
+        "sha256": "0e3b89a762670eebbf33dce5d3a2511118d8c71723679402700860c3d0f0ef4a"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/fixtures/handy-qualification-v1.json",
+        "sha256": "44d0918e382ad26f334fee73f2bdbb93c80aa9270accfc64d57f267125a1196c"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/fixtures/live-cpu-capture-report.json",
+        "sha256": "b83b9fc20fbf1a54319b338f976480d2445ba85b23dcd60716fd343562120a8f"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/fixtures/live-cpu-manifest.json",
+        "sha256": "2c9cb8170e57adf592ec0e9e3ba7b13f875547a20968043c98d245708397d1ac"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/generation_contracts.rs",
+        "sha256": "49cf9b253ecf89101662f2f87aede61b4bff2917e24035395a9133e738eaac05"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/inference_fallback.rs",
+        "sha256": "cbbd5e350f852c5ece83c70fe1baf8b957b40ffd7a6c1cdb488cf3310afe2b62"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/inference_profiles.rs",
+        "sha256": "fb0d58d125539b8a39aa74c3413cafbb8c942ef61cffda3b6a0156154d6c64ed"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/large_motion_contracts.rs",
+        "sha256": "e1b3bd5e79bdcc27e939ea46821032691745cfaaa15b8e4c8d60146d889d241e"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/live_bulk_transport.rs",
+        "sha256": "06967f7f9ac87927acf841f5403db7430a899187df9538d053ed1122dcada9f4"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/live_cuda_report.rs",
+        "sha256": "982db2d0601709e2f5e7e515659b5af24b3cc62fe8f01f26502c160242dfd659"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/local_client_deadline.rs",
+        "sha256": "7763965e6d397cf08ef64a57333c5e9c23c168ef36e6bb49313ee79b656e2916"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/model_packs.rs",
+        "sha256": "6c761232be42721db207b2b331112454b9449e6732d679a21ccb76ebd0a5f900"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/motion_retime_receipts.rs",
+        "sha256": "169b12dbd1cf6ef6e241570b311bce1c8c1632604d322734b0a16ec80302284a"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/owner_revision_bounds.rs",
+        "sha256": "80066551152c1220f3fb2c4dd5c85c710cd1d74c8c02e282413e8995fee64ff8"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/package_upload_contention.rs",
+        "sha256": "c5297794de489ed48e7f74ca63eaeb4fa78bb188d57b5d9254f8672d4a806dfb"
+      },
+      {
+        "path": "crates/pulsar-protocol/tests/project_package_import.rs",
+        "sha256": "826ffd613862eab0fdb17b7b0b24017f480beff00c258955e8ff339c2f369f08"
       },
       {
         "path": "crates/pulsar-protocol/tests/recording_boundary_native.rs",
         "sha256": "4432eb827532eddcd415e706eeb6072c12d2948e174ddffaf7853e8f31405c3a"
       },
       {
-        "path": "crates/pulsar-clients/src/browser_live.rs",
-        "sha256": "e2d4b38194d81f60fcc5d6d915aa46bb3a48acc3961088274fa46bb3361d4214"
+        "path": "crates/pulsar-protocol/tests/source_kind_contracts.rs",
+        "sha256": "590467b7872b73ca246f753d401415f3d106b797dce0b75884c34f177cdc4e55"
       },
       {
-        "path": "crates/pulsar-clients/src/browser_captured_cpu_tests.rs",
-        "sha256": "a63a01e47a39cf82ccc3fcb92f318f436ed5ae979789965402912302e75188cd"
+        "path": "crates/pulsar-protocol/tests/wasm_edit_contracts.rs",
+        "sha256": "5b6ea2a9967360118c58fdeb9fc0f3c563ae088abe718caf01cacffa7767dd40"
       },
       {
-        "path": "crates/pulsar-clients/src/browser_live_panel_tests.rs",
-        "sha256": "753ae1bb5b8cdcf6e2babe8daabb6c0285f5469440c79d05aa925352b6d307fb"
+        "path": "crates/pulsar-worker/Cargo.toml",
+        "sha256": "b64754f70a227472ab50ba25dba44faac3ce6c4098a1d44120deb3ac03ee29c0"
       },
       {
-        "path": "crates/pulsar-clients/src/library_generation.rs",
-        "sha256": "4c1279fdff18e6760720f74c520269091b694d56605b18cac46787049e7c7287"
+        "path": "crates/pulsar-worker/src/main.rs",
+        "sha256": "4ca67a77f17304cd4e23ae27a5743e2c3caef0c6c1739972dc7f0aee5814ad46"
       },
       {
-        "path": "crates/pulsar-clients/src/library_visual_panel.rs",
-        "sha256": "5c85ddb479649c5dc8d4306e018e6e3c2615d2e4bc6582756143c6e190212315"
+        "path": "crates/pulsar-worker/tests/process_boundary.rs",
+        "sha256": "84c3121f2b6852eac465972f5562bed2a2a7a2e96ee2a8d5458d657942764a6f"
       },
       {
-        "path": "crates/pulsar-engine/src/assistant_owner_policy.rs",
-        "sha256": "930ab5882ec6c261a5b7487a9592a4425097f4f8c479f17ed74bada3ae85299f"
-      },
-      {
-        "path": "crates/pulsar-clients/src/browser_analysis_feed_tests.rs",
-        "sha256": "80cf6b080ab73dcd14bdc6bc506a715698f08eb564ff306267c594961764dc23"
+        "path": "src/main.rs",
+        "sha256": "ccde9dc2cf5737789e4515aace8b9bf445c4d67de3a5f446d37fde7f802965a0"
       }
     ]
   },
@@ -1309,7 +4221,10 @@
         "CPU-BUILD"
       ],
       "exit": "Desktop, CLI, browser and assistant share typed workflow operations over EngineApi/SessionClient, preserving request IDs, revisions, deadlines, cancellation, candidate review and explicit device-control sessions. No client duplicates durable state or hardware authority. Port useful bench/legacy HSP behavior through this seam and demonstrate equivalent Stop/recovery semantics. Existing CLI compatibility remains.",
-      "evidence": []
+      "evidence": [
+        "EV-INTEGRATION-BUILD-001",
+        "EV-INTEGRATION-BUILD-002"
+      ]
     },
     {
       "id": "HANDY-QUALIFY",
@@ -15507,6 +18422,52 @@
             "qualified"
           ],
           "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-INTEGRATION-BUILD-001",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-consolidation-2026-11-06/integration-build-001.json",
+      "sha256": "b33f6e03a4477db5e470bbd93b6d235bfd9b050228517f968f1ec0559c9d2c32",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Default-feature compilation failed; no runtime failure or device operation inferred.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "exit_code"
+          ],
+          "equals": 101
+        }
+      ]
+    },
+    {
+      "id": "EV-INTEGRATION-BUILD-002",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-consolidation-2026-11-06/integration-build-002.json",
+      "sha256": "1557be537db5bb7d301d5d197144071e3fcc16f59778e73ba909fa46075a7747",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "All workspace targets compile with default features and no warnings after conservative assistant setup defaults are wired. Rust tests are compiled, not executed; optional-feature, native, physical-device and release acceptance are not established.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "exit_code"
+          ],
+          "equals": 0
         }
       ]
     }

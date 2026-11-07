@@ -6,7 +6,7 @@ The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue
 
 Reconciled **2026-11-06**. Roadmap **INCOMPLETE**; autonomous runner observation **paused**.
 
-**Working tree: UNVERIFIED.** Branch and worktree consolidation is in progress on codex/pulsar-integration. No current whole-product or physical-device qualification is claimed. Historical platform/native failures, rendered continuity, useful model quality and all acceptance gates remain open. APP-PLAYBACK is the next product slice; runtime execution remains paused.
+**Working tree: VERIFIED.** The single integration branch is established and all workspace targets compile with default features. The initial launcher E0063 failure is retained and repaired with constrained/no-custom-limit assistant defaults. No Rust runtime suite or physical device operation was executed during consolidation. Historical platform/native failures, rendered continuity, useful model quality and all 29 acceptance gates remain open. APP-PLAYBACK is the next product slice; the autonomous runtime runner remains paused.
 
 **Next: APP-PLAYBACK — Verify and repair the local-video plus existing-script Desktop workflow.** Exit required: Launch checked Desktop and companion worker; open sterile local video and a known script, verify aligned preview, edit, save/reopen and export to a new file. Exercise errors and Stop controls; record executable/source identity and reproducible app-guide steps. No physical device qualification is implied.
 
