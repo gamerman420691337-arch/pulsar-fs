@@ -1,0 +1,67 @@
+# Bundled offline local assistant: runtime research
+
+Date: 2026-10-10. Status: **research and integration proposal; no model downloaded, loaded, benchmarked, bundled, or qualified by this investigation**. Sources are first-party model repositories, upstream source and license text. The existing llama.cpp checkout was inspected read-only; no services, builds or other project files were changed.
+
+## Decision inputs
+
+Evaluate official **Qwen2.5-0.5B-Instruct Q4_K_M first**, against **Qwen3-0.6B Q8_0**, using a pinned CPU-only llama.cpp worker. This ordering favors smaller artifact/cache costs and simpler output handling; it is an engineering hypothesis, not a measured quality ranking. Both are learned causal language models; neither is a deterministic preset parser. Domain quality, refusal behavior, latency and malformed/unsupported proposals need Pulsar-specific evaluation before selecting a release default.
+
+Current source confirms the missing capability: `crates/pulsar-clients/src/desktop.rs:3562` displays a disabled scoped-engine-adapter-pending button; `crates/pulsar-engine/src/worker/inputs.rs:24` records `natural_language_inference: false` for strict text parameters. `docs/PULSAR_MAJOR_ROADMAP.md:31` requires the local assistant offline from first launch, and `crates/pulsar-protocol/PROTOCOL.md:141` separates exact-build native exception approval from assistant invocation approval. These working-tree observations establish an open obligation, not a bundled implementation.
+
+## Official artifacts and redistribution
+
+Metadata below was read from official Hugging Face APIs with `blobs=true`; sizes/hashes are publisher metadata, **not local byte verification**. Pin the revision and verify downloaded bytes in the release pipeline before admitting a pack.
+
+| Candidate | Exact publisher artifact | Size | Pinned repository revision | Publisher LFS SHA-256 |
+| --- | --- | ---: | --- | --- |
+| Qwen2.5-0.5B-Instruct Q4_K_M | `qwen2.5-0.5b-instruct-q4_k_m.gguf` | 491,400,032 bytes | `9217f5db79a29953eb74d5343926648285ec7e67` | `74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db` |
+| Qwen3-0.6B Q8_0 | `Qwen3-0.6B-Q8_0.gguf` | 639,446,688 bytes | `23749fefcc72300e3a2ad315e1317431b06b590a` | `9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031` |
+
+Sources: [Qwen2.5 official pinned tree](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/tree/9217f5db79a29953eb74d5343926648285ec7e67), [Qwen2.5 metadata API](https://huggingface.co/api/models/Qwen/Qwen2.5-0.5B-Instruct-GGUF?blobs=true), [Qwen3 official pinned tree](https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/tree/23749fefcc72300e3a2ad315e1317431b06b590a), [Qwen3 metadata API](https://huggingface.co/api/models/Qwen/Qwen3-0.6B-GGUF?blobs=true).
+
+The inspected Qwen3 official GGUF tree offers Q8_0 only; a Q4 release would require a separate conversion/quantization provenance and evaluation decision. Qwen2.5's official tree already offers Q4_K_M and other quantizations. The [Qwen2.5 model card](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/blob/9217f5db79a29953eb74d5343926648285ec7e67/README.md) describes instruction tuning and structured output; that is publisher evidence, not proof of Pulsar action accuracy. The [Qwen3 card](https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/blob/23749fefcc72300e3a2ad315e1317431b06b590a/README.md) documents thinking/non-thinking modes and `/no_think`; start with template-controlled non-thinking mode for bounded structured proposals, and test that reasoning tags cannot corrupt the response envelope.
+
+Both exact GGUF repositories contain Apache-2.0 licenses: [Qwen2.5 license](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/blob/9217f5db79a29953eb74d5343926648285ec7e67/LICENSE), [Qwen3 license](https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/blob/23749fefcc72300e3a2ad315e1317431b06b590a/LICENSE). Under [Apache-2.0 sections 2–6](https://www.apache.org/licenses/LICENSE-2.0), redistribution requires a license copy, retained relevant source notices, prominent notices on modified files, and applicable NOTICE attribution if supplied. Trademark rights are not granted. Preserve the official artifact unchanged initially, include attribution/license material, inventory any NOTICE file at final pin, and record model origin and quantization. These conditions support redistribution in principle; they do not establish release approval.
+
+## Pinned native runtime interfaces
+
+Inspected upstream revision: `b86d2f07542b29ab099aed34fd6b6d1b2fd4b81c`, checkout `/home/brianklam/Projects/_external/llama.cpp-upstream` (clean on inspection). This is an integration pin, not a claim it is the newest release or a qualified binary. [MIT license](https://github.com/ggml-org/llama.cpp/blob/b86d2f07542b29ab099aed34fd6b6d1b2fd4b81c/LICENSE) permits redistribution with its copyright and permission notice. Audit separately the dependencies actually linked into the shipped platform artifacts.
+
+The [C header](https://github.com/ggml-org/llama.cpp/blob/b86d2f07542b29ab099aed34fd6b6d1b2fd4b81c/include/llama.h) exposes `llama_model_load_from_file`, `llama_init_from_model`, `llama_tokenize`, `llama_decode`, `llama_sampler_sample`, `llama_token_to_piece`, `llama_sampler_init_grammar`, and model/context cleanup. Context parameters explicitly bound `n_ctx`, `n_batch`, `n_ubatch`; set `n_gpu_layers=0` for the CPU candidate. `llama_chat_apply_template` explicitly is **not a general Jinja parser**. For model metadata templates use the pinned C++ common layer, whose [chat interfaces](https://github.com/ggml-org/llama.cpp/blob/b86d2f07542b29ab099aed34fd6b6d1b2fd4b81c/common/chat.h#L250) offer `common_chat_templates_init`, `common_chat_templates_apply`, `use_jinja` and `enable_thinking`. Hide this changing upstream API behind a small Pulsar-owned worker adapter.
+
+For a startable noninteractive probe use `llama-completion`, not an assumed legacy behavior of the newer `llama-cli`. Its [completion source](https://github.com/ggml-org/llama.cpp/blob/b86d2f07542b29ab099aed34fd6b6d1b2fd4b81c/tools/completion/completion.cpp#L238) formats system/user messages through the common template layer; lines 365–370 make `--conversation --single-turn` noninteractive when a nonempty prompt is present. Alternatively pass a correctly preformatted prompt with `--no-conversation`; verify exact prompt bytes against the pinned template.
+
+Candidate probe arguments, **not a command executed by this research**, with all paths owned by the evaluation harness:
+
+```text
+llama-completion -m /absolute/model.gguf --offline
+  --conversation --single-turn --jinja --reasoning off
+  -f /absolute/request.txt --json-schema-file /absolute/proposal.schema.json
+  -c 2048 -n 512 -t 4 -tb 4 -b 256 -ub 128 -ngl 0
+  --no-context-shift --no-display-prompt --simple-io
+```
+
+The pinned [argument implementation](https://github.com/ggml-org/llama.cpp/blob/b86d2f07542b29ab099aed34fd6b6d1b2fd4b81c/common/arg.cpp) defines these controls, including `--json-schema`/`--json-schema-file`, `--grammar-file`, template and reasoning options. Require an external wall-clock timeout and output-byte cap; never use infinite `-n -1`, automatic model downloading (`-hf`/model URL), or interactive defaults. Confirm supported flags using the built candidate's help, then prove behavior with actual inference. Logs and generated content need separate channels; do not assume stdout is already a clean JSON IPC protocol.
+
+The [GBNF guide](https://github.com/ggml-org/llama.cpp/blob/b86d2f07542b29ab099aed34fd6b6d1b2fd4b81c/grammars/README.md#L137) supports only a subset of JSON Schema, does not insert the schema into the prompt, and identifies grammar performance pitfalls. Describe the response shape in the prompt and compile a small bounded grammar ahead of time where practical. Grammar proves syntax only: the engine must still check allowed action variants, actual object IDs, numeric bounds, revisions, evidence references and authority.
+
+## Process, memory and cancellation design
+
+Ship a signed/hashed CPU-only worker executable with its required libraries and one verified GGUF inside the installer/pack, plus license files and exact runtime/model/template/schema identities. Build tools, Rust/CMake, Python, Docker, Hugging Face clients and a developer checkout belong in the build pipeline; none should be required on the user's machine. Existing installed binaries/shared libraries are not bundled evidence. Use an explicit platform baseline and test sterile offline first launch on Windows, Linux and Apple Silicon; later accelerated variants need their own backend/dependency evidence.
+
+Proposed initial evaluation limits: one assistant job, 2,048 total context tokens, at most 512 generated tokens, fixed small batch/microbatch, bounded CPU threads, 30-second request deadline and a 2-GiB process memory ceiling. These are trial admission parameters, not measured feasible limits. Reject oversize context before inference; bound request/output bytes, conversation history and queue length. Keep the UI responsive, report deadline/resource failure explicitly, and unload the worker/model on idle according to a measured policy.
+
+Artifact size is not peak RSS. With an assumed F16 K/V cache and one fully used 2,048-token sequence, the conventional estimate is `layers × tokens × 2(K,V) × KV heads × head dimension × 2 bytes`: **Qwen2.5 about 24 MiB**, **Qwen3 about 224 MiB**, excluding weights, runtime graphs, scratch, allocator overhead and OS accounting. This arithmetic uses pinned official configs: [Qwen2.5](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct/blob/7ae557604adf67be50417f59c2c2f167def9a775/config.json) (24 layers, 2 KV heads, 896/14=64 head dimension), [Qwen3](https://huggingface.co/Qwen/Qwen3-0.6B/blob/c1899de289a04d12100db370d81485cdf75e47ca/config.json) (28 layers, 8 KV heads, 128 head dimension). Actual llama.cpp allocation can differ; measure peak process/cgroup memory, cold/warm startup, first token, complete proposal latency and throughput on qualified reference CPUs.
+
+The [abort contract](https://github.com/ggml-org/llama.cpp/blob/b86d2f07542b29ab099aed34fd6b6d1b2fd4b81c/include/llama.h#L399) says the decode abort callback currently works only on CPU. `llama_decode` can return 2 with processed microbatches still present in context memory. On cancellation discard that request/context rather than continuing stale KV state; free native resources. Parent supervision must also terminate/reap the owned worker after a bounded grace period, covering hung loading/native calls and future backends where the callback is insufficient. Never cancel by broad process-name patterns. A process boundary aids crash/resource containment; it does not by itself establish a security sandbox.
+
+## Proposal contract and startable implementation sequence
+
+1. Add a narrow protocol for assistant request/result/cancel. Supply a bounded read-only snapshot: project revision, observed target IDs/attributes, review evidence IDs, allowlisted settings, selected edit range and undo state. Treat media labels, filenames and retrieved text as untrusted data. No credentials, unrestricted paths, network tools or direct mutation channel enter the worker.
+2. Return one tagged result: clarification, explanation with evidence references, or an allowlisted proposal (`select_target`, `change_setting`, `preview_edit`, `explain_review`). Include exact snapshot revision and object IDs. The learned model may choose among existing observed targets; this text-only model must not claim it visually identified an unseen target. Unsupported or ambiguous requests produce a clarification/no-action result.
+3. Engine validation creates a deterministic preview/diff; user explicitly confirms any target/settings/edit change. Apply through existing commands/history with protected-manual-edit rules and undo/redo semantics. Assistant output cannot approve native exceptions, grants, publication, physical playback, qualification or its own edits. Preserve the existing separately controlled invocation-approval requirement.
+4. Implement the process supervisor and CPU-only completion probe first; then replace ad hoc CLI output with a small C/C++ worker adapter and framed IPC if the experiment earns it. Record runtime binary/model/template/grammar hashes, budgets, timing and errors without retaining sensitive prompts by default.
+5. Evaluate natural paraphrases for all four intended surfaces: target selection, review explanations, settings and undoable edits. Include unknown targets/settings, contradictory requests, stale revision, prompt injection in evidence, invalid JSON, incomplete generation, hallucinated citations and cancellation during load/prefill/decode. Verify no mutation occurs before confirmation and declined/cancelled requests leave project bytes/history unchanged.
+6. Only after a real learned-model campaign meets owner-approved thresholds choose the artifact and publish release pack identities. Separately prove offline sterile installation, platform portability, confinement, sustained memory/latency and user task quality. Packaging/wiring tests, model-card claims or a single successful prompt do not close Core/Complete or assistant qualification.
+
+Created by this investigation: this note only. No scratch artifacts require cleanup. Open decisions: owner quality/latency thresholds, acceptable installer-size budget, minimum CPU baseline, invocation UX and platform confinement implementation.

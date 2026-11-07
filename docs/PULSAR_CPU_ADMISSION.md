@@ -1,0 +1,21 @@
+# Aggregate worker CPU admission
+
+The shared Engine pool now sums admitted worker CPU quotas independently of RAM and job slots. The owner ceiling defaults to four CPU threads and can be set through `EngineConfig.max_cpu_threads` or `PULSAR_MAX_CPU_THREADS` (1 through 1024). Invalid owner settings refuse before Engine state is opened. This is configured quota accounting, not a measurement of available hardware or throughput.
+
+Generation and preview claim the exact manifest quota; live CPU/CUDA, native capture, CUDA offline admission, learned assistant and WASM launches claim their declared quotas. Live staging claims one preparation thread. GPU, CPU, RAM and worker-slot updates commit under the same pool lock; a refused dimension changes none of those counters. Memory-only transport, retained images and metadata claims do not claim a worker CPU quota. Their host work and ordinary Engine/control threads are outside this accounting scope.
+
+Cgroup creation checks that the intended child quota fits its retained reservation. Assistant admission loans require the same pool, RAM and CPU claim. Claims remain held by existing creation/worker/cleanup custody until retirement; splitting retained storage does not release CPU early, and retiring CPU capture releases the quota while storage remains charged. A request larger than the owner CPU/RAM ceiling refuses before pausing generation. No per-worker quota, model backend, captured resume budget, wire shape or fallback authority changes. The legacy memory-only worker reservation API uses the existing two-thread class; production workers supply their actual quota explicitly.
+
+Validation is recorded in the [source-bound checkpoint](evidence/roadmap-2026-10-11/cpu-admission/checkpoint.json). It includes independent CPU-only contention, failed atomic GPU/CPU admission, release/storage custody and loan/fence checks, plus scoped learned native handoff when completed. Green accounting tests do not qualify CPU utilization, physical hardware, live deadlines, model quality, default model selection, other platforms or release acceptance. No annotation or training was fabricated. Full roadmap PARTIAL; goal active.
+
+See [ADR B3-129](../research/phase-b/ADR-B3-129-aggregate-worker-cpu-admission.md).
+
+The final CPU-only native handoff passes in 86.18 seconds. Its exact assistant aggregate RAM claim is 2,888,814,580 bytes; together with the 1536 MiB generation claim it fits the eight-GiB owner pool. The two-thread generation and four-thread assistant exceed the four-thread ceiling. Passive pool observations record 0, 2 and 4 threads, never more than the ceiling; exact checkpoints and logical input basis survive automatic same-job recovery, master motion stays unchanged, and final worker retirement leaves zero CPU claims. This verifies the admitted claims, not measured processor use or partial decoder-progress recovery.
+
+All-feature Engine passes 844 tests (90 ignored); strict default/all-feature Clippy, all-feature workspace binaries, formatting, 402 architecture checks and 36 guards pass. Default Engine passes 830 tests (64 ignored). Four invalid startup ceilings refuse without state creation.
+
+Two earlier full runs remain failed evidence. Default discovery did not supply ONNX to two nonexecuted profile fixtures. Selecting all bundled media tools then exposed the rotation fixture encoder assumption: the bundled FFmpeg reports `Unknown encoder libx264` before any decoding. The passing suite uses the pinned ONNX runtime and system media tools. Fixture portability was left as a follow-up in that checkpoint; the failed encoding does not establish a product rotation-decoder defect. No bundled-media qualification follows from substituting system tools.
+
+Owned scratch `/mnt/4tb/tmp/pulsar-cpu-admission` was removed after all command handles completed and the accessible process scan found no references. Source snapshots and safe evidence remain in the project; borrowed assets are preserved. Permission/race errors are recorded, so this is not an inaccessible-process coverage claim.
+
+The later [bundled media fixture increment](PULSAR_BUNDLED_MEDIA_FIXTURES.md) resolves that encoder dependency while retaining H.264 decoder coverage. The original failed runs remain in this checkpoint; later source/tool checks retain their own subjects.

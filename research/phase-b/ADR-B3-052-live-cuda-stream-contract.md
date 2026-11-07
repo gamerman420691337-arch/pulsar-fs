@@ -1,0 +1,13 @@
+# ADR B3-052: Separate CUDA live-stream declaration and transcript
+
+Status: Private contract implemented and tested; CUDA live execution remains disabled.
+
+The persistent CPU live stream has capture identity, clock, attempt, model/profile/runtime and a bounded lease. It is not an offline generation job and must not borrow an invented job/source artifact merely to enter existing CUDA mounting or receipt code. Introduce a separate private CUDA live-stream envelope around that identity with its captured execution declaration, dependency membership and private evidence output directory. Ordinary CPU manifest bytes and its CPU-only launch validation remain unchanged.
+
+Both peers need an ordered transcript of successful, identity-checked frame exchanges, including issued pixel hashes, declared clocks, position and analysis duration. Finalization consumes this transcript and requires a nonempty bounded run count. Invalid/repeated/out-of-order exchanges poison it. The final original CUDA trace must be independently checked against that count and exact manifest/transcript binding before stream evidence can be accepted. A stale but correctly completed exchange still belongs in execution evidence; the separate live freshness fence decides whether its output can be used.
+
+This contract does not authorize capture, launch, GPU reservation, native loading, motion acceptance or device dispatch. Activation requires supervised capture, actual fresh interactive GPU memory admission, a distinct verified loader/stream role, absolute lease propagation, bounded original receipt/trace egress and custody through exact worker retirement. Automatic recovery does not reconstruct admission from this declaration. Temporal stroke transport integration is a prerequisite, not a replacement for required fastest-preset live six-axis functionality or its independent quality/latency gates.
+
+Compatibility evidence must retain a reader built from the preceding CPU-only source, establish identical CPU canonical bytes with both readers, and show both ordinary readers reject the CUDA envelope. Structural/serialization/transcript tests cannot be promoted into GPU live runtime, model/media, platform, Handy or human/release qualification.
+
+The [terminal checkpoint](../../docs/evidence/roadmap-2026-10-07/live-cuda-contract/checkpoint.json) records six passing focused tests, 982 workspace passes (51 ignored), 514 CUDA-feature passes (48 ignored), five shipped CPU application cases, one preceding/current reader compatibility case without skips and 251 structural checks. All 338 live/archive source records and 66 executable identities match. No native GPU stream was executed by this increment. See the [implementation scope](../../docs/PULSAR_LIVE_CUDA_CONTRACT.md).

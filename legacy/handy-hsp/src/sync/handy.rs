@@ -1,0 +1,624 @@
+//! The Handy (Ohdoki / Sweet Tech) Cloud & Local Sync Protocol Client.
+//!
+//! Provides direct hardware synchronization using the official HandyFeeling API v2
+//! (HDSP - Handy Direct Streaming Protocol & HSSP - Handy Script Sync Protocol).
+
+use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::Arc;
+
+use super::handy_hsp::{HspClient, HspStream};
+use std::thread;
+use std::time::{Duration, Instant};
+
+/// Configuration for The Handy synchronization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HandyConfig {
+    /// 6-8 character Connection Key from Handy app or handyfeeling.com
+    pub connection_key: String,
+    /// Whether hardware synchronization is active
+    pub is_enabled: bool,
+    /// Minimum stroke percentage limit [0.0, 100.0] for safety/comfort
+    pub min_stroke_pct: f32,
+    /// Maximum stroke percentage limit [0.0, 100.0] for safety/comfort
+    pub max_stroke_pct: f32,
+    /// HDSP real-time direct streaming mode (true) vs HSSP script mode (false)
+    pub direct_hdsp_mode: bool,
+    /// Invert stroke direction (0% ⇄ 100%)
+    pub invert: bool,
+    /// Handy application key for HSP token issue (memory only; falls back to HANDY_API_KEY)
+    #[serde(skip)]
+    pub api_key: String,
+    /// Maximum stroke speed uploaded for scripted playback, units/s (100 units = full stroke)
+    #[serde(default = "default_max_speed")]
+    pub max_speed: f32,
+}
+
+fn default_max_speed() -> f32 {
+    300.0
+}
+
+impl Default for HandyConfig {
+    fn default() -> Self {
+        Self {
+            connection_key: String::new(),
+            is_enabled: false,
+            min_stroke_pct: 0.0,
+            max_stroke_pct: 100.0,
+            direct_hdsp_mode: true,
+            invert: false,
+            api_key: String::new(),
+            max_speed: default_max_speed(),
+        }
+    }
+}
+
+/// Device status and firmware info returned by Handy API v2
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct HandyStatus {
+    pub is_connected: bool,
+    pub model: String,
+    pub fw_version: String,
+    pub hw_version: String,
+    pub branch: String,
+    pub mode: i32,
+    pub last_ping_ms: u64,
+}
+
+/// Commands sent from the UI thread to the background Handy worker
+#[derive(Debug, Clone)]
+pub enum HandyCommand {
+    CheckConnection { key: String },
+    SetMode { key: String, mode: i32 },
+    SendPosition { key: String, position_pct: f32, duration_ms: u32 },
+    Stop { key: String },
+    /// Start (or restart) scripted HSP playback at `cursor_ms` as of `issued`.
+    HspPlay {
+        key: String,
+        api_key: String,
+        points: Arc<Vec<(u32, u8)>>,
+        cursor_ms: i64,
+        issued: Instant,
+        rate: f64,
+    },
+    /// Report the current script position so the worker can top up the device buffer.
+    HspTick { pos_ms: i64 },
+    HspStop,
+}
+
+/// Script time loaded ahead of the play position (device keeps playing this much after a crash).
+const HSP_AHEAD_MS: f64 = 5000.0;
+/// Extra look-ahead for the initial upload, covering cloud latency before play starts.
+const HSP_START_SLACK_MS: f64 = 4000.0;
+
+/// Events returned from the background Handy worker to the UI thread
+#[derive(Debug, Clone)]
+pub enum HandyEvent {
+    Connected { status: HandyStatus },
+    Disconnected { reason: String },
+    Error { message: String },
+    #[allow(dead_code)]
+    PositionAck { position: f32 },
+}
+
+/// Synchronous HTTP client for HandyFeeling API v2
+pub struct HandyHttpClient {
+    base_url: String,
+    agent: ureq::Agent,
+}
+
+impl Default for HandyHttpClient {
+    fn default() -> Self {
+        let config = ureq::config::Config::builder()
+            .timeout_global(Some(Duration::from_secs(5)))
+            .build();
+        Self {
+            base_url: "https://www.handyfeeling.com/api/handy/v2".to_string(),
+            agent: config.into(),
+        }
+    }
+}
+
+impl HandyHttpClient {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Check if device with given connection key is online
+    pub fn check_connected(&self, key: &str) -> Result<bool> {
+        let url = format!("{}/connected", self.base_url);
+        let resp = self.agent
+            .get(&url)
+            .header("X-Connection-Key", key.trim())
+            .header("Accept", "application/json")
+            .call()
+            .context("Failed to connect to HandyFeeling API")?;
+
+        let body = resp.into_body().read_to_string()?;
+        let val: serde_json::Value = serde_json::from_str(&body)?;
+        Ok(val.get("connected").and_then(|c| c.as_bool()).unwrap_or(false))
+    }
+
+    /// Query hardware model and firmware version
+    pub fn get_info(&self, key: &str) -> Result<HandyStatus> {
+        let is_connected = self.check_connected(key)?;
+        if !is_connected {
+            return Ok(HandyStatus {
+                is_connected: false,
+                ..Default::default()
+            });
+        }
+
+        let url = format!("{}/info", self.base_url);
+        let resp = self.agent
+            .get(&url)
+            .header("X-Connection-Key", key.trim())
+            .header("Accept", "application/json")
+            .call()
+            .context("Failed to query Handy device info")?;
+
+        let body = resp.into_body().read_to_string()?;
+        let val: serde_json::Value = serde_json::from_str(&body)?;
+
+        let model = val.get("model").and_then(|m| m.as_str()).unwrap_or("The Handy").to_string();
+        let fw = val.get("fwVersion").and_then(|f| f.as_str()).unwrap_or("Unknown").to_string();
+        let hw = val.get("hwVersion").and_then(|h| h.as_str()).unwrap_or("Unknown").to_string();
+        let branch = val.get("branch").and_then(|b| b.as_str()).unwrap_or("release").to_string();
+
+        Ok(HandyStatus {
+            is_connected: true,
+            model,
+            fw_version: fw,
+            hw_version: hw,
+            branch,
+            mode: 3,
+            last_ping_ms: 0,
+        })
+    }
+
+    /// Set operating mode (0: Off, 1: HAMP/manual, 2: HSSP/script, 3: HDSP/streaming)
+    pub fn set_mode(&self, key: &str, mode: i32) -> Result<()> {
+        let url = format!("{}/mode", self.base_url);
+        let payload = json!({ "mode": mode });
+        let bytes = serde_json::to_vec(&payload)?;
+
+        self.agent
+            .put(&url)
+            .header("X-Connection-Key", key.trim())
+            .header("Content-Type", "application/json")
+            .send(bytes)
+            .context("Failed to set Handy mode")?;
+
+        Ok(())
+    }
+
+    /// Stream position target via HDSP `xpt` (percent position + time duration)
+    pub fn send_hdsp_xpt(&self, key: &str, position_pct: f32, duration_ms: u32) -> Result<()> {
+        let url = format!("{}/hdsp/xpt", self.base_url);
+        let clamped_pos = position_pct.clamp(0.0, 100.0);
+        let payload = json!({
+            "xp": clamped_pos,
+            "t": duration_ms.max(10),
+            "position": clamped_pos,
+            "duration": duration_ms.max(10),
+            "immediateResponse": false,
+            "stopOnTarget": false
+        });
+        let bytes = serde_json::to_vec(&payload)?;
+
+        self.agent
+            .put(&url)
+            .header("X-Connection-Key", key.trim())
+            .header("Content-Type", "application/json")
+            .send(bytes)
+            .context("Failed to send HDSP position command to Handy")?;
+
+        Ok(())
+    }
+
+    /// Stop Handy motion
+    pub fn stop(&self, key: &str) -> Result<()> {
+        let url = format!("{}/hamp/stop", self.base_url);
+        let _ = self.agent
+            .put(&url)
+            .header("X-Connection-Key", key.trim())
+            .send(vec![]);
+        Ok(())
+    }
+}
+
+/// Asynchronous non-blocking dispatcher managing Handy communication in a background thread
+pub struct HandyDispatcher {
+    cmd_tx: Sender<HandyCommand>,
+    event_rx: Receiver<HandyEvent>,
+    pub status: HandyStatus,
+    pub last_error: Option<String>,
+    pub is_connecting: bool,
+    last_pos_sent: f32,
+    last_send_time: Instant,
+    /// True while scripted HSP playback owns the device; direct position streaming is suppressed.
+    pub hsp_active: bool,
+    last_tick: Instant,
+    hsp_end_ms: i64,
+}
+
+impl Default for HandyDispatcher {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl HandyDispatcher {
+    pub fn new() -> Self {
+        let (cmd_tx, cmd_rx) = channel::<HandyCommand>();
+        let (event_tx, event_rx) = channel::<HandyEvent>();
+
+        thread::spawn(move || {
+            let client = HandyHttpClient::new();
+            let mut hsp: Option<HspClient> = None;
+            let mut stream: Option<HspStream> = None;
+            let mut rate = 1.0f64;
+            let mut device_in_hsp_mode = false;
+            while let Ok(mut cmd) = cmd_rx.recv() {
+                if let HandyCommand::HspTick { .. } = cmd {
+                    while let Ok(newer) = cmd_rx.try_recv() {
+                        if let HandyCommand::HspTick { .. } = newer {
+                            cmd = newer;
+                        } else {
+                            cmd = newer;
+                            break;
+                        }
+                    }
+                }
+                // Drain newer position commands to keep latency minimal
+                if let HandyCommand::SendPosition { .. } = cmd {
+                    while let Ok(newer) = cmd_rx.try_recv() {
+                        if let HandyCommand::SendPosition { .. } = newer {
+                            cmd = newer;
+                        } else {
+                            cmd = newer;
+                            break;
+                        }
+                    }
+                }
+
+                match cmd {
+                    HandyCommand::CheckConnection { key } => {
+                        let t0 = Instant::now();
+                        match client.get_info(&key) {
+                            Ok(mut status) => {
+                                status.last_ping_ms = t0.elapsed().as_millis() as u64;
+                                if status.is_connected {
+                                    // Ensure mode 3 (HDSP direct streaming)
+                                    let _ = client.set_mode(&key, 3);
+                                    let _ = event_tx.send(HandyEvent::Connected { status });
+                                } else {
+                                    let _ = event_tx.send(HandyEvent::Disconnected {
+                                        reason: "Device reported offline or invalid key".to_string(),
+                                    });
+                                }
+                            }
+                            Err(e) => {
+                                let _ = event_tx.send(HandyEvent::Error {
+                                    message: format!("Connection check failed: {e}"),
+                                });
+                            }
+                        }
+                    }
+                    HandyCommand::SetMode { key, mode } => {
+                        if let Err(e) = client.set_mode(&key, mode) {
+                            let _ = event_tx.send(HandyEvent::Error {
+                                message: format!("Set mode failed: {e}"),
+                            });
+                        }
+                    }
+                    HandyCommand::SendPosition { key, position_pct, duration_ms } => {
+                        if stream.is_some() {
+                            continue; // scripted playback owns the device
+                        }
+                        if device_in_hsp_mode {
+                            let _ = client.set_mode(&key, 3);
+                            device_in_hsp_mode = false;
+                        }
+                        match client.send_hdsp_xpt(&key, position_pct, duration_ms) {
+                            Ok(()) => {
+                                let _ = event_tx.send(HandyEvent::PositionAck { position: position_pct });
+                            }
+                            Err(e) => {
+                                let _ = event_tx.send(HandyEvent::Error {
+                                    message: format!("HDSP position command failed: {e}"),
+                                });
+                            }
+                        }
+                    }
+                    HandyCommand::Stop { key } => {
+                        if let Some(h) = hsp.as_mut() {
+                            let _ = h.stop();
+                        }
+                        stream = None;
+                        let _ = client.stop(&key);
+                    }
+                    HandyCommand::HspPlay { key, api_key, points, cursor_ms, issued, rate: r } => {
+                        let h = hsp.get_or_insert_with(|| HspClient::new(&api_key, &key));
+                        let started = (|| -> anyhow::Result<HspStream> {
+                            let _ = h.stop();
+                            h.ensure_hsp_mode()?;
+                            let mut st = HspStream::begin(h, points, cursor_ms)?;
+                            st.load_until(h, (cursor_ms as f64 + (HSP_AHEAD_MS + HSP_START_SLACK_MS) * r) as u64)?;
+                            let clock = h.server_clock(2)?;
+                            let start = cursor_ms as f64 + issued.elapsed().as_millis() as f64 * r;
+                            h.play(start as i32, r, &clock)?;
+                            Ok(st)
+                        })();
+                        match started {
+                            Ok(st) => {
+                                stream = Some(st);
+                                rate = r;
+                                device_in_hsp_mode = true;
+                            }
+                            Err(e) => {
+                                stream = None;
+                                hsp = None; // rebuild credentials/token on next attempt
+                                let _ = event_tx.send(HandyEvent::Error { message: format!("Handy playback failed: {e}") });
+                            }
+                        }
+                    }
+                    HandyCommand::HspTick { pos_ms } => {
+                        if let (Some(h), Some(st)) = (hsp.as_mut(), stream.as_mut()) {
+                            let result = st.load_until(h, (pos_ms as f64 + HSP_AHEAD_MS * rate) as u64);
+                            if let Err(e) = result {
+                                let _ = event_tx.send(HandyEvent::Error { message: format!("Handy buffer top-up failed: {e}") });
+                            } else if pos_ms as u64 > st.end_ms() + 500 {
+                                let _ = h.stop();
+                                stream = None;
+                            }
+                        }
+                    }
+                    HandyCommand::HspStop => {
+                        if let Some(h) = hsp.as_mut() {
+                            let _ = h.stop();
+                        }
+                        stream = None;
+                    }
+                }
+            }
+        });
+
+        Self {
+            cmd_tx,
+            event_rx,
+            status: HandyStatus::default(),
+            last_error: None,
+            is_connecting: false,
+            last_pos_sent: -1.0,
+            last_send_time: Instant::now() - Duration::from_secs(10),
+            hsp_active: false,
+            last_tick: Instant::now(),
+            hsp_end_ms: 0,
+        }
+    }
+
+    /// Trigger asynchronous connection test and info retrieval
+    pub fn connect(&mut self, key: &str) {
+        if key.trim().is_empty() {
+            self.last_error = Some("Connection key cannot be empty".to_string());
+            return;
+        }
+        self.is_connecting = true;
+        self.last_error = None;
+        let _ = self.cmd_tx.send(HandyCommand::CheckConnection {
+            key: key.trim().to_string(),
+        });
+    }
+
+    /// Disconnect and signal stop to device
+    pub fn disconnect(&mut self, key: &str) {
+        self.status.is_connected = false;
+        self.is_connecting = false;
+        let _ = self.cmd_tx.send(HandyCommand::Stop {
+            key: key.trim().to_string(),
+        });
+    }
+
+    /// Set operating mode on connected device (0: Off, 1: HAMP, 2: HSSP, 3: HDSP)
+    pub fn set_mode(&mut self, key: &str, mode: i32) {
+        let _ = self.cmd_tx.send(HandyCommand::SetMode {
+            key: key.trim().to_string(),
+            mode,
+        });
+    }
+
+    /// Stream normalized stroke position [0.0, 100.0] respecting rate-limits and min/max bounds
+    pub fn stream_position(&mut self, key: &str, raw_pos: f32, config: &HandyConfig, duration_ms: u32) {
+        if !config.is_enabled || !self.status.is_connected || key.trim().is_empty() || self.hsp_active {
+            return;
+        }
+
+        let pos = if config.invert {
+            (100.0 - raw_pos).clamp(0.0, 100.0)
+        } else {
+            raw_pos.clamp(0.0, 100.0)
+        };
+
+        // Rate limit cloud commands to max 15-16 requests/sec (~60ms interval) to comply with API limits
+        let elapsed = self.last_send_time.elapsed().as_millis();
+        let pos_delta = (pos - self.last_pos_sent).abs();
+        if elapsed < 60 || (pos_delta < 1.0 && elapsed < 250) {
+            return;
+        }
+
+        // Map raw [0, 100] into user's [min_stroke_pct, max_stroke_pct] range
+        let range = (config.max_stroke_pct - config.min_stroke_pct).max(5.0);
+        let mapped_pos = config.min_stroke_pct + (pos / 100.0) * range;
+
+        let _ = self.cmd_tx.send(HandyCommand::SendPosition {
+            key: key.trim().to_string(),
+            position_pct: mapped_pos,
+            duration_ms: duration_ms.clamp(40, 400),
+        });
+
+        self.last_pos_sent = pos;
+        self.last_send_time = Instant::now();
+    }
+
+    /// Explicitly send a manual position command without rate-limiting (e.g. for test buttons or scrubbing)
+    pub fn send_manual_position(&mut self, key: &str, raw_pos: f32, config: &HandyConfig, duration_ms: u32) {
+        if !self.status.is_connected || key.trim().is_empty() || self.hsp_active {
+            return;
+        }
+
+        let pos = if config.invert {
+            (100.0 - raw_pos).clamp(0.0, 100.0)
+        } else {
+            raw_pos.clamp(0.0, 100.0)
+        };
+
+        let range = (config.max_stroke_pct - config.min_stroke_pct).max(5.0);
+        let mapped_pos = config.min_stroke_pct + (pos / 100.0) * range;
+
+        let _ = self.cmd_tx.send(HandyCommand::SendPosition {
+            key: key.trim().to_string(),
+            position_pct: mapped_pos,
+            duration_ms: duration_ms.clamp(40, 600),
+        });
+
+        self.last_pos_sent = pos;
+        self.last_send_time = Instant::now();
+    }
+
+    /// Start or restart scripted playback from `cursor_ms` (device plays from its own buffer).
+    pub fn hsp_play(&mut self, config: &HandyConfig, points: Arc<Vec<(u32, u8)>>, cursor_ms: i64, rate: f64) {
+        let api_key = if config.api_key.trim().is_empty() {
+            std::env::var("HANDY_API_KEY").unwrap_or_default()
+        } else {
+            config.api_key.clone()
+        };
+        if api_key.trim().is_empty() {
+            self.last_error = Some("Set the Handy application key (or HANDY_API_KEY) for scripted playback".to_string());
+            return;
+        }
+        if points.len() < 2 || config.connection_key.trim().is_empty() {
+            return;
+        }
+        self.hsp_active = true;
+        self.hsp_end_ms = points.last().map(|p| p.0 as i64).unwrap_or(0);
+        let _ = self.cmd_tx.send(HandyCommand::HspPlay {
+            key: config.connection_key.trim().to_string(),
+            api_key,
+            points,
+            cursor_ms,
+            issued: Instant::now(),
+            rate,
+        });
+    }
+
+    /// Feed the current play position so the device buffer stays topped up (throttled).
+    pub fn hsp_tick(&mut self, pos_ms: i64) {
+        if self.hsp_active && pos_ms > self.hsp_end_ms + 500 {
+            self.hsp_active = false; // the worker stops the device at the end of the script
+        }
+        if self.hsp_active && self.last_tick.elapsed() >= Duration::from_millis(400) {
+            self.last_tick = Instant::now();
+            let _ = self.cmd_tx.send(HandyCommand::HspTick { pos_ms });
+        }
+    }
+
+    pub fn hsp_stop(&mut self) {
+        if self.hsp_active {
+            self.hsp_active = false;
+            let _ = self.cmd_tx.send(HandyCommand::HspStop);
+        }
+    }
+
+    /// Poll incoming events from background worker
+    pub fn poll_events(&mut self) {
+        while let Ok(event) = self.event_rx.try_recv() {
+            match event {
+                HandyEvent::Connected { status } => {
+                    self.status = status;
+                    self.is_connecting = false;
+                    self.last_error = None;
+                }
+                HandyEvent::Disconnected { reason } => {
+                    self.status.is_connected = false;
+                    self.is_connecting = false;
+                    self.last_error = Some(reason);
+                }
+                HandyEvent::Error { message } => {
+                    self.last_error = Some(message);
+                    self.is_connecting = false;
+                }
+                HandyEvent::PositionAck { .. } => {}
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_handy_config_defaults() {
+        let cfg = HandyConfig::default();
+        assert_eq!(cfg.min_stroke_pct, 0.0);
+        assert_eq!(cfg.max_stroke_pct, 100.0);
+        assert!(cfg.direct_hdsp_mode);
+        assert!(!cfg.is_enabled);
+        assert!(!cfg.invert);
+    }
+
+    #[test]
+    fn test_handy_stroke_mapping() {
+        let cfg = HandyConfig {
+            connection_key: "TESTKEY".to_string(),
+            is_enabled: true,
+            min_stroke_pct: 20.0,
+            max_stroke_pct: 80.0,
+            direct_hdsp_mode: true,
+            invert: false,
+            ..Default::default()
+        };
+
+        let map_fn = |raw: f32, invert: bool| -> f32 {
+            let pos = if invert { (100.0 - raw).clamp(0.0, 100.0) } else { raw.clamp(0.0, 100.0) };
+            let range = cfg.max_stroke_pct - cfg.min_stroke_pct;
+            cfg.min_stroke_pct + (pos / 100.0) * range
+        };
+
+        assert_eq!(map_fn(0.0, false), 20.0);
+        assert_eq!(map_fn(50.0, false), 50.0);
+        assert_eq!(map_fn(100.0, false), 80.0);
+        assert_eq!(map_fn(0.0, true), 80.0);
+        assert_eq!(map_fn(50.0, true), 50.0);
+        assert_eq!(map_fn(100.0, true), 20.0);
+    }
+
+    #[test]
+    fn test_handy_payload_json_schema() {
+        let position_pct = 75.0_f32;
+        let duration_ms = 120_u32;
+        let clamped_pos = position_pct.clamp(0.0, 100.0);
+        let payload = json!({
+            "xp": clamped_pos,
+            "t": duration_ms.max(10),
+            "position": clamped_pos,
+            "duration": duration_ms.max(10),
+            "immediateResponse": false,
+            "stopOnTarget": false
+        });
+        assert_eq!(payload["xp"], 75.0);
+        assert_eq!(payload["t"], 120);
+        assert_eq!(payload["immediateResponse"], false);
+    }
+
+    #[test]
+    fn test_handy_dispatcher_creation() {
+        let mut disp = HandyDispatcher::new();
+        assert!(!disp.status.is_connected);
+        assert!(!disp.is_connecting);
+        disp.poll_events();
+    }
+}
