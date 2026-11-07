@@ -51,7 +51,10 @@ impl LocalClient {
     }
 
     /// Connect and bound all later calls by the same absolute deadline.
-    pub fn connect_until(path: impl AsRef<Path>, deadline: Instant) -> Result<Self, TransportError> {
+    pub fn connect_until(
+        path: impl AsRef<Path>,
+        deadline: Instant,
+    ) -> Result<Self, TransportError> {
         let stream = connect_local_until(path.as_ref(), deadline)?;
         let timeout = connect_remaining(deadline)?;
         stream.set_recv_timeout(Some(timeout))?;
@@ -344,7 +347,10 @@ mod endpoint_tests {
         let mut stream = LocalStream::UdSocket(client.into());
         let mut bounded = DeadlineStream::new(&mut stream, Instant::now() + Duration::from_secs(2));
         let mut response = [0; 5];
-        assert_eq!(bounded.read_exact(&mut response).unwrap_err().kind(), io::ErrorKind::UnexpectedEof);
+        assert_eq!(
+            bounded.read_exact(&mut response).unwrap_err().kind(),
+            io::ErrorKind::UnexpectedEof
+        );
     }
 
     #[cfg(unix)]
@@ -355,7 +361,10 @@ mod endpoint_tests {
         drop(server);
         let mut stream = LocalStream::UdSocket(client.into());
         let mut bounded = DeadlineStream::new(&mut stream, Instant::now() + Duration::from_secs(2));
-        assert_eq!(bounded.write(b"chunk").unwrap_err().kind(), io::ErrorKind::BrokenPipe);
+        assert_eq!(
+            bounded.write(b"chunk").unwrap_err().kind(),
+            io::ErrorKind::BrokenPipe
+        );
     }
 
     #[cfg(unix)]
@@ -366,8 +375,14 @@ mod endpoint_tests {
         server.set_nonblocking(true).unwrap();
         let mut stream = LocalStream::UdSocket(client.into());
         let mut bounded = DeadlineStream::new(&mut stream, Instant::now());
-        assert_eq!(bounded.write(b"chunk").unwrap_err().kind(), io::ErrorKind::TimedOut);
-        assert_eq!(server.read(&mut [0; 1]).unwrap_err().kind(), io::ErrorKind::WouldBlock);
+        assert_eq!(
+            bounded.write(b"chunk").unwrap_err().kind(),
+            io::ErrorKind::TimedOut
+        );
+        assert_eq!(
+            server.read(&mut [0; 1]).unwrap_err().kind(),
+            io::ErrorKind::WouldBlock
+        );
     }
 
     #[cfg(unix)]
@@ -381,16 +396,14 @@ mod endpoint_tests {
                 let _ = std::fs::remove_dir(&self.0);
             }
         }
-        let directory = Directory(
-            std::env::temp_dir().join(format!(
+        let directory = Directory(std::env::temp_dir().join(format!(
                 "p{}-{:x}",
                 std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
                     .as_nanos() as u64
-            )),
-        );
+            )));
         std::fs::create_dir(&directory.0).unwrap();
         let path = directory.0.join("control.sock");
         let listener = UnixListener::bind(&path).unwrap();

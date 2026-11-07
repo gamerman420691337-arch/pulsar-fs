@@ -399,7 +399,9 @@ mod tests {
             Ok(_) => panic!("duplicate bypassed the accepted-sample bound"),
             Err(error) => error,
         };
-        assert!(error.message.contains("assembly exceeds 4096 accepted points"));
+        assert!(error
+            .message
+            .contains("assembly exceeds 4096 accepted points"));
     }
 
     #[test]
