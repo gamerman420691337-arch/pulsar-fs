@@ -214,8 +214,12 @@ impl Player {
     }
     fn play(&mut self, shared: &Shared, epoch: u64) -> Result<()> {
         let mpv = self.mpv.as_mut().context("Open a video and script first")?;
-        let position = mpv.state()?.position_ms;
+        let state = mpv.state()?;
         mpv.pause(true)?;
+        if state.eof || state.position_ms >= self.points.last().map_or(0, |p| p.0 as u64) {
+            mpv.seek(0)?;
+        }
+        let position = mpv.state()?.position_ms;
         ensure!(
             position < self.points.last().map_or(0, |p| p.0 as u64),
             "seek before the end of the script"
@@ -468,6 +472,13 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
             };
             if let Ok(mut status) = shared.status.lock() {
                 status.message = message;
+                status.loaded = player.mpv.is_some();
+                status.armed = player.armed_until.is_some();
+                status.connected = player.hsp.is_some();
+                status.playing = player.playing;
+                status.expires_in_ms = player.armed_until.map_or(0, |t| {
+                    t.saturating_duration_since(Instant::now()).as_millis() as u64
+                });
                 status.busy = false;
             }
             if closed {
@@ -477,6 +488,7 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
             }
         }
         if last_tick.elapsed() >= Duration::from_millis(50) {
+            let was_playing = player.playing;
             let result = player.tick();
             if result.is_err() {
                 player.close();
@@ -488,6 +500,9 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
                         status.duration_ms =
                             duration.max(player.points.last().map_or(0, |p| p.0 as u64));
                         status.playing = playing;
+                        if was_playing && !playing {
+                            status.message = "Playback paused or finished".into();
+                        }
                     }
                     Err(_) => {
                         status.message =

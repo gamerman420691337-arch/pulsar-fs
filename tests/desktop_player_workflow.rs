@@ -269,6 +269,31 @@ fn desktop_player_local_media_workflow_and_controller_loss() -> Result<()> {
         "controller loss must leave Handy disarmed"
     );
 
+    // Play at EOF must restart the source and script together, not resume an
+    // exhausted HSP stream against a restarted video clock.
+    call(
+        &mut client,
+        &proof,
+        Action::Seek {
+            position_ms: 19_000,
+        },
+    )?;
+    wait_for(&mut client, &proof, "seek near end", |s| {
+        s.position_ms >= 18_900
+    })?;
+    call(&mut client, &proof, Action::Play)?;
+    wait_for(&mut client, &proof, "video EOF", |s| {
+        !s.playing && s.position_ms >= 19_800
+    })?;
+    call(&mut client, &proof, Action::Play)?;
+    wait_for(&mut client, &proof, "replay after EOF", |s| {
+        s.playing && (300..2000).contains(&s.position_ms)
+    })?;
+    call(&mut client, &proof, Action::Stop)?;
+    wait_for(&mut client, &proof, "stop replay", |s| {
+        !s.playing && s.position_ms <= 100
+    })?;
+
     call(&mut client, &proof, Action::Close)?;
     wait_for(&mut client, &proof, "player close", |s| !s.loaded)?;
     Ok(())
