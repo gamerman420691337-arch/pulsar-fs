@@ -2,106 +2,103 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      full:
+        description: Run full portable and Linux Engine suites
+        type: boolean
+        default: false
   schedule:
     - cron: '17 6 * * *'
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
-    types: [opened, synchronize, reopened, edited]
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: '0'
+  CARGO_PROFILE_DEV_DEBUG: '1'
+  CARGO_PROFILE_TEST_DEBUG: '1'
 
 jobs:
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: fast-v2
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install Linux Dependencies
+      # Compilation needs native headers on Linux, not an installed media stack.
+      - name: Install Linux build dependencies
         if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg libasound2-dev libudev-dev pkg-config
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libudev-dev pkg-config
 
-      - name: Install Windows Dependencies
-        if: runner.os == 'Windows'
-        run: |
-          choco install ffmpeg
+      - name: Check workspace compilation
+        run: cargo check --workspace --all-targets --locked
 
-      - name: Install macOS Dependencies
-        if: runner.os == 'macOS'
-        run: |
-          brew install ffmpeg
-
-      - name: Check execution dashboard
+      - name: Check project and architecture
         if: runner.os == 'Linux'
         run: |
           python3 -B scripts/execution_dashboard.py --check
           python3 -B scripts/test_execution_dashboard.py
+          node scripts/check-architecture.mjs
+          node --test scripts/architecture-source-guards.test.mjs scripts/browser-live-player.test.mjs
 
-      - name: Check compilation
-        run: cargo check --workspace --all-targets --locked --verbose
-
-      - name: Enforce architecture boundaries
+      # These exercise deterministic code and wire contracts without building the
+      # large Engine or GUI test executables. Full runtime suites run below.
+      - name: Test fast contracts
         if: runner.os == 'Linux'
-        run: node scripts/check-architecture.mjs
-
-      - name: Test browser player behavior
-        if: runner.os == 'Linux'
-        run: node --test scripts/browser-live-player.test.mjs
-
-      - name: Run fast contract and client tests
         shell: bash
         run: |
           set -euo pipefail
-          run_fast() {
-            cargo test -p "$1" --lib "$2" --locked | tee "$RUNNER_TEMP/pulsar-fast-result.txt"
-            grep -Eq 'test result: ok\. [1-9][0-9]* passed;' "$RUNNER_TEMP/pulsar-fast-result.txt"
-          }
-          run_fast pulsar-core source_transition_
-          run_fast pulsar-protocol project_package::tests
-          run_fast pulsar-clients preview::tests
-          if [[ "$RUNNER_OS" != Windows ]]; then
-            run_fast pulsar-protocol unix_local_connection_is_bounded_verified_and_bidirectional
-            run_fast pulsar-protocol deadline_stream_
-            run_fast pulsar-clients reference_
-          fi
-          if [[ "$RUNNER_OS" == Linux ]]; then
-            run_fast pulsar-clients source_cleanup
-            run_fast pulsar-engine assistant_owner_policy::tests
-            run_fast pulsar-engine browser_archive_reader_delegates_live_cuda_base_without_inventing_evidence
-            run_fast pulsar-engine browser_pair_correspondence_diagnostic_keeps_bound_and_short_circuit
-            run_fast pulsar-engine browser_ready_rejects_running_at_or_after_original_deadline
-            run_fast pulsar-engine cpu_startup_phase_is_bounded_and_attempt_scoped
-          fi
+          cargo test -p pulsar-core --lib --locked
+          cargo test -p pulsar-protocol --lib project_package::tests --locked | tee "$RUNNER_TEMP/protocol-results.txt"
+          grep -Eq 'test result: ok\. [1-9][0-9]* passed;' "$RUNNER_TEMP/protocol-results.txt"
 
-      - name: Run portable contract and client tests
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
-        run: cargo test -p pulsar-core -p pulsar-protocol -p pulsar-clients --locked --verbose
-
-      - name: Run Linux engine and media contract tests
-        if: runner.os == 'Linux' && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
-        # Full DWARF pushes the test executable beyond the control-image admission bound.
-        # Keep line tables without changing test code, assertions, or the production bound.
-        env:
-          CARGO_PROFILE_TEST_DEBUG: "1"
-        run: cargo test -p pulsar-engine --lib --locked --verbose
-
-      # The full subprocess gate additionally requires delegated cgroup v2 and
-      # bubblewrap. A hosted PR job is not evidence of worker confinement. Run
-      # scripts/qualify-architecture.sh on the identified qualification host.
+  full:
+    name: Full (${{ matrix.os }})
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.full)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: full-v2
+      - name: Install Linux runtime dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg libasound2-dev libudev-dev pkg-config
+      - name: Install Windows media tools
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg --no-progress -y
+      - name: Install macOS media tools
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - name: Test portable contracts and clients
+        run: cargo test -p pulsar-core -p pulsar-protocol -p pulsar-clients --locked
+      - name: Test Linux Engine and media contracts
+        if: runner.os == 'Linux'
+        run: cargo test -p pulsar-engine --lib --locked
+      # Subprocess confinement additionally needs the identified native host's
+      # delegated cgroup v2 and bubblewrap; hosted CI does not establish it.

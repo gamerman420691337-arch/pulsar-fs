@@ -6,7 +6,7 @@ Reconciled **2026-11-06 (America/New_York)**. Full roadmap: **INCOMPLETE**. Auto
 
 ## Now
 
-**Current working tree: VERIFIED.** The single integration branch is established and all workspace targets compile with default features. The initial launcher E0063 failure is retained and repaired with constrained/no-custom-limit assistant defaults. No Rust runtime suite or physical device operation was executed during consolidation. Historical platform/native failures, rendered continuity, useful model quality and all 29 acceptance gates remain open. APP-PLAYBACK is the next product slice; the autonomous runtime runner remains paused.
+**Current working tree: UNVERIFIED.** Fast PR CI compiles all targets on Linux, Windows and macOS, runs deterministic/wire/browser checks, and avoids media installs and Engine/GUI test-binary code generation. Duplicate edited-trigger runs are removed and superseded runs cancel. Unix-only consent tests are scoped correctly for Windows; full suites remain nightly/manual. Existing integration receipts retain their original subjects; current hosted results are on PR34. Working product workflows are the delivery priority.
 
 All workspace targets compile with default features and no warnings after conservative assistant setup defaults are wired. Rust tests are compiled, not executed; optional-feature, native, physical-device and release acceptance are not established. Evidence: [EV-INTEGRATION-BUILD-002](/mnt/4tb/artifacts/Funscripts/keep/pulsar-consolidation-2026-11-06/integration-build-002.json).
 

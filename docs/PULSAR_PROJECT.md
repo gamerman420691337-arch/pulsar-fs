@@ -149,6 +149,10 @@ A handback contains the commit, changed paths, exact checks/results and remainin
 
 ## How work is tracked
 
+**Build working behavior first.** Routine changes need a focused check and a short task update when the user-visible result changes. Product/release qualification is a later checkpoint, not a prerequisite for ordinary implementation or an attended development demo. Existing device permissions and Stop behavior remain part of the working app.
+
+PR CI compiles all targets on Linux, Windows and macOS and runs bounded deterministic/wire/browser checks. It avoids model downloads, media-tool installation and Engine/GUI test-binary code generation. Full portable/client and Linux Engine suites run nightly or via `workflow_dispatch` with `full=true`; native/device qualification is separate. Superseded PR runs cancel automatically.
+
 Use the existing ledger rather than adding another governance system. For each useful slice, record the user-visible result, its blocker/dependency and its proof in the existing task. Keep scoped verification separate from gate acceptance. Update the app guide when controls change. Run relevant focused tests and actual workflow checks; broader release campaigns run at release checkpoints. Update the JSON and regenerate/check the dashboard. Audit retained receipts when reconciling evidence on the evidence host.
 
 Do not append a dated progress paragraph to multiple plans. Do not create a new plan for an already cataloged feature. Add a technical note only when the decision, interface or reproduction cannot be expressed clearly in its existing home. Mandatory model reviews remain suspended. Human/device/data/release acceptance requirements remain in force.

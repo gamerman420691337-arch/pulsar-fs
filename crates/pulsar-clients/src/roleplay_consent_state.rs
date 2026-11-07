@@ -9,6 +9,7 @@
 //! Consent withdrawal and revocation are ordinary writes here. They are never
 //! gated on approval, because a stop or a withdrawal that needs consent is not one.
 use super::*;
+#[cfg(unix)]
 use std::io::Write;
 use std::path::Path;
 
@@ -228,7 +229,7 @@ pub fn status(path: &Path, now_ns: u64) -> Result<ConsentSummary> {
     Ok(load(path)?.summary(now_ns))
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
@@ -479,5 +480,19 @@ mod tests {
             status(&path, 1_100).unwrap().effect_refusal,
             Some("consent_revoked")
         );
+    }
+}
+
+#[cfg(all(test, not(unix)))]
+mod platform_tests {
+    use super::*;
+
+    #[test]
+    fn unsupported_private_replace_does_not_create_a_document() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("consent.json");
+        let error = replace(&path, &RoleplayConsentDocument::least_permissive()).unwrap_err();
+        assert!(error.to_string().contains("unavailable on this platform"));
+        assert!(!path.exists());
     }
 }

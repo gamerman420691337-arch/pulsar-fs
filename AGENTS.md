@@ -6,6 +6,10 @@ scope, delivery order and the supporting-document hierarchy. Its document catalo
 covers technical references and preserved historical plans; do not revive their
 old queues or append another dated status narrative.
 
+Prioritize working user workflows and focused checks. Full qualification belongs
+at later checkpoints; do not require new receipts or planning documents for
+every implementation step.
+
 Task state, dependencies and evidence belong only in `docs/PULSAR_EXECUTION.json`.
 Follow its active slice and dependencies. Mark changed source unverified until a
 fresh source-bound result exists; retain the last passing checkpoint and failures.
