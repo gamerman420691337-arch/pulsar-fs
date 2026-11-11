@@ -165,6 +165,16 @@ fn execute_work(client: &mut impl EngineApi, work: RpcWork) -> anyhow::Result<Re
         RpcCommand::Identified(id, command) => {
             client.execute_identified(id, command, work.project, work.revision)
         }
+        RpcCommand::Wire(Command::CommitCandidate { candidate_id }) => crate::commit_candidate(
+            client,
+            work.project
+                .ok_or_else(|| anyhow::anyhow!("Candidate commit lacks project identity"))?,
+            work.revision
+                .ok_or_else(|| anyhow::anyhow!("Candidate commit lacks reviewed revision"))?,
+            candidate_id,
+            None,
+        )
+        .map(|snapshot| ResponseBody::Project(Box::new(snapshot))),
         RpcCommand::Wire(Command::ExportAxis { path, axis }) => crate::export_axis(
             client,
             work.project
