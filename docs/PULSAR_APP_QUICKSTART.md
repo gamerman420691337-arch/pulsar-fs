@@ -99,10 +99,24 @@ For a script, open **Generator**, select **Funscript candidate import**, enter i
 
 For media, enter an absolute file path in **Media path** and click **Import immutable source**. Use **Studio** or **Cinema** for preview. For generation, choose **Video motion** and an explicit admitted model/profile or selected pack; no useful default model is currently selected. Do not interpret a diagnostic graph's output as recovered source motion.
 
-For CLI regeneration that requires review before applying changes, add
-`--stage-only` to `pulsar regenerate`. The command prints the candidate
-and its review flags. Use `pulsar review --candidate` to inspect it and
-`pulsar merge-candidate` to apply the selected axes and time range.
+### Regenerate part of an existing script
+
+1. Open the project with your committed script and choose **Video motion** in **Generator**. Select the media source and the model and profile you intend to evaluate.
+2. Enable **Reanalyse a project-time interval**. Enter the inclusive start and exclusive end in nanoseconds. For example, 4.000–5.500 seconds is `4000000000` through `5500000000`.
+3. Click **Generate stroke candidate**. Use **Refresh job** to check progress, then **Review candidate** when the job has produced one. The master stays at its current revision during generation and review.
+4. Click **Inspect candidate and protected regions**. Check the review flags and their time ranges. Manual commits protect the interpolation spans they changed.
+5. Click **Apply all candidate axes / preserve protected edits** to apply within the candidate's retained interval. To limit the change to specific axes, use **Merge selected axes / preserve protection**. If the project revision changed while you were reviewing, explicitly rebase and inspect the new candidate before applying.
+6. Select Stroke on the timeline, enter a new absolute path in **Export Stroke .funscript path**, and click **Export committed revision**.
+
+The CLI equivalent stages a candidate and applies it in a separate command. In
+`SETTINGS_JSON`, set `project_interval` to the interval you intend to regenerate.
+The example assumes the project's current revision is 1.
+
+```sh
+pulsar regenerate PROJECT SOURCE --revision 1 --settings SETTINGS_JSON --model MODEL_ONNX --stage-only
+pulsar review PROJECT --candidate CANDIDATE
+pulsar merge-candidate PROJECT CANDIDATE --start 4 --end 5.5 --output /absolute/regenerated.funscript
+```
 
 ## Select captured CPU dependencies
 
