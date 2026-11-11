@@ -828,7 +828,7 @@ test('lookahead startup times out while the original capture Start is pending', 
  assert.ok(p.sent.some(r=>r.route==='/start'));
  p.advance(5000);await flush();
  assert.equal(p.elements.video.paused,true);
- assert.match(p.elements.status.textContent,/startup deadline/);
+ assert.match(p.elements.status.textContent,/startup deadline expired while waiting for Engine capture admission/);
  p.release();await pending;
  assert.ok(!p.sent.some(r=>r.route==='/frame'));
 });
@@ -838,7 +838,7 @@ test('decoded lookahead frames cannot cancel startup timeout before native timin
  assert.equal(p.elements.video.paused,false);
  p.advance(5000);await flush();
  assert.equal(p.elements.video.paused,true);
- assert.match(p.elements.status.textContent,/startup deadline/);
+ assert.match(p.elements.status.textContent,/startup deadline expired while waiting for current visible-player timing/);
  const stoppedMessage=p.elements.status.textContent;
  p.releaseRoute();await flush();
  assert.equal(p.elements.status.textContent,stoppedMessage);
