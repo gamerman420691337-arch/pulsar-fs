@@ -4574,7 +4574,8 @@
         "EV-CPU-START-PHASE-PROBE",
         "EV-CPU-START-PHASE-PROBE-REPEAT",
         "EV-RECORDING-DEMO-STARTUP-WAIT",
-        "EV-RECORDING-DEMO-STARTUP-WAIT-REPEAT"
+        "EV-RECORDING-DEMO-STARTUP-WAIT-REPEAT",
+        "EV-SSD-STARTUP-C3D9F0E"
       ]
     },
     {
@@ -4858,6 +4859,29 @@
     }
   ],
   "evidence": [
+    {
+      "id": "EV-SSD-STARTUP-C3D9F0E",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/worker-fence-ssd-c3d9f0e.json",
+      "sha256": "edda10c055902b0a25a40e9d46dd0487a3353492bed04e1a1d87d6f463a3db30",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Three SSD-backed fresh Engine starts and sterile source inspections succeeded in 0.562, 3.455 and 0.487 seconds after the redundant ledger write repair. Persistent startup qualification remains open.",
+      "assertions": [
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "checkout"
+          ],
+          "equals": "c3d9f0e6fafd868d9924f5329ce5ee7bb3f7ad8f"
+        }
+      ]
+    },
     {
       "id": "EV-HOSTED-FULL-542F2BB",
       "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/hosted-full-ci-542f2bb.json",

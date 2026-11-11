@@ -181,6 +181,7 @@ Local retained artifacts may be unavailable on another machine. Outcome and scop
 
 | ID / outcome | Recorded scope | SHA-256 |
 | --- | --- | --- |
+| [EV-SSD-STARTUP-C3D9F0E](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/worker-fence-ssd-c3d9f0e.json) / partial | Three SSD-backed fresh Engine starts and sterile source inspections succeeded in 0.562, 3.455 and 0.487 seconds after the redundant ledger write repair. Persistent startup qualification remains open. | `edda10c055902b0a…` |
 | [EV-HOSTED-FULL-542F2BB](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/hosted-full-ci-542f2bb.json) / pass | GitHub Actions full Linux, macOS and Windows software jobs passed on 542f2bb. | `2f0f0dbf95284168…` |
 | [EV-BROWSER-TIMING-275ABD6](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/browser-timing-275abd6/summary.json) / pass | Native local Engine and authored diagnostic graph exchanged 42 timing observations without device contact. | `db301f2ddc8d6173…` |
 | [EV-STASH-ANNOTATED-CPU-542F2BB](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/stash-annotated-cpu-542f2bb/result.json) / pass | Four native annotated CPU batches against loopback Stash exercise file models and selected packs with and without explicit placement, including restart. | `193281f20925903d…` |
