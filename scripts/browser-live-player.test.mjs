@@ -821,6 +821,17 @@ test('pause while Handy Start response is held retires exact player and late rep
 });
 
 async function startLookahead(p){await prepareMedia(p);p.play();await flush();await p.frame(.1);await flush();}
+test('lookahead startup times out while the original capture Start is pending', async()=>{
+ const p=mediaPlayer({lookahead:true,timing:true,holdStart:true});
+ await startLookahead(p);
+ const pending=p.analysisFrame(1.1);await flush();
+ assert.ok(p.sent.some(r=>r.route==='/start'));
+ p.advance(5000);await flush();
+ assert.equal(p.elements.video.paused,true);
+ assert.match(p.elements.status.textContent,/startup deadline/);
+ p.release();await pending;
+ assert.ok(!p.sent.some(r=>r.route==='/frame'));
+});
 test('decoded lookahead frames cannot cancel startup timeout before native timing is ready', async()=>{
  const p=mediaPlayer({lookahead:true,timing:true,holdRoute:'/player/timing-observe'});
  await startLookahead(p);await p.analysisFrame(1.1);
