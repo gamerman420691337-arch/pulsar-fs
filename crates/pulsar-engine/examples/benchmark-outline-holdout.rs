@@ -136,7 +136,7 @@ fn evaluate(
         / count;
     let mean = |values: &[f64]| values.iter().sum::<f64>() / count;
     let (x_mean, y_mean) = (mean(&estimates), mean(&labels));
-    let variance = |values: &[f64], center| {
+    let variance = |values: &[f64], center: f64| {
         values
             .iter()
             .map(|value| (value - center).powi(2))
