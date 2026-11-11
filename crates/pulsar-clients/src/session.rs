@@ -1115,6 +1115,7 @@ mod tests {
         loop {
             match listener.accept() {
                 Ok((stream, _)) => {
+                    stream.set_nonblocking(false).unwrap();
                     stream
                         .set_read_timeout(Some(Duration::from_secs(2)))
                         .unwrap();
