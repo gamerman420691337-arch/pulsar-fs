@@ -174,6 +174,18 @@ fn execute_work(client: &mut impl EngineApi, work: RpcWork) -> anyhow::Result<Re
             path,
             axis,
         ),
+        RpcCommand::Wire(
+            command @ (Command::ImportFunscript { .. } | Command::ImportFunscriptForRepair { .. }),
+        ) => {
+            let project = work
+                .project
+                .ok_or_else(|| anyhow::anyhow!("Script import lacks project identity"))?;
+            let revision = work
+                .revision
+                .ok_or_else(|| anyhow::anyhow!("Script import lacks base revision"))?;
+            crate::import_script_candidate(client, project, revision, command)
+                .map(|candidate| ResponseBody::Candidate(Box::new(candidate)))
+        }
         RpcCommand::Wire(command) => client.execute(command, work.project, work.revision),
         RpcCommand::HandyInspect(_) | RpcCommand::HandyRegistration(_) => {
             anyhow::bail!("Handy inspection requires the trusted session-bound owner directory")

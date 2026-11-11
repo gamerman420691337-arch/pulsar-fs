@@ -1884,6 +1884,50 @@ pub fn commit_candidate(
     }
 }
 
+/// Import a script as an uncommitted candidate at the selected revision.
+pub fn import_funscript(
+    api: &mut impl EngineApi,
+    project: ProjectId,
+    revision: RevisionId,
+    path: PathBuf,
+) -> Result<CandidateSnapshot> {
+    import_script_candidate(api, project, revision, Command::ImportFunscript { path })
+}
+
+pub(crate) fn import_funscript_for_repair(
+    api: &mut impl EngineApi,
+    project: ProjectId,
+    revision: RevisionId,
+    path: PathBuf,
+) -> Result<CandidateSnapshot> {
+    import_script_candidate(
+        api,
+        project,
+        revision,
+        Command::ImportFunscriptForRepair { path },
+    )
+}
+
+fn import_script_candidate(
+    api: &mut impl EngineApi,
+    project: ProjectId,
+    revision: RevisionId,
+    command: Command,
+) -> Result<CandidateSnapshot> {
+    match api.execute(command, Some(project.clone()), Some(revision))? {
+        ResponseBody::Candidate(candidate)
+            if candidate.project_id == project && candidate.base_revision == revision =>
+        {
+            Ok(*candidate)
+        }
+        _ => Err(ProtocolError::new(
+            ErrorCode::DependencyMismatch,
+            "script import acknowledgement differs from its project or base revision",
+        )
+        .into()),
+    }
+}
+
 /// Export a single axis at an exact committed revision.
 pub fn export_axis(
     api: &mut impl EngineApi,

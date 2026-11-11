@@ -37,19 +37,12 @@ pub(crate) fn fix(
 ) -> Result<()> {
     let project = create_project(api, "Script repair".into())?;
     eprintln!("Repair project retained: {}. Raw input unchanged; sanitized baseline and numerical edit have separate history. Script slopes do not establish motor safety.",project.project_id);
-    let candidate = match api.execute(
-        Command::ImportFunscriptForRepair {
-            path: absolute_path(input)?,
-        },
-        Some(project.project_id.clone()),
-        Some(project.revision),
-    )? {
-        crate::motion::ResponseBody::Candidate(candidate) => candidate,
-        _ => bail!("unexpected repair import response"),
-    };
-    if candidate.project_id != project.project_id || candidate.base_revision != project.revision {
-        bail!("repair import returned mismatched scope or revision");
-    }
+    let candidate = crate::import_funscript_for_repair(
+        api,
+        project.project_id.clone(),
+        project.revision,
+        absolute_path(input)?,
+    )?;
     let repaired = repair_standard_script(&candidate.program, options)?;
     eprintln!("Numerical repair: {} interior actions removed, {} positions slope-clamped; policy={options:?}.",repaired.removed_jitters,repaired.clamped_positions);
     let committed = crate::commit_candidate(
