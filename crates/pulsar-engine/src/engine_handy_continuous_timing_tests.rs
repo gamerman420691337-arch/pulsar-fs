@@ -388,8 +388,8 @@ fn handy_continuous_timing_renewal_during_read_preserves_installed_observation_b
             (
                 |h, _| Ok(h.downloaded.clone()),
                 |_, _, clock| {
-                    assert!(x.f.engine.db.try_lock().is_ok());
-                    assert!(x.f.engine.handy_preparations.try_lock().is_ok());
+                    handy_execution_wait(|| x.f.engine.db.try_lock().is_ok());
+                    handy_execution_wait(|| x.f.engine.handy_preparations.try_lock().is_ok());
                     tick.store(1_200_000_001, Ordering::Release);
                     let renewal =
                         controller_renew_request(&x.f, &x.lease, "renew-during-continuous-read");
