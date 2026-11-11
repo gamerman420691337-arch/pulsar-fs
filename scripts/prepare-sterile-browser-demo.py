@@ -13,6 +13,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("pulsar", "clip", "model", "output"):
         parser.add_argument(name, type=Path)
+    parser.add_argument(
+        "--launch", action="store_true",
+        help="Serve the prepared Browser Live player with the same Engine environment",
+    )
     args = parser.parse_args()
     app, clip, model = (path.resolve(strict=True) for path in (args.pulsar, args.clip, args.model))
     expected_source = "71d381468f83fd6e4116bb5d98b1c4453431702d1444e90b3c16d9d6d318494f"
@@ -52,10 +56,10 @@ def main():
         "source_anchor": zero, "project_anchor": 0, "presentation_anchor": 0,
         "lease_ms": 30_000,
     }, indent=2) + "\n")
-    print(json.dumps({
-        "state_dir": env["PULSAR_STATE_DIR"],
-        "command": [str(app), "browser-live", project, str(revision), str(options)],
-    }))
+    command = [str(app), "browser-live", project, str(revision), str(options)]
+    if args.launch:
+        os.execve(app, command, env)
+    print(json.dumps({"state_dir": env["PULSAR_STATE_DIR"], "command": command}))
 
 
 if __name__ == "__main__":
