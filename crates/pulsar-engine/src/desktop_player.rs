@@ -17,6 +17,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+const MAX_REVIEWED_VIDEO_BYTES: u64 = 512 * 1024 * 1024;
 const AHEAD_MS: u64 = 5_000;
 const SESSION_LIFETIME: Duration = Duration::from_secs(20 * 60);
 const HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(3);
@@ -129,7 +130,12 @@ impl Service {
             }
             return Ok(status);
         }
-        if owner.is_none() || matches!(action, Action::Open { .. } | Action::OpenMedia { .. }) {
+        if owner.is_none()
+            || matches!(
+                action,
+                Action::Open { .. } | Action::OpenMedia { .. } | Action::OpenReviewedMedia { .. }
+            )
+        {
             *owner = Some(session.into());
         }
         *shared.heartbeat.lock().map_err(|_| internal())? = Instant::now();
@@ -193,6 +199,7 @@ struct ScriptPoint {
 
 struct Player {
     mpv: Option<MpvPlayer>,
+    reviewed_media: Option<tempfile::TempDir>,
     hsp: Option<HspClient>,
     stream: Option<HspStream>,
     raw: Vec<(i64, i32)>,
@@ -208,6 +215,7 @@ impl Default for Player {
     fn default() -> Self {
         Self {
             mpv: None,
+            reviewed_media: None,
             hsp: None,
             stream: None,
             raw: Vec::new(),
@@ -240,6 +248,7 @@ impl Player {
         if let Some(mut mpv) = self.mpv.take() {
             mpv.close();
         }
+        self.reviewed_media = None;
         self.raw.clear();
         self.points = Arc::new(Vec::new());
     }
@@ -331,6 +340,28 @@ impl Player {
         self.playing = true;
         Ok(())
     }
+    fn open_media(
+        &mut self,
+        video: &std::path::Path,
+        display_path: &std::path::Path,
+        shared: &Shared,
+        directory: &std::path::Path,
+    ) -> Result<()> {
+        self.close();
+        self.mpv = Some(MpvPlayer::open(video, directory)?);
+        let mut status = shared
+            .status
+            .lock()
+            .map_err(|_| anyhow::anyhow!("player status unavailable"))?;
+        status.video_name = display_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into();
+        status.script_name.clear();
+        Ok(())
+    }
+
     fn apply(
         &mut self,
         action: Action,
@@ -388,18 +419,30 @@ impl Player {
                     .into();
             }
             Action::OpenMedia { video } => {
+                self.open_media(&video, &video, shared, directory)?;
+            }
+            Action::OpenReviewedMedia { video, sha256 } => {
                 self.close();
-                self.mpv = Some(MpvPlayer::open(&video, directory)?);
-                let mut status = shared
-                    .status
-                    .lock()
-                    .map_err(|_| anyhow::anyhow!("player status unavailable"))?;
-                status.video_name = video
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .into();
-                status.script_name.clear();
+                std::fs::create_dir_all(directory)?;
+                let custody = tempfile::Builder::new()
+                    .prefix("reviewed-")
+                    .tempdir_in(directory)?;
+                let (snapshot, digest, size) = crate::artifacts::snapshot_reserved(
+                    &video,
+                    custody.path(),
+                    MAX_REVIEWED_VIDEO_BYTES,
+                    0,
+                )?;
+                ensure!(
+                    size != 0 && digest == sha256,
+                    "reviewed video content changed"
+                );
+                ensure!(
+                    shared.epoch.load(Ordering::SeqCst) == epoch,
+                    "reviewed video open cancelled"
+                );
+                self.open_media(&snapshot, &video, shared, directory)?;
+                self.reviewed_media = Some(custody);
             }
             Action::Arm {
                 enabled,
@@ -680,6 +723,79 @@ mod tests {
         wait_for(|status| !status.busy && !status.playing && status.position_ms <= 100);
         service.request("test", "close", &Action::Close).unwrap();
         wait_for(|status| !status.busy && !status.loaded);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[ignore = "requires mpv and PULSAR_PLAYER_HEADLESS=1"]
+    fn reviewed_media_plays_from_snapshot_after_original_is_replaced() {
+        use sha2::{Digest, Sha256};
+        assert_eq!(std::env::var("PULSAR_PLAYER_HEADLESS").as_deref(), Ok("1"));
+        let directory = tempfile::tempdir().unwrap();
+        let video = directory.path().join("fixture.wav");
+        // One second of mono PCM, with no external encoder or data source.
+        let samples = [0u8; 16_000];
+        let mut wav = Vec::new();
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&(36 + samples.len() as u32).to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&[16, 0, 0, 0, 1, 0, 1, 0]);
+        wav.extend_from_slice(&8000u32.to_le_bytes());
+        wav.extend_from_slice(&16000u32.to_le_bytes());
+        wav.extend_from_slice(&[2, 0, 16, 0]);
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&(samples.len() as u32).to_le_bytes());
+        wav.extend_from_slice(&samples);
+        std::fs::write(&video, &wav).unwrap();
+
+        let shared = Shared::new();
+        let mut player = Player::default();
+        player
+            .apply(
+                Action::OpenReviewedMedia {
+                    video: video.clone(),
+                    sha256: format!("{:x}", Sha256::digest(&wav)),
+                },
+                &shared,
+                0,
+                directory.path(),
+            )
+            .unwrap();
+        std::fs::write(video, b"replacement").unwrap();
+        let custody = player.reviewed_media.as_ref().unwrap().path().to_owned();
+        let snapshot = std::fs::read_dir(&custody)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        assert_eq!(std::fs::read(snapshot).unwrap(), wav);
+        player.play(&shared, 0).unwrap();
+        player.close();
+        assert!(!custody.exists());
+    }
+
+    #[test]
+    fn reviewed_media_refuses_substituted_bytes_before_opening_mpv() {
+        let directory = tempfile::tempdir().unwrap();
+        let video = directory.path().join("substituted.mp4");
+        std::fs::write(&video, b"substituted bytes").unwrap();
+        let runtime = directory.path().join("player");
+        let mut player = Player::default();
+        let error = player
+            .apply(
+                Action::OpenReviewedMedia {
+                    video,
+                    sha256: "0".repeat(64),
+                },
+                &Shared::new(),
+                0,
+                &runtime,
+            )
+            .unwrap_err();
+        assert_eq!(error.to_string(), "reviewed video content changed");
+        assert!(player.mpv.is_none());
+        assert_eq!(std::fs::read_dir(runtime).unwrap().count(), 0);
     }
 
     #[test]
