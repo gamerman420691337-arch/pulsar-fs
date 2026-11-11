@@ -396,6 +396,7 @@ fn duplicate_browser_finish_reuses_original_engine_request_and_status_never_clos
                     Err(e) => panic!("accept: {e}"),
                 }
             };
+            stream.set_nonblocking(false).unwrap();
             stream
                 .set_read_timeout(Some(Duration::from_secs(1)))
                 .unwrap();
