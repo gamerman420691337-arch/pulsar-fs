@@ -59,6 +59,31 @@ impl Shared {
         }
     }
 
+    fn check_device_session(
+        &self,
+        epoch: u64,
+        armed_until: Option<Instant>,
+        start: Instant,
+    ) -> Result<()> {
+        ensure!(
+            self.epoch.load(Ordering::SeqCst) == epoch,
+            "Handy control cancelled"
+        );
+        ensure!(
+            armed_until.is_some_and(|until| until > start),
+            "Handy session expired; enable again"
+        );
+        let heartbeat = self
+            .heartbeat
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Handy controller unavailable"))?;
+        ensure!(
+            heartbeat.elapsed() < HEARTBEAT_TIMEOUT,
+            "Handy controller lost; enable again"
+        );
+        Ok(())
+    }
+
     fn publish_completion(&self, player: &Player, message: String) {
         // Serialize with enqueue, so completion cannot acknowledge a later Stop.
         let (Ok(queue), Ok(mut status)) = (self.queue.lock(), self.status.lock()) else {
@@ -375,12 +400,10 @@ impl Player {
         let position = mpv.state()?.position_ms;
         ensure!(position < end, "seek before the end of playback");
         if let Some(hsp) = self.hsp.as_mut() {
-            ensure!(
-                self.armed_until.is_some_and(|t| t > Instant::now()),
-                "Enable Handy for this session first"
-            );
+            shared.check_device_session(epoch, self.armed_until, Instant::now())?;
             hsp.stop()?;
             hsp.ensure_hsp_mode()?;
+            shared.check_device_session(epoch, self.armed_until, Instant::now())?;
             let points = if self.sync_offset_ms == 0 {
                 self.points.clone()
             } else {
@@ -388,12 +411,10 @@ impl Player {
             };
             let mut stream = HspStream::begin(hsp, points, position as i64)?;
             while !stream.loaded_until(position + AHEAD_MS) {
-                ensure!(
-                    shared.epoch.load(Ordering::SeqCst) == epoch,
-                    "play cancelled"
-                );
+                shared.check_device_session(epoch, self.armed_until, Instant::now())?;
                 stream.load_until(hsp, position + AHEAD_MS)?;
             }
+            shared.check_device_session(epoch, self.armed_until, Instant::now())?;
             let observed = hsp.state()?;
             ensure!(
                 observed["points"].as_u64() == Some(stream.sent() as u64),
@@ -404,23 +425,18 @@ impl Player {
                 clock.rtt_ms < START_LEAD_MS,
                 "Handy network is too slow to synchronize; retry Play"
             );
-            ensure!(
-                shared.epoch.load(Ordering::SeqCst) == epoch,
-                "play cancelled"
-            );
             let start = Instant::now() + Duration::from_millis(START_LEAD_MS);
+            shared.check_device_session(epoch, self.armed_until, start)?;
             hsp.play(position as i32, 1.0, &clock.advanced(START_LEAD_MS))?;
             while Instant::now() < start {
-                ensure!(
-                    shared.epoch.load(Ordering::SeqCst) == epoch,
-                    "play cancelled"
-                );
+                shared.check_device_session(epoch, self.armed_until, start)?;
                 thread::sleep(Duration::from_millis(5));
             }
             ensure!(
                 Instant::now().duration_since(start) < Duration::from_millis(150),
                 "Handy start deadline missed; press Play to retry"
             );
+            shared.check_device_session(epoch, self.armed_until, Instant::now())?;
             self.stream = Some(stream);
         }
         ensure!(
@@ -1168,6 +1184,23 @@ mod tests {
                 interrupt_priority(&expected)
             );
         }
+    }
+
+    #[test]
+    fn scheduled_device_start_refuses_expiry_disconnect_and_stop() {
+        let shared = Shared::new();
+        let now = Instant::now();
+        let deadline = now + Duration::from_secs(2);
+        shared.check_device_session(0, Some(deadline), now).unwrap();
+        assert!(shared
+            .check_device_session(0, Some(deadline), deadline)
+            .is_err());
+
+        *shared.heartbeat.lock().unwrap() = now - HEARTBEAT_TIMEOUT;
+        assert!(shared.check_device_session(0, Some(deadline), now).is_err());
+        *shared.heartbeat.lock().unwrap() = Instant::now();
+        shared.epoch.fetch_add(1, Ordering::SeqCst);
+        assert!(shared.check_device_session(0, Some(deadline), now).is_err());
     }
 
     #[test]
