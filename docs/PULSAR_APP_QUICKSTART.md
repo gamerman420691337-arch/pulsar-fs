@@ -40,7 +40,7 @@ The workstation needs `mpv`, `ffmpeg`, and the encrypted-secret CLI. The launche
 1. Click **Open video + script**, and wait for the paused video window.
 2. Click **Enable Handy** and wait for **Handy enabled**.
 3. Click **Play**. Pulsar preloads a short window and schedules video and HSP against the same start anchor.
-4. **Pause** pauses both. **Apply seek** rebinds the script at the selected video time and resumes if it was playing. **STOP** stops both and seeks to zero.
+4. **Pause** pauses both. **Apply seek** rebinds the script at the selected video time and resumes if it was playing. **STOP** stops both, disables Handy, and seeks to zero.
 5. Disable Handy or **Close player** when finished. Use STOP before leaving the demo.
 
 To watch a local clip by itself, enter the absolute video path, click **Open video only**, then click **Play**. This mode leaves Handy disabled.

@@ -427,7 +427,7 @@ impl Player {
                 }
             }
             Action::Stop => {
-                self.stop(false)?;
+                self.stop(true)?;
                 if let Some(m) = self.mpv.as_mut() {
                     m.seek(0)?;
                 }
@@ -656,6 +656,17 @@ mod tests {
         wait_for(|status| !status.busy && !status.playing && status.position_ms <= 100);
         service.request("test", "close", &Action::Close).unwrap();
         wait_for(|status| !status.busy && !status.loaded);
+    }
+
+    #[test]
+    fn stop_retires_arming_even_without_an_active_stream() {
+        let shared = Shared::new();
+        let mut player = Player::default();
+        player.armed_until = Some(Instant::now() + SESSION_LIFETIME);
+        player
+            .apply(Action::Stop, &shared, 0, std::path::Path::new("unused"))
+            .unwrap();
+        assert!(player.armed_until.is_none());
     }
 
     #[test]
