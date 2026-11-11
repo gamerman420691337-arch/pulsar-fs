@@ -58,7 +58,7 @@ jobs:
           python3 -B scripts/execution_dashboard.py --check
           python3 -B scripts/test_execution_dashboard.py
           node scripts/check-architecture.mjs
-          node --test scripts/architecture-source-guards.test.mjs scripts/browser-live-player.test.mjs
+          node --test scripts/architecture-source-guards.test.mjs scripts/browser-live-player.test.mjs scripts/sterile-reference.test.mjs
 
       # These exercise deterministic code and wire contracts without building the
       # large Engine or GUI test executables. Full runtime suites run below.
