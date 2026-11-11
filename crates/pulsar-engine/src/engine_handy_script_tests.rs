@@ -60,7 +60,7 @@ fn handy_script_public_preparation_binds_exact_bytes_and_historical_replay() {
         .handle(handy_script_request(&f, "no-clobber", path.clone(), 1))
         .result
         .unwrap_err();
-    assert_eq!(error.code, ErrorCode::UnknownOutcome);
+    assert_eq!(error.code, ErrorCode::RequestConflict);
     assert_eq!(fs::read(path).unwrap(), b"external replacement");
     assert_eq!(
         f.engine
