@@ -4562,7 +4562,8 @@
         "EV-TRAINED-HSP-ALIGNMENT-BOUND",
         "EV-TRAINED-HSP-TIMING-BREAKDOWN",
         "EV-TRAINED-HSP-MATCHED-ADAPTIVE-PROBE",
-        "EV-TRAINED-HSP-ONE-TRANSFER"
+        "EV-TRAINED-HSP-ONE-TRANSFER",
+        "EV-TRAINED-HSP-SUSTAINED-SUCCESSOR"
       ]
     },
     {
@@ -20645,6 +20646,77 @@
             "terminal_error"
           ],
           "equals": "CoverageGap"
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-TRAINED-HSP-SUSTAINED-SUCCESSOR",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/outline-holdout-hsp-40s/bind-readiness-one-transfer-sustained/result.json",
+      "sha256": "b1214f9c7f06a477f0b439bc9372e915ee542db327bf5d2cea65b3c8d5daef19",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered loopback committed one native transfer and received 123 successor frames before a display-age refusal. Second transfer, finite tail, and physical acceptance remain open.",
+      "assertions": [
+        {
+          "pointer": [
+            "completed_transfers"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "required_transfers"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "successor_received_frames"
+          ],
+          "equals": 123
+        },
+        {
+          "pointer": [
+            "loopback_tail_index"
+          ],
+          "equals": 257
+        },
+        {
+          "pointer": [
+            "loopback_play_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "loopback_stop_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "selected_observation_sequence"
+          ],
+          "equals": 90
+        },
+        {
+          "pointer": [
+            "selected_bracket_ns"
+          ],
+          "equals": 62130369
+        },
+        {
+          "pointer": [
+            "terminal_error"
+          ],
+          "equals": "DisplayAge"
         },
         {
           "pointer": [
