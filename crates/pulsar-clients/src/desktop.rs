@@ -5239,6 +5239,9 @@ impl eframe::App for PulsarDesktop {
                         .color(Color32::from_rgb(62, 217, 226)),
                 );
                 ui.label("Local motion workstation");
+                if self.tab != Tab::Player {
+                    self.desktop_player.session_controls(ui);
+                }
                 if self.busy {
                     ui.spinner();
                 }

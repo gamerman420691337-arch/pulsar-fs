@@ -112,6 +112,24 @@ impl PlayerPanel {
         self.status.loaded || self.busy()
     }
 
+    pub(crate) fn session_controls(&mut self, ui: &mut egui::Ui) {
+        if !self.status.armed && !self.status.playing && !self.busy() {
+            return;
+        }
+        if self.status.armed {
+            ui.label(format!(
+                "Handy enabled · {} s left",
+                self.status.expires_in_ms.div_ceil(1000)
+            ));
+        }
+        if ui.button(egui::RichText::new("STOP").strong()).clicked() {
+            self.send(DesktopPlaybackAction::Stop, Lane::Urgent);
+        }
+        if let Some(error) = &self.error {
+            ui.colored_label(egui::Color32::YELLOW, error);
+        }
+    }
+
     fn send(&mut self, action: DesktopPlaybackAction, lane: Lane) {
         let query = matches!(action, DesktopPlaybackAction::Status);
         let job = Job {
