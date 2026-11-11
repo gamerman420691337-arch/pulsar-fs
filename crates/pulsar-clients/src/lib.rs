@@ -427,6 +427,14 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
             let mut client = SessionClient::connect(endpoint, bootstrap)?;
             modality::review(&mut client, &project, candidate.as_deref(), max_speed)
         }
+        Commands::InspectCandidate { project, candidate } => {
+            let mut client = SessionClient::connect(endpoint, bootstrap)?;
+            print_response(client.execute(
+                Command::GetCandidate { candidate_id: CandidateId::new(candidate)? },
+                Some(ProjectId::new(project)?),
+                None,
+            )?)
+        },
         Commands::ReviewStatus {project} => {
             let mut client=SessionClient::connect(endpoint,bootstrap)?;
             print_response(client.execute(Command::ReviewStatus,Some(ProjectId::new(project)?),None)?)
