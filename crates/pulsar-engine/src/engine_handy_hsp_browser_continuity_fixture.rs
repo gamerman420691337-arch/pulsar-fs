@@ -1497,13 +1497,14 @@ mod rendered_browser_continuity_fixture {
                                     },
                                 ))
                                 .result;
+                        let first_stop = rendered_browser_first_stop(&x.f, &output, &bind_id);
                         let remote = peer.state.lock().unwrap();
                         record(
                             &output,
                             "early-stop-native.json",
                             &json!({
                                 "live":stream,"clock":clock,"captures":final_captures,"events":events,
-                                "original_browser_timing":original_timing,
+                                "original_browser_timing":original_timing,"first_stop":first_stop,
                                 "peer":{"setups":remote.setups,"plays":remote.plays,"stops":remote.stops,"tail":remote.tail,"consumed":remote.consumed,"points":remote.queue.len(),"calls":remote.calls},
                                 "qualified":false
                             }),

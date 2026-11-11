@@ -18,7 +18,7 @@ struct DelayedBindOutcome {
     chain_ids: Value,
     source_generations: Value,
 }
-fn delayed_bind_first_stop(f: &Fixture, output: &std::path::Path, id: &RequestId) -> Value {
+fn rendered_browser_first_stop(f: &Fixture, output: &std::path::Path, id: &RequestId) -> Value {
     let handle = f
         .engine
         .handy_hsp_execution
@@ -249,7 +249,7 @@ impl DelayedBindRun<'_> {
             record(
                 self.output,
                 "delayed-bind-awaiting-stop.json",
-                &json!({"gate":gate,"live":native,"peer_effects":effect_counts(self.peer),"originals":ids_value(self.originals,self.cancel_id),"first_native_stop":delayed_bind_first_stop(self.f,self.output,&bind_id)}),
+                &json!({"gate":gate,"live":native,"peer_effects":effect_counts(self.peer),"originals":ids_value(self.originals,self.cancel_id),"first_native_stop":rendered_browser_first_stop(self.f,self.output,&bind_id)}),
             );
             check_original_bind_gate(&gate, &bind_id);
             assert!(
@@ -326,7 +326,7 @@ impl DelayedBindRun<'_> {
             record(
                 self.output,
                 "delayed-bind-cleanup.json",
-                &json!({"live":native,"originals":ids_value(self.originals,self.cancel_id),"first_native_stop":delayed_bind_first_stop(self.f,self.output,&bind_id)}),
+                &json!({"live":native,"originals":ids_value(self.originals,self.cancel_id),"first_native_stop":rendered_browser_first_stop(self.f,self.output,&bind_id)}),
             );
             assert!(self.originals.play.is_none() && self.originals.continuity.is_none());
             assert_eq!(native.origin.as_ref(), Some(&origin));
