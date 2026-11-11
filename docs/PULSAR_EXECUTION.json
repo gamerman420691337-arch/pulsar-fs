@@ -4557,7 +4557,8 @@
         "EV-OUTLINE-HOLDOUT-BROWSER",
         "EV-TRAINED-HSP-LOOPBACK-EARLY-STOP",
         "EV-TRAINED-HSP-NATIVE-CANCELLATION",
-        "EV-TRAINED-HSP-APPEND-UNKNOWN"
+        "EV-TRAINED-HSP-APPEND-UNKNOWN",
+        "EV-TRAINED-HSP-ALIGNMENT-BOUND"
       ]
     },
     {
@@ -20405,6 +20406,47 @@
             "outcome"
           ],
           "equals": "Unknown"
+        }
+      ]
+    },
+    {
+      "id": "EV-TRAINED-HSP-ALIGNMENT-BOUND",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/outline-holdout-hsp-40s/source-phase-refusal/alignment-lower-bound.json",
+      "sha256": "02e3c1520db388b01bb9bbb3c31797e97b2e10365e92c05dd0ca9d69d6cba785",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "The rendered loopback stopped during source-phase validation. The observed browser bracket alone, with the admitted display and source residuals, yields an alignment error lower bound above the accepted budget. The physical gate stays open.",
+      "assertions": [
+        {
+          "pointer": [
+            "bracket_width_ns"
+          ],
+          "equals": 91193903
+        },
+        {
+          "pointer": [
+            "alignment_error_lower_bound_ns"
+          ],
+          "equals": 51596952
+        },
+        {
+          "pointer": [
+            "admitted_maximum_ns"
+          ],
+          "equals": 50000000
+        },
+        {
+          "pointer": [
+            "qualification_passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
         }
       ]
     }
