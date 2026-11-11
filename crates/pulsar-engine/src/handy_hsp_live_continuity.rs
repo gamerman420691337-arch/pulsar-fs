@@ -737,11 +737,18 @@ impl Controller {
             .ok_or_else(mismatch)?;
         if minimum < i128::from(lookahead.minimum_lead_us)
             || maximum > i128::from(lookahead.maximum_lead_us)
-            || at
-                .checked_sub(captured_at_ns)
-                .is_none_or(|age| age > self.policy.max_sample_age_ns)
         {
-            return Err(unavailable());
+            return Err(producer_mismatch(format_args!(
+                "successor projected lead {minimum}–{maximum} µs outside {}–{} µs",
+                lookahead.minimum_lead_us, lookahead.maximum_lead_us,
+            )));
+        }
+        let age = at.checked_sub(captured_at_ns).ok_or_else(mismatch)?;
+        if age > self.policy.max_sample_age_ns {
+            return Err(producer_mismatch(format_args!(
+                "successor sample age {age} ns exceeds {} ns",
+                self.policy.max_sample_age_ns,
+            )));
         }
         Ok(HspSample {
             point: selected.point,
@@ -767,7 +774,9 @@ impl Controller {
             || !staged.media.current()
             || !self.current(&source, at)
         {
-            return Err(unavailable());
+            return Err(producer_mismatch(
+                "successor transfer proof, media or predecessor is no longer current",
+            ));
         }
         source_qualification::revalidate_accepted_hsp_source(db, &self.pool, &source.source)?;
         source_qualification::revalidate_accepted_hsp_source(
