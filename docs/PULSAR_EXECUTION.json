@@ -4242,7 +4242,8 @@
       "evidence": [
         "EV-INTEGRATION-BUILD-001",
         "EV-INTEGRATION-BUILD-002",
-        "EV-STERILE-REGENERATION-STAGE-ONLY"
+        "EV-STERILE-REGENERATION-STAGE-ONLY",
+        "EV-DESKTOP-CLI-HANDOFF-646230C"
       ]
     },
     {
@@ -4860,6 +4861,53 @@
     }
   ],
   "evidence": [
+    {
+      "id": "EV-DESKTOP-CLI-HANDOFF-646230C",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/desktop-cli-candidate-review/result.json",
+      "sha256": "6cd52200d94860d70ef788e99058093e6c75d63b049e73edd84d99af8a643d90",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Linux Desktop reviewed and selectively merged a CLI-staged sterile candidate. Review preserved revision 1 export bytes, and the explicit merge advanced revision to 2 with all 55 outside-interval actions preserved.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "review_export_byte_identical"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "revision_after"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "outside_interval_unchanged"
+          ],
+          "equals": 55
+        },
+        {
+          "pointer": [
+            "device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
     {
       "id": "EV-STERILE-RENDER-0BC5B36",
       "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/sterile-render-0bc5b36/score/result.json",
