@@ -151,13 +151,21 @@ fn transaction_checkpoints_and_lock<J: Serialize + DeserializeOwned, T>(
     let namespace = format!("{:x}", Sha256::digest(session.as_str().as_bytes()));
     let name = format!("{namespace}.json");
     let lock_name = format!("{namespace}.lock");
+    let lock_flags = OFlags::RDWR | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC;
+    let open_lock = || openat(&dir, &lock_name, lock_flags, Mode::empty());
     let lock = File::from(
-        openat(
-            &dir,
-            &lock_name,
-            OFlags::RDWR | OFlags::CREATE | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
-            Mode::from_raw_mode(0o600),
-        )
+        match open_lock() {
+            Err(rustix::io::Errno::NOENT) => match openat(
+                &dir,
+                &lock_name,
+                lock_flags | OFlags::CREATE | OFlags::EXCL,
+                Mode::from_raw_mode(0o600),
+            ) {
+                Err(rustix::io::Errno::EXIST) => open_lock(),
+                result => result,
+            },
+            result => result,
+        }
         .context("Open recovery journal lock")?,
     );
     private(&lock, false)?;
