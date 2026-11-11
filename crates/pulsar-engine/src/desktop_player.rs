@@ -111,6 +111,8 @@ impl Shared {
             .map(|grant| grant.id.clone());
         status.connected = player.hsp.is_some();
         status.playing = player.playing;
+        status.presentation_playing =
+            player.playing && player.raw.is_empty() && player.hsp.is_none();
         status.expires_in_ms = player.armed_until.map_or(0, |t| {
             t.saturating_duration_since(Instant::now()).as_millis() as u64
         });
@@ -153,6 +155,7 @@ impl Service {
             action,
             Action::Stop | Action::Close | Action::Arm { enabled: false, .. }
         );
+        let presentation_pause = matches!(action, Action::PausePresentation);
         let assistant_play = matches!(action, Action::AssistantPlay { .. });
         if let Action::AssistantPlay { grant, .. } = action {
             if status.assistant_grant.as_ref() != Some(grant)
@@ -166,7 +169,13 @@ impl Service {
             }
         }
         let proposal = matches!(action, Action::PrepareMediaReview { .. });
-        if owner.is_some() && !is_owner && !emergency && !proposal && !assistant_play {
+        if owner.is_some()
+            && !is_owner
+            && !emergency
+            && !proposal
+            && !assistant_play
+            && !presentation_pause
+        {
             return Err(ProtocolError::new(
                 ErrorCode::Forbidden,
                 "another Desktop owns the player; Stop or close it first",
@@ -197,6 +206,23 @@ impl Service {
             };
             queue.clear();
             queue.push_back((epoch, interrupt));
+        } else if presentation_pause {
+            // This control only removes presentation work. Device actions retain
+            // their queue order and generation, including a stronger pending Stop.
+            queue.retain(|(_, queued)| {
+                !matches!(
+                    queued,
+                    Action::PrepareMediaReview { .. }
+                        | Action::ConfirmMediaReview { .. }
+                        | Action::PausePresentation
+                )
+            });
+            let index = usize::from(
+                queue
+                    .front()
+                    .is_some_and(|(_, queued)| interrupt_priority(queued) > 0),
+            );
+            queue.insert(index, (shared.epoch.load(Ordering::SeqCst), action.clone()));
         } else {
             if queue.len() >= 32 {
                 return Err(ProtocolError::new(
@@ -207,10 +233,11 @@ impl Service {
             let epoch = shared.epoch.load(Ordering::SeqCst);
             queue.push_back((epoch, action.clone()));
         }
-        if owner.is_none() && !emergency && !proposal && !assistant_play {
+        if owner.is_none() && !emergency && !proposal && !assistant_play && !presentation_pause {
             *owner = Some(session.into());
         }
-        if owner.as_deref() == Some(session) && !proposal && !assistant_play {
+        if owner.as_deref() == Some(session) && !proposal && !assistant_play && !presentation_pause
+        {
             *shared.heartbeat.lock().map_err(|_| internal())? = Instant::now();
         }
         recent.push_back((session.into(), request.into(), fingerprint));
@@ -824,6 +851,12 @@ impl Player {
                 self.sync_offset_ms = sync_offset_ms;
                 self.play(shared, epoch)?;
             }
+            Action::PausePresentation => {
+                self.cancel_media_review();
+                if self.raw.is_empty() && self.hsp.is_none() {
+                    self.stop(false)?;
+                }
+            }
             Action::Pause => self.stop(false)?,
             Action::Seek { position_ms } => {
                 let resume = self.playing;
@@ -1016,6 +1049,8 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
                         status.duration_ms =
                             duration.max(player.points.last().map_or(0, |p| p.0 as u64));
                         status.playing = playing;
+                        status.presentation_playing =
+                            playing && player.raw.is_empty() && player.hsp.is_none();
                         if was_playing && !playing {
                             status.message = "Playback paused or finished".into();
                         }
@@ -1031,6 +1066,7 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
                             "Video player closed or unavailable; Handy stopped and disarmed".into()
                         };
                         status.playing = false;
+                        status.presentation_playing = false;
                     }
                 }
             }
@@ -1583,6 +1619,30 @@ mod tests {
         *shared.heartbeat.lock().unwrap() = Instant::now();
         shared.epoch.fetch_add(1, Ordering::SeqCst);
         assert!(shared.check_device_session(0, Some(deadline), now).is_err());
+    }
+
+    #[test]
+    fn media_pause_retires_only_queued_presentation_work() {
+        let service = Service {
+            shared: Arc::new(Shared::new()),
+        };
+        let directory = tempfile::tempdir().unwrap();
+        let proposal = Action::PrepareMediaReview {
+            video: directory.path().join("fixture.mp4"),
+            consent: directory.path().join("consent.json"),
+        };
+        service
+            .request("desktop", "play", &Action::Play { sync_offset_ms: 0 })
+            .unwrap();
+        service.request("broker", "proposal", &proposal).unwrap();
+        service
+            .request("broker", "pause-media", &Action::PausePresentation)
+            .unwrap();
+        let queue = service.shared.queue.lock().unwrap();
+        assert_eq!(queue.len(), 2);
+        assert!(matches!(queue[0], (0, Action::PausePresentation)));
+        assert!(matches!(queue[1], (0, Action::Play { .. })));
+        assert_eq!(service.shared.epoch.load(Ordering::SeqCst), 0);
     }
 
     #[test]

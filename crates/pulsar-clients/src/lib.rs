@@ -2329,7 +2329,16 @@ fn stop_desktop_playback(
     owner_proof: &str,
     deadline: std::time::Instant,
 ) -> Result<ResponseBody> {
-    let mut action = DesktopPlaybackAction::Stop;
+    wait_desktop_playback_control(client, owner_proof, deadline, DesktopPlaybackAction::Stop)
+}
+
+fn wait_desktop_playback_control(
+    client: &mut impl EngineApi,
+    owner_proof: &str,
+    deadline: std::time::Instant,
+    mut action: DesktopPlaybackAction,
+) -> Result<ResponseBody> {
+    let presentation_only = matches!(action, DesktopPlaybackAction::PausePresentation);
     loop {
         let response = client
             .execute(
@@ -2340,21 +2349,26 @@ fn stop_desktop_playback(
                 None,
                 None,
             )
-            .context("Desktop Stop outcome could not be confirmed")?;
+            .context("Desktop playback control outcome could not be confirmed")?;
         let ResponseBody::DesktopPlayback(status) = &response else {
             anyhow::bail!("Engine returned an unexpected player response");
         };
         if !status.busy {
             anyhow::ensure!(
-                !status.playing && !status.armed,
-                "Desktop player did not stop"
+                status.media_review.is_none()
+                    && if presentation_only {
+                        !status.presentation_playing
+                    } else {
+                        !status.playing && !status.armed
+                    },
+                "Desktop playback control did not reach its requested state"
             );
             return Ok(response);
         }
         let remaining = deadline.saturating_duration_since(std::time::Instant::now());
         anyhow::ensure!(
             !remaining.is_zero(),
-            "Desktop Stop outcome could not be confirmed"
+            "Desktop playback control outcome could not be confirmed"
         );
         std::thread::sleep(remaining.min(std::time::Duration::from_millis(40)));
         action = DesktopPlaybackAction::Status;

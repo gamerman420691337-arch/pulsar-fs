@@ -45,7 +45,7 @@ The workstation needs `mpv`, `ffmpeg`, and the encrypted-secret CLI. The launche
 
 To watch a local clip by itself, enter the absolute video path, click **Open video only**, then click **Play**. This mode leaves Handy disabled. To use the consent-gated presentation flow, select a consent document in **Settings**, then click **Review video for presentation** in Player. Check the video name and digest and click **Confirm and play** within 30 seconds. **STOP** cancels a pending review.
 
-An operator can also configure an MCP client to start `pulsar-mcp PROJECT --consent /absolute/consent.json --media /absolute/clip.mp4`. Select the same consent document in Desktop Settings. The optional **propose_media** tool queues that clip for Desktop review. The operator confirms it in Player.
+An operator can also configure an MCP client to start `pulsar-mcp PROJECT --consent /absolute/consent.json --media /absolute/clip.mp4`. Select the same consent document in Desktop Settings. The optional **propose_media** tool queues that clip for Desktop review. The operator confirms it in Player. Use **project_summary** for the configured project revision and **device_status** for local player and session state. **pause_presentation** pauses video-only playback and cancels a pending review. **stop_playback** also stops and disarms the Handy player.
 
 With the same project open and consent document selected, opening a video and funscript makes **Enable Handy for assistant** available. The toggle enables the loaded script at the configured limits and offset. The MCP **play_prepared_script** tool can request playback while that grant is active. **STOP** clears the grant. The tool reports when playback is queued, and Desktop shows the player state.
 
