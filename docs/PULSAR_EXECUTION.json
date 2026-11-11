@@ -4336,7 +4336,8 @@
         "EV-RECORDING-BOUNDARY-CURRENT",
         "EV-RECORDING-BOUNDARY-PORTABLE",
         "EV-DELEGATED-HOST-NATIVE-ASSISTANT",
-        "EV-HOSTED-FULL-542F2BB"
+        "EV-HOSTED-FULL-542F2BB",
+        "EV-HOSTED-FULL-32DAFF4"
       ]
     },
     {
@@ -4863,6 +4864,35 @@
     }
   ],
   "evidence": [
+    {
+      "id": "EV-HOSTED-FULL-32DAFF4",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/hosted-full-ci-32daff4.json",
+      "sha256": "7e7ea880dd848767204c358aedb98e87868fa2a3a2c7f0a79f92f26efaffd8ac",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Full hosted Linux, macOS and Windows suites passed on 32daff4, including 1,997 delegated Linux Engine tests and the worker-fence startup change.",
+      "assertions": [
+        {
+          "pointer": [
+            "headSha"
+          ],
+          "equals": "32daff4595ec406e5f91c88972690da7834bb169"
+        },
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "completed"
+        },
+        {
+          "pointer": [
+            "conclusion"
+          ],
+          "equals": "success"
+        }
+      ]
+    },
     {
       "id": "EV-BROWSER-DESKTOP-HANDOFF-66C3DE6",
       "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/browser-desktop-handoff/result.json",
