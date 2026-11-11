@@ -1864,6 +1864,7 @@ pub fn commit_candidate(
     candidate_id: CandidateId,
     request_id: Option<RequestId>,
 ) -> Result<ProjectSnapshot> {
+    let expected_revision = revision.checked_next()?;
     let command = Command::CommitCandidate { candidate_id };
     let response = match request_id {
         Some(id) => api.execute_identified(id, command, Some(project.clone()), Some(revision)),
@@ -1871,8 +1872,7 @@ pub fn commit_candidate(
     }?;
     match response {
         ResponseBody::Project(snapshot)
-            if snapshot.project_id == project
-                && snapshot.revision == revision.checked_next()? =>
+            if snapshot.project_id == project && snapshot.revision == expected_revision =>
         {
             Ok(*snapshot)
         }
@@ -2805,6 +2805,67 @@ mod tests {
             )
             .is_err());
         }
+    }
+
+    #[test]
+    fn shared_commit_preserves_request_identity_and_rejects_wrong_revision() {
+        struct Reply(Option<ProjectSnapshot>);
+        impl EngineApi for Reply {
+            fn execute(
+                &mut self,
+                _: Command,
+                _: Option<ProjectId>,
+                _: Option<RevisionId>,
+            ) -> Result<ResponseBody> {
+                panic!("identified commit fell back to an anonymous request");
+            }
+            fn execute_identified(
+                &mut self,
+                id: RequestId,
+                command: Command,
+                project: Option<ProjectId>,
+                revision: Option<RevisionId>,
+            ) -> Result<ResponseBody> {
+                assert_eq!(id.as_str(), "retained-request");
+                assert_eq!(project.unwrap().as_str(), "project");
+                assert_eq!(revision, Some(RevisionId::new(4)));
+                assert!(
+                    matches!(command, Command::CommitCandidate { candidate_id } if candidate_id.as_str() == "candidate")
+                );
+                Ok(ResponseBody::Project(Box::new(self.0.take().unwrap())))
+            }
+        }
+        let project = ProjectId::new("project").unwrap();
+        let program = MotionProgram::default();
+        let wrong_revision = RevisionId::new(6);
+        let mut api = Reply(Some(ProjectSnapshot {
+            project_id: project.clone(),
+            revision: wrong_revision,
+            name: "Fixture".into(),
+            motion: crate::motion::fixture_descriptor(
+                &program,
+                MotionBinding::ProjectRevision {
+                    project_id: project.clone(),
+                    revision: wrong_revision,
+                },
+            ),
+            program: program.into(),
+            sources: vec![],
+            placements: vec![],
+        }));
+        let error = commit_candidate(
+            &mut api,
+            project,
+            RevisionId::new(4),
+            CandidateId::new("candidate").unwrap(),
+            Some(RequestId::new("retained-request").unwrap()),
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.downcast_ref::<ProtocolError>().unwrap().code,
+            ErrorCode::DependencyMismatch
+        );
+        assert!(api.0.is_none());
     }
 
     #[test]
