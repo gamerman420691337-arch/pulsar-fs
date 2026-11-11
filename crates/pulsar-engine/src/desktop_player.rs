@@ -22,6 +22,17 @@ const SESSION_LIFETIME: Duration = Duration::from_secs(20 * 60);
 const HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(3);
 const START_LEAD_MS: u64 = 1_500;
 
+// Higher-priority interrupts subsume lower-priority ones.
+fn interrupt_priority(action: &Action) -> u8 {
+    match action {
+        Action::Close => 4,
+        Action::Stop => 3,
+        Action::Arm { enabled: false, .. } => 2,
+        Action::Pause => 1,
+        _ => 0,
+    }
+}
+
 struct Shared {
     status: Mutex<Status>,
     queue: Mutex<VecDeque<(u64, Action)>>,
@@ -32,12 +43,9 @@ struct Shared {
     shutdown: AtomicBool,
 }
 
-pub(crate) struct Service {
-    shared: Arc<Shared>,
-}
-impl Service {
-    pub(crate) fn new(directory: PathBuf) -> Result<Self> {
-        let shared = Arc::new(Shared {
+impl Shared {
+    fn new() -> Self {
+        Self {
             status: Mutex::new(Status::default()),
             queue: Mutex::new(VecDeque::new()),
             owner: Mutex::new(None),
@@ -45,7 +53,34 @@ impl Service {
             recent: Mutex::new(VecDeque::new()),
             epoch: AtomicU64::new(0),
             shutdown: AtomicBool::new(false),
+        }
+    }
+
+    fn publish_completion(&self, player: &Player, message: String) {
+        // Serialize with enqueue, so completion cannot acknowledge a later Stop.
+        let (Ok(queue), Ok(mut status)) = (self.queue.lock(), self.status.lock()) else {
+            return;
+        };
+        status.busy = !queue.is_empty();
+        if !status.busy {
+            status.message = message;
+        }
+        status.loaded = player.mpv.is_some();
+        status.armed = player.armed_until.is_some();
+        status.connected = player.hsp.is_some();
+        status.playing = player.playing;
+        status.expires_in_ms = player.armed_until.map_or(0, |t| {
+            t.saturating_duration_since(Instant::now()).as_millis() as u64
         });
+    }
+}
+
+pub(crate) struct Service {
+    shared: Arc<Shared>,
+}
+impl Service {
+    pub(crate) fn new(directory: PathBuf) -> Result<Self> {
+        let shared = Arc::new(Shared::new());
         let state = shared.clone();
         thread::Builder::new()
             .name("pulsar-player".into())
@@ -94,34 +129,36 @@ impl Service {
             }
             return Ok(status);
         }
-        recent.push_back((session.into(), request.into(), fingerprint));
-        while recent.len() > 64 {
-            recent.pop_front();
-        }
-        if owner.is_none() || matches!(action, Action::Open { .. }) {
+        if owner.is_none() || matches!(action, Action::Open { .. } | Action::OpenMedia { .. }) {
             *owner = Some(session.into());
         }
         *shared.heartbeat.lock().map_err(|_| internal())? = Instant::now();
-        let interrupts = matches!(
-            action,
-            Action::Stop | Action::Close | Action::Pause | Action::Arm { enabled: false, .. }
-        );
-        let epoch = if interrupts {
-            shared.epoch.fetch_add(1, Ordering::SeqCst) + 1
-        } else {
-            shared.epoch.load(Ordering::SeqCst)
-        };
+        let priority = interrupt_priority(action);
+        let interrupts = priority > 0;
         let mut queue = shared.queue.lock().map_err(|_| internal())?;
-        if queue.len() >= 32 {
-            return Err(ProtocolError::new(
-                ErrorCode::ResourceExhausted,
-                "player control queue is busy",
-            ));
-        }
         if interrupts {
-            queue.push_front((epoch, action.clone()));
+            // Every queued action belongs to the superseded playback epoch.
+            // Reclaim their slots before admitting Stop, even at capacity.
+            let epoch = shared.epoch.fetch_add(1, Ordering::SeqCst) + 1;
+            let interrupt = match queue.front() {
+                Some((_, pending)) if interrupt_priority(pending) > priority => pending.clone(),
+                _ => action.clone(),
+            };
+            queue.clear();
+            queue.push_back((epoch, interrupt));
         } else {
+            if queue.len() >= 32 {
+                return Err(ProtocolError::new(
+                    ErrorCode::ResourceExhausted,
+                    "player control queue is busy",
+                ));
+            }
+            let epoch = shared.epoch.load(Ordering::SeqCst);
             queue.push_back((epoch, action.clone()));
+        }
+        recent.push_back((session.into(), request.into(), fingerprint));
+        while recent.len() > 64 {
+            recent.pop_front();
         }
         let mut result = shared.status.lock().map_err(|_| internal())?;
         result.busy = true;
@@ -223,15 +260,20 @@ impl Player {
         }
     }
     fn play(&mut self, shared: &Shared, epoch: u64) -> Result<()> {
-        let end = self.end_ms();
+        let script_end = self.end_ms();
         let mpv = self.mpv.as_mut().context("Open a video and script first")?;
         let state = mpv.state()?;
+        let end = if script_end == 0 {
+            state.duration_ms
+        } else {
+            script_end
+        };
         mpv.pause(true)?;
         if state.eof || state.position_ms >= end {
             mpv.seek(0)?;
         }
         let position = mpv.state()?.position_ms;
-        ensure!(position < end, "seek before the end of the script");
+        ensure!(position < end, "seek before the end of playback");
         if let Some(hsp) = self.hsp.as_mut() {
             ensure!(
                 self.armed_until.is_some_and(|t| t > Instant::now()),
@@ -345,6 +387,20 @@ impl Player {
                     .to_string_lossy()
                     .into();
             }
+            Action::OpenMedia { video } => {
+                self.close();
+                self.mpv = Some(MpvPlayer::open(&video, directory)?);
+                let mut status = shared
+                    .status
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("player status unavailable"))?;
+                status.video_name = video
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into();
+                status.script_name.clear();
+            }
             Action::Arm {
                 enabled,
                 max_speed,
@@ -353,7 +409,10 @@ impl Player {
             } => {
                 self.stop(true)?;
                 if enabled {
-                    ensure!(self.mpv.is_some(), "Open a video and script first");
+                    ensure!(
+                        self.mpv.is_some() && self.points.len() >= 2,
+                        "Open a video and script first"
+                    );
                     let api = std::env::var("HANDY_API_KEY")
                         .context("Start Pulsar with secrets run: HANDY_API_KEY missing")?;
                     let connection = std::env::var("HANDY_CONNECTION_KEY")
@@ -399,7 +458,7 @@ impl Player {
                 }
             }
             Action::Stop => {
-                self.stop(false)?;
+                self.stop(true)?;
                 if let Some(m) = self.mpv.as_mut() {
                     m.seek(0)?;
                 }
@@ -424,7 +483,8 @@ impl Player {
             if let (Some(stream), Some(hsp)) = (self.stream.as_mut(), self.hsp.as_mut()) {
                 stream.load_until(hsp, state.position_ms + AHEAD_MS)?;
             }
-            if state.position_ms >= self.end_ms() {
+            let script_end = self.end_ms();
+            if script_end != 0 && state.position_ms >= script_end {
                 self.stop(false)?;
             }
         }
@@ -465,14 +525,21 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
         }
         let command = shared.queue.lock().ok().and_then(|mut q| q.pop_front());
         if let Some((generation, action)) = command {
-            if generation != shared.epoch.load(Ordering::SeqCst) {
+            // A newer interrupt may arrive after this action leaves the queue.
+            // Apply an already-dequeued interrupt before processing the newer one.
+            if interrupt_priority(&action) == 0 && generation != shared.epoch.load(Ordering::SeqCst)
+            {
                 continue;
             }
             let closed = matches!(action, Action::Close);
             let result = player.apply(action, &shared, generation, &directory);
             let message = match result {
                 Ok(()) => if player.playing {
-                    "Playing video and script"
+                    if player.hsp.is_some() {
+                        "Playing video and script"
+                    } else {
+                        "Playing video"
+                    }
                 } else if player.armed_until.is_some() {
                     "Handy enabled; press Play"
                 } else if player.mpv.is_some() {
@@ -486,17 +553,7 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
                     format!("{error}").chars().take(400).collect()
                 }
             };
-            if let Ok(mut status) = shared.status.lock() {
-                status.message = message;
-                status.loaded = player.mpv.is_some();
-                status.armed = player.armed_until.is_some();
-                status.connected = player.hsp.is_some();
-                status.playing = player.playing;
-                status.expires_in_ms = player.armed_until.map_or(0, |t| {
-                    t.saturating_duration_since(Instant::now()).as_millis() as u64
-                });
-                status.busy = false;
-            }
+            shared.publish_completion(&player, message);
             if closed {
                 if let Ok(mut owner) = shared.owner.lock() {
                     *owner = None;
@@ -540,4 +597,189 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
         thread::sleep(Duration::from_millis(10));
     }
     player.close();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    #[ignore = "requires mpv, ffmpeg and PULSAR_PLAYER_HEADLESS=1"]
+    fn video_only_service_plays_and_stops_without_arming() {
+        assert_eq!(std::env::var("PULSAR_PLAYER_HEADLESS").as_deref(), Ok("1"));
+        let directory = tempfile::tempdir().unwrap();
+        let video = directory.path().join("fixture.mp4");
+        let mut child = std::process::Command::new("ffmpeg")
+            .args([
+                "-nostdin",
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=black:s=64x64:r=10",
+                "-t",
+                "4",
+                "-c:v",
+                "mpeg4",
+            ])
+            .arg(&video)
+            .spawn()
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                assert!(status.success());
+                break;
+            }
+            if Instant::now() >= deadline {
+                let _ = child.kill();
+                let _ = child.wait();
+                panic!("ffmpeg fixture deadline exceeded");
+            }
+            thread::sleep(Duration::from_millis(20));
+        }
+
+        let service = Service::new(directory.path().join("player")).unwrap();
+        let wait_for = |predicate: fn(&Status) -> bool| {
+            let deadline = Instant::now() + Duration::from_secs(10);
+            loop {
+                let status = service.request("test", "status", &Action::Status).unwrap();
+                assert!(!status.armed && !status.connected);
+                if predicate(&status) {
+                    return status;
+                }
+                assert!(Instant::now() < deadline, "last player status: {status:?}");
+                thread::sleep(Duration::from_millis(20));
+            }
+        };
+        service
+            .request("test", "open", &Action::OpenMedia { video })
+            .unwrap();
+        let opened = wait_for(|status| status.loaded && !status.busy);
+        assert!(opened.script_name.is_empty());
+        service
+            .request(
+                "test",
+                "arm",
+                &Action::Arm {
+                    enabled: true,
+                    max_speed: 150,
+                    min_pct: 35,
+                    max_pct: 65,
+                },
+            )
+            .unwrap();
+        wait_for(|status| !status.busy && status.message == "Open a video and script first");
+        service
+            .request("test", "play", &Action::Play { sync_offset_ms: 0 })
+            .unwrap();
+        wait_for(|status| status.playing && status.position_ms >= 200);
+        service.request("test", "stop", &Action::Stop).unwrap();
+        wait_for(|status| !status.busy && !status.playing && status.position_ms <= 100);
+        service.request("test", "close", &Action::Close).unwrap();
+        wait_for(|status| !status.busy && !status.loaded);
+    }
+
+    #[test]
+    fn stop_retires_arming_even_without_an_active_stream() {
+        let shared = Shared::new();
+        let mut player = Player::default();
+        player.armed_until = Some(Instant::now() + SESSION_LIFETIME);
+        player
+            .apply(Action::Stop, &shared, 0, std::path::Path::new("unused"))
+            .unwrap();
+        assert!(player.armed_until.is_none());
+    }
+
+    #[test]
+    fn arming_requires_prepared_script_points_before_device_contact() {
+        let shared = Shared::new();
+        let mut player = Player::default();
+        let failure = player
+            .apply(
+                Action::Arm {
+                    enabled: true,
+                    max_speed: 150,
+                    min_pct: 35,
+                    max_pct: 65,
+                },
+                &shared,
+                0,
+                std::path::Path::new("unused"),
+            )
+            .unwrap_err();
+        assert_eq!(failure.to_string(), "Open a video and script first");
+        assert!(player.hsp.is_none());
+        assert!(player.armed_until.is_none());
+    }
+
+    #[test]
+    fn an_earlier_completion_cannot_acknowledge_pending_stop() {
+        let service = Service {
+            shared: Arc::new(Shared::new()),
+        };
+        let player = Player::default();
+        service.request("operator", "stop", &Action::Stop).unwrap();
+        service
+            .shared
+            .publish_completion(&player, "Earlier action completed".into());
+        assert!(
+            service
+                .request("operator", "status", &Action::Status)
+                .unwrap()
+                .busy
+        );
+        service.shared.queue.lock().unwrap().pop_front().unwrap();
+        service.shared.publish_completion(&player, "Stopped".into());
+        assert!(
+            !service
+                .request("operator", "status", &Action::Status)
+                .unwrap()
+                .busy
+        );
+    }
+
+    #[test]
+    fn a_later_pause_cannot_discard_stop_or_close() {
+        let service = Service {
+            shared: Arc::new(Shared::new()),
+        };
+        for (index, expected) in [(0, Action::Stop), (1, Action::Close)] {
+            service
+                .request("player", &format!("interrupt-{index}"), &expected)
+                .unwrap();
+            service
+                .request("player", &format!("pause-{index}"), &Action::Pause)
+                .unwrap();
+            let mut queue = service.shared.queue.lock().unwrap();
+            assert_eq!(queue.len(), 1);
+            assert_eq!(
+                interrupt_priority(&queue.pop_front().unwrap().1),
+                interrupt_priority(&expected)
+            );
+        }
+    }
+
+    #[test]
+    fn stop_supersedes_a_full_queue_and_allows_rejected_requests_to_retry() {
+        let service = Service {
+            shared: Arc::new(Shared::new()),
+        };
+        let play = Action::Play { sync_offset_ms: 0 };
+        for index in 0..32 {
+            service
+                .request("player", &index.to_string(), &play)
+                .unwrap();
+        }
+        assert!(service.request("player", "retry", &play).is_err());
+        service.request("operator", "stop", &Action::Stop).unwrap();
+        service.request("player", "retry", &play).unwrap();
+
+        let queue = service.shared.queue.lock().unwrap();
+        assert_eq!(queue.len(), 2);
+        assert!(matches!(queue[0], (1, Action::Stop)));
+        assert!(matches!(queue[1], (1, Action::Play { .. })));
+    }
 }

@@ -14,6 +14,7 @@ use std::{
 enum Lane {
     Normal,
     Urgent,
+    Stop,
 }
 struct Job {
     id: u64,
@@ -42,9 +43,11 @@ pub(crate) struct PlayerPanel {
     error: Option<String>,
     normal: SyncSender<Job>,
     urgent: SyncSender<Job>,
+    stop: SyncSender<Job>,
     replies: Receiver<Reply>,
     normal_pending: usize,
     urgent_pending: usize,
+    stop_pending: bool,
     next_id: u64,
     applied_id: u64,
     last_poll: Instant,
@@ -54,11 +57,13 @@ impl PlayerPanel {
     pub(crate) fn new(endpoint: PathBuf, bootstrap: PathBuf) -> Self {
         let (normal, normal_rx) = mpsc::sync_channel(2);
         let (urgent, urgent_rx) = mpsc::sync_channel(4);
+        let (stop, stop_rx) = mpsc::sync_channel(1);
         let (reply_tx, replies) = mpsc::channel();
         let mut error = None;
         for (name, requests) in [
             ("pulsar-player-rpc", normal_rx),
-            ("pulsar-player-stop", urgent_rx),
+            ("pulsar-player-urgent", urgent_rx),
+            ("pulsar-player-stop", stop_rx),
         ] {
             let endpoint = endpoint.clone();
             let bootstrap = bootstrap.clone();
@@ -91,9 +96,11 @@ impl PlayerPanel {
             error,
             normal,
             urgent,
+            stop,
             replies,
             normal_pending: 0,
             urgent_pending: 0,
+            stop_pending: false,
             next_id: 1,
             applied_id: 0,
             last_poll: Instant::now(),
@@ -101,7 +108,7 @@ impl PlayerPanel {
     }
 
     fn rpc_pending(&self) -> bool {
-        self.normal_pending != 0 || self.urgent_pending != 0
+        self.normal_pending != 0 || self.urgent_pending != 0 || self.stop_pending
     }
 
     pub(crate) fn busy(&self) -> bool {
@@ -112,7 +119,28 @@ impl PlayerPanel {
         self.status.loaded || self.busy()
     }
 
+    pub(crate) fn session_controls(&mut self, ui: &mut egui::Ui) {
+        if !self.status.armed && !self.status.playing && !self.busy() {
+            return;
+        }
+        if self.status.armed {
+            ui.label(format!(
+                "Handy enabled · {} s left",
+                self.status.expires_in_ms.div_ceil(1000)
+            ));
+        }
+        if ui.button(egui::RichText::new("STOP").strong()).clicked() {
+            self.send(DesktopPlaybackAction::Stop, Lane::Stop);
+        }
+        if let Some(error) = &self.error {
+            ui.colored_label(egui::Color32::YELLOW, error);
+        }
+    }
+
     fn send(&mut self, action: DesktopPlaybackAction, lane: Lane) {
+        if matches!(lane, Lane::Stop) && self.stop_pending {
+            return;
+        }
         let query = matches!(action, DesktopPlaybackAction::Status);
         let job = Job {
             id: self.next_id,
@@ -124,12 +152,14 @@ impl PlayerPanel {
         let sender = match lane {
             Lane::Normal => &self.normal,
             Lane::Urgent => &self.urgent,
+            Lane::Stop => &self.stop,
         };
         match sender.try_send(job) {
             Ok(()) => {
                 match lane {
                     Lane::Normal => self.normal_pending += 1,
                     Lane::Urgent => self.urgent_pending += 1,
+                    Lane::Stop => self.stop_pending = true,
                 }
                 if !query {
                     self.error = None;
@@ -147,6 +177,7 @@ impl PlayerPanel {
                     match reply.lane {
                         Lane::Normal => self.normal_pending = self.normal_pending.saturating_sub(1),
                         Lane::Urgent => self.urgent_pending = self.urgent_pending.saturating_sub(1),
+                        Lane::Stop => self.stop_pending = false,
                     }
                     if reply.id < self.applied_id {
                         continue;
@@ -251,6 +282,17 @@ impl PlayerPanel {
                 self.open();
             }
             if ui
+                .add_enabled(!self.busy(), egui::Button::new("Open video only"))
+                .clicked()
+            {
+                let video = PathBuf::from(self.video.trim());
+                if video.is_absolute() {
+                    self.send(DesktopPlaybackAction::OpenMedia { video }, Lane::Normal);
+                } else {
+                    self.error = Some("Choose an absolute local video path.".into());
+                }
+            }
+            if ui
                 .add_enabled(
                     self.status.loaded || self.status.busy,
                     egui::Button::new("Close player"),
@@ -268,7 +310,9 @@ impl PlayerPanel {
             let mut enabled = self.status.armed;
             if ui
                 .add_enabled(
-                    self.status.loaded && (!self.busy() || enabled),
+                    self.status.loaded
+                        && !self.status.script_name.is_empty()
+                        && (!self.busy() || enabled),
                     egui::Checkbox::new(&mut enabled, "Enable Handy"),
                 )
                 .changed()
@@ -360,7 +404,7 @@ impl PlayerPanel {
                 self.send(DesktopPlaybackAction::Pause, Lane::Urgent);
             }
             if ui.button(egui::RichText::new("STOP").strong()).clicked() {
-                self.send(DesktopPlaybackAction::Stop, Lane::Urgent);
+                self.send(DesktopPlaybackAction::Stop, Lane::Stop);
             }
             ui.label(format!(
                 "{:.2} / {:.2} s",
@@ -451,7 +495,7 @@ fn worker(
             let client = client.as_mut().expect("connected client");
             let budget = match job.lane {
                 Lane::Normal => Duration::from_secs(15),
-                Lane::Urgent => Duration::from_secs(5),
+                Lane::Urgent | Lane::Stop => Duration::from_secs(5),
             };
             client.set_operation_deadline(Some(Instant::now() + budget));
             match client.execute(
@@ -484,6 +528,57 @@ fn worker(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn saturated_urgent_queue_does_not_block_stop() {
+        let (normal, _normal_rx) = mpsc::sync_channel(0);
+        let (urgent, _urgent_rx) = mpsc::sync_channel(0);
+        let (stop, stop_rx) = mpsc::sync_channel(1);
+        let (reply_tx, replies) = mpsc::channel();
+        let mut panel = PlayerPanel {
+            video: String::new(),
+            script: String::new(),
+            auto_script: false,
+            max_speed: 150,
+            min_pct: 35,
+            max_pct: 65,
+            sync_offset_ms: 0,
+            seek_ms: 0,
+            seek_edited: false,
+            status: DesktopPlaybackStatus::default(),
+            error: None,
+            normal,
+            urgent,
+            stop,
+            replies,
+            normal_pending: 0,
+            urgent_pending: 0,
+            stop_pending: false,
+            next_id: 1,
+            applied_id: 0,
+            last_poll: Instant::now(),
+        };
+
+        panel.send(DesktopPlaybackAction::Pause, Lane::Urgent);
+        assert!(panel.error.is_some());
+        panel.send(DesktopPlaybackAction::Stop, Lane::Stop);
+        panel.send(DesktopPlaybackAction::Stop, Lane::Stop);
+        let job = stop_rx.try_recv().unwrap();
+        assert!(matches!(job.action, DesktopPlaybackAction::Stop));
+        assert!(stop_rx.try_recv().is_err());
+        assert!(panel.stop_pending);
+
+        reply_tx
+            .send(Reply {
+                id: job.id,
+                query: false,
+                lane: Lane::Stop,
+                result: Ok(DesktopPlaybackStatus::default()),
+            })
+            .unwrap();
+        panel.poll();
+        assert!(!panel.stop_pending);
+    }
 
     #[test]
     fn adjacent_script_keeps_the_selected_local_directory() {

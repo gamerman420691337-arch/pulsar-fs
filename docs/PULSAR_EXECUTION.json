@@ -4721,7 +4721,7 @@
         "CPU-BUILD",
         "CONSENT-AUTHORITY"
       ],
-      "exit": "Implement the typed tool broker with read/author/effect/stop classes, digest-bound single-use effect approvals that disclose the concrete consequence and require current attestation plus every participant's consent, unconditional stop, per-turn and per-session budgets, local bounded conversation state excluded from evidence and logs, and explicit refusal for every denied capability. Verify through actual CLI and desktop consumers, not authored callbacks alone.",
+      "exit": "Implement the typed tool broker with read/author/effect/stop classes, digest-bound single-use approval for media presentation with the concrete consequence disclosed, user-only bounded device-control sessions under DCS-01..09, current attestation and every participant's consent for effects, unconditional stop, per-turn and per-session budgets, local bounded conversation state excluded from evidence and logs, and explicit refusal for every denied capability. Verify through actual CLI and desktop consumers, not authored callbacks alone.",
       "evidence": []
     },
     {
@@ -4735,7 +4735,7 @@
       "depends_on": [
         "BROWSER-DEMO"
       ],
-      "exit": "Add media.present/media.pause over an application-owned local-file player and script.play over existing preparation, timing admission, controller lease and stop guard. Verify that no approval mints or extends timing, that stop works while an effect is in flight, that disconnect leaves playback disarmed until explicit user resumption, and that presentation and playback keep separate admissions.",
+      "exit": "Add media.present/media.pause over an application-owned local-file player and script.play over existing preparation, timing admission, controller lease and stop guard. Verify that media approval and the user-only device session never mint or extend timing admission, that stop works while an effect is in flight, that disconnect leaves playback disarmed until explicit user resumption, and that presentation and playback keep separate admissions.",
       "evidence": []
     },
     {

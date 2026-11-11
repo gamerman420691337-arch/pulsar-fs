@@ -36,18 +36,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # Keep the fast lane on an explicit LTS baseline during image rollovers.
+        os: [ubuntu-24.04, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: fast-v2
-
-      # Compilation needs native headers on Linux, not an installed media stack.
-      - name: Install Linux build dependencies
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libudev-dev pkg-config
 
       - name: Check workspace compilation
         run: cargo check --workspace --all-targets --locked
@@ -71,6 +67,8 @@ jobs:
           cargo test -p pulsar-core --lib --locked
           cargo test -p pulsar-protocol --lib project_package::tests --locked | tee "$RUNNER_TEMP/protocol-results.txt"
           grep -Eq 'test result: ok\. [1-9][0-9]* passed;' "$RUNNER_TEMP/protocol-results.txt"
+          cargo test -p pulsar-protocol --lib roleplay_effect::tests --locked | tee "$RUNNER_TEMP/roleplay-results.txt"
+          grep -Eq 'test result: ok\. [1-9][0-9]* passed;' "$RUNNER_TEMP/roleplay-results.txt"
 
   full:
     name: Full (${{ matrix.os }})
