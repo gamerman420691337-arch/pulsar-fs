@@ -83,6 +83,19 @@ The companion `pulsar-worker` is beside this executable. No arguments also opens
 
 This is a deterministic authored pattern. It neither analyzes a video nor drives a device. These button labels and the shared production pattern grammar are checked against current source; the native CLI equivalent below is executed. The pinned pre-format15 Linux app also passes an actual rendered walkthrough of create/generate/review/commit/export, overwrite refusal, Undo/Redo and joined Engine restart/reopen. The exported 17 actions match an independent oracle. See [the retained receipt](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-28/rendered-pattern/verification.json). This is scoped software evidence. The [execution dashboard](PULSAR_MILESTONES.md) records current build/browser checkpoints and remaining physical-device acceptance obligations.
 
+## Open a CLI candidate in Desktop
+
+Use the same Engine state for the CLI and Desktop. Stage a candidate with
+`pulsar regenerate --stage-only` and copy the returned candidate ID. Open its
+project in Desktop, then go to **Generator**, paste the ID into **Existing
+candidate ID**, and click **Open candidate for review**. The candidate preview
+leaves the committed revision unchanged.
+
+Click **Inspect candidate and protected regions** to review the diagnostics.
+For a bounded candidate, **Merge selected axes / preserve protection** uses the
+retained interval when no manual range is selected. Review any gaps before
+exporting the committed revision.
+
 ## Equivalent checked CLI demo
 
 ```sh
