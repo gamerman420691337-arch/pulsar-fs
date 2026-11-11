@@ -2870,9 +2870,15 @@ impl Work {
             self.publish();
             return;
         }
+        let ordinary_ready = self.metadata_task().is_none();
         if self.pending.is_none() && !self.stop_blocked {
             let next = self.session.runtime.try_lock().ok().map(|mut runtime| {
-                if runtime.is_finite_draining() {
+                // An ordinary effect must not freeze clock facts while the
+                // previous effect still has metadata custody. Stop retains
+                // its independent path and the watchdog already ran above.
+                if runtime.is_finite_draining()
+                    || (!ordinary_ready && runtime.state() != HspRuntimeState::StopRequired)
+                {
                     return Ok(None);
                 }
                 observe_for_settlement(self.session.authority.as_ref())
@@ -2914,7 +2920,7 @@ impl Work {
             .pending
             .as_ref()
             .is_some_and(|e| e.kind() == HspEffectKind::Stop)
-            || (!self.retired && self.metadata_task().is_none())
+            || (!self.retired && ordinary_ready)
         {
             self.start_pending(journal);
         }
