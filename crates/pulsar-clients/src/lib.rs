@@ -2320,6 +2320,43 @@ fn inspect_retained_candidate(
     )?)
 }
 
+fn stop_desktop_playback(
+    client: &mut impl EngineApi,
+    owner_proof: &str,
+    deadline: std::time::Instant,
+) -> Result<ResponseBody> {
+    let mut action = DesktopPlaybackAction::Stop;
+    loop {
+        let response = client
+            .execute(
+                Command::DesktopPlayback {
+                    action,
+                    owner_proof: owner_proof.to_owned(),
+                },
+                None,
+                None,
+            )
+            .context("Desktop Stop outcome could not be confirmed")?;
+        let ResponseBody::DesktopPlayback(status) = &response else {
+            anyhow::bail!("Engine returned an unexpected player response");
+        };
+        if !status.busy {
+            anyhow::ensure!(
+                !status.playing && !status.armed,
+                "Desktop player did not stop"
+            );
+            return Ok(response);
+        }
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        anyhow::ensure!(
+            !remaining.is_zero(),
+            "Desktop Stop outcome could not be confirmed"
+        );
+        std::thread::sleep(remaining.min(std::time::Duration::from_millis(40)));
+        action = DesktopPlaybackAction::Status;
+    }
+}
+
 fn require_roleplay_attestation(path: &Path, now_ns: u64) -> Result<()> {
     roleplay_consent_state::load(path)?
         .admit_roleplay(now_ns)
@@ -2408,36 +2445,7 @@ fn run_roleplay_command(
             let mut client = SessionClient::connect(endpoint, bootstrap)?;
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
             client.set_operation_deadline(Some(deadline));
-            let mut action = DesktopPlaybackAction::Stop;
-            loop {
-                let response = client
-                    .execute(
-                        Command::DesktopPlayback {
-                            action,
-                            owner_proof: owner_proof.clone(),
-                        },
-                        None,
-                        None,
-                    )
-                    .context("Desktop Stop outcome could not be confirmed")?;
-                let ResponseBody::DesktopPlayback(status) = &response else {
-                    anyhow::bail!("Engine returned an unexpected player response");
-                };
-                if !status.busy {
-                    anyhow::ensure!(
-                        !status.playing && !status.armed,
-                        "Desktop player did not stop"
-                    );
-                    return print_response(response);
-                }
-                let remaining = deadline.saturating_duration_since(std::time::Instant::now());
-                anyhow::ensure!(
-                    !remaining.is_zero(),
-                    "Desktop Stop outcome could not be confirmed"
-                );
-                std::thread::sleep(remaining.min(std::time::Duration::from_millis(40)));
-                action = DesktopPlaybackAction::Status;
-            }
+            print_response(stop_desktop_playback(&mut client, &owner_proof, deadline)?)
         }
         RoleplayCommands::CheckEffect {
             path,
@@ -2565,6 +2573,45 @@ fn library_entries(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn roleplay_stop_sends_once_and_polls_until_disarmed() {
+        struct PlaybackReplies(Vec<DesktopPlaybackAction>);
+        impl EngineApi for PlaybackReplies {
+            fn execute(
+                &mut self,
+                command: Command,
+                project: Option<ProjectId>,
+                revision: Option<RevisionId>,
+            ) -> Result<ResponseBody> {
+                let Command::DesktopPlayback { action, .. } = command else {
+                    panic!("unexpected command");
+                };
+                assert!(project.is_none() && revision.is_none());
+                let busy = self.0.is_empty();
+                self.0.push(action);
+                Ok(ResponseBody::DesktopPlayback(Box::new(
+                    DesktopPlaybackStatus {
+                        busy,
+                        playing: busy,
+                        armed: busy,
+                        ..Default::default()
+                    },
+                )))
+            }
+        }
+        let mut replies = PlaybackReplies(Vec::new());
+        stop_desktop_playback(
+            &mut replies,
+            "fixture",
+            std::time::Instant::now() + std::time::Duration::from_secs(1),
+        )
+        .unwrap();
+        assert!(matches!(
+            replies.0.as_slice(),
+            [DesktopPlaybackAction::Stop, DesktopPlaybackAction::Status]
+        ));
+    }
+
     #[test]
     fn reference_set_commands_parse_without_engine_startup() {
         use clap::Parser;
