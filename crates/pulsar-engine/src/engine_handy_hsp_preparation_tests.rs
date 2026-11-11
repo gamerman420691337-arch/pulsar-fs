@@ -1042,7 +1042,19 @@ mod hsp_preparation_tests {
             .store(before.deadline_boottime_ns, Ordering::Release);
         drop(journal);
         io.metadata_contention.release();
-        let retired = x.retired(&original.request_id);
+        let retired = x.wait(&original.request_id, "original replay must settle metadata", |status| {
+            let native = status.native.as_ref().unwrap();
+            if native.phase != HandyHspPreparationPhase::Retired || native.worker_active {
+                return false;
+            }
+            if native.metadata_pending {
+                // A status read can contend with the worker's final nonblocking
+                // write. Only an exact replay can request a metadata retry here.
+                x.call(&original, io.clone()).unwrap();
+                return false;
+            }
+            true
+        });
         let history = retired.history.unwrap();
         assert_eq!(history.record_id, before.record_id);
         assert_eq!(history.deadline_boottime_ns, before.deadline_boottime_ns);
