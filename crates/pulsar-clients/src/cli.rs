@@ -3107,6 +3107,20 @@ mod tests {
         );
     }
     #[test]
+    fn inspect_candidate_requires_both_ids_and_uses_the_engine() {
+        let args = ["pulsar", "inspect-candidate", "project", "candidate"];
+        assert!(matches!(
+            Cli::try_parse_from(args).unwrap().command,
+            Some(Commands::InspectCandidate { project, candidate })
+                if project == "project" && candidate == "candidate"
+        ));
+        assert!(Cli::try_parse_from(&args[..3]).is_err());
+        assert!(crate::command_needs_engine(
+            &args.map(std::ffi::OsString::from)
+        ));
+    }
+
+    #[test]
     fn history_commands_require_revision_and_accept_explicit_request_identity() {
         for name in ["undo", "redo"] {
             assert!(Cli::try_parse_from(["pulsar", name, "project"]).is_err());
