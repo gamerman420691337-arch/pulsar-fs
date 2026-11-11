@@ -1,5 +1,5 @@
 //! One ephemeral Desktop playback owner, with bounded HSP buffering and player custody.
-use crate::desktop_hsp::{build_points, offset_points, HspClient, HspStream};
+use crate::desktop_hsp::{build_points, limit_quantized_rate, offset_points, HspClient, HspStream};
 use crate::desktop_mpv::MpvPlayer;
 use crate::device_control_session::{
     DeviceControlSession, DeviceMotionCaps, SessionAuthority, DEFAULT_DEVICE_SESSION_LIFETIME_NS,
@@ -406,7 +406,7 @@ impl Player {
     fn points(&mut self) {
         let (points, limits_applied) = build_points(
             &self.raw,
-            self.max_speed as f32,
+            self.max_speed,
             self.min_pct as f32,
             self.max_pct as f32,
         );
@@ -453,7 +453,12 @@ impl Player {
             let points = if self.sync_offset_ms == 0 {
                 self.points.clone()
             } else {
-                Arc::new(offset_points(&self.points, self.sync_offset_ms))
+                let (points, limited) = limit_quantized_rate(
+                    offset_points(&self.points, self.sync_offset_ms),
+                    self.max_speed,
+                );
+                self.limits_applied |= limited;
+                Arc::new(points)
             };
             let mut stream = HspStream::begin(hsp, points, position as i64)?;
             while !stream.loaded_until(position + AHEAD_MS) {
