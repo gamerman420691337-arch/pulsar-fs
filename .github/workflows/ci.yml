@@ -36,7 +36,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # Keep the fast lane on an explicit LTS baseline during image rollovers.
+        os: [ubuntu-24.04, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -47,7 +48,9 @@ jobs:
       # Compilation needs native headers on Linux, not an installed media stack.
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libudev-dev pkg-config
+        run: |
+          sudo apt-get -o APT::Update::Error-Mode=any update
+          sudo apt-get install -y libasound2-dev libudev-dev pkg-config
 
       - name: Check workspace compilation
         run: cargo check --workspace --all-targets --locked
