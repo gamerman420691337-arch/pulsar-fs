@@ -56,6 +56,12 @@ fn mismatch() -> ProtocolError {
         "live HSP source binding differs",
     )
 }
+fn producer_mismatch(detail: impl std::fmt::Display) -> ProtocolError {
+    ProtocolError::new(
+        ErrorCode::DependencyMismatch,
+        format!("live HSP source binding differs: {detail}"),
+    )
+}
 /// A borrowed view of an already native-admitted CPU reply. Its original enum
 /// remains in NativeAcceptedCapture; this view creates no worker/source authority.
 struct SelectedCpuEstimate<'a> {
@@ -428,12 +434,16 @@ impl Controller {
         let at = now()?;
         #[cfg(test)]
         probe.enter(HspProducerReadTestPhase::AfterSample, Some(at))?;
-        if !self.current(source, at)
-            || accepted.frame.identity != source.selection.identity
+        if !self.current(source, at) {
+            return Err(producer_mismatch("source is no longer current"));
+        }
+        if accepted.frame.identity != source.selection.identity
             || accepted.continuity_generation != source.continuity_generation
             || accepted.accepted_boottime.latest_ns > at
         {
-            return Err(mismatch());
+            return Err(producer_mismatch(
+                "capture identity, generation or observation order differs",
+            ));
         }
         let SelectedCpuEstimate {
             attempt_id,
@@ -451,7 +461,9 @@ impl Controller {
             || !accepted.estimate.fresh
             || accepted.estimate.qualified
         {
-            return Err(mismatch());
+            return Err(producer_mismatch(
+                "inference identity, freshness or qualification differs",
+            ));
         }
         if let Some(previous) = &state.last {
             let last = selected_cpu_estimate(
@@ -463,7 +475,7 @@ impl Controller {
                 || accepted.previous_frame != previous.frame
                 || input.sequence != last.sequence.checked_add(1).ok_or_else(mismatch)?
             {
-                return Err(mismatch());
+                return Err(producer_mismatch("adjacent capture continuity differs"));
             }
         }
         let relative = Self::source_project(source, &accepted)?
@@ -498,7 +510,10 @@ impl Controller {
             || max_lead.checked_mul(1000).ok_or_else(mismatch)?
                 > i128::from(lookahead.maximum_lead_us)
         {
-            return Err(mismatch());
+            return Err(producer_mismatch(format_args!(
+                "projected lead {min_lead}–{max_lead} ms outside {}–{} µs",
+                lookahead.minimum_lead_us, lookahead.maximum_lead_us,
+            )));
         }
         // Capture is an HTTP receipt bound. Include the entire independently
         // accepted acquisition→receipt allowance; never rename receipt exposure.

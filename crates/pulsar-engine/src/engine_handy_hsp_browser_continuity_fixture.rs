@@ -1231,7 +1231,18 @@ mod rendered_browser_continuity_fixture {
             discover_ui(f, &mut originals);
             if let Some(id) = &originals.stream {
                 let value = live_status(f, id);
-                assert!(value.error.is_none(), "public Bind refused: {value:?}");
+                if let Some(error) = &value.error {
+                    record(
+                        &output,
+                        "bind-refusal.json",
+                        &json!({
+                            "error":error,"native_error":value.native.as_ref().and_then(|native| native.error.as_ref()),
+                            "delivered_samples":value.native.as_ref().map(|native| native.delivered_samples),
+                            "trained_model":trained_model,"qualified":false,"physical_device":false
+                        }),
+                    );
+                    panic!("public Bind refused: {error}");
+                }
                 assert_eq!(
                     value.selection.capture_epoch, first.identity.epoch,
                     "positive UI Bind must precede the first original capture transfer"
