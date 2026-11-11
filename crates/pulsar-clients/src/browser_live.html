@@ -123,6 +123,12 @@ function timingFrame(scope,now,metadata,sampledAt){
     const observeSentAt=performance.now();
     const report=await timingPost('/player/timing-observe',new TextEncoder().encode(JSON.stringify({sequence:probe.sequence,probe_id:probe.probe_id,frame})),scope);
     if(!currentPlayer(scope)||t.stopped)return;
+    if(report.discarded_probe_sequence!==undefined){
+     if(report.discarded_probe_sequence!==probe.sequence||!report.current||!t.observationCurrent||t.expiry===null)throw Error('Discarded timing probe differs or no current observation remains.');
+     showTiming(report);
+     t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},timingRefreshDelay(presentedFrame,performance.now(),probeMs));
+     return;
+    }
     if(report.observation?.sequence!==probe.sequence)throw Error('Timing observation sequence differs.');
     showTiming(report);
     exchange.textContent=measurement+` Observation request ${(performance.now()-observeSentAt).toFixed(1)} ms.`;

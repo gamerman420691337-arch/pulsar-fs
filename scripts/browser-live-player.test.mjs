@@ -750,6 +750,18 @@ test('timing refresh accounts for measured probe latency and adjacent frame cade
  p.advance(134);await flush();assert.equal(probes(),1);
  p.advance(1);await flush();assert.equal(probes(),2);
 });
+test('discarded timing refresh preserves the original local expiry',async()=>{
+ const p=mediaPlayer({timing:true,replyOverride:r=>{
+  if(r.route!=='/player/timing-observe'||jsonBody(r).sequence!=='2')return null;
+  return {ok:true,json:async()=>({current:true,qualified:false,discarded_probe_sequence:'2',
+   observation:{sequence:'1',bracket_width_ns:'10000000',project_phase:{numerator:'1',denominator:'2'}}})};
+ }});
+ await prepareMedia(p);p.play();await flush();await p.frame(.1,1);await flush();
+ p.advance(250);await flush();await p.frame(.2,2);await flush();
+ assert.match(p.elements['timing-status'].textContent,/10000000 ns/);
+ p.advance(2750);await flush();
+ assert.match(p.elements['timing-status'].textContent,/expired locally/);
+});
 test('timing observation lane continues while original inference Start is held',async()=>{
  const p=mediaPlayer({timing:true,holdStart:true});await prepareMedia(p);p.play();await flush();
  const pending=p.frame(.1);await flush();assert.equal(p.sent.filter(r=>r.route==='/player/timing-observe').length,1);
