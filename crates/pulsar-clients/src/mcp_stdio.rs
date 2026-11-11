@@ -1,7 +1,6 @@
 //! Local MCP transport for a fixed project and an owner-selected consent document.
 
 use super::*;
-use serde::Deserialize;
 use serde_json::{json, Value};
 use std::io::{self, BufRead, Read, Write};
 use std::time::{Duration, Instant};
@@ -9,24 +8,6 @@ use std::time::{Duration, Instant};
 const PROTOCOL: &str = "2025-06-18";
 const MAX_MESSAGE_BYTES: u64 = 64 * 1024;
 const MAX_WORK_CALLS: u32 = 128;
-const MAX_TOOL_ARGUMENT_BYTES: usize = 8 * 1024;
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ReadCandidate {
-    candidate_id: CandidateId,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ProposePattern {
-    revision: u64,
-    pattern: String,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct NoArguments {}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Tool {
@@ -115,7 +96,7 @@ impl Tool {
                 schema["required"] = json!(["revision", "pattern"]);
                 schema["properties"] = json!({
                     "revision":{"type":"integer","minimum":0},
-                    "pattern":{"type":"string","maxLength":MAX_TOOL_ARGUMENT_BYTES}
+                    "pattern":{"type":"string","maxLength":MAX_ROLEPLAY_TOOL_ARGUMENT_BYTES}
                 });
             }
             _ => {}
@@ -167,8 +148,10 @@ impl Server<'_> {
     }
 
     fn execute(&mut self, tool: Tool, arguments: Value) -> Result<Value> {
+        let call: RoleplayToolCall = serde_json::from_value(json!({
+            "name": tool.name(), "arguments": arguments,
+        }))?;
         if tool.class() == ToolClass::Stop {
-            let _: NoArguments = serde_json::from_value(arguments)?;
             let proof = self.owner_proof()?;
             let mut client = SessionClient::connect(self.endpoint, self.bootstrap)?;
             let deadline = Instant::now() + Duration::from_secs(5);
@@ -194,9 +177,8 @@ impl Server<'_> {
         require_roleplay_attestation(self.consent, consent_now_ns())?;
         let mut client = SessionClient::connect(self.endpoint, self.bootstrap)?;
         client.set_operation_deadline(Some(Instant::now() + Duration::from_secs(5)));
-        match tool {
-            Tool::ProjectSummary => {
-                let _: NoArguments = serde_json::from_value(arguments)?;
+        match call {
+            RoleplayToolCall::ProjectSummary {} => {
                 let project = get_snapshot(&mut client, &self.project)?;
                 Ok(json!({
                     "project_id": project.project_id,
@@ -205,8 +187,7 @@ impl Server<'_> {
                     "placement_count": project.placements.len()
                 }))
             }
-            Tool::DeviceStatus => {
-                let _: NoArguments = serde_json::from_value(arguments)?;
+            RoleplayToolCall::DeviceStatus {} => {
                 let status = Self::player_status(&mut client, self.owner_proof()?)?;
                 Ok(json!({
                     "connected": status.connected,
@@ -219,8 +200,7 @@ impl Server<'_> {
                     "physical_playback_verified": false
                 }))
             }
-            Tool::PlayPreparedScript => {
-                let _: NoArguments = serde_json::from_value(arguments)?;
+            RoleplayToolCall::PlayPreparedScript {} => {
                 let proof = self.owner_proof()?;
                 let status = Self::player_status(&mut client, proof.clone())?;
                 let grant = status
@@ -243,8 +223,7 @@ impl Server<'_> {
                 };
                 Ok(json!({"playback_queued":true,"physical_playback_verified":false}))
             }
-            Tool::ProposeMedia => {
-                let _: NoArguments = serde_json::from_value(arguments)?;
+            RoleplayToolCall::ProposeMedia {} => {
                 let video = self.media.context("No media is configured")?;
                 let response = client.execute(
                     Command::DesktopPlayback {
@@ -262,12 +241,9 @@ impl Server<'_> {
                 };
                 Ok(json!({"proposal_queued":true,"playback_started":false}))
             }
-            Tool::ReadCandidate => {
-                let input: ReadCandidate = serde_json::from_value(arguments)?;
+            RoleplayToolCall::ReadCandidate { candidate_id } => {
                 let response = client.execute(
-                    Command::GetCandidate {
-                        candidate_id: input.candidate_id,
-                    },
+                    Command::GetCandidate { candidate_id },
                     Some(self.project.clone()),
                     None,
                 )?;
@@ -276,21 +252,20 @@ impl Server<'_> {
                 };
                 Ok(serde_json::to_value(response)?)
             }
-            Tool::ProposePattern => {
-                let input: ProposePattern = serde_json::from_value(arguments)?;
-                let pattern = patterns::build_pattern_input(&input.pattern)?;
+            RoleplayToolCall::ProposePattern { revision, pattern } => {
+                let pattern = patterns::build_pattern_input(&pattern)?;
                 let project = get_snapshot(&mut client, &self.project)?;
                 let candidate = patterns::generate_candidate(
                     &mut client,
                     project,
-                    RevisionId::new(input.revision),
+                    RevisionId::new(revision),
                     pattern,
                 )?;
                 Ok(serde_json::to_value(ResponseBody::Candidate(Box::new(
                     candidate,
                 )))?)
             }
-            Tool::StopPlayback | Tool::PausePresentation => {
+            RoleplayToolCall::StopPlayback {} | RoleplayToolCall::PausePresentation {} => {
                 unreachable!("handled by the stop path")
             }
         }
@@ -355,7 +330,8 @@ fn handle(server: &mut Server<'_>, state: &mut Lifecycle, request: Value) -> Opt
                 .get("arguments")
                 .cloned()
                 .unwrap_or_else(|| json!({}));
-            if !args.is_object() || serde_json::to_vec(&args).ok()?.len() > MAX_TOOL_ARGUMENT_BYTES
+            if !args.is_object()
+                || serde_json::to_vec(&args).ok()?.len() > MAX_ROLEPLAY_TOOL_ARGUMENT_BYTES
             {
                 return Some(error(
                     id,
@@ -432,8 +408,14 @@ mod tests {
             listed["tools"][7]["inputSchema"]["additionalProperties"],
             false
         );
-        assert!(serde_json::from_value::<NoArguments>(json!({"video":"/untrusted.mp4"})).is_err());
-        assert!(serde_json::from_value::<NoArguments>(json!({})).is_ok());
+        assert!(serde_json::from_value::<RoleplayToolCall>(
+            json!({"name":"propose_media","arguments":{"video":"/untrusted.mp4"}})
+        )
+        .is_err());
+        assert!(serde_json::from_value::<RoleplayToolCall>(
+            json!({"name":"propose_media","arguments":{}})
+        )
+        .is_ok());
     }
 
     #[test]
@@ -483,7 +465,7 @@ mod tests {
         .unwrap();
         assert_eq!(denied["error"]["code"], -32602);
         let oversized = request(json!({"jsonrpc":"2.0","id":4,"method":"tools/call",
-            "params":{"name":"propose_pattern","arguments":{"revision":0,"pattern":"x".repeat(MAX_TOOL_ARGUMENT_BYTES)}}}))
+            "params":{"name":"propose_pattern","arguments":{"revision":0,"pattern":"x".repeat(MAX_ROLEPLAY_TOOL_ARGUMENT_BYTES)}}}))
         .unwrap();
         assert_eq!(oversized["error"]["code"], -32602);
         assert_eq!(server.work_calls, 0);
