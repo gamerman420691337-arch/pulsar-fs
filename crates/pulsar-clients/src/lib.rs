@@ -3069,6 +3069,72 @@ mod tests {
     }
 
     #[test]
+    fn shared_merge_rejects_wrong_project_or_revision() {
+        struct Reply(Option<ProjectSnapshot>);
+        impl EngineApi for Reply {
+            fn execute(
+                &mut self,
+                command: Command,
+                project: Option<ProjectId>,
+                revision: Option<RevisionId>,
+            ) -> Result<ResponseBody> {
+                assert_eq!(project.unwrap().as_str(), "project");
+                assert_eq!(revision, Some(RevisionId::new(4)));
+                assert!(matches!(
+                    command,
+                    Command::MergeCandidate { candidate_id, axes, range: None }
+                        if candidate_id.as_str() == "candidate" && axes == [Axis::Stroke]
+                ));
+                Ok(ResponseBody::Project(Box::new(self.0.take().unwrap())))
+            }
+        }
+        for (id, revision, accepted) in [
+            ("other", 5, false),
+            ("project", 6, false),
+            ("project", 5, true),
+        ] {
+            let project_id = ProjectId::new(id).unwrap();
+            let revision = RevisionId::new(revision);
+            let program = MotionProgram::default();
+            let mut api = Reply(Some(ProjectSnapshot {
+                motion: crate::motion::fixture_descriptor(
+                    &program,
+                    MotionBinding::ProjectRevision {
+                        project_id: project_id.clone(),
+                        revision,
+                    },
+                ),
+                project_id,
+                revision,
+                name: "Fixture".into(),
+                program: program.into(),
+                sources: vec![],
+                placements: vec![],
+            }));
+            let result = merge_candidate(
+                &mut api,
+                ProjectId::new("project").unwrap(),
+                RevisionId::new(4),
+                CandidateId::new("candidate").unwrap(),
+                vec![Axis::Stroke],
+                None,
+            );
+            if accepted {
+                assert_eq!(result.unwrap().revision, revision);
+            } else {
+                assert_eq!(
+                    result
+                        .unwrap_err()
+                        .downcast_ref::<ProtocolError>()
+                        .unwrap()
+                        .code,
+                    ErrorCode::DependencyMismatch
+                );
+            }
+        }
+    }
+
+    #[test]
     fn cli_and_batch_generation_use_engine_commits_and_pin_candidate_revision() {
         struct FakeEngine {
             responses: std::collections::VecDeque<ResponseBody>,
