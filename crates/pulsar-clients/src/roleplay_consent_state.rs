@@ -42,22 +42,20 @@ fn serialize(document: &RoleplayConsentDocument) -> Result<Vec<u8>> {
 /// Create a new consent document. Never replaces an existing path.
 pub fn create(path: &Path, document: &RoleplayConsentDocument) -> Result<()> {
     serialize(document)?;
+    #[cfg(unix)]
+    let _directory = lock_parent(path)?;
     assistant_client::save_private(path, document)
 }
 
-/// Atomically replace the consent document in place.
-///
-/// Refuses a target that is not our own single-link mode-0600 regular file, so a
-/// pre-existing symlink, hardlink or shared file is never overwritten.
+/// Serialize the full load/change/replace sequence across local clients. The
+/// parent inode remains stable when the document itself is atomically replaced.
 #[cfg(unix)]
-pub fn replace(path: &Path, document: &RoleplayConsentDocument) -> Result<()> {
-    use rustix::fs::{open, openat, Mode, OFlags};
+fn lock_parent(path: &Path) -> Result<std::fs::File> {
+    use rustix::fs::{flock, open, FlockOperation, Mode, OFlags};
     use std::os::unix::fs::MetadataExt;
 
-    let bytes = serialize(document)?;
     anyhow::ensure!(path.is_absolute(), "consent document path must be absolute");
     let parent = path.parent().context("missing consent parent")?;
-    let file_name = path.file_name().context("consent filename missing")?;
     let directory = std::fs::File::from(open(
         parent,
         OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
@@ -71,9 +69,34 @@ pub fn replace(path: &Path, document: &RoleplayConsentDocument) -> Result<()> {
         "consent parent must be owned and not writable by other users"
     );
 
+    flock(&directory, FlockOperation::NonBlockingLockExclusive)
+        .context("consent directory is busy; retry the consent change")?;
+    Ok(directory)
+}
+
+/// Atomically replace an owned, private consent document in place.
+#[cfg(unix)]
+pub fn replace(path: &Path, document: &RoleplayConsentDocument) -> Result<()> {
+    let directory = lock_parent(path)?;
+    replace_locked(path, document, &directory)
+}
+
+#[cfg(unix)]
+fn replace_locked(
+    path: &Path,
+    document: &RoleplayConsentDocument,
+    directory: &std::fs::File,
+) -> Result<()> {
+    use rustix::fs::{openat, Mode, OFlags};
+    use std::os::unix::fs::MetadataExt;
+
+    let bytes = serialize(document)?;
+    let parent = path.parent().context("missing consent parent")?;
+    let file_name = path.file_name().context("consent filename missing")?;
+
     // The target may be absent or must already be exactly our private file.
     match openat(
-        &directory,
+        directory,
         file_name,
         OFlags::RDONLY | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
         Mode::empty(),
@@ -100,7 +123,7 @@ pub fn replace(path: &Path, document: &RoleplayConsentDocument) -> Result<()> {
     let temporary_name = format!("{}.new-{}", file_name.to_string_lossy(), std::process::id());
     let temporary_path = parent.join(&temporary_name);
     let mut file = std::fs::File::from(openat(
-        &directory,
+        directory,
         temporary_name.as_str(),
         OFlags::WRONLY
             | OFlags::CREATE
@@ -138,8 +161,13 @@ fn mutate(
     path: &Path,
     change: impl FnOnce(&mut RoleplayConsentDocument) -> Result<()>,
 ) -> Result<RoleplayConsentDocument> {
+    #[cfg(unix)]
+    let directory = lock_parent(path)?;
     let mut document = load(path)?;
     change(&mut document)?;
+    #[cfg(unix)]
+    replace_locked(path, &document, &directory)?;
+    #[cfg(not(unix))]
     replace(path, &document)?;
     Ok(document)
 }
@@ -260,6 +288,29 @@ mod tests {
 
     fn admitted(path: &Path) -> bool {
         admitted_at(path, 1_500)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn concurrent_mutation_refuses_without_replacing_the_document() {
+        let root = scratch();
+        let path = document_path(&root);
+        create(&path, &RoleplayConsentDocument::least_permissive()).unwrap();
+        attest(&path, 1).unwrap();
+        grant(&path, participant("fixture"), ContentClass::General, 2).unwrap();
+
+        let guard = lock_parent(&path).unwrap();
+        let before = std::fs::read(&path).unwrap();
+        let error = revoke(&path, &participant("fixture"), 3).unwrap_err();
+        assert!(error.to_string().contains("consent directory is busy"));
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+
+        drop(guard);
+        revoke(&path, &participant("fixture"), 4).unwrap();
+        assert_eq!(
+            status(&path, 4).unwrap().effect_refusal,
+            Some("consent_revoked")
+        );
     }
 
     #[test]
