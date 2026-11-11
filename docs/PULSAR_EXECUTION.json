@@ -4853,6 +4853,47 @@
   ],
   "evidence": [
     {
+      "id": "EV-DELEGATED-ENGINE-HSP-RETIREMENT",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/delegated-engine-b513f72.json",
+      "sha256": "3c185f9649cc275f445b89f362e65b93d070b99a92c63a7e140ffbff9ceaeec1",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Serial Linux Engine library suite on b513f72 with delegated cpu, memory and pids passed 1995 tests with 122 ignored. The earlier 8d9bd1a run failed the HSP deadline replay assertion. Physical device acceptance remains open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "head_sha"
+          ],
+          "equals": "b513f724fdeacc098a17be4f04c97b16c6311886"
+        },
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": 1995
+        },
+        {
+          "pointer": [
+            "failed"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "ignored"
+          ],
+          "equals": 122
+        }
+      ]
+    },
+    {
       "id": "EV-FULL-CI-20261111-TERMINAL",
       "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/full-ci-42974867023.json",
       "sha256": "beaae24af156e363102a824a6f9e152ccb8c2835fbd672c9485004c3bd9e3b2a",
