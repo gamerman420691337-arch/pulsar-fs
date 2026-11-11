@@ -1474,12 +1474,25 @@ mod rendered_browser_continuity_fixture {
                     if transfers.len() != 2 {
                         let final_captures: Vec<_> =
                             captures.values().map(|id| snapshot(&x.f, id)).collect();
+                        let original_timing =
+                            x.f.engine
+                                .handle(request(
+                                    &x.f.session,
+                                    Some(&x.f.project),
+                                    None,
+                                    Command::BrowserTimingStatus {
+                                        binding_id: analysis.timing_binding_id.clone(),
+                                        player: analysis.player.clone(),
+                                    },
+                                ))
+                                .result;
                         let remote = peer.state.lock().unwrap();
                         record(
                             &output,
                             "early-stop-native.json",
                             &json!({
                                 "live":stream,"clock":clock,"captures":final_captures,"events":events,
+                                "original_browser_timing":original_timing,
                                 "peer":{"setups":remote.setups,"plays":remote.plays,"stops":remote.stops,"tail":remote.tail,"consumed":remote.consumed,"points":remote.queue.len(),"calls":remote.calls},
                                 "qualified":false
                             }),

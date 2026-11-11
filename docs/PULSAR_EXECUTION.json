@@ -4554,7 +4554,8 @@
         "EV-BROWSER-DESKTOP-HANDOFF-66C3DE6",
         "EV-OUTLINE-HOLDOUT-CPU",
         "EV-STERILE-OUTLINE-PROXY",
-        "EV-OUTLINE-HOLDOUT-BROWSER"
+        "EV-OUTLINE-HOLDOUT-BROWSER",
+        "EV-TRAINED-HSP-LOOPBACK-EARLY-STOP"
       ]
     },
     {
@@ -20261,6 +20262,77 @@
         {
           "pointer": [
             "physical_device_test"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-TRAINED-HSP-LOOPBACK-EARLY-STOP",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/outline-holdout-hsp-40s/play-acknowledged-early-stop/result.json",
+      "sha256": "b67faa261bfc62999198c2656898be1901b7ea9ad4da786f11b7485dff57fe5a",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Browser Live with the trained outline graph reached one loopback Setup, Play and Stop and accepted 35 samples. It stopped before either required native transfer. Physical playback, stopping and continuity remain unqualified.",
+      "assertions": [
+        {
+          "pointer": [
+            "rendered_browser"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "trained_model"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "loopback_setup_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "loopback_play_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "loopback_stop_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "accepted_samples"
+          ],
+          "equals": 35
+        },
+        {
+          "pointer": [
+            "completed_native_transfers"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "expected_native_transfers"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "physical_device_test"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualification_passed"
           ],
           "equals": false
         }
