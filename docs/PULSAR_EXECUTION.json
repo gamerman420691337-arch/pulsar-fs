@@ -4243,7 +4243,8 @@
         "EV-INTEGRATION-BUILD-001",
         "EV-INTEGRATION-BUILD-002",
         "EV-STERILE-REGENERATION-STAGE-ONLY",
-        "EV-DESKTOP-CLI-HANDOFF-646230C"
+        "EV-DESKTOP-CLI-HANDOFF-646230C",
+        "EV-BROWSER-DESKTOP-HANDOFF-66C3DE6"
       ]
     },
     {
@@ -4335,7 +4336,8 @@
         "EV-RECORDING-BOUNDARY-CURRENT",
         "EV-RECORDING-BOUNDARY-PORTABLE",
         "EV-DELEGATED-HOST-NATIVE-ASSISTANT",
-        "EV-HOSTED-FULL-542F2BB"
+        "EV-HOSTED-FULL-542F2BB",
+        "EV-HOSTED-FULL-32DAFF4"
       ]
     },
     {
@@ -4536,7 +4538,8 @@
         "EV-MACOS-TIMING-FIXTURE-NATIVE-GREEN",
         "EV-NATIVE-BROWSER-TIMING-65149D6",
         "EV-BROWSER-TIMING-275ABD6",
-        "EV-STERILE-RENDER-0BC5B36"
+        "EV-STERILE-RENDER-0BC5B36",
+        "EV-BROWSER-DESKTOP-HANDOFF-66C3DE6"
       ]
     },
     {
@@ -4861,6 +4864,82 @@
     }
   ],
   "evidence": [
+    {
+      "id": "EV-HOSTED-FULL-32DAFF4",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/hosted-full-ci-32daff4.json",
+      "sha256": "7e7ea880dd848767204c358aedb98e87868fa2a3a2c7f0a79f92f26efaffd8ac",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Full hosted Linux, macOS and Windows suites passed on 32daff4, including 1,997 delegated Linux Engine tests and the worker-fence startup change.",
+      "assertions": [
+        {
+          "pointer": [
+            "headSha"
+          ],
+          "equals": "32daff4595ec406e5f91c88972690da7834bb169"
+        },
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "completed"
+        },
+        {
+          "pointer": [
+            "conclusion"
+          ],
+          "equals": "success"
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-DESKTOP-HANDOFF-66C3DE6",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/browser-desktop-handoff/result.json",
+      "sha256": "81e30e0e8f2089f4b9723fc6c5f67b246bf951ba2d53b3d31151d58cf7b61b91",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "The rendered Browser Live player staged a sterile CPU candidate. Desktop opened the same candidate in the same project, displayed two coverage gaps, and left revision 1 unchanged.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "revision_after_review"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "unavailable_intervals"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "committed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
     {
       "id": "EV-DESKTOP-CLI-HANDOFF-646230C",
       "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/desktop-cli-candidate-review/result.json",
