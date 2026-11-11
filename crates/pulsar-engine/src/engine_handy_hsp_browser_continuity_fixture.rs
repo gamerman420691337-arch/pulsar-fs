@@ -1291,6 +1291,19 @@ mod rendered_browser_continuity_fixture {
                 assert!(ui_diagnostic_count <= 361);
                 last_ui_diagnostic = Instant::now();
             }
+            if stream
+                .stream
+                .as_ref()
+                .and_then(|s| s.native.as_ref())
+                .is_some_and(|native| {
+                    native.runtime_state == HandyHspRuntimeState::StopAcknowledged
+                        && !native.native_active
+                        && !native.metadata_pending
+                })
+            {
+                let first_stop = rendered_browser_first_stop(f, &output, &bind_id);
+                panic!("native HSP stopped before the fixture observed Play: {first_stop}");
+            }
             assert_eq!(stream.origin.as_ref(), Some(&origin));
             assert!(
                 stream.error.is_none(),
