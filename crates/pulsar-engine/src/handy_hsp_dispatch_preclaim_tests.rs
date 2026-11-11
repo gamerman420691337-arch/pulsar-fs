@@ -101,7 +101,10 @@ fn native_preclaim_journal_then_runtime_contention_preserves_bytes_and_claims_on
     assert!(completion.claim.is_some());
     assert!(matches!(
         completion.attempt,
-        HspDispatchAttempt::Observed { response: Some(_) }
+        HspDispatchAttempt::Observed {
+            response: Some(_),
+            ..
+        }
     ));
     assert_eq!(completion.request.effect, effect);
     assert_eq!(
@@ -368,7 +371,7 @@ fn native_preclaim_postclaim_runtime_contention_is_unknown_without_second_put() 
     assert!(completion.claim.is_some());
     assert!(matches!(
         completion.attempt,
-        HspDispatchAttempt::Observed { response: None }
+        HspDispatchAttempt::Observed { response: None, .. }
     ));
     assert_eq!(
         rig.journal

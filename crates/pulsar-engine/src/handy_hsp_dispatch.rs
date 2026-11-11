@@ -586,6 +586,7 @@ pub enum HspDispatchAttempt {
     /// journal claim; emergency dispatch does not create one. None is Unknown.
     Observed {
         response: Option<HspState>,
+        failure: Option<HspDispatchFailure>,
     },
 }
 #[must_use = "retain the exact effect and claim for completion and metadata retry"]
@@ -605,7 +606,7 @@ impl HspDispatchCompletion {
     ) -> Result<HspCompletionRecord, HspDispatchFailure> {
         let response = match &self.attempt {
             HspDispatchAttempt::Rejected(error) => return Err(error.clone()),
-            HspDispatchAttempt::Observed { response } => response,
+            HspDispatchAttempt::Observed { response, .. } => response,
         };
         let bytes = response.map(state_bytes);
         runtime
@@ -1062,7 +1063,7 @@ impl HspEmergencyStopCompletion {
         if self.observation.is_none() {
             let response = match &self.attempt {
                 HspDispatchAttempt::Rejected(error) => return Err(error.clone()),
-                HspDispatchAttempt::Observed { response } => response,
+                HspDispatchAttempt::Observed { response, .. } => response,
             };
             runtime
                 .validate_native_completion(&self.request.effect, &self.reservation)
@@ -1310,7 +1311,12 @@ impl HandyHspDispatcher {
                             .unwrap_or_else(|p| p.into_inner())
                             .attempted
                         {
-                            return HspDispatchAttempt::Observed { response: None };
+                            return HspDispatchAttempt::Observed {
+                                response: None,
+                                failure: Some(
+                                    result.err().unwrap_or(HspDispatchFailure::BindingMismatch),
+                                ),
+                            };
                         }
                         return HspDispatchAttempt::Rejected(
                             result.err().unwrap_or(HspDispatchFailure::BindingMismatch),
@@ -1325,13 +1331,23 @@ impl HandyHspDispatcher {
                         &clock,
                         &cancelled,
                     )
-                    .ok()
-                    .and_then(|bytes| handy_hsp_wire::decode_state(200, &bytes).ok());
-                HspDispatchAttempt::Observed {
-                    response: if cancelled.load(Ordering::Acquire) {
-                        None
-                    } else {
-                        response
+                    .and_then(|bytes| {
+                        handy_hsp_wire::decode_state(200, &bytes)
+                            .map_err(|_| HspDispatchFailure::InvalidResponse)
+                    });
+                let response = if cancelled.load(Ordering::Acquire) {
+                    Err(HspDispatchFailure::Cancelled)
+                } else {
+                    response
+                };
+                match response {
+                    Ok(state) => HspDispatchAttempt::Observed {
+                        response: Some(state),
+                        failure: None,
+                    },
+                    Err(error) => HspDispatchAttempt::Observed {
+                        response: None,
+                        failure: Some(error),
                     },
                 }
             });
@@ -1667,13 +1683,23 @@ impl HandyHspDispatcher {
                         &clock,
                         &cancelled,
                     )
-                    .ok()
-                    .and_then(|bytes| handy_hsp_wire::decode_state(200, &bytes).ok());
-                HspDispatchAttempt::Observed {
-                    response: if cancelled.load(Ordering::Acquire) {
-                        None
-                    } else {
-                        response
+                    .and_then(|bytes| {
+                        handy_hsp_wire::decode_state(200, &bytes)
+                            .map_err(|_| HspDispatchFailure::InvalidResponse)
+                    });
+                let response = if cancelled.load(Ordering::Acquire) {
+                    Err(HspDispatchFailure::Cancelled)
+                } else {
+                    response
+                };
+                match response {
+                    Ok(state) => HspDispatchAttempt::Observed {
+                        response: Some(state),
+                        failure: None,
+                    },
+                    Err(error) => HspDispatchAttempt::Observed {
+                        response: None,
+                        failure: Some(error),
                     },
                 }
             });
@@ -1749,7 +1775,10 @@ impl HandyHspDispatcher {
                 let attempted = custody.reservation.join();
                 let attempt = result.unwrap_or({
                     if attempted {
-                        HspDispatchAttempt::Observed { response: None }
+                        HspDispatchAttempt::Observed {
+                            response: None,
+                            failure: Some(HspDispatchFailure::WorkerUnavailable),
+                        }
                     } else {
                         HspDispatchAttempt::Rejected(HspDispatchFailure::WorkerUnavailable)
                     }
@@ -1767,7 +1796,10 @@ impl HandyHspDispatcher {
                 let attempted = active.reservation.join();
                 let attempt = result.unwrap_or({
                     if attempted {
-                        HspDispatchAttempt::Observed { response: None }
+                        HspDispatchAttempt::Observed {
+                            response: None,
+                            failure: Some(HspDispatchFailure::WorkerUnavailable),
+                        }
                     } else {
                         HspDispatchAttempt::Rejected(HspDispatchFailure::WorkerUnavailable)
                     }

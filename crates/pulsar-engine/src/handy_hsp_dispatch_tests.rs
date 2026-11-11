@@ -715,7 +715,7 @@ fn native_malformed_redirect_http_error_echo_and_oversized_are_unknown_without_r
         let completion = rig.wait();
         assert!(matches!(
             completion.attempt,
-            HspDispatchAttempt::Observed { response: None }
+            HspDispatchAttempt::Observed { response: None, .. }
         ));
         assert!(completion.claim.is_some());
         assert_eq!(rig.peer.puts(), 2);
@@ -858,7 +858,7 @@ fn native_panic_after_claim_preserves_exact_claim_unknown_and_no_put() {
     let completion = rig.wait();
     assert!(matches!(
         completion.attempt,
-        HspDispatchAttempt::Observed { response: None }
+        HspDispatchAttempt::Observed { response: None, .. }
     ));
     assert!(completion.claim.is_some());
     assert_eq!(completion.request.effect, original);
@@ -923,7 +923,10 @@ fn native_suspend_clock_is_checked_before_put_and_after_held_reply() {
     let completion = rig.wait();
     assert!(matches!(
         completion.attempt,
-        HspDispatchAttempt::Observed { response: None }
+        HspDispatchAttempt::Observed {
+            response: None,
+            failure: Some(HspDispatchFailure::InvalidClock)
+        }
     ));
     assert!(completion.claim.is_some());
     assert_eq!(rig.peer.puts(), 0);
@@ -944,7 +947,10 @@ fn native_suspend_clock_is_checked_before_put_and_after_held_reply() {
     let completion = rig.wait();
     assert!(matches!(
         completion.attempt,
-        HspDispatchAttempt::Observed { response: None }
+        HspDispatchAttempt::Observed {
+            response: None,
+            failure: Some(HspDispatchFailure::InvalidClock)
+        }
     ));
     assert!(completion.claim.is_some());
     assert_eq!(rig.peer.puts(), 2);
@@ -978,7 +984,7 @@ fn native_shutdown_joins_a_held_reply_and_returns_claimed_unknown() {
     assert!(completion.claim.is_some());
     assert!(matches!(
         completion.attempt,
-        HspDispatchAttempt::Observed { response: None }
+        HspDispatchAttempt::Observed { response: None, .. }
     ));
     assert_eq!(rig.peer.puts(), 2);
 }
@@ -1111,7 +1117,7 @@ fn native_handoff_from_another_worker_cannot_authorize_a_put() {
     assert!(first.claim.is_some());
     assert!(matches!(
         first.attempt,
-        HspDispatchAttempt::Observed { response: None }
+        HspDispatchAttempt::Observed { response: None, .. }
     ));
     let failure = rig
         .dispatcher

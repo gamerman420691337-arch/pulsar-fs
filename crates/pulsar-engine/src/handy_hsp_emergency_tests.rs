@@ -166,9 +166,10 @@ fn hsp_wait_diagnostics(rig: &mut Rig, phase: &str, expected: usize, elapsed: Du
 fn hsp_attempt_diagnostic(attempt: &HspDispatchAttempt) -> String {
     match attempt {
         HspDispatchAttempt::Rejected(reason) => format!("rejected:{reason:?}"),
-        HspDispatchAttempt::Observed { response: None } => "observed:unknown".into(),
+        HspDispatchAttempt::Observed { response: None, .. } => "observed:unknown".into(),
         HspDispatchAttempt::Observed {
             response: Some(state),
+            ..
         } => format!(
             "observed:stream={},play={:?}",
             state.stream_id, state.play_state
@@ -708,7 +709,7 @@ fn native_claim_boundary_unwind_is_unknown_without_fabricating_a_durable_claim()
     let completion = rig.wait();
     assert!(matches!(
         completion.attempt,
-        HspDispatchAttempt::Observed { response: None }
+        HspDispatchAttempt::Observed { response: None, .. }
     ));
     assert!(completion.claim.is_none());
     assert!(rig
@@ -747,7 +748,7 @@ fn emergency_worker_panic_after_put_keeps_consumed_unknown_without_retry() {
     let mut completion = emergency_wait(&mut rig);
     assert!(matches!(
         completion.attempt(),
-        HspDispatchAttempt::Observed { response: None }
+        HspDispatchAttempt::Observed { response: None, .. }
     ));
     assert_eq!(
         completion

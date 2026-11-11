@@ -1886,9 +1886,13 @@ impl Work {
                     self.post_setup = Some(effect.clone());
                 }
                 if outcome == HspJoinedOutcome::Unknown {
+                    let failure = match &completion.attempt {
+                        HspDispatchAttempt::Observed { failure, .. } => failure.clone(),
+                        HspDispatchAttempt::Rejected(_) => unreachable!(),
+                    };
                     self.record_first_stop(
                         HspFirstStopReason::JoinedOutcomeUnknown,
-                        None,
+                        failure,
                         None,
                         effect.original_facts(),
                         None,
