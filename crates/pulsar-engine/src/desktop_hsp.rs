@@ -341,10 +341,10 @@ impl HspStream {
 /// never receives a stroke faster than the limit.
 pub fn build_points(
     actions: &[(i64, i32)],
-    max_speed: f32,
+    max_speed: u16,
     min_pct: f32,
     max_pct: f32,
-) -> Vec<(u32, u8)> {
+) -> (Vec<(u32, u8)>, bool) {
     let mut sorted: Vec<(i64, i32)> = actions.iter().copied().filter(|&(t, _)| t >= 0).collect();
     sorted.sort_by_key(|&(t, _)| t);
     sorted.dedup_by(|b, a| {
@@ -359,14 +359,16 @@ pub fn build_points(
     let span = (max_pct - min_pct).max(0.0);
     let mut out = Vec::with_capacity(sorted.len());
     let mut prev: Option<(i64, f32)> = None;
+    let mut limits_applied = false;
     for (t, pos) in sorted {
         let mut p = (pos.clamp(0, 100)) as f32;
         if let Some((pt, pp)) = prev {
-            let max_delta = max_speed * (t - pt) as f32 / 1000.0;
+            let max_delta = f32::from(max_speed) * (t - pt) as f32 / 1000.0;
             p = p.clamp(pp - max_delta, pp + max_delta);
         }
         prev = Some((t, p));
         let x = (min_pct + p / 100.0 * span).round().clamp(0.0, 100.0) as u8;
+        limits_applied |= i32::from(x) != pos;
         out.push((t as u32, x));
     }
     // HSP requires two initial points. Split long linear segments so that this
@@ -374,23 +376,44 @@ pub fn build_points(
     if out.first().is_some_and(|p| p.0 > 0) {
         out.insert(0, (0, out[0].1));
     }
-    let mut bounded = Vec::with_capacity(out.len());
-    for pair in out.windows(2) {
-        let (start, x) = pair[0];
-        let (end, y) = pair[1];
-        bounded.push((start, x));
-        let mut t = u64::from(start) + 5000;
-        while t < u64::from(end) {
-            let fraction = (t - u64::from(start)) as f64 / f64::from(end - start);
-            let value = (f64::from(x) + (f64::from(y) - f64::from(x)) * fraction).round() as u8;
-            bounded.push((t as u32, value));
-            t += 5000;
+    let (points, quantized_limit) = limit_quantized_rate(out, max_speed);
+    (points, limits_applied || quantized_limit)
+}
+
+/// Enforce the integer device rate after rounding. Coalesce sub-unit changes
+/// until the elapsed time allows movement, while retaining the final timestamp.
+pub(super) fn limit_quantized_rate(
+    points: Vec<(u32, u8)>,
+    max_speed: u16,
+) -> (Vec<(u32, u8)>, bool) {
+    let mut bounded = Vec::with_capacity(points.len());
+    let mut limited = false;
+    for (index, &(time, requested)) in points.iter().enumerate() {
+        let Some(&(previous_time, previous)) = bounded.last() else {
+            bounded.push((time, requested));
+            continue;
+        };
+        let elapsed = u64::from(time - previous_time);
+        let allowed = (u64::from(max_speed) * elapsed / 1000).min(100);
+        let delta = i32::from(requested) - i32::from(previous);
+        let magnitude = u64::from(delta.unsigned_abs());
+        let movement = magnitude.min(allowed);
+        limited |= movement != magnitude;
+        if movement == 0 && magnitude != 0 && index + 1 != points.len() {
+            continue;
         }
+        let direction = delta.signum();
+        // Whole five-second spans have an integral movement allowance. Round
+        // toward the target at each split so the final fractional span also fits.
+        for elapsed_ms in (5000..elapsed).step_by(5000) {
+            let position =
+                i32::from(previous) + direction * (movement * elapsed_ms).div_ceil(elapsed) as i32;
+            bounded.push((previous_time + elapsed_ms as u32, position as u8));
+        }
+        let position = i32::from(previous) + direction * movement as i32;
+        bounded.push((time, position as u8));
     }
-    if let Some(point) = out.last() {
-        bounded.push(*point);
-    }
-    bounded
+    (bounded, limited)
 }
 
 /// Express the normalized points from `build_points` in video time. A delay holds
@@ -436,6 +459,13 @@ pub fn offset_points(points: &[(u32, u8)], offset_ms: i16) -> Vec<(u32, u8)> {
 mod tests {
     use super::*;
     #[test]
+    fn reports_when_the_configured_caps_change_positions() {
+        assert!(!build_points(&[(0, 20), (1000, 80)], 300, 0.0, 100.0).1);
+        assert!(build_points(&[(0, 0), (1000, 100)], 300, 35.0, 65.0).1);
+        assert!(build_points(&[(0, 0), (10, 100)], 300, 0.0, 100.0).1);
+    }
+
+    #[test]
     fn offset_holds_or_interpolates_at_video_boundaries() {
         let points = [(0, 20), (1_000, 80), (2_000, 80)];
         assert_eq!(offset_points(&points, 0), points);
@@ -452,33 +482,87 @@ mod tests {
 
     #[test]
     fn long_segments_keep_a_five_second_preload_bound() {
-        let points = build_points(&[(0, 40), (60_000, 60)], 150.0, 0.0, 100.0);
+        let points = build_points(&[(0, 40), (60_000, 60)], 150, 0.0, 100.0).0;
         assert_eq!(points.first(), Some(&(0, 40)));
         assert_eq!(points.last(), Some(&(60_000, 60)));
         assert!(points.windows(2).all(|p| p[1].0 - p[0].0 <= 5000));
-        let delayed = build_points(&[(30_000, 40), (60_000, 40)], 150.0, 0.0, 100.0);
+        let delayed = build_points(&[(30_000, 40), (60_000, 40)], 150, 0.0, 100.0).0;
         assert_eq!(delayed.first(), Some(&(0, 40)));
         assert_eq!(delayed[1], (5000, 40));
     }
 
     #[test]
+    fn integer_points_respect_low_rate_without_losing_the_end_time() {
+        let (points, limited) = limit_quantized_rate(
+            vec![(0, 35), (500, 36), (1000, 36), (5500, 42), (6500, 45)],
+            1,
+        );
+        assert!(limited);
+        assert_eq!(points, [(0, 35), (1000, 36), (5500, 40), (6500, 41)]);
+        let (long, _) = limit_quantized_rate(vec![(0, 35), (5500, 40)], 1);
+        assert_eq!(long, [(0, 35), (5000, 40), (5500, 40)]);
+        for sequence in [points, long] {
+            assert!(sequence.windows(2).all(|pair| {
+                let elapsed = pair[1].0 - pair[0].0;
+                elapsed <= 5000 && u32::from(pair[1].1.abs_diff(pair[0].1)) * 1000 <= elapsed
+            }));
+        }
+    }
+
+    #[test]
+    fn all_supported_speed_caps_survive_sync_offset_and_preload_splits() {
+        let actions = [
+            (0, 0),
+            (1, 100),
+            (3, 0),
+            (7, 100),
+            (90, 0),
+            (1000, 100),
+            (1025, 50),
+            (5001, 99),
+            (10500, 0),
+            (19000, 100),
+        ];
+        for speed in 1..=300 {
+            let (points, _) = build_points(&actions, speed, 10.0, 80.0);
+            for offset in [-2000, -400, -1, 0, 1, 400, 2000] {
+                let shifted = offset_points(&points, offset);
+                let expected_end = shifted.last().unwrap().0;
+                let (limited, _) = limit_quantized_rate(shifted, speed);
+                assert_eq!(limited.first().unwrap().0, 0);
+                assert_eq!(limited.last().unwrap().0, expected_end);
+                assert!(limited.iter().all(|point| (10..=80).contains(&point.1)));
+                assert!(
+                    limited.windows(2).all(|pair| {
+                        let gap = pair[1].0 - pair[0].0;
+                        (1..=5000).contains(&gap)
+                            && u32::from(pair[1].1.abs_diff(pair[0].1)) * 1000
+                                <= u32::from(speed) * gap
+                    }),
+                    "speed={speed}, offset={offset}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn speed_limit_caps_stroke_rate() {
         // 100 units in 100 ms is 1000 u/s; limit 300 u/s allows 30 units.
-        let pts = build_points(&[(0, 0), (100, 100)], 300.0, 0.0, 100.0);
+        let pts = build_points(&[(0, 0), (100, 100)], 300, 0.0, 100.0).0;
         assert_eq!(pts, vec![(0, 0), (100, 30)]);
     }
 
     #[test]
     fn slow_strokes_pass_unchanged() {
-        let pts = build_points(&[(0, 0), (1000, 100), (2000, 0)], 300.0, 0.0, 100.0);
+        let pts = build_points(&[(0, 0), (1000, 100), (2000, 0)], 300, 0.0, 100.0).0;
         assert_eq!(pts, vec![(0, 0), (1000, 100), (2000, 0)]);
-        let ok = build_points(&[(0, 0), (500, 100)], 300.0, 0.0, 100.0);
+        let ok = build_points(&[(0, 0), (500, 100)], 300, 0.0, 100.0).0;
         assert_eq!(ok, vec![(0, 0), (500, 100)]);
     }
 
     #[test]
     fn range_mapping_and_dedup() {
-        let pts = build_points(&[(0, 0), (500, 50), (500, 100)], 1000.0, 10.0, 90.0);
+        let pts = build_points(&[(0, 0), (500, 50), (500, 100)], 1000, 10.0, 90.0).0;
         assert_eq!(pts, vec![(0, 10), (500, 90)]);
     }
 }

@@ -133,9 +133,11 @@ fn buffered_hsp_uses_token_auth_shared_clock_and_bounded_uploads() {
         actions.extend([(t, from), (t + 800, 100 - from)]);
     }
     actions.push((17_000, 0));
-    let demo = hsp::build_points(&actions, 150.0, 35.0, 65.0);
+    let (demo, limited) = hsp::build_points(&actions, 150, 35.0, 65.0);
+    assert!(limited);
     for offset in [-250, 0, 250] {
-        let shifted = Arc::new(hsp::offset_points(&demo, offset));
+        let (shifted, _) = hsp::limit_quantized_rate(hsp::offset_points(&demo, offset), 150);
+        let shifted = Arc::new(shifted);
         let mut stream = hsp::HspStream::begin(&mut client, shifted, 0).unwrap();
         for position in (0..=15_000).step_by(5_000) {
             stream.load_until(&mut client, position + 5_000).unwrap();
