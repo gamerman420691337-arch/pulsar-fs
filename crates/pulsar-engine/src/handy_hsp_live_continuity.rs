@@ -893,7 +893,8 @@ impl Controller {
                 Err(error) if transition_wait(&error) => return Ok(()),
                 Err(error) => {
                     return Err(internal(format!(
-                        "native source transition admission failed: {error:?}"
+                        "native source transition admission failed: {error:?}; predecessor tail {} ms, successor first {} ms, maximum gap {} ms",
+                        last.point.time_ms, first.point.time_ms, self.policy.max_gap_ms
                     )))
                 }
             }

@@ -573,7 +573,7 @@ function receiveContinuation(report,state,c){
   if(!c.pairAck){c.committedReport=report;c.phase='joining';return false;}
   stopContinuation(state);state.feed=null;checkAnalysisFeed(report,state,playerScope);epoch=state.feed.capture_epoch;state.captureDeadline=c.captureDeadline;state.lastSubmitted=c.pairAck;state.lastAck=c.pairAck;state.continuation=null;state.continuationCount++;
   const mediaRequest=report.browser?.analysis_continuity?.media_preparation_request_id;if(typeof mediaRequest!=='string'||!mediaRequest)throw Error('Committed source preparation identity missing.');state.media.preparation_request_id=mediaRequest;
-  stopTiming(playerScope);beginTiming(playerScope,{configured:true});lookaheadStatus.textContent='Capture transfer confirmed; the same visible player continues. Any skipped frames remain gaps.';
+  const hspConfigured=playerScope.timing?.hspConfigured===true;stopTiming(playerScope);beginTiming(playerScope,{configured:true},hspConfigured);lookaheadStatus.textContent='Capture transfer confirmed; the same visible player continues. Any skipped frames remain gaps.';
   showAnalysis(report,0,c.pairAck.submitted.media_us,c.pairAck.capturedAt,state);return true;
  }
  if(!['boundary_reserved','joining_predecessor','awaiting_successor_pair','ready_for_transfer'].includes(transfer.phase))throw Error('Invalid native transfer phase.');

@@ -1526,7 +1526,16 @@ mod rendered_browser_continuity_fixture {
                 else {
                     panic!("transfer report")
                 };
-                assert_ne!(value.phase, BrowserAnalysisTransferPhase::Aborted);
+                if value.phase == BrowserAnalysisTransferPhase::Aborted {
+                    record(
+                        &output,
+                        "transfer-refusal.json",
+                        &json!({
+                            "transfer":value,"live":stream,"clock":clock,"qualified":false
+                        }),
+                    );
+                    panic!("actual native transfer aborted: {:?}", value.error);
+                }
                 if value.phase == BrowserAnalysisTransferPhase::Transferred {
                     assert!(
                         value.predecessor_worker_joined
