@@ -51,6 +51,16 @@ fn tools(media_configured: bool) -> Value {
             "description": "Request playback of the loaded script under the active user-enabled Handy grant.",
             "inputSchema": {"type":"object","additionalProperties":false}
         }),
+        json!({
+            "name": "project_summary",
+            "description": "Read the current revision and source counts for the configured project.",
+            "inputSchema": {"type":"object","additionalProperties":false}
+        }),
+        json!({
+            "name": "device_status",
+            "description": "Read the local player and Handy session state.",
+            "inputSchema": {"type":"object","additionalProperties":false}
+        }),
     ];
     if media_configured {
         entries.push(json!({
@@ -80,6 +90,21 @@ impl Server<'_> {
         project_package::read_local_owner_proof(directory, "handy-owner.token")
     }
 
+    fn player_status(client: &mut impl EngineApi, proof: String) -> Result<DesktopPlaybackStatus> {
+        let response = client.execute(
+            Command::DesktopPlayback {
+                action: DesktopPlaybackAction::Status,
+                owner_proof: proof,
+            },
+            None,
+            None,
+        )?;
+        let ResponseBody::DesktopPlayback(status) = response else {
+            anyhow::bail!("Engine returned an unexpected player response");
+        };
+        Ok(*status)
+    }
+
     fn execute(&mut self, name: &str, arguments: Value) -> Result<Value> {
         if name == "stop_playback" {
             let _: NoArguments = serde_json::from_value(arguments)?;
@@ -100,20 +125,34 @@ impl Server<'_> {
         let mut client = SessionClient::connect(self.endpoint, self.bootstrap)?;
         client.set_operation_deadline(Some(Instant::now() + Duration::from_secs(5)));
         match name {
+            "project_summary" => {
+                let _: NoArguments = serde_json::from_value(arguments)?;
+                let project = get_snapshot(&mut client, &self.project)?;
+                Ok(json!({
+                    "project_id": project.project_id,
+                    "revision": project.revision,
+                    "source_count": project.sources.len(),
+                    "placement_count": project.placements.len()
+                }))
+            }
+            "device_status" => {
+                let _: NoArguments = serde_json::from_value(arguments)?;
+                let status = Self::player_status(&mut client, self.owner_proof()?)?;
+                Ok(json!({
+                    "connected": status.connected,
+                    "armed": status.armed,
+                    "playing": status.playing,
+                    "busy": status.busy,
+                    "assistant_control": status.assistant_grant.is_some(),
+                    "expires_in_ms": status.expires_in_ms,
+                    "limits_applied": status.limits_applied,
+                    "physical_playback_verified": false
+                }))
+            }
             "play_prepared_script" => {
                 let _: NoArguments = serde_json::from_value(arguments)?;
                 let proof = self.owner_proof()?;
-                let response = client.execute(
-                    Command::DesktopPlayback {
-                        action: DesktopPlaybackAction::Status,
-                        owner_proof: proof.clone(),
-                    },
-                    None,
-                    None,
-                )?;
-                let ResponseBody::DesktopPlayback(status) = response else {
-                    anyhow::bail!("Engine returned an unexpected player response");
-                };
+                let status = Self::player_status(&mut client, proof.clone())?;
                 let grant = status
                     .assistant_grant
                     .context("No active assistant Handy grant")?;
@@ -238,7 +277,9 @@ fn handle(server: &mut Server<'_>, state: &mut Lifecycle, request: Value) -> Opt
                 | "propose_pattern"
                 | "stop_playback"
                 | "propose_media"
-                | "play_prepared_script"),
+                | "play_prepared_script"
+                | "project_summary"
+                | "device_status"),
             ) = params["name"].as_str()
             else {
                 return Some(error(id, -32602, "Unknown tool"));
@@ -314,9 +355,9 @@ mod tests {
     #[test]
     fn media_proposal_is_optional_and_accepts_no_model_path() {
         let listed = tools(true);
-        assert_eq!(listed["tools"][4]["name"], "propose_media");
+        assert_eq!(listed["tools"][6]["name"], "propose_media");
         assert_eq!(
-            listed["tools"][4]["inputSchema"]["additionalProperties"],
+            listed["tools"][6]["inputSchema"]["additionalProperties"],
             false
         );
         assert!(serde_json::from_value::<NoArguments>(json!({"video":"/untrusted.mp4"})).is_err());
@@ -359,7 +400,9 @@ mod tests {
                 "read_candidate",
                 "propose_pattern",
                 "stop_playback",
-                "play_prepared_script"
+                "play_prepared_script",
+                "project_summary",
+                "device_status"
             ]
         );
         let denied = request(json!({"jsonrpc":"2.0","id":3,"method":"tools/call",

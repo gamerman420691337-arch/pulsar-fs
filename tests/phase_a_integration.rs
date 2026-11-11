@@ -1332,6 +1332,8 @@ fn standalone_mcp_stages_a_candidate_and_stops_without_approving_effects() -> Re
         json!({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"play_playback"}}),
         json!({"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"stop_playback"}}),
         json!({"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"play_prepared_script"}}),
+        json!({"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"project_summary"}}),
+        json!({"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"device_status"}}),
     ] {
         writeln!(input, "{message}")?;
     }
@@ -1354,9 +1356,18 @@ fn standalone_mcp_stages_a_candidate_and_stops_without_approving_effects() -> Re
         .collect::<std::result::Result<Vec<_>, _>>()?;
     assert_eq!(
         replies.iter().map(|r| r["id"].as_u64()).collect::<Vec<_>>(),
-        [Some(1), Some(2), Some(3), Some(4), Some(5), Some(6)]
+        [
+            Some(1),
+            Some(2),
+            Some(3),
+            Some(4),
+            Some(5),
+            Some(6),
+            Some(7),
+            Some(8)
+        ]
     );
-    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 4);
+    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 6);
     let tool_value = |i: usize| {
         serde_json::from_str::<Value>(replies[i]["result"]["content"][0]["text"].as_str().unwrap())
     };
@@ -1369,6 +1380,14 @@ fn standalone_mcp_stages_a_candidate_and_stops_without_approving_effects() -> Re
         json!({"playback_stopped":true,"physical_stop_verified":false})
     );
     assert_eq!(replies[5]["result"]["isError"], true);
+    let summary = tool_value(6)?;
+    assert_eq!(summary["project_id"], project.project_id.as_str());
+    assert_eq!(summary["revision"], 0);
+    assert!(summary.get("sources").is_none());
+    let status = tool_value(7)?;
+    assert_eq!(status["armed"], false);
+    assert_eq!(status["physical_playback_verified"], false);
+    assert!(status.get("assistant_grant").is_none());
     let current = client.execute(
         Command::OpenProject {
             project_id: project.project_id,
