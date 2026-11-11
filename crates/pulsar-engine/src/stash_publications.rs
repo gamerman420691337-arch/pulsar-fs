@@ -69,7 +69,7 @@ impl Engine {
         let revision = RevisionId::new(u64::try_from(*revision).map_err(internal)?);
         let dispatch = match state.as_str() {
             "pending" => StashPublicationDispatch::Pending,
-            "failed_or_unknown" => StashPublicationDispatch::FailedOrUnknown,
+            "failed_or_unknown" | "destination_exists" => StashPublicationDispatch::FailedOrUnknown,
             "complete" => StashPublicationDispatch::Complete,
             _ => return Err(internal("unknown publication dispatch state")),
         };

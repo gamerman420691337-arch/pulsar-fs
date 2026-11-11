@@ -5803,6 +5803,12 @@ impl Engine {
                 )
                 .optional()
                 .map_err(internal)?;
+            if existing.as_deref() == Some("destination_exists") {
+                return Err(ProtocolError::new(
+                    ErrorCode::RequestConflict,
+                    artifacts::ExportDestinationExists.to_string(),
+                ));
+            }
             if existing.is_some() {
                 return Err(ProtocolError::new(ErrorCode::UnknownOutcome,"previous export dispatch has an unresolved outcome; inspect destination, do not blindly replay"));
             }
@@ -6350,16 +6356,24 @@ impl Engine {
                 Ok(body)
             }
             Err(error) => {
+                let destination_exists = error.is::<artifacts::ExportDestinationExists>();
+                let state = if destination_exists {
+                    "destination_exists"
+                } else {
+                    "failed_or_unknown"
+                };
                 tx.execute(
-                    "UPDATE exports SET state='failed_or_unknown' WHERE session=?1 AND request=?2",
-                    params![session.as_str(), request.request_id.as_str()],
+                    "UPDATE exports SET state=?3 WHERE session=?1 AND request=?2",
+                    params![session.as_str(), request.request_id.as_str(), state],
                 )
                 .map_err(internal)?;
                 tx.commit().map_err(internal)?;
-                Err(ProtocolError::new(
-                    ErrorCode::UnknownOutcome,
-                    error.to_string(),
-                ))
+                let code = if destination_exists {
+                    ErrorCode::RequestConflict
+                } else {
+                    ErrorCode::UnknownOutcome
+                };
+                Err(ProtocolError::new(code, error.to_string()))
             }
         }
     }
@@ -12242,6 +12256,35 @@ pub(crate) mod tests {
             .unwrap();
         assert_eq!(state, "complete");
     }
+    #[cfg(unix)]
+    #[test]
+    fn existing_export_destination_is_a_stable_refusal() {
+        let f = fixture();
+        f.engine
+            .handle(request(
+                &f.session,
+                Some(&f.project),
+                Some(0),
+                commit_program(&f, 0, program(0.2)),
+            ))
+            .result
+            .unwrap();
+        let path = f.dir.path().join("existing.funscript");
+        fs::write(&path, b"original").unwrap();
+        let export = request(
+            &f.session,
+            Some(&f.project),
+            None,
+            Command::Export { path: path.clone() },
+        );
+        let refused = f.engine.handle(export.clone()).result.unwrap_err();
+        assert_eq!(refused.code, ErrorCode::RequestConflict);
+        assert_eq!(fs::read(&path).unwrap(), b"original");
+        fs::remove_file(&path).unwrap();
+        assert_eq!(f.engine.handle(export).result.unwrap_err(), refused);
+        assert!(!path.exists());
+    }
+
     #[test]
     fn explicit_gaps_block_standard_export() {
         let gap = TimeRange::new(ProjectTime::ZERO, ProjectTime::from_nanos(1000)).unwrap();
