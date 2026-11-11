@@ -4007,9 +4007,9 @@ impl PulsarDesktop {
             Stroke::new(1.0_f32, Color32::WHITE),
         );
         if response.drag_started() && !self.busy {
-            if let (Some(pointer), Some(project)) =
-                (response.interact_pointer_pos(), self.project.as_ref())
-            {
+            // The pointer can move beyond the hit radius before egui starts a drag.
+            let press_origin = ui.input(|input| input.pointer.press_origin());
+            if let (Some(pointer), Some(project)) = (press_origin, self.project.as_ref()) {
                 let nearest = committed
                     .iter()
                     .enumerate()
@@ -4022,6 +4022,7 @@ impl PulsarDesktop {
                         base_revision: project.revision,
                         base_program: project.program.clone(),
                         axis: self.timeline_axis,
+                        original_point: committed[selected],
                         points: committed,
                         selected,
                     });
@@ -4033,11 +4034,14 @@ impl PulsarDesktop {
                 let seconds =
                     ((pointer.x - rect.left()) / rect.width()).clamp(0.0, 1.0) as f64 * duration;
                 if let Some(gesture) = &mut self.gesture {
-                    gesture.points[gesture.selected] = EditorPoint {
-                        nanos: (seconds * 1e9).round() as i64,
-                        position: ((rect.bottom() - pointer.y) / rect.height()).clamp(0.0, 1.0)
-                            as f64,
-                    };
+                    if let Some(origin) = ui.input(|input| input.pointer.press_origin()) {
+                        let delta = pointer - origin;
+                        gesture.move_by(
+                            (f64::from(delta.x / rect.width()) * duration * 1e9).round() as i64,
+                            -f64::from(delta.y / rect.height()),
+                            (duration * 1e9).round() as i64,
+                        );
+                    }
                 } else {
                     self.seek(seconds);
                 }
