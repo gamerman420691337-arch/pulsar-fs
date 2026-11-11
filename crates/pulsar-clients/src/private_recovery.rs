@@ -134,26 +134,32 @@ fn transaction_checkpoints_and_lock<J: Serialize + DeserializeOwned, T>(
     };
     private(&root, true)?;
     match mkdirat(&root, folder, Mode::from_raw_mode(0o700)) {
-        Ok(()) => root.sync_all()?,
+        Ok(()) => root.sync_all().context("Sync recovery storage root")?,
         Err(rustix::io::Errno::EXIST) => {}
-        Err(error) => return Err(error.into()),
+        Err(error) => return Err(error).context("Create recovery storage namespace"),
     }
-    let dir = File::from(openat(
-        &root,
-        folder,
-        OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
-        Mode::empty(),
-    )?);
+    let dir = File::from(
+        openat(
+            &root,
+            folder,
+            OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+            Mode::empty(),
+        )
+        .context("Open recovery storage namespace")?,
+    );
     private(&dir, true)?;
     let namespace = format!("{:x}", Sha256::digest(session.as_str().as_bytes()));
     let name = format!("{namespace}.json");
     let lock_name = format!("{namespace}.lock");
-    let lock = File::from(openat(
-        &dir,
-        &lock_name,
-        OFlags::RDWR | OFlags::CREATE | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
-        Mode::from_raw_mode(0o600),
-    )?);
+    let lock = File::from(
+        openat(
+            &dir,
+            &lock_name,
+            OFlags::RDWR | OFlags::CREATE | OFlags::NOFOLLOW | OFlags::NONBLOCK | OFlags::CLOEXEC,
+            Mode::from_raw_mode(0o600),
+        )
+        .context("Open recovery journal lock")?,
+    );
     private(&lock, false)?;
     flock(&lock, FlockOperation::NonBlockingLockExclusive)
         .context("Recovery journal is busy; no mutation was dispatched")?;
@@ -163,7 +169,8 @@ fn transaction_checkpoints_and_lock<J: Serialize + DeserializeOwned, T>(
     };
     let lock_matches = || -> Result<()> {
         let held = rustix::fs::fstat(&lock)?;
-        let named = statat(&dir, &lock_name, AtFlags::SYMLINK_NOFOLLOW)?;
+        let named = statat(&dir, &lock_name, AtFlags::SYMLINK_NOFOLLOW)
+            .context("Resolve the held recovery lock name")?;
         ensure!(
             held.st_ino == named.st_ino && held.st_dev == named.st_dev,
             "Recovery lock identity changed"
@@ -214,8 +221,8 @@ fn transaction_checkpoints_and_lock<J: Serialize + DeserializeOwned, T>(
             file.write_all(&bytes)?;
             file.sync_all()?;
             lock_matches()?;
-            renameat(&dir, &temporary, &dir, &name)?;
-            dir.sync_all()?;
+            renameat(&dir, &temporary, &dir, &name).context("Publish recovery journal")?;
+            dir.sync_all().context("Sync recovery journal directory")?;
             Ok(())
         })();
         if written.is_err() {
