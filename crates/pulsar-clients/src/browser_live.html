@@ -555,7 +555,11 @@ function continuationTimingFrame(state,now,metadata,sampledAt){
    c.timingDeadline=probe.sentAt+probe.observationTimeoutMs;
    if(c.expiryTimer!==null)clearTimeout(c.expiryTimer);c.expiryTimer=setTimeout(()=>failAnalysis(state,'Successor timing observation expired.'),Math.max(0,c.timingDeadline-performance.now()));
    if(c.phase==='timing'){c.phase='preparing';void prepareAnalysisContinuation(state,c);}
-   if(!['reserving','pair','joining'].includes(c.phase))c.timingTimer=setTimeout(()=>{c.timingTimer=null;void continuationProbe(state,c);},250);
+   if(!['reserving','pair','joining'].includes(c.phase)){
+    const probeMs=probe.received_tick_us/1000-probe.sentAt;
+    const delay=c.scope.timing?.hspConfigured===true?timingRefreshDelay(presentedFrame,performance.now(),probeMs,true):250;
+    c.timingTimer=setTimeout(()=>{c.timingTimer=null;void continuationProbe(state,c);},delay);
+   }
   }catch(e){failAnalysis(state,'Successor observation unavailable: '+e.message);}finally{c.timingBusy=false;}})();
  }catch(e){failAnalysis(state,e.message);}
 }
