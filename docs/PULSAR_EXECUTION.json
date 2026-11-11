@@ -4402,6 +4402,7 @@
         "EV-STERILE-BROWSER-ACK-DEADLINE",
         "EV-STERILE-BROWSER-CPU-STARTUP-TRACE",
         "EV-STERILE-BROWSER-CPU-LAUNCH-STAGES",
+        "EV-STERILE-BROWSER-SINGLE-SYNC",
         "EV-RENDERED-200MS-RECORDING",
         "EV-RENDERED-200MS-RECORDING-EXPORT",
         "EV-RENDERED-SEEK-200MS",
@@ -18657,6 +18658,36 @@
             "launch_to_ready_ms"
           ],
           "equals": 865
+        },
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_MOTION_SCREEN"
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-SINGLE-SYNC",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-single-sync-rerun/result.json",
+      "sha256": "ada6f948c82c8e8bff886631e7c8a8fa93e79ec3b8b29a42eb9d1259a4a4cd86",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "The Unix single-sync build completed rendered playback. Staging took 2029 ms, compared with 575 ms in the earlier run. The initial Engine boot missed the client deadline and the Engine was observed waiting in the filesystem journal. This run cannot isolate the change in sync count. The motion screen still failed.",
+      "assertions": [
+        {
+          "pointer": [
+            "cpu_launch_stages_ms",
+            "host_staging_and_custody"
+          ],
+          "equals": 2029
+        },
+        {
+          "pointer": [
+            "first_sample_s"
+          ],
+          "equals": 3.833333
         },
         {
           "pointer": [

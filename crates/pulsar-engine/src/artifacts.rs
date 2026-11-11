@@ -287,7 +287,9 @@ pub(crate) fn snapshot_opened_reserved(
     if !snapshot_unchanged(&before, &after) {
         bail!("source changed while snapshotting");
     }
-    let (hash, actual_size) = digest_file(temp.path(), max_bytes)?;
+    let staged = temp.as_file_mut();
+    staged.seek(SeekFrom::Start(0))?;
+    let (hash, actual_size) = digest_opened(staged, max_bytes)?;
     if actual_size != size {
         bail!("snapshot size differs from captured source");
     }
