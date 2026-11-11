@@ -1,9 +1,9 @@
 //! Local conversation display and a dedicated inference RPC lane.
-use crate::{motion::ResponseBody, EngineApi, SessionClient};
+use crate::SessionClient;
 use eframe::egui;
 use pulsar_protocol::{
-    AssistantProfile, AttemptId, Command, ProjectId, RoleplayMessage, RoleplayReply,
-    RoleplaySpeaker, RoleplayToolReceipt, RoleplayTurnInput, MAX_ROLEPLAY_REPLY_BYTES,
+    AssistantProfile, AttemptId, ProjectId, RoleplayMessage, RoleplayReply, RoleplaySpeaker,
+    RoleplayToolReceipt, RoleplayTurnInput, MAX_ROLEPLAY_REPLY_BYTES,
 };
 use std::{
     path::{Path, PathBuf},
@@ -12,7 +12,6 @@ use std::{
         mpsc::{self, Receiver, SyncSender},
         Arc,
     },
-    time::{Duration, Instant},
 };
 
 enum Request {
@@ -342,11 +341,7 @@ fn execute(
     let client = client.as_mut().expect("connected roleplay client");
     match work {
         Request::Profiles(project) => {
-            client.set_operation_deadline(Some(Instant::now() + Duration::from_secs(5)));
-            match client.execute(Command::AssistantProfiles, Some(project), None)? {
-                ResponseBody::AssistantProfiles(profiles) => Ok(Reply::Profiles(profiles)),
-                _ => anyhow::bail!("Engine returned an unexpected model catalog"),
-            }
+            crate::roleplay_conversation::profiles(client, &project).map(Reply::Profiles)
         }
         Request::Turn {
             project,
@@ -354,36 +349,25 @@ fn execute(
             deadline_ms,
             media,
         } => {
-            let directory = bootstrap
-                .parent()
-                .ok_or_else(|| anyhow::anyhow!("Engine state directory is missing"))?;
-            let owner_proof =
-                crate::project_package::read_local_owner_proof(directory, "handy-owner.token")?;
-            client.set_operation_deadline(Some(
-                Instant::now() + Duration::from_millis(deadline_ms.saturating_add(5000)),
-            ));
             let consent = input.consent.clone();
-            match client.execute(
-                Command::RunRoleplayTurn { input, owner_proof },
-                Some(project.clone()),
-                None,
-            )? {
-                ResponseBody::RoleplayReply(reply) => {
-                    let RoleplayReply { text, calls } = *reply;
-                    let receipts = crate::mcp_stdio::dispatch_roleplay_calls(
-                        endpoint,
-                        bootstrap,
-                        project,
-                        &consent,
-                        media.as_deref(),
-                        calls,
-                        work_calls,
-                        is_current,
-                    );
-                    Ok(Reply::Turn { text, receipts })
-                }
-                _ => anyhow::bail!("Engine returned an unexpected roleplay reply"),
-            }
+            let RoleplayReply { text, calls } = *crate::roleplay_conversation::infer(
+                client,
+                bootstrap,
+                &project,
+                input,
+                deadline_ms,
+            )?;
+            let receipts = crate::mcp_stdio::dispatch_roleplay_calls(
+                endpoint,
+                bootstrap,
+                project,
+                &consent,
+                media.as_deref(),
+                calls,
+                work_calls,
+                is_current,
+            );
+            Ok(Reply::Turn { text, receipts })
         }
     }
 }

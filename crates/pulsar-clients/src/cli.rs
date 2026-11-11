@@ -169,6 +169,16 @@ pub enum RoleplayCommands {
         #[arg(long)]
         pattern: String,
     },
+    /// Run a bounded local conversation using one UTF-8 message per input line.
+    Chat {
+        project: String,
+        #[arg(long, value_parser = parse_private_document_path)]
+        consent: PathBuf,
+        #[arg(long)]
+        profile: Option<String>,
+        #[arg(long, value_parser = parse_private_document_path)]
+        media: Option<PathBuf>,
+    },
     /// Stop the Engine-owned Desktop player without requiring roleplay consent.
     StopPlayback,
     /// Check exact consent scope without granting effect approval.

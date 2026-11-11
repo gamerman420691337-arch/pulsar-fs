@@ -51,6 +51,8 @@ With the same project open and consent document selected, opening a video and fu
 
 For local conversation on Linux, open a project, select the local consent document in **Settings**, and open **Roleplay**. Click **Load model profiles**, select an owner-registered profile, and send a message. The panel keeps the conversation in memory and shows which typed tool requests were accepted or refused. A presentation proposal uses the video path selected in Player and still needs **Confirm and play**. **Clear conversation** starts a fresh conversation and tool budget.
 
+The CLI uses the same local Engine and broker. Run `pulsar roleplay chat PROJECT --consent /absolute/consent.json` and enter one message per line. It emits one JSON reply per turn. If several model profiles are registered, select one with `--profile ID`. An optional `--media /absolute/clip.mp4` enables a proposal for Desktop confirmation.
+
 Set **Handy sync offset** while stopped or paused and press **Play** to apply it. Negative values move the Handy earlier, positive values move it later. **Reset** restores 0 ms. The setting starts at 0 ms when you reopen Desktop and does not write to the Handy or change the funscript.
 
 Initial limits: 150 units/s, 35–65% stroke mapping, five-second look-ahead, 20-minute session. The generated script moves within about 41–59% travel. A lost Desktop heartbeat or video window stops/disarms the session. Failures never auto-enable motion. Use one controlling Desktop for this player. Studio's analysis preview/editor remains separate.
