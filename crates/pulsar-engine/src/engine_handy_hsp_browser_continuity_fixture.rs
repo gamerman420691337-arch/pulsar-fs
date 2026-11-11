@@ -1251,12 +1251,25 @@ mod rendered_browser_continuity_fixture {
             if let Some(id) = &originals.stream {
                 let value = live_status(f, id);
                 if let Some(error) = &value.error {
+                    let original_timing = f
+                        .engine
+                        .handle(request(
+                            &f.session,
+                            Some(&f.project),
+                            None,
+                            Command::BrowserTimingStatus {
+                                binding_id: analysis.timing_binding_id.clone(),
+                                player: analysis.player.clone(),
+                            },
+                        ))
+                        .result;
                     record(
                         &output,
                         "bind-refusal.json",
                         &json!({
                             "error":error,"native_error":value.native.as_ref().and_then(|native| native.error.as_ref()),
                             "delivered_samples":value.native.as_ref().map(|native| native.delivered_samples),
+                            "original_browser_timing":original_timing,
                             "trained_model":trained_model,"qualified":false,"physical_device":false
                         }),
                     );
