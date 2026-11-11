@@ -358,6 +358,7 @@ pub struct PulsarDesktop {
     job: Option<JobSnapshot>,
     job_attempts: Option<JobAttemptPage>,
     candidate: Option<CandidateSnapshot>,
+    open_candidate_id: String,
     source: Option<SourceVersionId>,
     selected_placement: Option<SourcePlacementId>,
     placement_times: [f64; 4],
@@ -720,6 +721,7 @@ impl PulsarDesktop {
             job: None,
             job_attempts: None,
             candidate: None,
+            open_candidate_id: String::new(),
             source: None,
             selected_placement: None,
             placement_times: [0.0, 1.0, 0.0, 0.0],
@@ -1924,6 +1926,26 @@ impl PulsarDesktop {
 
     fn generator(&mut self, ui: &mut egui::Ui) {
         ui.heading("Generator");
+        ui.horizontal(|ui| {
+            ui.label("Existing candidate ID");
+            ui.text_edit_singleline(&mut self.open_candidate_id);
+            if ui
+                .add_enabled(
+                    !self.busy
+                        && self.project.is_some()
+                        && !self.open_candidate_id.trim().is_empty(),
+                    egui::Button::new("Open candidate for review"),
+                )
+                .clicked()
+            {
+                match CandidateId::new(self.open_candidate_id.trim()) {
+                    Ok(candidate_id) => {
+                        self.project_command(Command::GetCandidate { candidate_id }, false);
+                    }
+                    Err(error) => self.status = error.to_string(),
+                }
+            }
+        });
         egui::ComboBox::from_label("Input modality")
             .selected_text(self.generation_mode.label())
             .show_ui(ui, |ui| {
