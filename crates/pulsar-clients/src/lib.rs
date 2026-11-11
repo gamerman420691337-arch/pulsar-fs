@@ -132,6 +132,15 @@ pub use preview::PreviewState;
 /// version, and completion generation never need a running engine.
 pub fn command_needs_engine(args: &[OsString]) -> bool {
     match Cli::try_parse_from(args) {
+        Ok(Cli {
+            command:
+                Some(Commands::Roleplay {
+                    command:
+                        RoleplayCommands::ReadCandidate { .. }
+                        | RoleplayCommands::ProposePattern { .. }
+                        | RoleplayCommands::StopPlayback,
+                }),
+        }) => true,
         Ok(cli) => !matches!(
             cli.command,
             Some(
@@ -306,7 +315,7 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
         return run_gui(endpoint.to_owned(), bootstrap.to_owned());
     };
     match command {
-        Commands::Roleplay { command } => run_roleplay_command(command),
+        Commands::Roleplay { command } => run_roleplay_command(command, endpoint, bootstrap),
         Commands::JobAttempts {project,job,after_attempt,limit} => {
             let mut client=SessionClient::connect(endpoint,bootstrap)?;
             print_response(client.execute(Command::JobAttempts {job_id:JobId::new(job)?,after_attempt:after_attempt.map(AttemptId::new).transpose()?,limit},Some(ProjectId::new(project)?),None)?)
@@ -429,11 +438,7 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
         }
         Commands::InspectCandidate { project, candidate } => {
             let mut client = SessionClient::connect(endpoint, bootstrap)?;
-            print_response(client.execute(
-                Command::GetCandidate { candidate_id: CandidateId::new(candidate)? },
-                Some(ProjectId::new(project)?),
-                None,
-            )?)
+            inspect_retained_candidate(&mut client, project, candidate)
         },
         Commands::ReviewStatus {project} => {
             let mut client=SessionClient::connect(endpoint,bootstrap)?;
@@ -2301,7 +2306,68 @@ fn consent_class(value: &str) -> Result<ContentClass> {
 }
 
 /// Local roleplay consent operations: no Engine contact, no inference, no device.
-fn run_roleplay_command(command: RoleplayCommands) -> Result<()> {
+fn inspect_retained_candidate(
+    client: &mut impl EngineApi,
+    project: String,
+    candidate: String,
+) -> Result<()> {
+    print_response(client.execute(
+        Command::GetCandidate {
+            candidate_id: CandidateId::new(candidate)?,
+        },
+        Some(ProjectId::new(project)?),
+        None,
+    )?)
+}
+
+fn stop_desktop_playback(
+    client: &mut impl EngineApi,
+    owner_proof: &str,
+    deadline: std::time::Instant,
+) -> Result<ResponseBody> {
+    let mut action = DesktopPlaybackAction::Stop;
+    loop {
+        let response = client
+            .execute(
+                Command::DesktopPlayback {
+                    action,
+                    owner_proof: owner_proof.to_owned(),
+                },
+                None,
+                None,
+            )
+            .context("Desktop Stop outcome could not be confirmed")?;
+        let ResponseBody::DesktopPlayback(status) = &response else {
+            anyhow::bail!("Engine returned an unexpected player response");
+        };
+        if !status.busy {
+            anyhow::ensure!(
+                !status.playing && !status.armed,
+                "Desktop player did not stop"
+            );
+            return Ok(response);
+        }
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        anyhow::ensure!(
+            !remaining.is_zero(),
+            "Desktop Stop outcome could not be confirmed"
+        );
+        std::thread::sleep(remaining.min(std::time::Duration::from_millis(40)));
+        action = DesktopPlaybackAction::Status;
+    }
+}
+
+fn require_roleplay_attestation(path: &Path, now_ns: u64) -> Result<()> {
+    roleplay_consent_state::load(path)?
+        .admit_roleplay(now_ns)
+        .map_err(|refusal| anyhow::anyhow!("roleplay tool refused: {}", refusal.label()))
+}
+
+fn run_roleplay_command(
+    command: RoleplayCommands,
+    endpoint: &Path,
+    bootstrap: &Path,
+) -> Result<()> {
     let now = consent_now_ns();
     match command {
         RoleplayCommands::Create { path } => {
@@ -2349,6 +2415,37 @@ fn run_roleplay_command(command: RoleplayCommands) -> Result<()> {
             };
             roleplay_consent_state::switch_provider(&path, provider, now)?;
             print_json(&roleplay_consent_state::status(&path, now)?)
+        }
+        RoleplayCommands::ReadCandidate {
+            path,
+            project,
+            candidate,
+        } => {
+            require_roleplay_attestation(&path, now)?;
+            let mut client = SessionClient::connect(endpoint, bootstrap)?;
+            inspect_retained_candidate(&mut client, project, candidate)
+        }
+        RoleplayCommands::ProposePattern {
+            path,
+            project,
+            revision,
+            pattern,
+        } => {
+            require_roleplay_attestation(&path, now)?;
+            let input = patterns::build_pattern_input(&pattern)?;
+            let mut client = SessionClient::connect(endpoint, bootstrap)?;
+            patterns::stage(&mut client, &project, RevisionId::new(revision), input)
+        }
+        RoleplayCommands::StopPlayback => {
+            let directory = bootstrap
+                .parent()
+                .context("Engine state directory is missing")?;
+            let owner_proof =
+                project_package::read_local_owner_proof(directory, "handy-owner.token")?;
+            let mut client = SessionClient::connect(endpoint, bootstrap)?;
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            client.set_operation_deadline(Some(deadline));
+            print_response(stop_desktop_playback(&mut client, &owner_proof, deadline)?)
         }
         RoleplayCommands::CheckEffect {
             path,
@@ -2476,6 +2573,45 @@ fn library_entries(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn roleplay_stop_sends_once_and_polls_until_disarmed() {
+        struct PlaybackReplies(Vec<DesktopPlaybackAction>);
+        impl EngineApi for PlaybackReplies {
+            fn execute(
+                &mut self,
+                command: Command,
+                project: Option<ProjectId>,
+                revision: Option<RevisionId>,
+            ) -> Result<ResponseBody> {
+                let Command::DesktopPlayback { action, .. } = command else {
+                    panic!("unexpected command");
+                };
+                assert!(project.is_none() && revision.is_none());
+                let busy = self.0.is_empty();
+                self.0.push(action);
+                Ok(ResponseBody::DesktopPlayback(Box::new(
+                    DesktopPlaybackStatus {
+                        busy,
+                        playing: busy,
+                        armed: busy,
+                        ..Default::default()
+                    },
+                )))
+            }
+        }
+        let mut replies = PlaybackReplies(Vec::new());
+        stop_desktop_playback(
+            &mut replies,
+            "fixture",
+            std::time::Instant::now() + std::time::Duration::from_secs(1),
+        )
+        .unwrap();
+        assert!(matches!(
+            replies.0.as_slice(),
+            [DesktopPlaybackAction::Stop, DesktopPlaybackAction::Status]
+        ));
+    }
+
     #[test]
     fn reference_set_commands_parse_without_engine_startup() {
         use clap::Parser;
