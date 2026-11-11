@@ -555,7 +555,7 @@ function continuationTimingFrame(state,now,metadata,sampledAt){
 }
 function maybePrepareContinuation(report,state){
  if(!state.selection.continuity||state.continuation||state.inputPhase!=='open'||report.browser?.analysis_continuity?.prepare_due!==true)return;
- const c={scope:playerScope,phase:'media',predecessor:epoch,prepareId:null,prepareSentAt:null,captureDeadline:null,feed:null,transferId:null,pairAck:null,pairSent:false,committedReport:null,heldTiming:null,timer:null,timingTimer:null,probeTimer:null,expiryTimer:null,probe:null,timingBusy:false,retired:false};state.continuation=c;
+ const c={scope:playerScope,phase:'media',predecessor:epoch,prepareId:null,prepareSentAt:null,captureDeadline:null,feed:null,transferId:null,pairAck:null,pairSent:false,postPairFrame:null,committedReport:null,heldTiming:null,timer:null,timingTimer:null,probeTimer:null,expiryTimer:null,probe:null,timingBusy:false,retired:false};state.continuation=c;
  const inspect=async(first)=>{if(!currentContinuation(state,c))return;try{
   const media=await mediaPost(first?'/media/continue':'/media/continue-status',{selection_id:state.media.selection_id},false,c.scope);if(!currentContinuation(state,c))return;
   if(media.selection_id!==state.media.selection_id||!['pending','ready'].includes(media.state))throw Error('Media successor identity or state differs.');
@@ -578,7 +578,12 @@ function receiveContinuation(report,state,c){
   stopContinuation(state);state.feed=null;checkAnalysisFeed(report,state,playerScope);epoch=state.feed.capture_epoch;state.captureDeadline=c.captureDeadline;state.lastSubmitted=c.pairAck;state.lastAck=c.pairAck;state.continuation=null;state.continuationCount++;
   const mediaRequest=report.browser?.analysis_continuity?.media_preparation_request_id;if(typeof mediaRequest!=='string'||!mediaRequest)throw Error('Committed source preparation identity missing.');state.media.preparation_request_id=mediaRequest;
   const hspConfigured=playerScope.timing?.hspConfigured===true;stopTiming(playerScope);beginTiming(playerScope,{configured:true},hspConfigured);lookaheadStatus.textContent='Capture transfer confirmed; the same visible player continues. Any skipped frames remain gaps.';
-  showAnalysis(report,0,c.pairAck.submitted.media_us,c.pairAck.capturedAt,state);return true;
+  showAnalysis(report,0,c.pairAck.submitted.media_us,c.pairAck.capturedAt,state);
+  const retained=c.postPairFrame;c.postPairFrame=null;
+  if(retained)void Promise.resolve().then(()=>{
+   if(currentAnalysis(state)&&currentPlayer(c.scope)&&!busy&&state.inputPhase==='open'&&epoch===c.feed.capture_epoch)void offerAnalysisFrame(state,retained);
+  });
+  return true;
  }
  if(!['boundary_reserved','joining_predecessor','awaiting_successor_pair','ready_for_transfer'].includes(transfer.phase))throw Error('Invalid native transfer phase.');
  if(!c.pairSent){if(transfer.predecessor_worker_joined!==true||transfer.predecessor_delivery_settled!==true){c.phase='joining';return false;}c.phase='pair';if(playerScope.timing){c.heldTiming=playerScope.timing;c.heldTiming.handoffHeld=true;}}else c.phase='joining';return false;
@@ -716,10 +721,19 @@ function showAnalysis(report,roundTrip,media_us,capturedAt,state){
  analysisEstimate.textContent=`Ahead-of-player estimate: ${(p*100).toFixed(1)}% at source ${time.toFixed(3)} s. Frame request round trip: ${roundTrip.toFixed(1)} ms. Unqualified.`;
  promoteFutureEstimate();
 }
-async function submitAnalysisFrame(reader,media_us,capturedAt,state,analysis){
+function copyFrameRgb(reader){
+ ctx.drawImage(reader,0,0,64,64);const rgba=ctx.getImageData(0,0,64,64).data,rgb=new Uint8Array(12288);
+ for(let i=0,j=0;i<rgba.length;i+=4){rgb[j++]=rgba[i];rgb[j++]=rgba[i+1];rgb[j++]=rgba[i+2];}
+ return rgb;
+}
+async function offerAnalysisFrame(state,frame){
+ const pending=submitAnalysisFrame(analysisVideo,frame.media_us,frame.capturedAt,state,frame.analysis,frame.rgb);
+ state.inFlight=pending;try{await pending;}finally{if(state.inFlight===pending)state.inFlight=null;}
+}
+async function submitAnalysisFrame(reader,media_us,capturedAt,state,analysis,retainedRgb){
  if(busy)return;busy=true;const observed=generation,attempt=playerAttempt;
  try{
-  ctx.drawImage(reader,0,0,64,64);const rgba=ctx.getImageData(0,0,64,64).data,rgb=new Uint8Array(12288);for(let i=0,j=0;i<rgba.length;i+=4){rgb[j++]=rgba[i];rgb[j++]=rgba[i+1];rgb[j++]=rgba[i+2];}
+  const rgb=retainedRgb??copyFrameRgb(reader);
   const scope=await attempt.promise;if(!scope||observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;
   if(!epoch){if(state){state.startupPhase='waiting for Engine capture admission';}const start={media_us,recording_maximum:recordingMaximum,source_time_basis:scope.time_basis,...(state?{analysis:state.selection}:{})};const report=await post('/start',new TextEncoder().encode(JSON.stringify(start)),scope);if(observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;if(state){checkAnalysisFeed(report,state,scope);const lease=report.options?.lease_ms;if(!Number.isInteger(lease)||lease<1||lease>30000)throw Error('Original capture lease is invalid.');state.captureDeadline=capturedAt+lease;epoch=report.identity.epoch;if(receiveAnalysisFallback(report,state,scope))return;}epoch=report.identity.epoch;}
   if(observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;
@@ -747,8 +761,12 @@ async function analysisFrame(state,now,metadata){
   const lead=media_us-presentedFrame.media_time_us,p=state.selection.policy;
   if(lead<p.minimum_lead_us||lead>p.maximum_lead_us)throw Error('Observed frame lead left the original lookahead bounds.');
   lookaheadStatus.textContent=`Observed frame lead: ${(lead/1000).toFixed(1)} ms. Requested: ${(p.target_lead_us/1000).toFixed(1)} ms; admitted range ${(p.minimum_lead_us/1000).toFixed(1)}–${(p.maximum_lead_us/1000).toFixed(1)} ms. Producer-declared timestamps; see HSP status for device control.`;
-  const c=state.continuation;if(busy||c&&(['reserving','joining'].includes(c.phase)||c.phase==='pair'&&(c.timingBusy||c.probe||playerScope.timing.inflight||playerScope.timing.probe)))return;
-  const pending=submitAnalysisFrame(analysisVideo,media_us,capturedAt,state,{visible_media_us:presentedFrame.media_time_us,visible_presented_frames:presentedFrame.presented_frames,visible_tick_us:visibleFrameTickUs,analysis_tick_us:tick,presented_frames});state.inFlight=pending;try{await pending;}finally{if(state.inFlight===pending)state.inFlight=null;}
+  const c=state.continuation,frame={media_us,capturedAt,analysis:{visible_media_us:presentedFrame.media_time_us,visible_presented_frames:presentedFrame.presented_frames,visible_tick_us:visibleFrameTickUs,analysis_tick_us:tick,presented_frames}};
+  if(c?.phase==='joining'&&c.pairSent&&c.scope.timing?.hspConfigured===true&&!c.postPairFrame){
+   c.postPairFrame={...frame,rgb:copyFrameRgb(analysisVideo)};return;
+  }
+  if(busy||c&&(['reserving','joining'].includes(c.phase)||c.phase==='pair'&&(c.timingBusy||c.probe||playerScope.timing.inflight||playerScope.timing.probe)))return;
+  await offerAnalysisFrame(state,frame);
  }catch(e){failAnalysis(state,e.message);}
 }
 video.addEventListener('play',()=>{
