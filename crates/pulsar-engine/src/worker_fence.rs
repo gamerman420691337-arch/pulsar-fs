@@ -411,13 +411,18 @@ impl WorkerFence {
         }
         // Commit retirement identities before deletion. Missing active records
         // still refuse; only these durable tombstones may recover missing paths.
-        ledger.retired.append(&mut ledger.groups);
-        save(&directory, &ledger)?;
-        for group in ledger.retired.values() {
-            crate::cgroup::reclaim_recorded(&group.path, group.device, group.inode, true)?;
+        if !ledger.groups.is_empty() || !ledger.retired.is_empty() {
+            ledger.retired.append(&mut ledger.groups);
+            save(&directory, &ledger)?;
+            for group in ledger.retired.values() {
+                crate::cgroup::reclaim_recorded(&group.path, group.device, group.inode, true)?;
+            }
+            ledger.retired.clear();
+            save(&directory, &ledger)?;
+        } else if created {
+            // A new lease still needs its initial durable ledger before admission.
+            save(&directory, &ledger)?;
         }
-        ledger.retired.clear();
-        save(&directory, &ledger)?;
         creation::recover(&directory, &mut ledger)?;
         // Every cgroup user is independently empty before staged bytes are touched.
         let records: Vec<_> = ledger
