@@ -496,7 +496,11 @@ function sameAnalysisSubmission(left,right){
 }
 function stopContinuation(state){const c=state?.continuation;if(!c)return;c.retired=true;for(const key of ['timer','timingTimer','probeTimer','expiryTimer'])if(c[key]!==null&&c[key]!==undefined)clearTimeout(c[key]);c.probe=null;if(c.heldTiming)c.heldTiming.handoffHeld=false;}
 function currentContinuation(state,c){return currentAnalysis(state)&&currentPlayer(c.scope)&&state.continuation===c&&!c.retired;}
-function continuationLater(state,c,action){if(!currentContinuation(state,c))return;c.timer=setTimeout(()=>{c.timer=null;void action();},100);}
+function continuationLater(state,c,action){
+ if(!currentContinuation(state,c))return;
+ const awaitingBoundary=c.scope.timing?.hspConfigured===true&&['reserving','joining','pair'].includes(c.phase);
+ c.timer=setTimeout(()=>{c.timer=null;void action();},awaitingBoundary?25:100);
+}
 function checkSuccessor(report,state,c){
  const next=report.browser?.analysis_successor,r=next?.report,feed=next?.feed;
  if(!next||!r||!feed||next.original_request_id!==r.original_request_id||r.predecessor?.epoch!==c.predecessor||feed.capture_epoch!==r.successor?.identity?.epoch||feed.capture_epoch===c.predecessor)throw Error('Successor report changed its original capture identities.');
