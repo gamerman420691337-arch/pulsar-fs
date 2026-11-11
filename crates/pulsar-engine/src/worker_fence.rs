@@ -791,6 +791,20 @@ mod tests {
         }
     }
     #[test]
+    fn clean_reopen_keeps_the_existing_durable_ledger() {
+        let root = fixture();
+        let fence = WorkerFence::open(root.path()).unwrap();
+        let path = root.path().join("worker-fence.json");
+        let original = artifacts::open_regular(&path).unwrap();
+        let original_metadata = original.metadata().unwrap();
+        drop(fence);
+
+        let _reopened = WorkerFence::open(root.path()).unwrap();
+        let current_metadata = artifacts::open_regular(&path).unwrap().metadata().unwrap();
+        assert_eq!(original_metadata.ino(), current_metadata.ino());
+    }
+
+    #[test]
     fn held_lease_refuses_a_second_owner_and_reopens_after_drop() {
         let root = fixture();
         let fence = WorkerFence::open(root.path()).unwrap();
