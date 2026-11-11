@@ -18,6 +18,13 @@ pub enum DesktopPlaybackAction {
         video: PathBuf,
         sha256: String,
     },
+    PrepareMediaReview {
+        video: PathBuf,
+        consent: PathBuf,
+    },
+    ConfirmMediaReview {
+        review: EffectReview,
+    },
     Arm {
         enabled: bool,
         max_speed: u16,
@@ -71,6 +78,10 @@ impl DesktopPlaybackAction {
                     ));
                 }
             }
+            Self::PrepareMediaReview { video, consent } => {
+                validate_local_path(video)?;
+                validate_local_path(consent)?;
+            }
             Self::Arm {
                 enabled: true,
                 max_speed,
@@ -103,6 +114,16 @@ impl DesktopPlaybackAction {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopMediaReview {
+    pub review: EffectReview,
+    pub consent_path: PathBuf,
+    pub video_name: String,
+    pub sha256: String,
+    pub byte_len: u64,
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DesktopPlaybackStatus {
@@ -117,6 +138,8 @@ pub struct DesktopPlaybackStatus {
     pub message: String,
     pub video_name: String,
     pub script_name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub media_review: Option<DesktopMediaReview>,
 }
 
 pub(crate) fn validate_request(request: &Request) -> Result<(), ProtocolError> {

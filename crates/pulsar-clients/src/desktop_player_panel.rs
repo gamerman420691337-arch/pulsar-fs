@@ -116,11 +116,15 @@ impl PlayerPanel {
     }
 
     pub(crate) fn needs_repaint(&self) -> bool {
-        self.status.loaded || self.busy()
+        self.status.loaded || self.status.media_review.is_some() || self.busy()
     }
 
     pub(crate) fn session_controls(&mut self, ui: &mut egui::Ui) {
-        if !self.status.armed && !self.status.playing && !self.busy() {
+        if !self.status.armed
+            && !self.status.playing
+            && self.status.media_review.is_none()
+            && !self.busy()
+        {
             return;
         }
         if self.status.armed {
@@ -200,7 +204,7 @@ impl PlayerPanel {
                 Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
             }
         }
-        if (self.status.loaded || self.status.busy)
+        if (self.status.loaded || self.status.busy || self.status.media_review.is_some())
             && !self.rpc_pending()
             && self.last_poll.elapsed() >= Duration::from_millis(250)
         {
@@ -222,7 +226,54 @@ impl PlayerPanel {
         self.send(DesktopPlaybackAction::Open { video, script }, Lane::Normal);
     }
 
-    pub(crate) fn ui(&mut self, ui: &mut egui::Ui) {
+    fn media_review_ui(&mut self, ui: &mut egui::Ui, consent: &Path) {
+        if let Some(review) = self.status.media_review.clone() {
+            ui.label(format!(
+                "Present {} locally with video and audio. Handy will be disabled.",
+                review.video_name
+            ));
+            ui.small(format!(
+                "{} bytes · SHA-256 {}",
+                review.byte_len, review.sha256
+            ));
+            let same_selection = consent == review.consent_path.as_path();
+            if !same_selection {
+                ui.label("The consent selection changed. Review the video again to continue.");
+            }
+            if ui
+                .add_enabled(
+                    same_selection && !self.busy(),
+                    egui::Button::new("Confirm and play"),
+                )
+                .clicked()
+            {
+                self.send(
+                    DesktopPlaybackAction::ConfirmMediaReview {
+                        review: review.review,
+                    },
+                    Lane::Normal,
+                );
+            }
+        }
+        let video = PathBuf::from(self.video.trim());
+        if ui
+            .add_enabled(
+                video.is_absolute() && consent.is_absolute() && !self.busy(),
+                egui::Button::new("Review video for presentation"),
+            )
+            .clicked()
+        {
+            self.send(
+                DesktopPlaybackAction::PrepareMediaReview {
+                    video,
+                    consent: consent.to_path_buf(),
+                },
+                Lane::Normal,
+            );
+        }
+    }
+
+    pub(crate) fn ui(&mut self, ui: &mut egui::Ui, consent: &Path) {
         self.poll();
         ui.heading("Video + Handy player");
         ui.label("Pulsar controls the video, audio and script. Video opens in an mpv window.");
@@ -305,6 +356,9 @@ impl PlayerPanel {
                 ui.spinner();
             }
         });
+        if consent.is_absolute() || self.status.media_review.is_some() {
+            self.media_review_ui(ui, consent);
+        }
         ui.separator();
         ui.horizontal(|ui| {
             let mut enabled = self.status.armed;

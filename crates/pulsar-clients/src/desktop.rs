@@ -15,7 +15,7 @@ mod candidate_evidence;
 mod inference_fallback_panel;
 use pulsar_protocol::*;
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::mpsc::{self, Receiver, SyncSender},
     time::{Duration, Instant},
 };
@@ -5312,7 +5312,8 @@ impl eframe::App for PulsarDesktop {
             });
         egui::CentralPanel::default().show(context, |ui| match self.tab {
             Tab::Player => {
-                self.desktop_player.ui(ui);
+                self.desktop_player
+                    .ui(ui, Path::new(self.consent_path.trim()));
             }
             Tab::Settings => {
                 egui::ScrollArea::vertical().show(ui, |ui| {

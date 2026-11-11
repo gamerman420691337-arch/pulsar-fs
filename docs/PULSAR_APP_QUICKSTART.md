@@ -43,7 +43,7 @@ The workstation needs `mpv`, `ffmpeg`, and the encrypted-secret CLI. The launche
 4. **Pause** pauses both. **Apply seek** rebinds the script at the selected video time and resumes if it was playing. **STOP** stops both, disables Handy, and seeks to zero.
 5. Disable Handy or **Close player** when finished. While Handy is enabled, the remaining session time and **STOP** are also available in the header on other Desktop tabs. Use STOP before leaving the demo.
 
-To watch a local clip by itself, enter the absolute video path, click **Open video only**, then click **Play**. This mode leaves Handy disabled.
+To watch a local clip by itself, enter the absolute video path, click **Open video only**, then click **Play**. This mode leaves Handy disabled. To use the consent-gated presentation flow, select a consent document in **Settings**, then click **Review video for presentation** in Player. Check the video name and digest and click **Confirm and play** within 30 seconds. **STOP** cancels a pending review.
 
 Set **Handy sync offset** while stopped or paused and press **Play** to apply it. Negative values move the Handy earlier, positive values move it later. **Reset** restores 0 ms. The setting starts at 0 ms when you reopen Desktop and does not write to the Handy or change the funscript.
 
