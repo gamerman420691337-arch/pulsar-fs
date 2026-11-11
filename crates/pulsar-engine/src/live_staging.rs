@@ -397,6 +397,7 @@ fn prepare_inner_tracked<const N: usize>(
                 let claim = Arc::new(Mutex::new(Some(Arc::new(reservation))));
                 parts.claim = Some(claim.clone());
                 task_retention = Some((claim.clone(), storage.clone()));
+                let custody_started = Instant::now();
                 let root = match &parts._fence {
                     Some(fence) => crate::staging_obligation::Staging::Durable(
                         fence.create_staging((claim, storage)).map_err(error)?,
@@ -409,10 +410,12 @@ fn prepare_inner_tracked<const N: usize>(
                     )
                     .retaining((claim, storage)),
                 };
+                crate::live_inference::trace_cpu_launch("staging_custody", custody_started);
                 parts.snapshots = Some(root);
                 let directory = parts.snapshots.as_ref().unwrap().path();
                 for (index, reference) in refs.into_iter().enumerate() {
                     active(&task_cancel, &task_abandoned, deadline)?;
+                    let snapshot_started = Instant::now();
                     let mut source =
                         crate::artifacts::open_regular(&reference.path).map_err(error)?;
                     let (path, hash, size) = crate::artifacts::snapshot_opened_reserved(
@@ -428,6 +431,13 @@ fn prepare_inner_tracked<const N: usize>(
                             "live snapshot differs from admitted bytes",
                         ));
                     }
+                    let stage = match index {
+                        0 => "staging_snapshot_0",
+                        1 => "staging_snapshot_1",
+                        2 => "staging_snapshot_2",
+                        _ => "staging_additional_snapshot",
+                    };
+                    crate::live_inference::trace_cpu_launch(stage, snapshot_started);
                     prepared.paths[index] = path;
                 }
                 active(&task_cancel, &task_abandoned, deadline)?;

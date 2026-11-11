@@ -279,7 +279,7 @@ pub struct LiveInferenceWorker {
 #[cfg(not(target_os = "linux"))]
 pub struct LiveInferenceWorker;
 #[cfg(target_os = "linux")]
-fn trace_cpu_launch(stage: &str, started: Instant) {
+pub(crate) fn trace_cpu_launch(stage: &str, started: Instant) {
     if std::env::var_os("PULSAR_TRACE_CPU_STARTUP").is_some_and(|value| value == "1") {
         use std::io::Write;
         let _ = writeln!(
