@@ -1367,6 +1367,11 @@ test('HSP retains the first successor callback while predecessor settlement is h
  assert.equal(first.header.media_us,1300000);
  assert.equal(first.header.analysis.visible_media_us,200000);
  assert.ok(first.pixels.every(v=>v===128));
+ p.advance(100);await flush();await flush();assert.equal(p.continuityState().count,1);
+ const observations=p.sent.filter(r=>r.route==='/player/timing-observe').length;
+ await p.analysisFrame(1.5);await flush();
+ assert.equal(p.sent.filter(r=>r.route==='/player/timing-observe').length,observations);
+ assert.equal(rgbPacket(p.sent.filter(r=>r.route==='/frame').at(-1)).header.media_us,1500000);
 });
 test('HSP held Bind cannot block Stop or restore its stale Prefilling reply',async()=>{
  const p=hspPlayer({holdRoute:'/player/hsp-bind'});await inspectHspPlayer(p);hspAck(p,'prepare');await p.elements['hsp-prepare'].onclick();hspAck(p,'environment','online');const pending=p.elements['hsp-bind'].onclick();await flush();await p.elements['hsp-stop'].onclick();p.releaseRoute();await pending;hspAck(p,'play');await p.elements['hsp-play'].onclick();

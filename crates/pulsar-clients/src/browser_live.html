@@ -77,11 +77,17 @@ function showTiming(report,historical=false){
  if(typeof o.bracket_width_ns!=='string'||!/^[0-9]+$/.test(o.bracket_width_ns)||!p||typeof p.numerator!=='string'||!/^[-]?[0-9]+$/.test(p.numerator)||typeof p.denominator!=='string'||!/^[1-9][0-9]*$/.test(p.denominator)||!counter(o.sequence))throw Error('Invalid native timing observation.');
  timingStatus.textContent=(historical?'Inspected original timing report; no measurement loop restarted. ':'')+'Measured callback execution bracket width: '+o.bracket_width_ns+' ns. Declared project phase: '+p.numerator+'/'+p.denominator+' s. Unqualified; no display, source, model, or physical calibration.';
 }
-function beginTiming(scope,configuration,hspConfigured){
+function armTimingExpiry(scope,t,deadline){
+ if(t.expiry!==null)clearTimeout(t.expiry);
+ t.expiry=setTimeout(()=>{t.expiry=null;t.observationCurrent=false;if(currentPlayer(scope)&&!t.stopped){timingStatus.textContent='Browser timing observation expired locally; waiting for a new native observation. Unqualified.';if(analysisReader)failAnalysis(analysisReader,'Original visible-player observation expired.');}},Math.max(0,deadline-performance.now()));
+}
+function beginTiming(scope,configuration,hspConfigured,adoptedDeadline=null){
  document.getElementById('timing-exchange').textContent='';
  if(!configuration?.configured){timingStatus.textContent='Browser timing unavailable for unbound local files, camera or shared-tab sources.';return;}
  if(configuration.error){timingStatus.textContent='Browser timing unavailable: '+configuration.error;return;}
- scope.timing={hspConfigured,stopped:false,observationCurrent:false,inflight:false,probe:null,timer:null,deadline:null,expiry:null,handoffHeld:false};void timingProbe(scope);
+ const t=scope.timing={hspConfigured,stopped:false,observationCurrent:adoptedDeadline!==null&&adoptedDeadline>performance.now(),inflight:false,probe:null,timer:null,deadline:null,expiry:null,handoffHeld:false};
+ if(t.observationCurrent)armTimingExpiry(scope,t,adoptedDeadline);
+ void timingProbe(scope);
 }
 // Scheduling only: the native probe still requires a later observed frame.
 function timingRefreshDelay(frame,at,probeMs,hspConfigured){
@@ -134,8 +140,7 @@ function timingFrame(scope,now,metadata,sampledAt){
     showTiming(report);
     exchange.textContent=measurement+` Observation request ${(performance.now()-observeSentAt).toFixed(1)} ms.`;
     if(!report.current){stopTiming(scope);if(analysisReader)failAnalysis(analysisReader,'Visible-player timing retired.');return;}t.observationCurrent=true;
-    if(t.expiry!==null)clearTimeout(t.expiry);
-    t.expiry=setTimeout(()=>{t.expiry=null;t.observationCurrent=false;if(currentPlayer(scope)&&!t.stopped){timingStatus.textContent='Browser timing observation expired locally; waiting for a new native observation. Unqualified.';if(analysisReader)failAnalysis(analysisReader,'Original visible-player observation expired.');}},Math.max(0,probe.sentAt+probe.observationTimeoutMs-performance.now()));
+    armTimingExpiry(scope,t,probe.sentAt+probe.observationTimeoutMs);
     t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},timingRefreshDelay(presentedFrame,performance.now(),probeMs,t.hspConfigured));
    }catch(e){if(!t.stopped&&scope.timing===t)timingUnavailable(scope,e.message);}finally{t.inflight=false;}
   })();
@@ -547,7 +552,8 @@ function continuationTimingFrame(state,now,metadata,sampledAt){
   void(async()=>{try{
    const report=await timingPost('/player/timing-next-observe',new TextEncoder().encode(JSON.stringify({sequence:probe.sequence,probe_id:probe.probe_id,frame})),playerScope);if(!currentContinuation(state,c))return;
    if(!report.current||report.observation?.sequence!==probe.sequence)throw Error('Successor observation differs or expired.');
-   if(c.expiryTimer!==null)clearTimeout(c.expiryTimer);c.expiryTimer=setTimeout(()=>failAnalysis(state,'Successor timing observation expired.'),Math.max(0,probe.sentAt+probe.observationTimeoutMs-performance.now()));
+   c.timingDeadline=probe.sentAt+probe.observationTimeoutMs;
+   if(c.expiryTimer!==null)clearTimeout(c.expiryTimer);c.expiryTimer=setTimeout(()=>failAnalysis(state,'Successor timing observation expired.'),Math.max(0,c.timingDeadline-performance.now()));
    if(c.phase==='timing'){c.phase='preparing';void prepareAnalysisContinuation(state,c);}
    if(!['reserving','pair','joining'].includes(c.phase))c.timingTimer=setTimeout(()=>{c.timingTimer=null;void continuationProbe(state,c);},250);
   }catch(e){failAnalysis(state,'Successor observation unavailable: '+e.message);}finally{c.timingBusy=false;}})();
@@ -555,7 +561,7 @@ function continuationTimingFrame(state,now,metadata,sampledAt){
 }
 function maybePrepareContinuation(report,state){
  if(!state.selection.continuity||state.continuation||state.inputPhase!=='open'||report.browser?.analysis_continuity?.prepare_due!==true)return;
- const c={scope:playerScope,phase:'media',predecessor:epoch,prepareId:null,prepareSentAt:null,captureDeadline:null,feed:null,transferId:null,pairAck:null,pairSent:false,pairFrame:null,postPairFrame:null,committedReport:null,heldTiming:null,timer:null,timingTimer:null,probeTimer:null,expiryTimer:null,probe:null,timingBusy:false,retired:false};state.continuation=c;
+ const c={scope:playerScope,phase:'media',predecessor:epoch,prepareId:null,prepareSentAt:null,captureDeadline:null,feed:null,transferId:null,pairAck:null,pairSent:false,pairFrame:null,postPairFrame:null,committedReport:null,heldTiming:null,timer:null,timingTimer:null,probeTimer:null,expiryTimer:null,timingDeadline:null,probe:null,timingBusy:false,retired:false};state.continuation=c;
  const inspect=async(first)=>{if(!currentContinuation(state,c))return;try{
   const media=await mediaPost(first?'/media/continue':'/media/continue-status',{selection_id:state.media.selection_id},false,c.scope);if(!currentContinuation(state,c))return;
   if(media.selection_id!==state.media.selection_id||!['pending','ready'].includes(media.state))throw Error('Media successor identity or state differs.');
@@ -577,7 +583,7 @@ function receiveContinuation(report,state,c){
   if(!c.pairAck){c.committedReport=report;c.phase='joining';return false;}
   stopContinuation(state);state.feed=null;checkAnalysisFeed(report,state,playerScope);epoch=state.feed.capture_epoch;state.captureDeadline=c.captureDeadline;state.lastSubmitted=c.pairAck;state.lastAck=c.pairAck;state.continuation=null;state.continuationCount++;
   const mediaRequest=report.browser?.analysis_continuity?.media_preparation_request_id;if(typeof mediaRequest!=='string'||!mediaRequest)throw Error('Committed source preparation identity missing.');state.media.preparation_request_id=mediaRequest;
-  const hspConfigured=playerScope.timing?.hspConfigured===true;stopTiming(playerScope);beginTiming(playerScope,{configured:true},hspConfigured);lookaheadStatus.textContent='Capture transfer confirmed; the same visible player continues. Any skipped frames remain gaps.';
+  const hspConfigured=playerScope.timing?.hspConfigured===true;stopTiming(playerScope);beginTiming(playerScope,{configured:true},hspConfigured,c.timingDeadline);lookaheadStatus.textContent='Capture transfer confirmed; the same visible player continues. Any skipped frames remain gaps.';
   showAnalysis(report,0,c.pairAck.submitted.media_us,c.pairAck.capturedAt,state);
   const retained=c.postPairFrame;c.postPairFrame=null;
   if(retained)void Promise.resolve().then(()=>{
