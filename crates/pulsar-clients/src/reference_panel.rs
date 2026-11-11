@@ -466,6 +466,7 @@ mod tests {
             placed: None,
             time_basis: PreviewTimeBasis::ElapsedFromFirstFrame,
             elapsed_source_time: Some(SourceTimestamp::new(1, 2).unwrap()),
+            last_source_elapsed_time: None,
             source_origin: Some(SourceTimestamp::new(7, 1).unwrap()),
             coordinate_map: Some(ViewCoordinateMap::new(video_view, 192, 64, 96, 64).unwrap()),
             context,

@@ -239,6 +239,7 @@ mod tests {
             placed: None,
             time_basis: PreviewTimeBasis::ElapsedFromFirstFrame,
             elapsed_source_time: Some(SourceTimestamp::new(1, 8).unwrap()),
+            last_source_elapsed_time: None,
             source_origin: Some(SourceTimestamp::new(2, 1).unwrap()),
             coordinate_map: None,
             context: FrameContext {

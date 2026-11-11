@@ -945,7 +945,7 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
                         (source,placement,ModelPackPreviewTime::Source{source_time:SourceTimestamp::new(time_ns,1_000_000_000)?,time_basis:PreviewTimeBasis::ElapsedFromFirstFrame})
                     };
                     let context=FrameContext{source_version:source,source_placement:placement,frame:FrameId::new(0),transform:video_view_transform(view.as_ref())?,seek_generation:0,request_generation:0};
-                    let result=client.execute(Command::PreviewModelPackFrame{context:context.clone(),time:time.clone(),video_view:view,choice:choice.clone()},Some(p.project_id),None)?;
+                    let result=client.execute(Command::PreviewModelPackFrame{include_source_end:false,context:context.clone(),time:time.clone(),video_view:view,choice:choice.clone()},Some(p.project_id),None)?;
                     let ResponseBody::ModelPackPreview(report)=&result else {bail!("Unexpected pack preview response")};
                     report.validate()?;
                     let profile=selected.profile.context("Selected profile is absent")?;

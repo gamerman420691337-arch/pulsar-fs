@@ -184,6 +184,7 @@ pub(super) fn run(
         placed,
         time_basis: *time_basis,
         elapsed_source_time: Some(elapsed),
+        last_source_elapsed_time: None,
         source_origin: Some(clock(0)?),
         coordinate_map: None,
         context: FrameContext {

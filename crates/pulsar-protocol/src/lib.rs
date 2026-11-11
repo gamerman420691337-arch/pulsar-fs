@@ -1388,6 +1388,7 @@ impl Request {
                 time,
                 video_view,
                 choice,
+                ..
             } => {
                 choice.validate()?;
                 time.validate(context)?;
@@ -2683,6 +2684,8 @@ pub enum Command {
         model: AnnotatedPreviewModel,
     },
     PreviewModelPackFrame {
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        include_source_end: bool,
         context: FrameContext,
         time: ModelPackPreviewTime,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2981,6 +2984,8 @@ pub enum Command {
     },
     Capabilities,
     PreviewFrame {
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        include_source_end: bool,
         #[serde(default, skip_serializing_if = "PreviewTimeBasis::is_source_pts")]
         time_basis: PreviewTimeBasis,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -4272,6 +4277,9 @@ pub struct PreviewResult {
     pub time_basis: PreviewTimeBasis,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub elapsed_source_time: Option<SourceTimestamp>,
+    /// Elapsed presentation time of the final indexed source frame.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_source_elapsed_time: Option<SourceTimestamp>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_origin: Option<SourceTimestamp>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

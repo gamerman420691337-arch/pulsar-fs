@@ -577,6 +577,7 @@ fn exercise_architecture(fixture: &mut Fixture) -> Result<()> {
     let requested_time = SourceTimestamp::new(1, 2)?;
     let preview = match gui_api.execute(
         Command::PreviewFrame {
+            include_source_end: false,
             time_basis: PreviewTimeBasis::SourcePts,
             video_view: None,
             context: context.clone(),
@@ -897,6 +898,7 @@ fn desktop_shared_api_elapsed_seek_preserves_nonzero_source_origin_after_restart
      -> Result<PreviewResult> {
         match client.execute(
             Command::PreviewFrame {
+                include_source_end: false,
                 time_basis: basis,
                 video_view: None,
                 context: context.clone(),

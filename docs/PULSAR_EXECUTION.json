@@ -4211,9 +4211,17 @@
         "EV-STERILE-DESKTOP-REOPEN",
         "EV-STERILE-DESKTOP-TIMELINE-EDIT",
         "EV-STERILE-DESKTOP-DRAG",
-        "EV-STERILE-DESKTOP-DRAG-AXES"
+        "EV-STERILE-DESKTOP-DRAG-AXES",
+        "EV-STERILE-STUDIO-ALIGNED-PREVIEW",
+        "EV-STERILE-STUDIO-STOP",
+        "EV-STERILE-STUDIO-TRIM-STOP",
+        "EV-STERILE-STUDIO-EOF",
+        "EV-STERILE-STUDIO-EOF-CAP",
+        "EV-STERILE-STUDIO-EOF-NEGOTIATED",
+        "EV-STERILE-STUDIO-MIXED-PREVIEW",
+        "EV-STERILE-STUDIO-MIXED-REVERSE"
       ],
-      "next_proof": "Linux rendered evidence now covers script import, review, commit, timeline add and drag, Undo/Redo, restart/reopen, and export. Verify preview of the edited script against the same local video in one Desktop workflow, then exercise platform coverage. The operator previously confirmed motion and close visual sync in the local-video/HSP demo."
+      "next_proof": "Linux rendered evidence now covers script import, review, commit, timeline add and drag, Undo/Redo, restart/reopen, and export. Rendered Linux Studio preview now covers seeking at the edited key and advancing the same video. Exercise the integrated workflow on additional supported platforms. The operator previously confirmed motion and close visual sync in the local-video/HSP demo."
     },
     {
       "id": "UNIFIED-API",
@@ -19012,6 +19020,216 @@
             "pos"
           ],
           "equals": 67
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-STUDIO-ALIGNED-PREVIEW",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/sterile-studio-aligned-preview/result.json",
+      "sha256": "e67cb3661248048c77e323db5dcb180b74aa3d4cc3545a86e37f28d7765691d3",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Linux Studio opened the original sterile video beside the edited committed timeline. A seek to the edited 4.171-second key displayed frame 50 at 4.166667 seconds. Play and Pause advanced the preview to frame 62 at 5.166667 seconds.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "seek_frame",
+            "index"
+          ],
+          "equals": 50
+        },
+        {
+          "pointer": [
+            "advanced_frame",
+            "index"
+          ],
+          "equals": 62
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-STUDIO-STOP",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/sterile-studio-stop/result.json",
+      "sha256": "d971b1072d2ae4b3b4472b48d0529711220537d2d2e97fcfbc498d8d66d3fdb0",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Linux Studio Stop preview reset an advancing playhead to zero on the original clip clock and displayed source frame zero after two seconds. Placed-clock Stop and automatic EOF were not exercised.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "stopped_source_frame"
+          ],
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-STUDIO-TRIM-STOP",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/sterile-studio-trim/result.json",
+      "sha256": "fb9db757eb298b43859164c3a6958042e570bf8e1dcec1db64615a8ffe319fb8",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Linux Studio paused at the end of a one-second forward placement before project time 5.0 seconds. Stop reset the playhead to project time 4.0 seconds and displayed the corresponding source frame 12.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "playhead_after_explicit_stop_s"
+          ],
+          "equals": 4.0
+        },
+        {
+          "pointer": [
+            "source_frame_after_stop"
+          ],
+          "equals": 12
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-STUDIO-EOF",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/sterile-studio-eof/result.json",
+      "sha256": "a77af8d299919e9f6ff7f018fdc0f110454a1c9c874bac1225c81e247534b75a",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Linux Studio eventually paused on original-clock frame 170 at 14.166667 seconds and held the frame. The playhead temporarily advanced past the end while a decode was pending. The final-frame result is verified, and the transient overshoot remains open.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "final_frame"
+          ],
+          "equals": 170
+        },
+        {
+          "pointer": [
+            "held_screenshot_byte_identical"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-STUDIO-EOF-CAP",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/sterile-studio-eof-cap/result.json",
+      "sha256": "29813b4cc83707e81370a6e5e84d687d680f2ff40d118b6fe53d369084be15cc",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Linux Studio held the playhead at the final indexed presentation time while decode was pending, then paused on frame 170 at the same timestamp.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "pending_playhead_display_s"
+          ],
+          "equals": 14.1667
+        },
+        {
+          "pointer": [
+            "final_frame"
+          ],
+          "equals": 170
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-STUDIO-EOF-NEGOTIATED",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/sterile-studio-eof-negotiated/result.json",
+      "sha256": "12b6e8eba9ae0d5d21234e0967d5b6ec30a8053fab6e45329a46148a7fa2c0bf",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Linux Studio with the matching Engine and worker paused on frame 170 using the negotiated EOF path. Initial setup encountered the retained class of Engine startup deadline failures. Mixed-binary combinations were not executed.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "final_frame"
+          ],
+          "equals": 170
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-STUDIO-MIXED-PREVIEW",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/sterile-studio-mixed-preview/result.json",
+      "sha256": "43d817c2a29796a65acfce86c254eb0b4dd0e16b8ef519e22568c07bb79e2139",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "An older Linux Engine with the rebuilt Desktop and admitted rebuilt worker kept legacy preview behavior. A manual seek to 15 seconds displayed frame 170 at 14.166667 seconds. The reverse version combination was not exercised.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "decoded_frame"
+          ],
+          "equals": 170
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-STUDIO-MIXED-REVERSE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/sterile-studio-mixed-reverse/result.json",
+      "sha256": "83fb476a1f8abfb3e06f26e174ab591e924f09c74f083b6ef10b4d80fdcbfa1b",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rebuilt Linux Engine with older rendered Desktop and admitted older worker returned a compatible preview reply. A manual seek to 15 seconds displayed frame 170 at 14.166667 seconds.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "decoded_frame"
+          ],
+          "equals": 170
         }
       ]
     }
