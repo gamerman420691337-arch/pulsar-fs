@@ -579,6 +579,85 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
+    #[test]
+    #[ignore = "requires mpv, ffmpeg and PULSAR_PLAYER_HEADLESS=1"]
+    fn video_only_service_plays_and_stops_without_arming() {
+        assert_eq!(std::env::var("PULSAR_PLAYER_HEADLESS").as_deref(), Ok("1"));
+        let directory = tempfile::tempdir().unwrap();
+        let video = directory.path().join("fixture.mp4");
+        let mut child = std::process::Command::new("ffmpeg")
+            .args([
+                "-nostdin",
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=black:s=64x64:r=10",
+                "-t",
+                "4",
+                "-c:v",
+                "mpeg4",
+            ])
+            .arg(&video)
+            .spawn()
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                assert!(status.success());
+                break;
+            }
+            if Instant::now() >= deadline {
+                let _ = child.kill();
+                let _ = child.wait();
+                panic!("ffmpeg fixture deadline exceeded");
+            }
+            thread::sleep(Duration::from_millis(20));
+        }
+
+        let service = Service::new(directory.path().join("player")).unwrap();
+        let wait_for = |predicate: fn(&Status) -> bool| {
+            let deadline = Instant::now() + Duration::from_secs(10);
+            loop {
+                let status = service.request("test", "status", &Action::Status).unwrap();
+                assert!(!status.armed && !status.connected);
+                if predicate(&status) {
+                    return status;
+                }
+                assert!(Instant::now() < deadline, "last player status: {status:?}");
+                thread::sleep(Duration::from_millis(20));
+            }
+        };
+        service
+            .request("test", "open", &Action::OpenMedia { video })
+            .unwrap();
+        let opened = wait_for(|status| status.loaded && !status.busy);
+        assert!(opened.script_name.is_empty());
+        service
+            .request(
+                "test",
+                "arm",
+                &Action::Arm {
+                    enabled: true,
+                    max_speed: 150,
+                    min_pct: 35,
+                    max_pct: 65,
+                },
+            )
+            .unwrap();
+        wait_for(|status| !status.busy && status.message == "Open a video and script first");
+        service
+            .request("test", "play", &Action::Play { sync_offset_ms: 0 })
+            .unwrap();
+        wait_for(|status| status.playing && status.position_ms >= 200);
+        service.request("test", "stop", &Action::Stop).unwrap();
+        wait_for(|status| !status.busy && !status.playing && status.position_ms <= 100);
+        service.request("test", "close", &Action::Close).unwrap();
+        wait_for(|status| !status.busy && !status.loaded);
+    }
+
     #[test]
     fn arming_requires_prepared_script_points_before_device_contact() {
         let shared = Shared::new();
