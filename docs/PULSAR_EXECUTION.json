@@ -4852,6 +4852,47 @@
   ],
   "evidence": [
     {
+      "id": "EV-FULL-CI-20261111-TERMINAL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/full-ci-42974867023.json",
+      "sha256": "beaae24af156e363102a824a6f9e152ccb8c2835fbd672c9485004c3bd9e3b2a",
+      "kind": "json",
+      "outcome": "fail",
+      "scope": "Full CI at fec7b80 failed on all three hosts. macOS client suite had 10 failures, Windows protocol suite had 18 and Linux Engine suite had 28. Subsequent fixture repairs and the rerun do not supersede these original results.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL"
+        },
+        {
+          "pointer": [
+            "full_jobs",
+            "Full (macos-latest)",
+            "failed"
+          ],
+          "equals": 10
+        },
+        {
+          "pointer": [
+            "full_jobs",
+            "Full (windows-latest)",
+            "failed"
+          ],
+          "equals": 18
+        },
+        {
+          "pointer": [
+            "full_jobs",
+            "Full (ubuntu-latest)",
+            "failed"
+          ],
+          "equals": 28
+        }
+      ]
+    },
+    {
       "id": "EV-STARTUP",
       "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/verification.json",
       "sha256": "55d754f81999d1dd860b13cc3e4a8382237c0f946bdd2f041c05169d1d38ff79",

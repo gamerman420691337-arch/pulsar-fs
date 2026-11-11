@@ -181,6 +181,7 @@ Local retained artifacts may be unavailable on another machine. Outcome and scop
 
 | ID / outcome | Recorded scope | SHA-256 |
 | --- | --- | --- |
+| [EV-FULL-CI-20261111-TERMINAL](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/full-ci-42974867023.json) / fail | Full CI at fec7b80 failed on all three hosts. macOS client suite had 10 failures, Windows protocol suite had 18 and Linux Engine suite had 28. Subsequent fixture repairs and the rerun do not supersede these original results. | `beaae24af156e363…` |
 | [EV-STARTUP](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/verification.json) / partial | Latest passing Engine checkpoint and test-only healthy timing observations; earlier startup failure remains unknown. | `55d754f81999d1dd…` |
 | [EV-CPU-LIVE](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-24/captured-cpu-live/verification.json) / partial | Captured CPU implementation with successful native scenarios; no real-device/model qualification. | `083598490ad9667b…` |
 | [EV-LIVE-CORE](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-26/startup-latency/native-live-001/check.json) / pass | Five authored-neutral native capture lifecycles; no broad reliability or physical acceptance. | `a62cead159c84528…` |
