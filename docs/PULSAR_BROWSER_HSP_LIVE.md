@@ -40,7 +40,10 @@ python3 scripts/prepare-sterile-browser-demo.py ./target/debug/pulsar \
   /absolute/path/to/new-demo-state
 ```
 
-Copy the project ID and revision from the printed command. Launch the device-off
+Add `--launch` to prepare and serve the device-off preview in one command.
+Pulsar prints the loopback URL after the server starts.
+
+To launch separately, copy the project ID and revision from the printed command. Launch the device-off
 preview with the printed state directory and options file.
 
 ```sh
