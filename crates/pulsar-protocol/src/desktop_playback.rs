@@ -50,6 +50,7 @@ pub enum DesktopPlaybackAction {
         sync_offset_ms: i16,
     },
     Pause,
+    PausePresentation,
     Seek {
         position_ms: u64,
     },
@@ -169,6 +170,8 @@ pub struct DesktopPlaybackStatus {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assistant_grant: Option<SessionId>,
     pub playing: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub presentation_playing: bool,
     pub connected: bool,
     pub busy: bool,
     pub position_ms: u64,

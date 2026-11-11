@@ -61,6 +61,11 @@ fn tools(media_configured: bool) -> Value {
             "description": "Read the local player and Handy session state.",
             "inputSchema": {"type":"object","additionalProperties":false}
         }),
+        json!({
+            "name": "pause_presentation",
+            "description": "Pause local video-only presentation and cancel its pending review.",
+            "inputSchema": {"type":"object","additionalProperties":false}
+        }),
     ];
     if media_configured {
         entries.push(json!({
@@ -106,12 +111,21 @@ impl Server<'_> {
     }
 
     fn execute(&mut self, name: &str, arguments: Value) -> Result<Value> {
-        if name == "stop_playback" {
+        if matches!(name, "stop_playback" | "pause_presentation") {
             let _: NoArguments = serde_json::from_value(arguments)?;
             let proof = self.owner_proof()?;
             let mut client = SessionClient::connect(self.endpoint, self.bootstrap)?;
             let deadline = Instant::now() + Duration::from_secs(5);
             client.set_operation_deadline(Some(deadline));
+            if name == "pause_presentation" {
+                wait_desktop_playback_control(
+                    &mut client,
+                    &proof,
+                    deadline,
+                    DesktopPlaybackAction::PausePresentation,
+                )?;
+                return Ok(json!({"presentation_paused":true}));
+            }
             stop_desktop_playback(&mut client, &proof, deadline)?;
             return Ok(json!({"playback_stopped":true,"physical_stop_verified":false}));
         }
@@ -279,7 +293,8 @@ fn handle(server: &mut Server<'_>, state: &mut Lifecycle, request: Value) -> Opt
                 | "propose_media"
                 | "play_prepared_script"
                 | "project_summary"
-                | "device_status"),
+                | "device_status"
+                | "pause_presentation"),
             ) = params["name"].as_str()
             else {
                 return Some(error(id, -32602, "Unknown tool"));
@@ -355,9 +370,9 @@ mod tests {
     #[test]
     fn media_proposal_is_optional_and_accepts_no_model_path() {
         let listed = tools(true);
-        assert_eq!(listed["tools"][6]["name"], "propose_media");
+        assert_eq!(listed["tools"][7]["name"], "propose_media");
         assert_eq!(
-            listed["tools"][6]["inputSchema"]["additionalProperties"],
+            listed["tools"][7]["inputSchema"]["additionalProperties"],
             false
         );
         assert!(serde_json::from_value::<NoArguments>(json!({"video":"/untrusted.mp4"})).is_err());
@@ -402,7 +417,8 @@ mod tests {
                 "stop_playback",
                 "play_prepared_script",
                 "project_summary",
-                "device_status"
+                "device_status",
+                "pause_presentation"
             ]
         );
         let denied = request(json!({"jsonrpc":"2.0","id":3,"method":"tools/call",

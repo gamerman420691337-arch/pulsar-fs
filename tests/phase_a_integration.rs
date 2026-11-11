@@ -1334,6 +1334,7 @@ fn standalone_mcp_stages_a_candidate_and_stops_without_approving_effects() -> Re
         json!({"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"play_prepared_script"}}),
         json!({"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"project_summary"}}),
         json!({"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"device_status"}}),
+        json!({"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"pause_presentation"}}),
     ] {
         writeln!(input, "{message}")?;
     }
@@ -1364,10 +1365,11 @@ fn standalone_mcp_stages_a_candidate_and_stops_without_approving_effects() -> Re
             Some(5),
             Some(6),
             Some(7),
-            Some(8)
+            Some(8),
+            Some(9)
         ]
     );
-    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 6);
+    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 7);
     let tool_value = |i: usize| {
         serde_json::from_str::<Value>(replies[i]["result"]["content"][0]["text"].as_str().unwrap())
     };
@@ -1388,6 +1390,7 @@ fn standalone_mcp_stages_a_candidate_and_stops_without_approving_effects() -> Re
     assert_eq!(status["armed"], false);
     assert_eq!(status["physical_playback_verified"], false);
     assert!(status.get("assistant_grant").is_none());
+    assert_eq!(tool_value(8)?, json!({"presentation_paused":true}));
     let current = client.execute(
         Command::OpenProject {
             project_id: project.project_id,
