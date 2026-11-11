@@ -2350,6 +2350,33 @@ fn run_roleplay_command(command: RoleplayCommands) -> Result<()> {
             roleplay_consent_state::switch_provider(&path, provider, now)?;
             print_json(&roleplay_consent_state::status(&path, now)?)
         }
+        RoleplayCommands::CheckEffect {
+            path,
+            participant,
+            class,
+            local,
+            remote,
+        } => {
+            let provider = match (local, remote) {
+                (true, None) => ProviderScope::local(),
+                (false, Some(reference)) => ProviderScope::remote(ProviderRef::new(reference)?),
+                _ => anyhow::bail!(
+                    "check-effect requires exactly one of --local or --remote PROVIDER"
+                ),
+            };
+            let participants = participant
+                .into_iter()
+                .map(ParticipantRef::new)
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            roleplay_consent_state::load(&path)?
+                .admit_effect_for(&participants, consent_class(&class)?, &provider, now)
+                .map_err(|refusal| {
+                    anyhow::anyhow!("consent precondition refused: {}", refusal.label())
+                })?;
+            print_json(
+                &serde_json::json!({"consent_precondition_met": true, "effect_approved": false}),
+            )
+        }
         RoleplayCommands::Status { path } => {
             print_json(&roleplay_consent_state::status(&path, now)?)
         }

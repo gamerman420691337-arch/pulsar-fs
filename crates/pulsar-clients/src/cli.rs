@@ -152,6 +152,19 @@ pub enum RoleplayCommands {
         #[arg(long, conflicts_with = "local")]
         remote: Option<String>,
     },
+    /// Check exact consent scope without granting effect approval.
+    CheckEffect {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+        #[arg(long, required = true)]
+        participant: Vec<String>,
+        #[arg(long, value_parser = ["general", "mature", "explicit"])]
+        class: String,
+        #[arg(long, required_unless_present = "remote")]
+        local: bool,
+        #[arg(long, conflicts_with = "local")]
+        remote: Option<String>,
+    },
     /// Print the redacted consent status without changing anything.
     Status {
         #[arg(value_parser = parse_private_document_path)]
