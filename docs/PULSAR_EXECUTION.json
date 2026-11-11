@@ -17,8 +17,8 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-TRAINED-HSP-TIMING-BREAKDOWN",
-    "scope": "A trained outline tracker reaches Play in the rendered HSP loopback with simulated Handy. The latest run captured 20 timing probes and stopped before either required continuity transfer when the terminal bracket widened to 111.748 ms.",
+    "evidence": "EV-TRAINED-HSP-ONE-TRANSFER",
+    "scope": "The trained outline tracker completed one of two native transfers in the rendered browser HSP loopback and delivered 140 samples. A successor coverage gap stopped simulated playback.",
     "active_work": "BROWSER-DEMO",
     "failure_summary": "Rendered browser HSP continuity remains unverified. The supplied sterile reference still misses its learned-motion screen. Desktop local-file playback at zero offset retains prior operator evidence; live generated physical playback remains pending.",
     "source_stamp": [
@@ -4561,7 +4561,8 @@
         "EV-TRAINED-HSP-APPEND-UNKNOWN",
         "EV-TRAINED-HSP-ALIGNMENT-BOUND",
         "EV-TRAINED-HSP-TIMING-BREAKDOWN",
-        "EV-TRAINED-HSP-MATCHED-ADAPTIVE-PROBE"
+        "EV-TRAINED-HSP-MATCHED-ADAPTIVE-PROBE",
+        "EV-TRAINED-HSP-ONE-TRANSFER"
       ]
     },
     {
@@ -20585,6 +20586,65 @@
             "native_bracket_ns"
           ],
           "equals": 91067306
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-TRAINED-HSP-ONE-TRANSFER",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/outline-holdout-hsp-40s/one-transfer-coverage-stop/result.json",
+      "sha256": "20522bf71b20fa278133b17c5b26fc987a7fa034ec95da47328a96491564ebc4",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered trained-model HSP completed one native source transfer on loopback and stopped on successor coverage gap. The second transfer, finite tail and physical verification remain open.",
+      "assertions": [
+        {
+          "pointer": [
+            "completed_transfers"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "required_transfers"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "active_source_generation"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "delivered_samples"
+          ],
+          "equals": 140
+        },
+        {
+          "pointer": [
+            "loopback_plays"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "loopback_stops"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "terminal_error"
+          ],
+          "equals": "CoverageGap"
         },
         {
           "pointer": [
