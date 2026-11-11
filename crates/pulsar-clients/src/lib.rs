@@ -3303,8 +3303,11 @@ mod inference_fallback_generation_tests {
     }
 
     #[test]
-    fn explicit_fallback_pending_preserves_profile_pack_choice_review_commit_and_export() {
-        for (opt_in, pack) in [(false, false), (false, true), (true, false), (true, true)] {
+    fn generation_preserves_profile_pack_choice_and_explicit_staging() {
+        for (stage_only, opt_in, pack) in [false, true].into_iter().flat_map(|stage_only| {
+            [(false, false), (false, true), (true, false), (true, true)]
+                .map(|(opt_in, pack)| (stage_only, opt_in, pack))
+        }) {
             let project_id = ProjectId::new("project").unwrap();
             let snapshot = |revision| ProjectSnapshot {
                 project_id: project_id.clone(),
@@ -3398,7 +3401,7 @@ mod inference_fallback_generation_tests {
                 &mut fake,
                 FileGenerationInput {
                     video: Path::new("source.mp4"),
-                    output: Some(&output),
+                    output: (!stage_only).then_some(output.as_path()),
                     preset: "default",
                     settings,
                     model_path: path.clone(),
@@ -3408,7 +3411,7 @@ mod inference_fallback_generation_tests {
                 },
             )
             .unwrap();
-            assert_eq!(fake.requests.len(), 8);
+            assert_eq!(fake.requests.len(), if stage_only { 6 } else { 8 });
             match (&fake.requests[3].0, opt_in, pack) {
                 (Command::GenerateWithInferenceFallback {source_version,preset,settings,model,selection},true,_) => {
                     assert_eq!(source_version.as_str(),"source");
@@ -3431,6 +3434,10 @@ mod inference_fallback_generation_tests {
                 _=>panic!("fallback must be explicit; strict model/profile and pack commands remain unchanged"),
             }
             assert!(matches!(fake.requests[4].0, Command::JobStatus { .. }));
+            assert!(matches!(fake.requests[5].0, Command::GetCandidate { .. }));
+            if stage_only {
+                continue;
+            }
             assert!(matches!(
                 fake.requests[6].0,
                 Command::CommitCandidate { .. }
