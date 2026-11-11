@@ -552,3 +552,73 @@ fn handy_playback_engine_drop_stops_and_joins_without_native_ownership_cycle() {
     drop(journal);
     drop(dir);
 }
+
+#[test]
+fn desktop_hsp_loopback_preserves_seek_anchor_and_absolute_tail() {
+    use crate::desktop_hsp::{HspClient, HspStream};
+    use std::io::Write;
+
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let server = std::thread::spawn(move || {
+        [
+            ("GET /auth/token/issue?", r#"{"result":{"token":"fixture"}}"#),
+            ("GET /servertime ", r#"{"server_time":123456}"#),
+            ("PUT /hsp/setup ", "{}"),
+            ("PUT /hsp/add ", "{}"),
+            ("PUT /hsp/add ", "{}"),
+            ("PUT /hsp/play ", "{}"),
+            ("PUT /hsp/stop ", "{}"),
+        ]
+        .map(|(expected, response)| {
+            let mut stream = handy_play_accept(&listener);
+            stream.set_nonblocking(false).unwrap();
+            let (request, bytes) = handy_play_read_request(&mut stream);
+            assert!(request.starts_with(expected), "{request}");
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{response}",
+                response.len()
+            )
+            .unwrap();
+            if bytes.is_empty() {
+                serde_json::Value::Null
+            } else {
+                serde_json::from_slice(&bytes).unwrap()
+            }
+        })
+    });
+
+    let mut client = HspClient::test_client(&base);
+    let clock = client.server_clock(1).unwrap();
+    let points = Arc::new(vec![(0, 10), (500, 20), (1000, 30), (1500, 40)]);
+    let mut stream = HspStream::begin(&mut client, points, 750).unwrap();
+    stream.load_until(&mut client, 1000).unwrap();
+    stream.load_until(&mut client, 1500).unwrap();
+    client.play(750, 1.0, &clock).unwrap();
+    client.stop().unwrap();
+
+    let [_, _, setup, first, second, play, stop] = server.join().unwrap();
+    assert!(setup["stream_id"].as_u64().unwrap() > 0);
+    assert_eq!(
+        first,
+        serde_json::json!({
+            "points": [{"t": 500, "x": 20}, {"t": 1000, "x": 30}],
+            "tail_point_stream_index": 1,
+            "flush": false
+        })
+    );
+    assert_eq!(
+        second,
+        serde_json::json!({
+            "points": [{"t": 1500, "x": 40}],
+            "tail_point_stream_index": 2,
+            "flush": false
+        })
+    );
+    assert_eq!(play["start_time"], 750);
+    assert_eq!(play["playback_rate"], 1.0);
+    assert!(play["server_time"].as_u64().unwrap() >= 123456);
+    assert!(stop.is_null());
+}
