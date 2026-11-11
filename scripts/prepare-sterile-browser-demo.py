@@ -2,6 +2,7 @@
 """Prepare a private Browser live project for the supplied sterile clip."""
 
 import argparse
+from fractions import Fraction
 import hashlib
 import json
 import os
@@ -17,12 +18,34 @@ def main():
         "--launch", action="store_true",
         help="Serve the prepared Browser Live player with the same Engine environment",
     )
+    parser.add_argument(
+        "--generated-holdout", type=Path,
+        help="Use an explicitly selected generated outline holdout manifest",
+    )
     args = parser.parse_args()
     app, clip, model = (path.resolve(strict=True) for path in (args.pulsar, args.clip, args.model))
     expected_source = "71d381468f83fd6e4116bb5d98b1c4453431702d1444e90b3c16d9d6d318494f"
+    source_end = Fraction(57, 4)
+    if args.generated_holdout is not None:
+        manifest_path = args.generated_holdout.resolve(strict=True)
+        manifest = json.loads(manifest_path.read_text())
+        if (manifest["origin"] != "independently generated geometry"
+                or manifest["playback_offset_ms"] != 0
+                or not 1 <= manifest["fps"] <= 60
+                or not 2 <= manifest["frames"] <= 1000):
+            parser.error("expected a generated outline holdout manifest")
+        matches = [case for case in manifest["cases"]
+                   if Path(case["clip"]).name == case["clip"]
+                   and manifest_path.parent / case["clip"] == clip]
+        if len(matches) != 1:
+            parser.error("clip must match one generated holdout entry")
+        expected_source = matches[0]["clip_sha256"]
+        source_end = Fraction(manifest["frames"], manifest["fps"])
     with clip.open("rb") as stream:
         if hashlib.file_digest(stream, "sha256").hexdigest() != expected_source:
-            parser.error("expected the original 14.25-second sterile clip")
+            if args.generated_holdout is None:
+                parser.error("expected the original 14.25-second sterile clip")
+            parser.error("clip does not match the selected holdout source identity")
     output = args.output.resolve()
     output.mkdir(mode=0o700)
     env = dict(os.environ, PULSAR_STATE_DIR=str(output / "state"))
@@ -43,7 +66,7 @@ def main():
     placement = output / "placement.json"
     placement.write_text(json.dumps({
         "source_version": probe["source_version"],
-        "source_start": zero, "source_end": {"numerator": 57, "denominator": 4},
+        "source_start": zero, "source_end": {"numerator": source_end.numerator, "denominator": source_end.denominator},
         "source_anchor": zero, "project_anchor": 0,
         "rate_numerator": 1, "rate_denominator": 1,
     }))
