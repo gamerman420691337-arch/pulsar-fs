@@ -76,16 +76,15 @@ mod deadlines {
         fs, io,
         os::unix::net::{UnixListener, UnixStream},
         path::PathBuf,
+        sync::atomic::{AtomicU32, Ordering},
         thread,
-        time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+        time::{Duration, Instant},
     };
     struct SocketDirectory(PathBuf);
     impl SocketDirectory {
         fn new() -> Self {
-            let nonce = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos();
+            static NEXT_DIRECTORY: AtomicU32 = AtomicU32::new(0);
+            let nonce = NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed);
             let path = std::env::temp_dir().join(format!("pu-{:x}-{nonce:x}", std::process::id()));
             fs::create_dir(&path).unwrap();
             Self(path)
