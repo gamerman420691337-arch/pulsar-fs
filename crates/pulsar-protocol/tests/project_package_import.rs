@@ -230,16 +230,14 @@ mod sockets {
         fs,
         io::{self, Write},
         os::unix::net::{UnixListener, UnixStream},
+        sync::atomic::{AtomicU32, Ordering},
         thread,
-        time::{SystemTime, UNIX_EPOCH},
     };
     struct SocketDirectory(PathBuf);
     impl SocketDirectory {
         fn new() -> Self {
-            let id = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos();
+            static NEXT_DIRECTORY: AtomicU32 = AtomicU32::new(0);
+            let id = NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed);
             let path = std::env::temp_dir().join(format!("pi-{:x}-{id:x}", std::process::id()));
             fs::create_dir(&path).unwrap();
             Self(path)

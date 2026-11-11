@@ -290,8 +290,8 @@ mod socket_tests {
         fs,
         os::unix::net::{UnixListener, UnixStream},
         path::PathBuf,
+        sync::atomic::{AtomicU32, Ordering},
         thread,
-        time::SystemTime,
     };
     struct SocketDir(PathBuf);
     impl Drop for SocketDir {
@@ -301,10 +301,8 @@ mod socket_tests {
         }
     }
     fn fixture() -> (SocketDir, UnixListener, PackageDownloadLease) {
-        let nonce = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        static NEXT_DIRECTORY: AtomicU32 = AtomicU32::new(0);
+        let nonce = NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed);
         // Darwin's temporary directory can already occupy much of sun_path.
         let dir = std::env::temp_dir().join(format!("pb-{:x}-{nonce:x}", std::process::id()));
         fs::create_dir(&dir).unwrap();
