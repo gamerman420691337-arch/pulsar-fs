@@ -77,6 +77,7 @@ mod pattern_review;
 mod patterns;
 #[doc(hidden)]
 pub mod repair_panel;
+mod roleplay_panel;
 mod script_repair;
 pub use patterns::build_pattern_input;
 #[doc(hidden)]

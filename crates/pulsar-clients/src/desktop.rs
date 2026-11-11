@@ -38,6 +38,7 @@ enum Tab {
     Evidence,
     Plugins,
     Settings,
+    Roleplay,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -397,6 +398,7 @@ pub struct PulsarDesktop {
     equivalence_panel: crate::equivalence_panel::EquivalencePanel,
     bundled_models: crate::bundled_models::BundledModelPanel,
     assistant_settings: crate::assistant_settings::AssistantSettingsPanel,
+    roleplay_panel: crate::roleplay_panel::RoleplayPanel,
     evidence_panel: crate::evidence_panel::EvidencePanel,
     use_selected_pack: bool,
     fallback_panel: inference_fallback_panel::FallbackPanel,
@@ -522,6 +524,11 @@ impl PulsarDesktop {
         context.egui_ctx.set_visuals(visuals);
         let desktop_player =
             crate::desktop_player_panel::PlayerPanel::new(endpoint.clone(), bootstrap.clone());
+        let roleplay_panel = crate::roleplay_panel::RoleplayPanel::new(
+            endpoint.clone(),
+            bootstrap.clone(),
+            context.egui_ctx.clone(),
+        );
         let (sender, requests) = mpsc::sync_channel::<RpcWork>(8);
         let (replies, receiver) = mpsc::sync_channel(8);
         let repaint = context.egui_ctx.clone();
@@ -762,6 +769,7 @@ impl PulsarDesktop {
             equivalence_panel: Default::default(),
             bundled_models: Default::default(),
             assistant_settings: Default::default(),
+            roleplay_panel,
             evidence_panel,
             wasm_panel,
             native_preparation_panel,
@@ -5184,6 +5192,10 @@ impl eframe::App for PulsarDesktop {
             context.request_repaint_after(Duration::from_millis(50));
         }
         self.assistant_settings.poll();
+        self.roleplay_panel.update(
+            self.project.as_ref().map(|project| &project.project_id),
+            Path::new(self.consent_path.trim()),
+        );
         self.portable.poll();
         let watch_media_reviews = Path::new(self.consent_path.trim()).is_absolute();
         self.desktop_player.poll(watch_media_reviews);
@@ -5287,6 +5299,7 @@ impl eframe::App for PulsarDesktop {
                             (Tab::Evidence, "Capture evidence"),
                             (Tab::Plugins, "WASM editor"),
                             (Tab::Settings, "Settings"),
+                            (Tab::Roleplay, "Roleplay"),
                         ] {
                             ui.selectable_value(&mut self.tab, tab, label);
                         }
@@ -5319,6 +5332,7 @@ impl eframe::App for PulsarDesktop {
                     self.project.as_ref().map(|project| &project.project_id),
                 );
             }
+            Tab::Roleplay => self.roleplay_panel.ui(ui),
             Tab::Settings => {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     self.consent_settings(ui);

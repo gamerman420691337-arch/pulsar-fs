@@ -73,7 +73,7 @@ impl RoleplayTurnInput {
                     } else {
                         RoleplaySpeaker::Assistant
                     }
-                    || message.text.trim().is_empty()
+                    || (message.speaker == RoleplaySpeaker::User && message.text.trim().is_empty())
                     || message.text.contains('\0')
                     || message.text.len() > MAX_ROLEPLAY_REPLY_BYTES
             })
