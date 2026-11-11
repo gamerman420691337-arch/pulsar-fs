@@ -87,11 +87,10 @@ fn replace_locked(
     document: &RoleplayConsentDocument,
     directory: &std::fs::File,
 ) -> Result<()> {
-    use rustix::fs::{openat, Mode, OFlags};
+    use rustix::fs::{openat, renameat, unlinkat, AtFlags, Mode, OFlags};
     use std::os::unix::fs::MetadataExt;
 
     let bytes = serialize(document)?;
-    let parent = path.parent().context("missing consent parent")?;
     let file_name = path.file_name().context("consent filename missing")?;
 
     // The target may be absent or must already be exactly our private file.
@@ -121,7 +120,6 @@ fn replace_locked(
     }
 
     let temporary_name = format!("{}.new-{}", file_name.to_string_lossy(), std::process::id());
-    let temporary_path = parent.join(&temporary_name);
     let mut file = std::fs::File::from(openat(
         directory,
         temporary_name.as_str(),
@@ -140,11 +138,11 @@ fn replace_locked(
     })();
     drop(file);
     if let Err(error) = written {
-        let _ = std::fs::remove_file(&temporary_path);
+        let _ = unlinkat(directory, temporary_name.as_str(), AtFlags::empty());
         return Err(error);
     }
-    if let Err(error) = std::fs::rename(&temporary_path, path) {
-        let _ = std::fs::remove_file(&temporary_path);
+    if let Err(error) = renameat(directory, temporary_name.as_str(), directory, file_name) {
+        let _ = unlinkat(directory, temporary_name.as_str(), AtFlags::empty());
         return Err(error.into());
     }
     directory.sync_all()?;
