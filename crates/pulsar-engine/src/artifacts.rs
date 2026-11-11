@@ -240,6 +240,19 @@ pub(crate) fn snapshot_opened_reserved(
     max_bytes: u64,
     held_storage: u64,
 ) -> Result<(PathBuf, String, u64)> {
+    let result = snapshot_into_private_batch(input, dir, max_bytes, held_storage)?;
+    sync_dir(dir)?;
+    Ok(result)
+}
+
+/// Snapshot into an attempt-owned directory whose owner syncs the directory
+/// before handing the completed batch to another consumer.
+pub(crate) fn snapshot_into_private_batch(
+    input: &mut File,
+    dir: &Path,
+    max_bytes: u64,
+    held_storage: u64,
+) -> Result<(PathBuf, String, u64)> {
     #[cfg(not(unix))]
     private_directory(dir)?;
     use std::io::{Seek, SeekFrom};
@@ -287,18 +300,27 @@ pub(crate) fn snapshot_opened_reserved(
     if !snapshot_unchanged(&before, &after) {
         bail!("source changed while snapshotting");
     }
-    temp.as_file().sync_all()?;
-    let (hash, actual_size) = digest_file(temp.path(), max_bytes)?;
+    let staged = temp.as_file_mut();
+    staged.seek(SeekFrom::Start(0))?;
+    let (hash, actual_size) = digest_opened(staged, max_bytes)?;
     if actual_size != size {
         bail!("snapshot size differs from captured source");
     }
+    // Commit content and read-only permissions together before publishing on Unix.
+    // Windows needs a writable temporary name for collision cleanup.
+    let mut permissions = temp.as_file().metadata()?.permissions();
+    permissions.set_readonly(true);
+    #[cfg(unix)]
+    temp.as_file().set_permissions(permissions)?;
+    temp.as_file().sync_all()?;
     let destination = dir.join(&hash);
     match temp.persist_noclobber(&destination) {
-        Ok(file) => {
-            let mut permissions = file.metadata()?.permissions();
-            permissions.set_readonly(true);
-            file.set_permissions(permissions)?;
-            file.sync_all()?;
+        Ok(_file) => {
+            #[cfg(not(unix))]
+            {
+                _file.set_permissions(permissions)?;
+                _file.sync_all()?;
+            }
         }
         Err(error) if error.error.kind() == std::io::ErrorKind::AlreadyExists => {
             let (existing, existing_size) = digest_file(&destination, max_bytes)?;
@@ -308,7 +330,6 @@ pub(crate) fn snapshot_opened_reserved(
         }
         Err(error) => return Err(error.error.into()),
     }
-    sync_dir(dir)?;
     Ok((destination, hash, size))
 }
 
@@ -607,7 +628,11 @@ mod tests {
         let (snapshot, _, bytes) =
             snapshot_opened_reserved(&mut input, directory.path(), 100, 0).unwrap();
         assert_eq!(bytes, 14);
-        assert_eq!(fs::read(snapshot).unwrap(), b"selected bytes");
+        assert_eq!(fs::read(&snapshot).unwrap(), b"selected bytes");
+        assert!(fs::metadata(&snapshot).unwrap().permissions().readonly());
+        let (reused, _, _) =
+            snapshot_opened_reserved(&mut input, directory.path(), 100, 0).unwrap();
+        assert_eq!(reused, snapshot);
     }
     #[test]
     fn refuses_snapshot_budget() {

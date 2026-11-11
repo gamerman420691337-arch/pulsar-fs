@@ -821,6 +821,50 @@ test('pause while Handy Start response is held retires exact player and late rep
 });
 
 async function startLookahead(p){await prepareMedia(p);p.play();await flush();await p.frame(.1);await flush();}
+test('lookahead startup times out while the original capture Start is pending', async()=>{
+ const p=mediaPlayer({lookahead:true,timing:true,holdStart:true});
+ await startLookahead(p);
+ const pending=p.analysisFrame(1.1);await flush();
+ assert.ok(p.sent.some(r=>r.route==='/start'));
+ p.advance(5000);await flush();
+ assert.equal(p.elements.video.paused,true);
+ assert.match(p.elements.status.textContent,/startup deadline expired while waiting for Engine capture admission/);
+ p.release();await pending;
+ assert.ok(!p.sent.some(r=>r.route==='/frame'));
+});
+test('lookahead startup times out before the first frame acknowledgment',async()=>{
+ const p=mediaPlayer({lookahead:true,timing:true,holdFrameAt:1});
+ await startLookahead(p);
+ const pending=p.analysisFrame(1.1);await flush();
+ assert.ok(p.sent.some(r=>r.route==='/frame'));
+ p.advance(5000);await flush();
+ assert.equal(p.elements.video.paused,true);
+ assert.match(p.elements.status.textContent,/waiting for the first accepted frame/);
+ p.releaseFrame();await pending;
+ assert.equal(p.futurePreview().entries.length,0);
+});
+test('the first acknowledged lookahead frame cancels the startup deadline',async()=>{
+ const p=mediaPlayer({lookahead:true,timing:true});
+ await startLookahead(p);
+ await p.analysisFrame(1.1);
+ assert.ok(p.evaluate('analysisReader.lastAck !== null'));
+ assert.equal(p.evaluate('analysisReader.timer'),null);
+ assert.equal(p.elements.video.paused,false);
+ assert.ok(!p.sent.some(r=>r.route==='/player/stop'));
+});
+test('decoded lookahead frames cannot cancel startup timeout before native timing is ready', async()=>{
+ const p=mediaPlayer({lookahead:true,timing:true,holdRoute:'/player/timing-observe'});
+ await startLookahead(p);await p.analysisFrame(1.1);
+ assert.equal(p.elements.video.paused,false);
+ p.advance(5000);await flush();
+ assert.equal(p.elements.video.paused,true);
+ assert.match(p.elements.status.textContent,/startup deadline expired while waiting for current visible-player timing/);
+ const stoppedMessage=p.elements.status.textContent;
+ p.releaseRoute();await flush();
+ assert.equal(p.elements.status.textContent,stoppedMessage);
+ assert.ok(!p.sent.some(r=>r.route==='/start'||r.route==='/frame'));
+});
+
 function rgbPacket(request){const bytes=Buffer.from(request.body),split=bytes.indexOf(10);return {header:JSON.parse(bytes.subarray(0,split)),pixels:bytes.subarray(split+1)};}
 test('lookahead uses the exact prepared URL and actual analysis callback PTS with a native feed',async()=>{
  const p=mediaPlayer({lookahead:true,timing:true,handyConfigured:true});await startLookahead(p);

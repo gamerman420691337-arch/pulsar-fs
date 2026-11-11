@@ -263,6 +263,8 @@ pub(super) fn spawn_tracked(
                     .take()
                     .map(|asset| vec![asset as Arc<dyn std::any::Any + Send + Sync>])
                     .unwrap_or_default();
+                let trace_startup = std::env::var_os("PULSAR_TRACE_CPU_STARTUP").is_some_and(|v| v == "1");
+                let launch_started = Instant::now();
                 let mut worker = if engine.cpu_owner_policy.is_some() {
                     captured_cpu::start(
                         &engine,
@@ -296,6 +298,7 @@ pub(super) fn spawn_tracked(
                         },
                     )?
                 };
+                let worker_ready = Instant::now();
                 if !engine.live_analysis_ready(
                     &epoch,
                     &manifest.attempt_id,
@@ -304,6 +307,8 @@ pub(super) fn spawn_tracked(
                     return Ok(());
                 }
                 drop(engine);
+                let admission_ready = Instant::now();
+                let mut trace_first_pair = trace_startup;
                 loop {
                     if cancel.load(Ordering::Acquire) {
                         return Ok(());
@@ -328,7 +333,22 @@ pub(super) fn spawn_tracked(
                             return Ok(());
                         }
                     };
+                    let dispatched = Instant::now();
                     let result = worker.estimate(&work)?;
+                    if trace_first_pair {
+                        use std::io::Write;
+                        trace_first_pair = false;
+                        let _ = writeln!(
+                            std::io::stderr().lock(),
+                            "pulsar_cpu_startup origin_to_launch_ms={} launch_to_ready_ms={} ready_to_admission_ms={} admission_to_pair_ms={} first_reply_ms={} first_frame={}",
+                            launch_started.saturating_duration_since(origin).as_millis(),
+                            worker_ready.duration_since(launch_started).as_millis(),
+                            admission_ready.duration_since(worker_ready).as_millis(),
+                            dispatched.duration_since(admission_ready).as_millis(),
+                            dispatched.elapsed().as_millis(),
+                            work.declaration().current_frame.value(),
+                        );
+                    }
                     let Some(engine) = weak.upgrade() else {
                         return Ok(());
                     };

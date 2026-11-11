@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "reconciled_on": "2026-11-06",
+  "reconciled_on": "2026-11-10",
   "timezone": "America/New_York",
   "full_roadmap": "incomplete",
   "runner_state": "paused",
@@ -17,10 +17,10 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-DESKTOP-PLAYER-001",
-    "scope": "Linux Desktop Player checkpoint: loopback HSP and Engine/mpv workflow passed. During the later sync demo the operator confirmed physical movement and reported that timing looked close by eye. Measured timing and broader device/platform qualification remain open.",
-    "active_work": "APP-PLAYBACK",
-    "failure_summary": "Desktop Player adds a session-local Handy sync offset that defaults to zero and takes effect on Play. The evidence link retains the earlier playback checkpoint. Editor, platform and release scope remain open.",
+    "evidence": "EV-STERILE-BROWSER-MOTION-001",
+    "scope": "The rendered browser produced 154 fresh estimates with a trained outline tracker. On the 146 estimates within complete supplied reference anchors, position error averaged 17.94 points and correlation was 0.745 at zero shift. Scoring now validates the complete capture and reports the initial 1.417 seconds without estimates.",
+    "active_work": "BROWSER-DEMO",
+    "failure_summary": "The sterile browser workflow generated motion, but the tracker missed the motion screen. Physical live playback remains pending. Desktop local-file HSP playback and its zero-default offset retain their prior evidence.",
     "source_stamp": [
       {
         "path": "Cargo.lock",
@@ -4396,6 +4396,18 @@
         "EV-NATIVE-FRESHNESS-DIAGNOSTIC",
         "EV-RENDERED-420-REPEAT",
         "EV-RENDERED-CURRENT-RECORDING-EXPORT",
+        "EV-STERILE-BROWSER-MOTION-001",
+        "EV-STERILE-BROWSER-COVERAGE",
+        "EV-STERILE-BROWSER-STARTUP-RERUN",
+        "EV-STERILE-BROWSER-ACK-DEADLINE",
+        "EV-STERILE-BROWSER-CPU-STARTUP-TRACE",
+        "EV-STERILE-BROWSER-CPU-LAUNCH-STAGES",
+        "EV-STERILE-BROWSER-SINGLE-SYNC",
+        "EV-STERILE-BROWSER-CPU-ASSET-STAGES",
+        "EV-STERILE-BROWSER-BATCH-SYNC",
+        "EV-STERILE-BROWSER-OPTIMIZED-SHA",
+        "EV-STERILE-BROWSER-MOTION-DIAGNOSTIC",
+        "EV-STERILE-BROWSER-VISUAL-TIMING",
         "EV-RENDERED-200MS-RECORDING",
         "EV-RENDERED-200MS-RECORDING-EXPORT",
         "EV-RENDERED-SEEK-200MS",
@@ -18509,6 +18521,321 @@
             "reported_hsp_play_state"
           ],
           "equals": 2
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-MOTION-001",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-07/live-sterile-demo-001/result.json",
+      "sha256": "3e9f8b4b7988b156bd683acd61e57405f2c810f5e6ab32e0aac393b1419ae73d",
+      "kind": "json",
+      "outcome": "fail",
+      "freshness": "pinned_checkpoint",
+      "scope": "Actual browser and CPU model inference ran on the supplied sterile animation with device output disabled. The separately trained synthetic-outline tracker produced 154 fresh estimates, and the zero-shift motion screen failed on the 146 samples within the supplied complete reference window. Model output covered about 37–74 points on the 0–100 scale. The sterile clip and reference were evaluation only.",
+      "assertions": [
+        {"pointer": ["status"], "equals": "FAIL_MOTION_SCREEN"},
+        {"pointer": ["rendered_browser"], "equals": true},
+        {"pointer": ["accepted_fresh_estimates"], "equals": 154},
+        {"pointer": ["physical_handy_test"], "equals": false}
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-COVERAGE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-recording-coverage/result.json",
+      "sha256": "0d78a9eb1a0e43932462fefe4e046f5e032f41e8b6c96758c55f767c45c16e3b",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Replayed the retained browser capture through complete-page and capture-identity checks. The first 1.417 seconds of the supplied reference lack estimates. Within the scored interval, the largest gap is 83.334 ms. The original motion failure remains.",
+      "assertions": [
+        {"pointer": ["status"], "equals": "FAIL_MOTION_SCREEN"},
+        {"pointer": ["reference_start_unobserved_ms"], "equals": 1416.667},
+        {"pointer": ["scored_estimates"], "equals": 146}
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-STARTUP-RERUN",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-startup-rerun/result.json",
+      "sha256": "4fcb9511c6fb9110a7bb99d14d1378f0574b813c98bb84478c5add69d0b73689",
+      "kind": "json",
+      "outcome": "fail",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered sterile rerun at 4276dfc with the same trained model and 500 ms requested lead. The first estimate was at 2.25 s, compared with 1.417 s in the prior run. The startup deadline repair did not establish shorter startup or acceptable model motion.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_MOTION_SCREEN"
+        },
+        {
+          "pointer": [
+            "first_sample_s"
+          ],
+          "equals": 2.25
+        },
+        {
+          "pointer": [
+            "accepted_fresh_estimates"
+          ],
+          "equals": 143
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-ACK-DEADLINE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-ack-deadline-rendered/result.json",
+      "sha256": "c9f676b55c082643d2e88944e8e9bad9276e8ac1a79797ef839d0ecbf583764c",
+      "kind": "json",
+      "outcome": "fail",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Chromium playback on 2c9b664 passed the startup deadline and retained 138 fresh estimates through 14.167 seconds. The first estimate was at 2.75 seconds and the motion screen still failed.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_MOTION_SCREEN"
+        },
+        {
+          "pointer": [
+            "first_sample_s"
+          ],
+          "equals": 2.75
+        },
+        {
+          "pointer": [
+            "accepted_fresh_estimates"
+          ],
+          "equals": 138
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-CPU-STARTUP-TRACE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-cpu-startup-trace/result.json",
+      "sha256": "097ec5cab54e96e28d30a20c564bce3e78d5756bd3004b420b361cf4ca7ce49f",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Chromium and the trained sterile model measured 1541 ms from CPU launch to Ready, less than 1 ms from admission to first pair dispatch, and 9 ms for the first reply. The first retained estimate was worker pair 1 at source 2.417 s. The motion screen still failed.",
+      "assertions": [
+        {
+          "pointer": [
+            "cpu_startup_trace",
+            "launch_to_ready_ms"
+          ],
+          "equals": 1541
+        },
+        {
+          "pointer": [
+            "first_estimate_worker_sequence"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_MOTION_SCREEN"
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-CPU-LAUNCH-STAGES",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-cpu-launch-stages/result.json",
+      "sha256": "343d8e68f5e74949ab1ae2956aad57e672eb681be781d6a35ea3030e0c758fbf",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Chromium CPU startup took 865 ms from launch to Ready. Host staging and custody took 575 ms, spawning took 12 ms, and spawn to Ready took 277 ms. The model motion screen still failed.",
+      "assertions": [
+        {
+          "pointer": [
+            "cpu_launch_stages_ms",
+            "host_staging_and_custody"
+          ],
+          "equals": 575
+        },
+        {
+          "pointer": [
+            "cpu_startup_trace",
+            "launch_to_ready_ms"
+          ],
+          "equals": 865
+        },
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_MOTION_SCREEN"
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-SINGLE-SYNC",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-single-sync-rerun/result.json",
+      "sha256": "ada6f948c82c8e8bff886631e7c8a8fa93e79ec3b8b29a42eb9d1259a4a4cd86",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "The Unix single-sync build completed rendered playback. Staging took 2029 ms, compared with 575 ms in the earlier run. The initial Engine boot missed the client deadline and the Engine was observed waiting in the filesystem journal. This run cannot isolate the change in sync count. The motion screen still failed.",
+      "assertions": [
+        {
+          "pointer": [
+            "cpu_launch_stages_ms",
+            "host_staging_and_custody"
+          ],
+          "equals": 2029
+        },
+        {
+          "pointer": [
+            "first_sample_s"
+          ],
+          "equals": 3.833333
+        },
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_MOTION_SCREEN"
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-CPU-ASSET-STAGES",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-cpu-asset-stages/result.json",
+      "sha256": "044b00d052625484e998b36a48f6e7622b8e54d68bac07b755859b978db14164",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered CPU trace measured custody at 54 ms and worker, model, and runtime snapshots at 232, 2, and 463 ms respectively. The first retained estimate was at source 1.75 s. The motion screen still failed.",
+      "assertions": [
+        {
+          "pointer": [
+            "cpu_launch_stages_ms",
+            "staging_snapshot_2"
+          ],
+          "equals": 463
+        },
+        {
+          "pointer": [
+            "first_sample_s"
+          ],
+          "equals": 1.75
+        },
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_MOTION_SCREEN"
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-BATCH-SYNC",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-batch-sync-rerun/result.json",
+      "sha256": "613ea9cc55f1d952c2dc1d4ba75aa9b9f46bada064bf7258e0c825a9c11c5546",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Chromium passed startup with batched directory sync. Staging measured 1196 ms versus 762 ms in the previous per-asset trace. The uncontrolled runs do not establish a performance gain. The motion screen still failed.",
+      "assertions": [
+        {
+          "pointer": [
+            "cpu_launch_stages_ms",
+            "host_staging_and_custody"
+          ],
+          "equals": 1196
+        },
+        {
+          "pointer": [
+            "first_sample_s"
+          ],
+          "equals": 2.333333
+        },
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_MOTION_SCREEN"
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-OPTIMIZED-SHA",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-optimized-sha-render/result.json",
+      "sha256": "c8b989a0dd6b53798234c8569dc0a45e885d85962f446eceebbb59ffb308093a",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Chromium on the development profile with optimized SHA-256 measured staging at 76 ms, launch to Ready at 119 ms, and first estimate at 0.833 seconds. It retained 161 fresh estimates. Motion still failed its screen.",
+      "assertions": [
+        {
+          "pointer": [
+            "cpu_launch_stages_ms",
+            "host_staging_and_custody"
+          ],
+          "equals": 76
+        },
+        {
+          "pointer": [
+            "first_estimate_frame_index"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_MOTION_SCREEN"
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-MOTION-DIAGNOSTIC",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-motion-error-diagnostic/result.json",
+      "sha256": "883a2d20e5785d0ba21a16d926072defbeadd735531fa254a6b0b4c01534bc75",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "A postmortem on 147 fixed-window estimates found both stroke scale and phase sensitivity. Affine fitting to the reference reduced diagnostic MAE to 14.57, and reference lookup 50 ms later improved diagnostic correlation to 0.906. These fitted values are descriptive and do not change the original zero-offset score, model, or gates.",
+      "assertions": [
+        {
+          "pointer": [
+            "samples"
+          ],
+          "equals": 147
+        },
+        {
+          "pointer": [
+            "best_reference_lookup_shift_ms"
+          ],
+          "equals": 50
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-VISUAL-TIMING",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-visual-timing-diagnostic/result.json",
+      "sha256": "44acf3e4e34b058fb2d7634ba5dc75ed329c7136a14b5ead977c8a1fcfc74cc3",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "A grayscale contour proxy on decoded frames showed a 55 ms reference lookup shift, close to the tracker shift of 50 ms. Model and contour proxy correlated 0.966 at zero shift. This is a diagnostic, and the original acceptance score and reference remain unchanged.",
+      "assertions": [
+        {
+          "pointer": [
+            "decoded_frames"
+          ],
+          "equals": 171
+        },
+        {
+          "pointer": [
+            "visual_to_reference",
+            "best_reference_lookup_shift_ms"
+          ],
+          "equals": 55
         }
       ]
     }
