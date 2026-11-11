@@ -388,6 +388,8 @@ pub struct PulsarDesktop {
     last_job_poll: Instant,
     project_name: String,
     open_project_id: String,
+    consent_path: String,
+    consent_summary: Option<ConsentSummary>,
     source_path: String,
     export_path: String,
     model_path: String,
@@ -751,6 +753,8 @@ impl PulsarDesktop {
             last_job_poll: Instant::now(),
             project_name: "Untitled motion".into(),
             open_project_id: String::new(),
+            consent_path: String::new(),
+            consent_summary: None,
             source_path: String::new(),
             export_path: String::new(),
             model_path: String::new(),
@@ -4181,6 +4185,73 @@ impl PulsarDesktop {
         ui.small("Drag a point: one atomic edit on release. Click elsewhere: independent preview seek. White = playhead; cyan = committed/draft gesture; amber = candidate.");
     }
 
+    fn consent_settings(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Participant consent");
+        ui.label("Consent document path");
+        if ui.text_edit_singleline(&mut self.consent_path).changed() {
+            self.consent_summary = None;
+        }
+
+        let path = PathBuf::from(self.consent_path.trim());
+        let mut result = None;
+        if ui.button("Inspect consent").clicked() {
+            result = Some(crate::consent_status(&path, crate::consent_now_ns()));
+        }
+        if let Some(summary) = &self.consent_summary {
+            ui.label(format!("Content class: {:?}", summary.content_class));
+            ui.label(if summary.remote {
+                "Provider scope: Remote"
+            } else {
+                "Provider scope: Local"
+            });
+            ui.label(if summary.attested {
+                "Adult attestation recorded"
+            } else {
+                "Adult attestation absent or withdrawn"
+            });
+            if let Some(reason) = summary.effect_refusal {
+                ui.label(format!("Effect eligibility refused: {reason}"));
+            }
+            if ui
+                .add_enabled(summary.attested, egui::Button::new("Withdraw attestation"))
+                .clicked()
+            {
+                let now = crate::consent_now_ns();
+                result = Some(
+                    crate::withdraw_attestation(&path, now)
+                        .and_then(|_| crate::consent_status(&path, now)),
+                );
+            }
+            for participant in &summary.participants {
+                ui.horizontal(|ui| {
+                    ui.label(&participant.reference);
+                    if participant.revoked {
+                        ui.label("Revoked");
+                    } else if ui.button("Revoke consent").clicked() {
+                        let now = crate::consent_now_ns();
+                        result = Some((|| {
+                            let id = ParticipantRef::new(&participant.reference)?;
+                            crate::revoke_consent(&path, &id, now)?;
+                            crate::consent_status(&path, now)
+                        })());
+                    }
+                });
+            }
+        }
+        if let Some(result) = result {
+            match result {
+                Ok(summary) => {
+                    self.consent_summary = Some(summary);
+                    self.status = "Consent status refreshed.".into();
+                }
+                Err(error) => {
+                    self.consent_summary = None;
+                    self.status = format!("Consent document: {error:#}");
+                }
+            }
+        }
+    }
+
     fn capability_panel(&mut self, ui: &mut egui::Ui) {
         self.native_preparation_panel.show(
             ui,
@@ -5241,7 +5312,11 @@ impl eframe::App for PulsarDesktop {
                 self.desktop_player.ui(ui);
             }
             Tab::Settings => {
-                egui::ScrollArea::vertical().show(ui, |ui| self.assistant_settings.ui(ui));
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    self.consent_settings(ui);
+                    ui.separator();
+                    self.assistant_settings.ui(ui);
+                });
             }
             Tab::Studio | Tab::Cinema => self.canvas(ui),
             Tab::References => {
