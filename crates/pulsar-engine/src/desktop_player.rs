@@ -32,12 +32,9 @@ struct Shared {
     shutdown: AtomicBool,
 }
 
-pub(crate) struct Service {
-    shared: Arc<Shared>,
-}
-impl Service {
-    pub(crate) fn new(directory: PathBuf) -> Result<Self> {
-        let shared = Arc::new(Shared {
+impl Shared {
+    fn new() -> Self {
+        Self {
             status: Mutex::new(Status::default()),
             queue: Mutex::new(VecDeque::new()),
             owner: Mutex::new(None),
@@ -45,7 +42,16 @@ impl Service {
             recent: Mutex::new(VecDeque::new()),
             epoch: AtomicU64::new(0),
             shutdown: AtomicBool::new(false),
-        });
+        }
+    }
+}
+
+pub(crate) struct Service {
+    shared: Arc<Shared>,
+}
+impl Service {
+    pub(crate) fn new(directory: PathBuf) -> Result<Self> {
+        let shared = Arc::new(Shared::new());
         let state = shared.clone();
         thread::Builder::new()
             .name("pulsar-player".into())
@@ -94,10 +100,6 @@ impl Service {
             }
             return Ok(status);
         }
-        recent.push_back((session.into(), request.into(), fingerprint));
-        while recent.len() > 64 {
-            recent.pop_front();
-        }
         if owner.is_none() || matches!(action, Action::Open { .. }) {
             *owner = Some(session.into());
         }
@@ -106,22 +108,26 @@ impl Service {
             action,
             Action::Stop | Action::Close | Action::Pause | Action::Arm { enabled: false, .. }
         );
-        let epoch = if interrupts {
-            shared.epoch.fetch_add(1, Ordering::SeqCst) + 1
-        } else {
-            shared.epoch.load(Ordering::SeqCst)
-        };
         let mut queue = shared.queue.lock().map_err(|_| internal())?;
-        if queue.len() >= 32 {
-            return Err(ProtocolError::new(
-                ErrorCode::ResourceExhausted,
-                "player control queue is busy",
-            ));
-        }
         if interrupts {
-            queue.push_front((epoch, action.clone()));
-        } else {
+            // Every queued action belongs to the superseded playback epoch.
+            // Reclaim their slots before admitting Stop, even at capacity.
+            let epoch = shared.epoch.fetch_add(1, Ordering::SeqCst) + 1;
+            queue.clear();
             queue.push_back((epoch, action.clone()));
+        } else {
+            if queue.len() >= 32 {
+                return Err(ProtocolError::new(
+                    ErrorCode::ResourceExhausted,
+                    "player control queue is busy",
+                ));
+            }
+            let epoch = shared.epoch.load(Ordering::SeqCst);
+            queue.push_back((epoch, action.clone()));
+        }
+        recent.push_back((session.into(), request.into(), fingerprint));
+        while recent.len() > 64 {
+            recent.pop_front();
         }
         let mut result = shared.status.lock().map_err(|_| internal())?;
         result.busy = true;
@@ -540,4 +546,30 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
         thread::sleep(Duration::from_millis(10));
     }
     player.close();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stop_supersedes_a_full_queue_and_allows_rejected_requests_to_retry() {
+        let service = Service {
+            shared: Arc::new(Shared::new()),
+        };
+        let play = Action::Play { sync_offset_ms: 0 };
+        for index in 0..32 {
+            service
+                .request("player", &index.to_string(), &play)
+                .unwrap();
+        }
+        assert!(service.request("player", "retry", &play).is_err());
+        service.request("operator", "stop", &Action::Stop).unwrap();
+        service.request("player", "retry", &play).unwrap();
+
+        let queue = service.shared.queue.lock().unwrap();
+        assert_eq!(queue.len(), 2);
+        assert!(matches!(queue[0], (1, Action::Stop)));
+        assert!(matches!(queue[1], (1, Action::Play { .. })));
+    }
 }
