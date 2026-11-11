@@ -4704,7 +4704,9 @@
         "CPU-BUILD"
       ],
       "exit": "Implement local revocable 18+ attestation with an explicit non-verification statement, per-participant consent records binding content class and processing scope, consent-clearing local/remote scope switches, unconditional revocation that terminates in-flight effect and leaves playback disarmed, refusal of inferred or inherited consent, and pseudonymous non-transmitted participant and provider references. Verify through actual CLI and desktop consumers with retained refusal cases.",
-      "evidence": []
+      "evidence": [
+        "EV-DESKTOP-CONSENT-2439FBA"
+      ]
     },
     {
       "id": "ROLEPLAY-BROKER",
@@ -4864,6 +4866,53 @@
     }
   ],
   "evidence": [
+    {
+      "id": "EV-DESKTOP-CONSENT-2439FBA",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/desktop-consent-fixture/result.json",
+      "sha256": "441414e44ea83f9e7236d60edaf5ff47e5477d9f79e1d9d86eefe0d6affa73c5",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Linux Desktop inspected and withdrew consent in a disposable general-class document. CLI verified refusal after revocation and attestation withdrawal. No real consent or tool effect was exercised.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "fixture_only"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "revocation_refusal"
+          ],
+          "equals": "consent_revoked"
+        },
+        {
+          "pointer": [
+            "withdrawal_refusal"
+          ],
+          "equals": "adult_attestation_withdrawn"
+        },
+        {
+          "pointer": [
+            "tool_effect_exercised"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
     {
       "id": "EV-HOSTED-FULL-32DAFF4",
       "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/hosted-full-ci-32daff4.json",
