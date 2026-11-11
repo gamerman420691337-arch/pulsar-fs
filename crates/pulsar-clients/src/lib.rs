@@ -136,7 +136,9 @@ pub fn command_needs_engine(args: &[OsString]) -> bool {
             command:
                 Some(Commands::Roleplay {
                     command:
-                        RoleplayCommands::ReadCandidate { .. } | RoleplayCommands::ProposePattern { .. },
+                        RoleplayCommands::ReadCandidate { .. }
+                        | RoleplayCommands::ProposePattern { .. }
+                        | RoleplayCommands::StopPlayback,
                 }),
         }) => true,
         Ok(cli) => !matches!(
@@ -2396,6 +2398,46 @@ fn run_roleplay_command(
             let input = patterns::build_pattern_input(&pattern)?;
             let mut client = SessionClient::connect(endpoint, bootstrap)?;
             patterns::stage(&mut client, &project, RevisionId::new(revision), input)
+        }
+        RoleplayCommands::StopPlayback => {
+            let directory = bootstrap
+                .parent()
+                .context("Engine state directory is missing")?;
+            let owner_proof =
+                project_package::read_local_owner_proof(directory, "handy-owner.token")?;
+            let mut client = SessionClient::connect(endpoint, bootstrap)?;
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            client.set_operation_deadline(Some(deadline));
+            let mut action = DesktopPlaybackAction::Stop;
+            loop {
+                let response = client
+                    .execute(
+                        Command::DesktopPlayback {
+                            action,
+                            owner_proof: owner_proof.clone(),
+                        },
+                        None,
+                        None,
+                    )
+                    .context("Desktop Stop outcome could not be confirmed")?;
+                let ResponseBody::DesktopPlayback(status) = &response else {
+                    anyhow::bail!("Engine returned an unexpected player response");
+                };
+                if !status.busy {
+                    anyhow::ensure!(
+                        !status.playing && !status.armed,
+                        "Desktop player did not stop"
+                    );
+                    return print_response(response);
+                }
+                let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+                anyhow::ensure!(
+                    !remaining.is_zero(),
+                    "Desktop Stop outcome could not be confirmed"
+                );
+                std::thread::sleep(remaining.min(std::time::Duration::from_millis(40)));
+                action = DesktopPlaybackAction::Status;
+            }
         }
         RoleplayCommands::CheckEffect {
             path,

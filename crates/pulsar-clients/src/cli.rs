@@ -169,6 +169,8 @@ pub enum RoleplayCommands {
         #[arg(long)]
         pattern: String,
     },
+    /// Stop the Engine-owned Desktop player without requiring roleplay consent.
+    StopPlayback,
     /// Check exact consent scope without granting effect approval.
     CheckEffect {
         #[arg(value_parser = parse_private_document_path)]
