@@ -9,6 +9,7 @@ fn accept(listener: &UnixListener) -> UnixStream {
     loop {
         match listener.accept() {
             Ok((s, _)) => {
+                s.set_nonblocking(false).unwrap();
                 s.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
                 s.set_write_timeout(Some(Duration::from_secs(2))).unwrap();
                 return s;
