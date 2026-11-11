@@ -333,6 +333,17 @@ pub(crate) fn snapshot_into_private_batch(
     Ok((destination, hash, size))
 }
 
+#[derive(Debug)]
+pub(crate) struct ExportDestinationExists;
+
+impl std::fmt::Display for ExportDestinationExists {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("export target already exists; choose a new path")
+    }
+}
+
+impl std::error::Error for ExportDestinationExists {}
+
 /// A standard export never overwrites an existing user file.
 #[cfg(not(unix))]
 pub fn publish_export(_: &Path, _: &[u8]) -> Result<()> {
@@ -349,7 +360,7 @@ pub fn publish_export(path: &Path, bytes: &[u8]) -> Result<()> {
     let name = path.file_name().context("export requires a filename")?;
     let destination = parent.join(name);
     if destination.exists() {
-        bail!("export target already exists; choose a new path");
+        return Err(ExportDestinationExists.into());
     }
     if fs2::available_space(&parent)? < bytes.len() as u64 + 1024 * 1024 {
         bail!("insufficient export storage");
@@ -357,7 +368,13 @@ pub fn publish_export(path: &Path, bytes: &[u8]) -> Result<()> {
     let mut temp = tempfile::NamedTempFile::new_in(&parent)?;
     temp.write_all(bytes)?;
     temp.as_file().sync_all()?;
-    temp.persist_noclobber(destination).map_err(|e| e.error)?;
+    temp.persist_noclobber(destination).map_err(|error| {
+        if error.error.kind() == std::io::ErrorKind::AlreadyExists {
+            anyhow::Error::from(ExportDestinationExists)
+        } else {
+            anyhow::Error::from(error.error)
+        }
+    })?;
     sync_dir(&parent)
 }
 
