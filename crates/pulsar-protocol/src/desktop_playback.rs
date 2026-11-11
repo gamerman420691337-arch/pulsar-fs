@@ -123,6 +123,20 @@ pub(crate) fn validate_request(request: &Request) -> Result<(), ProtocolError> {
 mod tests {
     use super::*;
     #[test]
+    fn video_only_open_rejects_urls_and_script_arguments() {
+        let url = DesktopPlaybackAction::OpenMedia {
+            video: "https://example.test/video.mp4".into(),
+        };
+        assert!(url.validate().is_err());
+        assert!(
+            serde_json::from_value::<DesktopPlaybackAction>(serde_json::json!({
+                "action": "open_media", "video": "video.mp4", "script": "video.funscript"
+            }))
+            .is_err()
+        );
+    }
+
+    #[test]
     fn play_offset_is_signed_bounded_and_defaults_to_zero_on_the_wire() {
         let old_play = serde_json::json!({"action": "play"});
         let decoded: DesktopPlaybackAction = serde_json::from_value(old_play.clone()).unwrap();

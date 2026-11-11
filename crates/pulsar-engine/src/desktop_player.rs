@@ -580,6 +580,28 @@ mod tests {
     use super::*;
 
     #[test]
+    fn arming_requires_prepared_script_points_before_device_contact() {
+        let shared = Shared::new();
+        let mut player = Player::default();
+        let failure = player
+            .apply(
+                Action::Arm {
+                    enabled: true,
+                    max_speed: 150,
+                    min_pct: 35,
+                    max_pct: 65,
+                },
+                &shared,
+                0,
+                std::path::Path::new("unused"),
+            )
+            .unwrap_err();
+        assert_eq!(failure.to_string(), "Open a video and script first");
+        assert!(player.hsp.is_none());
+        assert!(player.armed_until.is_none());
+    }
+
+    #[test]
     fn stop_supersedes_a_full_queue_and_allows_rejected_requests_to_retry() {
         let service = Service {
             shared: Arc::new(Shared::new()),

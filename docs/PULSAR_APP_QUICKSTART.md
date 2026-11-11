@@ -43,6 +43,8 @@ The workstation needs `mpv`, `ffmpeg`, and the encrypted-secret CLI. The launche
 4. **Pause** pauses both. **Apply seek** rebinds the script at the selected video time and resumes if it was playing. **STOP** stops both and seeks to zero.
 5. Disable Handy or **Close player** when finished. Use STOP before leaving the demo.
 
+To watch a local clip by itself, enter the absolute video path, click **Open video only**, then click **Play**. This mode leaves Handy disabled.
+
 Set **Handy sync offset** while stopped or paused and press **Play** to apply it. Negative values move the Handy earlier, positive values move it later. **Reset** restores 0 ms. The setting starts at 0 ms when you reopen Desktop and does not write to the Handy or change the funscript.
 
 Initial limits: 150 units/s, 35–65% stroke mapping, five-second look-ahead, 20-minute session. The generated script moves within about 41–59% travel. A lost Desktop heartbeat or video window stops/disarms the session. Failures never auto-enable motion. Use one controlling Desktop for this player. Studio's analysis preview/editor remains separate.
