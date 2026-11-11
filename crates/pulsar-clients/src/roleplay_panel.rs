@@ -16,7 +16,7 @@ use std::{
 };
 
 enum Request {
-    Profiles,
+    Profiles(ProjectId),
     Turn {
         project: ProjectId,
         input: RoleplayTurnInput,
@@ -238,10 +238,15 @@ impl RoleplayPanel {
         }
         ui.horizontal(|ui| {
             if ui
-                .add_enabled(!self.busy, egui::Button::new("Load model profiles"))
+                .add_enabled(
+                    !self.busy && self.context.is_some(),
+                    egui::Button::new("Load model profiles"),
+                )
                 .clicked()
             {
-                self.send(Request::Profiles);
+                if let Some(context) = &self.context {
+                    self.send(Request::Profiles(context.project.clone()));
+                }
             }
             egui::ComboBox::from_id_salt("roleplay-profile")
                 .selected_text(
@@ -336,9 +341,9 @@ fn execute(
     }
     let client = client.as_mut().expect("connected roleplay client");
     match work {
-        Request::Profiles => {
+        Request::Profiles(project) => {
             client.set_operation_deadline(Some(Instant::now() + Duration::from_secs(5)));
-            match client.execute(Command::AssistantProfiles, None, None)? {
+            match client.execute(Command::AssistantProfiles, Some(project), None)? {
                 ResponseBody::AssistantProfiles(profiles) => Ok(Reply::Profiles(profiles)),
                 _ => anyhow::bail!("Engine returned an unexpected model catalog"),
             }
