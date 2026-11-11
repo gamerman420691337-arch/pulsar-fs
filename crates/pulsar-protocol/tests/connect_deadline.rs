@@ -69,6 +69,7 @@ impl Endpoint {
         // The client has already completed connect, so this never waits on an
         // absent connection. A false successful connect fails here immediately.
         let (stream, _) = self.listener.accept().unwrap();
+        stream.set_nonblocking(false).unwrap();
         stream.set_read_timeout(Some(IO_TIMEOUT)).unwrap();
         stream.set_write_timeout(Some(IO_TIMEOUT)).unwrap();
         stream

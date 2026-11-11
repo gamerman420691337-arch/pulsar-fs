@@ -48,7 +48,10 @@ fn request() -> Request {
 fn accept_before(listener: &UnixListener, deadline: Instant) -> UnixStream {
     loop {
         match listener.accept() {
-            Ok((stream, _)) => return stream,
+            Ok((stream, _)) => {
+                stream.set_nonblocking(false).unwrap();
+                return stream;
+            }
             Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
                 assert!(
                     Instant::now() < deadline,
