@@ -541,7 +541,7 @@ impl Controller {
         probe.sample(sample);
         if handle
             .offer(&source.selection.identity, sample)
-            .map_err(|_| unavailable())?
+            .map_err(|error| producer_mismatch(format_args!("runtime offer refused ({error:?})")))?
             != HspOfferOutcome::Accepted
         {
             return Err(unavailable());
@@ -669,7 +669,10 @@ impl Controller {
             original_stop_request_id: controls.stop.clone(),
             delivered_samples: self.delivered.load(Ordering::Acquire),
             active_source: self.active_source_status()?,
-            error: controls.error.clone(),
+            error: controls
+                .error
+                .clone()
+                .or_else(|| self.active.load_full()?.sink.first_error().cloned()),
         })
     }
 }

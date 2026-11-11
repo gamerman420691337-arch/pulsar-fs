@@ -62,6 +62,7 @@ pub(super) struct EpochSink {
     retired: AtomicBool,
     reservation: Option<NativeCaptureSuccessor>,
     first: OnceLock<NativeAcceptedCapture>,
+    first_error: OnceLock<ProtocolError>,
 }
 impl EpochSink {
     pub(super) fn is_retired(&self) -> bool {
@@ -74,6 +75,7 @@ impl EpochSink {
             retired: AtomicBool::new(false),
             reservation: None,
             first: OnceLock::new(),
+            first_error: OnceLock::new(),
         }
     }
     fn successor(controller: &Arc<Controller>, reservation: NativeCaptureSuccessor) -> Self {
@@ -83,6 +85,7 @@ impl EpochSink {
             retired: AtomicBool::new(false),
             reservation: Some(reservation),
             first: OnceLock::new(),
+            first_error: OnceLock::new(),
         }
     }
     fn stage_first(&self, owner: &Controller, accepted: NativeAcceptedCapture) -> PResult<()> {
@@ -128,7 +131,11 @@ impl EpochSink {
             .load_full()
             .filter(|source| source.selection == self.selection)
     }
+    pub(super) fn first_error(&self) -> Option<&ProtocolError> {
+        self.first_error.get()
+    }
     fn reject(&self, error: ProtocolError) -> ProtocolError {
+        let _ = self.first_error.set(error.clone());
         self.retire();
         error
     }
