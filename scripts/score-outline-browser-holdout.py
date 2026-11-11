@@ -41,7 +41,12 @@ def main():
     ):
         parser.error("generated labels differ from the declared frame grid")
     model_hash = scorer["digest"](args.model)
-    times, estimates, _ = scorer["read_recording"](args.recording, model_hash, entry["clip_sha256"])
+    try:
+        times, estimates, _ = scorer["read_recording"](
+            args.recording, model_hash, entry["clip_sha256"]
+        )
+    except ValueError as error:
+        parser.error(str(error))
     covered = (times >= expected_times[0]) & (times <= expected_times[-1])
     if covered.sum() < 2:
         parser.error("fewer than two estimates overlap the reference")

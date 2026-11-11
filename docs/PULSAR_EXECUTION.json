@@ -4551,7 +4551,10 @@
         "EV-NATIVE-BROWSER-TIMING-65149D6",
         "EV-BROWSER-TIMING-275ABD6",
         "EV-STERILE-RENDER-0BC5B36",
-        "EV-BROWSER-DESKTOP-HANDOFF-66C3DE6"
+        "EV-BROWSER-DESKTOP-HANDOFF-66C3DE6",
+        "EV-OUTLINE-HOLDOUT-CPU",
+        "EV-STERILE-OUTLINE-PROXY",
+        "EV-OUTLINE-HOLDOUT-BROWSER"
       ]
     },
     {
@@ -20117,6 +20120,151 @@
           "equals": false
         }
       ]
+    },
+    {
+      "id": "EV-OUTLINE-HOLDOUT-CPU",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/outline-holdout-baseline/result.json",
+      "sha256": "440fff6f07204477018d787aed1d948001a15e9fc2968beec598967b9ef15042",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "The pinned production CPU temporal adapter scored 143 adjacent pairs per generated case at zero offset. MAE was 0.51 clean, 1.12 cluttered and 0.52 low-contrast. This diagnostic does not qualify the supplied reference or a device.",
+      "assertions": [
+        {
+          "pointer": [
+            "scope"
+          ],
+          "equals": "synthetic direct CPU temporal adapter"
+        },
+        {
+          "pointer": [
+            "playback_offset_ms"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "first_frame_unscored"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "model_sha256"
+          ],
+          "equals": "002525328a27ffc060db997fd4b1618ab7c70dc6cf44c8f77dd54cc91d34df8f"
+        },
+        {
+          "pointer": [
+            "runtime_sha256"
+          ],
+          "equals": "b5c9d4f124d24707f514dad926dc181820807178855df1c528e3addb2dd0e6f7"
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-OUTLINE-PROXY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/sterile-outline-alignment/result.json",
+      "sha256": "c5ec6cb7d0b295707b6eda45c1c55c98b5c71fea0e5e9ce1b779a62fa2a75e20",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "For 160 overlapping estimates the existing rendered browser output matched a contrast-threshold outline Y proxy at 3.02 MAE and 0.969 correlation. The same estimates scored 17.64 and 0.743 against the supplied script. No alignment or amplitude was fitted. The proxy does not replace motion labels or close the failing screen.",
+      "assertions": [
+        {
+          "pointer": [
+            "scored_estimates"
+          ],
+          "equals": 160
+        },
+        {
+          "pointer": [
+            "playback_offset_ms"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "fitted_alignment"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "tracker_vs_supplied_script",
+            "mae_points"
+          ],
+          "equals": 17.636601712025687
+        },
+        {
+          "pointer": [
+            "threshold_sweep",
+            "85",
+            "tracker_vs_visual_y",
+            "mae_points"
+          ],
+          "equals": 3.0191167254784808
+        },
+        {
+          "pointer": [
+            "physical_device_test"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-OUTLINE-HOLDOUT-BROWSER",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/outline-holdout-browser-clean/result.json",
+      "sha256": "b42d102948b50edcb61067bd8754030de87cc3a14d6b6f3eb98af7b2c04e576c",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "A rendered Linux Browser Live run on the independent clean clip accepted 141 fresh estimates and scored 140 at 0.60 points MAE and 0.9995 correlation. The clip ended normally, the source was released and Handy remained disabled.",
+      "assertions": [
+        {
+          "pointer": [
+            "case"
+          ],
+          "equals": "clean"
+        },
+        {
+          "pointer": [
+            "playback_offset_ms"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "accepted_fresh_estimates"
+          ],
+          "equals": 141
+        },
+        {
+          "pointer": [
+            "scored_estimates"
+          ],
+          "equals": 140
+        },
+        {
+          "pointer": [
+            "mean_absolute_error"
+          ],
+          "equals": 0.597747765048764
+        },
+        {
+          "pointer": [
+            "pearson"
+          ],
+          "equals": 0.9995181502419808
+        },
+        {
+          "pointer": [
+            "physical_device_test"
+          ],
+          "equals": false
+        }
+      ]
     }
   ],
   "external_inputs": [
@@ -20147,6 +20295,6 @@
     "Retain original failures and scope limitations when adding successful successor evidence. Mandatory model reviews remain suspended; independent required acceptance is unchanged."
   ],
   "audit_boundary": "Historical recording correspondence repair passes Protocol and Engine integration tests while preserving all original bindings and gaps. New rendered trials fail before staging; baseline playback ends, so runtime regression clearance is not established. App/Worker compilation and scoped checks do not close browser, clean-checkout fixture, model/media/platform/device/human/release gates.",
-  "product_surface": "Source already includes Desktop, CLI and a local browser client over one authenticated Engine; script/project editing, candidate review/commit/export, deterministic patterns, library/Stash controls, local assistant proposals and experimental browser capture. Handy inspection and guarded transport are implemented. Useful learned defaults, the rendered browser-to-device workflow and physical synchronization remain unqualified. See the [app guide](PULSAR_APP_QUICKSTART.md); the gate ledger below retains the remaining acceptance obligations.",
+  "product_surface": "Source already includes Desktop, CLI and a local browser client over one authenticated Engine; script/project editing, candidate review/commit/export, deterministic patterns, library/Stash controls, local assistant proposals, Linux roleplay and experimental browser capture. Handy inspection and guarded transport are implemented. Useful learned defaults, the rendered browser-to-device workflow and physical synchronization remain unqualified. See the [app guide](PULSAR_APP_QUICKSTART.md); the gate ledger below retains the remaining acceptance obligations.",
   "cross_milestone_obligations": "All explicit TEST scenarios, security/consent requirements, delivery/platform/vendor combinations, open-policy decisions and assurance obligations in the specification/execution plan remain required. A selected test subset cannot close the whole test matrix. Before closing a gate, retain exact subject identities, command/operation results, refusals and interruption outcomes, applicable rendered/native/media/device observations, unresolved failures and the required independent human/release authority. Missing evidence stays open."
 }
