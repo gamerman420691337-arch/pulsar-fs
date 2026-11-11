@@ -24,7 +24,7 @@ import uuid
 
 ROOT = Path('/home/brianklam/Projects/Funscripts/pulsar-roadmap-m1')
 RUNTIME_RECEIPT = Path('/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-22/browser-player-control/borrowed-runtime.json')
-OWNED_ROOT = Path('/mnt/4tb/tmp/pulsar-browser-timing/runs')
+SCRATCH_PARENT = Path('/mnt/4tb/tmp')
 TEST = 'browser_live::browser_timing_native_tests::native_browser_timing_nonce_phase_continuation_and_retirement'
 MEDIA = Path('/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-10-13/browser-rendered-qa/authored-gray.webm')
 MEDIA_SHA = '6643ea76ed68f8c0074bf1b45906990b5bd03ca0ae6839aae56901498f915acc'
@@ -523,8 +523,8 @@ def main():
     args.output = args.output.absolute()
     check(not os.path.lexists(args.output), 'output must be a new directory')
     check(args.output.parent.is_dir(), 'output parent is absent')
-    check(OWNED_ROOT.is_dir() and not OWNED_ROOT.is_symlink(), 'owned scratch parent is absent')
-    scratch = OWNED_ROOT / ('q-' + uuid.uuid4().hex)
+    check(SCRATCH_PARENT.is_dir() and not SCRATCH_PARENT.is_symlink(), 'scratch parent is missing or is a symlink')
+    scratch = SCRATCH_PARENT / ('pulsar-browser-timing-' + uuid.uuid4().hex)
     socket_path_preflight(scratch / 'ram' / 'state')
     scratch.mkdir(mode=0o700)
     (scratch / 'ram').mkdir(mode=0o700)
