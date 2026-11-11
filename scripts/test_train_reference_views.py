@@ -116,6 +116,33 @@ class AnnotatedExportTests(unittest.TestCase):
             self.assertIn('saved native view plan differs', rejected.stderr.decode())
             self.assertFalse(refused.exists())
 
+            stash_fixture = os.environ.get('PULSAR_ANNOTATED_STASH_FIXTURE_OUTPUT')
+            if stash_fixture:
+                destination = Path(stash_fixture)
+                destination.mkdir(mode=0o700)
+                model = destination / 'model.onnx'
+                shutil.copyfile(output / 'model.onnx', model)
+                y, x = np.indices((64, 64))
+                frames = np.stack([
+                    np.stack([(x * 11 + y * 7 + tick * 13 + channel * 19) % 256
+                              for channel in range(3)], axis=-1)
+                    for tick in range(28)
+                ]).astype(np.uint8)
+                pairs = destination / 'pairs.rgb'
+                pairs.write_bytes(frames.tobytes())
+                positions = []
+                for pair in frames.reshape(14, 2, 64, 64, 3):
+                    tensor = pair.transpose(0, 3, 1, 2).reshape(1, 6, 64, 64)
+                    result = session.run(None, {'target_frame_pair': tensor.astype(np.float32) / 255})
+                    positions.append(float(result[0].item()))
+                self.assertTrue(all(0 <= position <= 1 for position in positions))
+                (destination / 'expected.json').write_text(json.dumps({
+                    'model_sha256': training.hash_file(model),
+                    'training_intake_sha256': metadata['pulsar.training_intake_sha256'],
+                    'rgb_sha256': training.hash_file(pairs),
+                    'positions': positions,
+                }, indent=2) + '\n')
+
 
 if __name__ == '__main__':
     unittest.main()
