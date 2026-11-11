@@ -204,6 +204,7 @@ impl Controller {
             .map(|owner| owner.snapshot(at))
             .transpose()
     }
+    #[track_caller]
     fn retire(&self) {
         if self.retired.swap(true, Ordering::AcqRel) {
             return;
@@ -227,6 +228,7 @@ impl Controller {
         }
         self.retirement_complete.store(true, Ordering::Release);
     }
+    #[track_caller]
     fn fail(&self, error: ProtocolError) -> ProtocolError {
         self.retire();
         if let Ok(mut controls) = self.controls.try_lock() {

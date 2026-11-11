@@ -457,6 +457,7 @@ impl Entry {
         }
         Ok(now)
     }
+    #[track_caller]
     fn retire(&self) {
         self.cancel.store(true, Ordering::Release);
         if let Some(owner) = self.continuity.get() {
