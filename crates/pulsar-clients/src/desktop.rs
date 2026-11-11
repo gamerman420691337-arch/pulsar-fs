@@ -5195,6 +5195,7 @@ impl eframe::App for PulsarDesktop {
         self.roleplay_panel.update(
             self.project.as_ref().map(|project| &project.project_id),
             Path::new(self.consent_path.trim()),
+            self.desktop_player.selected_media(),
         );
         self.portable.poll();
         let watch_media_reviews = Path::new(self.consent_path.trim()).is_absolute();

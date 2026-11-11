@@ -49,6 +49,8 @@ An operator can also configure an MCP client to start `pulsar-mcp PROJECT --cons
 
 With the same project open and consent document selected, opening a video and funscript makes **Enable Handy for assistant** available. The toggle enables the loaded script at the configured limits and offset. The MCP **play_prepared_script** tool can request playback while that grant is active. **STOP** clears the grant. The tool reports when playback is queued, and Desktop shows the player state.
 
+For local conversation on Linux, open a project, select the local consent document in **Settings**, and open **Roleplay**. Click **Load model profiles**, select an owner-registered profile, and send a message. The panel keeps the conversation in memory and shows which typed tool requests were accepted or refused. A presentation proposal uses the video path selected in Player and still needs **Confirm and play**. **Clear conversation** starts a fresh conversation and tool budget.
+
 Set **Handy sync offset** while stopped or paused and press **Play** to apply it. Negative values move the Handy earlier, positive values move it later. **Reset** restores 0 ms. The setting starts at 0 ms when you reopen Desktop and does not write to the Handy or change the funscript.
 
 Initial limits: 150 units/s, 35–65% stroke mapping, five-second look-ahead, 20-minute session. The generated script moves within about 41–59% travel. A lost Desktop heartbeat or video window stops/disarms the session. Failures never auto-enable motion. Use one controlling Desktop for this player. Studio's analysis preview/editor remains separate.

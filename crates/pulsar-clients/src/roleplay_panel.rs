@@ -3,11 +3,15 @@ use crate::{motion::ResponseBody, EngineApi, SessionClient};
 use eframe::egui;
 use pulsar_protocol::{
     AssistantProfile, AttemptId, Command, ProjectId, RoleplayMessage, RoleplayReply,
-    RoleplaySpeaker, RoleplayTurnInput, MAX_ROLEPLAY_REPLY_BYTES,
+    RoleplaySpeaker, RoleplayToolReceipt, RoleplayTurnInput, MAX_ROLEPLAY_REPLY_BYTES,
 };
 use std::{
     path::{Path, PathBuf},
-    sync::mpsc::{self, Receiver, SyncSender},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        mpsc::{self, Receiver, SyncSender},
+        Arc,
+    },
     time::{Duration, Instant},
 };
 
@@ -17,12 +21,16 @@ enum Request {
         project: ProjectId,
         input: RoleplayTurnInput,
         deadline_ms: u64,
+        media: Option<PathBuf>,
     },
 }
 
 enum Reply {
     Profiles(Vec<AssistantProfile>),
-    Turn(Box<RoleplayReply>),
+    Turn {
+        text: String,
+        receipts: Vec<RoleplayToolReceipt>,
+    },
 }
 
 type Work = (u64, Request);
@@ -32,13 +40,14 @@ type Completion = (u64, Result<Reply, String>);
 struct Context {
     project: ProjectId,
     consent: PathBuf,
+    media: Option<PathBuf>,
 }
 
 pub(crate) struct RoleplayPanel {
     requests: SyncSender<Work>,
     replies: Receiver<Completion>,
     context: Option<Context>,
-    epoch: u64,
+    epoch: Arc<AtomicU64>,
     busy: bool,
     profiles: Vec<AssistantProfile>,
     selected: Option<AttemptId>,
@@ -52,12 +61,27 @@ impl RoleplayPanel {
     pub(crate) fn new(endpoint: PathBuf, bootstrap: PathBuf, repaint: egui::Context) -> Self {
         let (requests, incoming) = mpsc::sync_channel(1);
         let (outgoing, replies) = mpsc::channel();
+        let epoch = Arc::new(AtomicU64::new(0));
+        let active_epoch = epoch.clone();
         let started = std::thread::Builder::new()
             .name("pulsar-roleplay".into())
             .spawn(move || {
                 let mut client = None;
+                let mut work_calls = 0;
+                let mut work_epoch = 0;
                 while let Ok((epoch, work)) = incoming.recv() {
-                    let result = execute(&mut client, &endpoint, &bootstrap, work);
+                    if work_epoch != epoch {
+                        work_epoch = epoch;
+                        work_calls = 0;
+                    }
+                    let result = execute(
+                        &mut client,
+                        &endpoint,
+                        &bootstrap,
+                        work,
+                        &mut work_calls,
+                        || active_epoch.load(Ordering::Acquire) == epoch,
+                    );
                     let result =
                         result.map_err(|error| error.to_string().chars().take(500).collect());
                     if outgoing.send((epoch, result)).is_err() {
@@ -70,7 +94,7 @@ impl RoleplayPanel {
             requests,
             replies,
             context: None,
-            epoch: 0,
+            epoch,
             busy: false,
             profiles: Vec::new(),
             selected: None,
@@ -86,19 +110,25 @@ impl RoleplayPanel {
     }
 
     fn clear(&mut self) {
-        self.epoch = self.epoch.wrapping_add(1);
+        self.epoch.fetch_add(1, Ordering::AcqRel);
         self.messages.clear();
         self.pending_user = None;
         self.draft.clear();
         self.status.clear();
     }
 
-    pub(crate) fn update(&mut self, project: Option<&ProjectId>, consent: &Path) {
+    pub(crate) fn update(
+        &mut self,
+        project: Option<&ProjectId>,
+        consent: &Path,
+        media: Option<PathBuf>,
+    ) {
         let context = project
             .filter(|_| consent.is_absolute())
             .map(|project| Context {
                 project: project.clone(),
                 consent: consent.to_owned(),
+                media,
             });
         if self.context != context {
             self.clear();
@@ -106,7 +136,7 @@ impl RoleplayPanel {
         }
         while let Ok((epoch, reply)) = self.replies.try_recv() {
             self.busy = false;
-            if epoch != self.epoch {
+            if epoch != self.epoch.load(Ordering::Acquire) {
                 continue;
             }
             match reply {
@@ -124,26 +154,21 @@ impl RoleplayPanel {
                         String::new()
                     };
                 }
-                Ok(Reply::Turn(reply)) => {
-                    let Some(text) = self.pending_user.take() else {
+                Ok(Reply::Turn { text, receipts }) => {
+                    let Some(user_text) = self.pending_user.take() else {
                         continue;
                     };
                     self.messages.push(RoleplayMessage {
                         speaker: RoleplaySpeaker::User,
-                        text,
+                        text: user_text,
+                        tool_receipts: vec![],
                     });
                     self.messages.push(RoleplayMessage {
                         speaker: RoleplaySpeaker::Assistant,
-                        text: reply.text,
+                        text,
+                        tool_receipts: receipts,
                     });
-                    self.status = if reply.calls.is_empty() {
-                        String::new()
-                    } else {
-                        format!(
-                            "The model requested {} tools. Desktop tool routing is unavailable.",
-                            reply.calls.len()
-                        )
-                    };
+                    self.status.clear();
                 }
                 Err(error) => {
                     if let Some(text) = self.pending_user.take() {
@@ -156,7 +181,11 @@ impl RoleplayPanel {
     }
 
     fn send(&mut self, work: Request) -> bool {
-        if self.requests.try_send((self.epoch, work)).is_ok() {
+        if self
+            .requests
+            .try_send((self.epoch.load(Ordering::Acquire), work))
+            .is_ok()
+        {
             self.busy = true;
             self.status.clear();
             true
@@ -180,6 +209,7 @@ impl RoleplayPanel {
         messages.push(RoleplayMessage {
             speaker: RoleplaySpeaker::User,
             text: submitted.clone(),
+            tool_receipts: vec![],
         });
         let input = RoleplayTurnInput {
             profile: profile.profile_id.clone(),
@@ -194,6 +224,7 @@ impl RoleplayPanel {
             project: context.project.clone(),
             input,
             deadline_ms: profile.wall_time_ms,
+            media: context.media.clone(),
         }) {
             self.draft.clear();
             self.pending_user = Some(submitted);
@@ -248,6 +279,17 @@ impl RoleplayPanel {
                         "Pulsar"
                     });
                     ui.label(&message.text);
+                    for receipt in &message.tool_receipts {
+                        ui.small(format!(
+                            "{} · {}",
+                            receipt.name,
+                            if receipt.accepted {
+                                "accepted"
+                            } else {
+                                "refused"
+                            }
+                        ));
+                    }
                 }
                 if let Some(message) = &self.pending_user {
                     ui.strong("You");
@@ -286,6 +328,8 @@ fn execute(
     endpoint: &Path,
     bootstrap: &Path,
     work: Request,
+    work_calls: &mut u32,
+    is_current: impl Fn() -> bool,
 ) -> anyhow::Result<Reply> {
     if client.is_none() {
         *client = Some(SessionClient::connect(endpoint, bootstrap)?);
@@ -303,6 +347,7 @@ fn execute(
             project,
             input,
             deadline_ms,
+            media,
         } => {
             let directory = bootstrap
                 .parent()
@@ -312,12 +357,26 @@ fn execute(
             client.set_operation_deadline(Some(
                 Instant::now() + Duration::from_millis(deadline_ms.saturating_add(5000)),
             ));
+            let consent = input.consent.clone();
             match client.execute(
                 Command::RunRoleplayTurn { input, owner_proof },
-                Some(project),
+                Some(project.clone()),
                 None,
             )? {
-                ResponseBody::RoleplayReply(reply) => Ok(Reply::Turn(reply)),
+                ResponseBody::RoleplayReply(reply) => {
+                    let RoleplayReply { text, calls } = *reply;
+                    let receipts = crate::mcp_stdio::dispatch_roleplay_calls(
+                        endpoint,
+                        bootstrap,
+                        project,
+                        &consent,
+                        media.as_deref(),
+                        calls,
+                        work_calls,
+                        is_current,
+                    );
+                    Ok(Reply::Turn { text, receipts })
+                }
                 _ => anyhow::bail!("Engine returned an unexpected roleplay reply"),
             }
         }

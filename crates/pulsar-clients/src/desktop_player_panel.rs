@@ -107,6 +107,11 @@ impl PlayerPanel {
         }
     }
 
+    pub(crate) fn selected_media(&self) -> Option<PathBuf> {
+        let path = PathBuf::from(self.video.trim());
+        path.is_absolute().then_some(path)
+    }
+
     fn rpc_pending(&self) -> bool {
         self.normal_pending != 0 || self.urgent_pending != 0 || self.stop_pending
     }

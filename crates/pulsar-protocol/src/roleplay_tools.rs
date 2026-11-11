@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 pub const MAX_ROLEPLAY_TOOL_ARGUMENT_BYTES: usize = 8 * 1024;
 pub const MAX_ROLEPLAY_TURN_CALLS: usize = 4;
+pub const MAX_ROLEPLAY_SESSION_CALLS: u32 = 32;
 pub const MAX_ROLEPLAY_REPLY_BYTES: usize = 8 * 1024;
 pub const MAX_ROLEPLAY_WORKER_RESPONSE_BYTES: u64 = 48 * 1024;
 
@@ -43,9 +44,35 @@ pub enum RoleplaySpeaker {
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct RoleplayToolReceipt {
+    pub name: String,
+    pub accepted: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<serde_json::Value>,
+}
+
+impl RoleplayToolReceipt {
+    fn valid(&self) -> bool {
+        !self.name.is_empty()
+            && self.name.len() <= 64
+            && self
+                .name
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b == b'_')
+            && self
+                .detail
+                .as_ref()
+                .is_none_or(|detail| self.accepted && detail.to_string().len() <= 1024)
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RoleplayMessage {
     pub speaker: RoleplaySpeaker,
     pub text: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_receipts: Vec<RoleplayToolReceipt>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -74,6 +101,10 @@ impl RoleplayTurnInput {
                         RoleplaySpeaker::Assistant
                     }
                     || (message.speaker == RoleplaySpeaker::User && message.text.trim().is_empty())
+                    || (message.speaker == RoleplaySpeaker::User
+                        && !message.tool_receipts.is_empty())
+                    || message.tool_receipts.len() > MAX_ROLEPLAY_TURN_CALLS
+                    || message.tool_receipts.iter().any(|receipt| !receipt.valid())
                     || message.text.contains('\0')
                     || message.text.len() > MAX_ROLEPLAY_REPLY_BYTES
             })
@@ -160,6 +191,7 @@ mod tests {
             messages: vec![RoleplayMessage {
                 speaker: RoleplaySpeaker::User,
                 text: "private fixture text".into(),
+                tool_receipts: vec![],
             }],
         };
         assert!(input
@@ -185,11 +217,13 @@ mod tests {
         input.messages.push(RoleplayMessage {
             speaker: RoleplaySpeaker::Assistant,
             text: "reply".into(),
+            tool_receipts: vec![],
         });
         assert!(input.encode_messages().is_err());
         input.messages.push(RoleplayMessage {
             speaker: RoleplaySpeaker::User,
             text: "x".repeat(MAX_ROLEPLAY_REPLY_BYTES + 1),
+            tool_receipts: vec![],
         });
         assert!(input.encode_messages().is_err());
     }

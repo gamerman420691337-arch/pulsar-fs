@@ -41,6 +41,19 @@ impl Tool {
         Self::ProposeMedia,
     ];
 
+    fn for_call(call: &RoleplayToolCall) -> Self {
+        match call {
+            RoleplayToolCall::ReadCandidate { .. } => Self::ReadCandidate,
+            RoleplayToolCall::ProposePattern { .. } => Self::ProposePattern,
+            RoleplayToolCall::StopPlayback {} => Self::StopPlayback,
+            RoleplayToolCall::PlayPreparedScript {} => Self::PlayPreparedScript,
+            RoleplayToolCall::ProjectSummary {} => Self::ProjectSummary,
+            RoleplayToolCall::DeviceStatus {} => Self::DeviceStatus,
+            RoleplayToolCall::PausePresentation {} => Self::PausePresentation,
+            RoleplayToolCall::ProposeMedia {} => Self::ProposeMedia,
+        }
+    }
+
     fn class(self) -> ToolClass {
         match self {
             Self::ReadCandidate | Self::ProjectSummary | Self::DeviceStatus => ToolClass::Read,
@@ -121,6 +134,7 @@ struct Server<'a> {
     consent: &'a Path,
     media: Option<&'a Path>,
     work_calls: u32,
+    max_work_calls: u32,
 }
 
 impl Server<'_> {
@@ -151,6 +165,15 @@ impl Server<'_> {
         let call: RoleplayToolCall = serde_json::from_value(json!({
             "name": tool.name(), "arguments": arguments,
         }))?;
+        self.dispatch(call)
+    }
+
+    fn dispatch(&mut self, call: RoleplayToolCall) -> Result<Value> {
+        let tool = Tool::for_call(&call);
+        anyhow::ensure!(
+            tool.available(self.media.is_some()),
+            "Tool has no host-selected media"
+        );
         if tool.class() == ToolClass::Stop {
             let proof = self.owner_proof()?;
             let mut client = SessionClient::connect(self.endpoint, self.bootstrap)?;
@@ -170,7 +193,7 @@ impl Server<'_> {
         }
 
         anyhow::ensure!(
-            self.work_calls < MAX_WORK_CALLS,
+            self.work_calls < self.max_work_calls,
             "MCP work budget exhausted"
         );
         self.work_calls += 1;
@@ -272,6 +295,50 @@ impl Server<'_> {
     }
 }
 
+pub(crate) fn dispatch_roleplay_calls(
+    endpoint: &Path,
+    bootstrap: &Path,
+    project: ProjectId,
+    consent: &Path,
+    media: Option<&Path>,
+    calls: Vec<RoleplayToolCall>,
+    work_calls: &mut u32,
+    is_current: impl Fn() -> bool,
+) -> Vec<RoleplayToolReceipt> {
+    let mut server = Server {
+        endpoint,
+        bootstrap,
+        project,
+        consent,
+        media,
+        work_calls: *work_calls,
+        max_work_calls: MAX_ROLEPLAY_SESSION_CALLS,
+    };
+    let mut receipts = Vec::with_capacity(calls.len());
+    for call in calls {
+        if !is_current() {
+            break;
+        }
+        let tool = Tool::for_call(&call);
+        let result = server.dispatch(call);
+        let accepted = result.is_ok();
+        let detail = result.ok().map(|value| match tool {
+            Tool::ReadCandidate | Tool::ProposePattern => json!({
+                "candidate_id": value["value"]["candidate_id"],
+                "base_revision": value["value"]["base_revision"]
+            }),
+            _ => value,
+        });
+        receipts.push(RoleplayToolReceipt {
+            name: tool.name().into(),
+            accepted,
+            detail,
+        });
+    }
+    *work_calls = server.work_calls;
+    receipts
+}
+
 fn error(id: Value, code: i32, message: &str) -> Value {
     json!({"jsonrpc":"2.0","id":id,"error":{"code":code,"message":message}})
 }
@@ -367,6 +434,7 @@ pub(crate) fn run(
         consent,
         media,
         work_calls: 0,
+        max_work_calls: MAX_WORK_CALLS,
     };
     let mut state = Lifecycle::New;
     let mut input = io::stdin().lock();
@@ -427,6 +495,7 @@ mod tests {
             consent: Path::new("unused"),
             media: None,
             work_calls: 0,
+            max_work_calls: MAX_WORK_CALLS,
         };
         let mut state = Lifecycle::New;
         let mut request = |value| handle(&mut server, &mut state, value);
