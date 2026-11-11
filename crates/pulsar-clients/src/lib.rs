@@ -135,7 +135,8 @@ pub fn command_needs_engine(args: &[OsString]) -> bool {
         Ok(Cli {
             command:
                 Some(Commands::Roleplay {
-                    command: RoleplayCommands::ReadCandidate { .. },
+                    command:
+                        RoleplayCommands::ReadCandidate { .. } | RoleplayCommands::ProposePattern { .. },
                 }),
         }) => true,
         Ok(cli) => !matches!(
@@ -2317,6 +2318,12 @@ fn inspect_retained_candidate(
     )?)
 }
 
+fn require_roleplay_attestation(path: &Path, now_ns: u64) -> Result<()> {
+    roleplay_consent_state::load(path)?
+        .admit_roleplay(now_ns)
+        .map_err(|refusal| anyhow::anyhow!("roleplay tool refused: {}", refusal.label()))
+}
+
 fn run_roleplay_command(
     command: RoleplayCommands,
     endpoint: &Path,
@@ -2375,11 +2382,20 @@ fn run_roleplay_command(
             project,
             candidate,
         } => {
-            roleplay_consent_state::load(&path)?
-                .admit_roleplay(now)
-                .map_err(|refusal| anyhow::anyhow!("roleplay read refused: {}", refusal.label()))?;
+            require_roleplay_attestation(&path, now)?;
             let mut client = SessionClient::connect(endpoint, bootstrap)?;
             inspect_retained_candidate(&mut client, project, candidate)
+        }
+        RoleplayCommands::ProposePattern {
+            path,
+            project,
+            revision,
+            pattern,
+        } => {
+            require_roleplay_attestation(&path, now)?;
+            let input = patterns::build_pattern_input(&pattern)?;
+            let mut client = SessionClient::connect(endpoint, bootstrap)?;
+            patterns::stage(&mut client, &project, RevisionId::new(revision), input)
         }
         RoleplayCommands::CheckEffect {
             path,

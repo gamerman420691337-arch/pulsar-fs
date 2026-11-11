@@ -159,6 +159,16 @@ pub enum RoleplayCommands {
         project: String,
         candidate: String,
     },
+    /// Stage a bounded pattern for review without committing it.
+    ProposePattern {
+        #[arg(value_parser = parse_private_document_path)]
+        path: PathBuf,
+        project: String,
+        #[arg(long)]
+        revision: u64,
+        #[arg(long)]
+        pattern: String,
+    },
     /// Check exact consent scope without granting effect approval.
     CheckEffect {
         #[arg(value_parser = parse_private_document_path)]
