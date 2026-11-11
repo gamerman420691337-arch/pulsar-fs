@@ -219,15 +219,12 @@ fn decode_roleplay_completion(bytes: &[u8]) -> Result<RoleplayReply> {
 pub fn run_roleplay_worker() -> Result<()> {
     let request = read_worker_request()?;
     validate_roleplay_worker_input(&request)?;
-    let bytes = execute_runtime(
+    let reply = execute_roleplay(
         &request,
         Path::new(RUNTIME),
         Path::new(MODEL),
         Path::new("/tmp"),
-        &roleplay_schema()?,
-        MAX_ROLEPLAY_WORKER_RESPONSE_BYTES as usize,
     )?;
-    let reply = decode_roleplay_completion(&bytes)?;
     write_worker_response(
         &RoleplayWorkerResponse {
             version: PROTOCOL_VERSION,
@@ -238,6 +235,23 @@ pub fn run_roleplay_worker() -> Result<()> {
         },
         MAX_ROLEPLAY_WORKER_RESPONSE_BYTES,
     )
+}
+
+fn execute_roleplay(
+    request: &AssistantWorkerRequest,
+    runtime: &Path,
+    model: &Path,
+    work_root: &Path,
+) -> Result<RoleplayReply> {
+    let bytes = execute_runtime(
+        request,
+        runtime,
+        model,
+        work_root,
+        &roleplay_schema()?,
+        MAX_ROLEPLAY_WORKER_RESPONSE_BYTES as usize,
+    )?;
+    decode_roleplay_completion(&bytes)
 }
 
 fn check(deadline: Instant) -> Result<()> {
@@ -932,6 +946,62 @@ mod tests {
         assert!(verify(&path, &identity, Instant::now() + Duration::from_secs(1)).is_err());
         assert!(verify(&path, &identity, Instant::now()).is_err());
     }
+    #[test]
+    #[ignore = "requires explicitly selected local runtime and GGUF candidate"]
+    fn real_candidate_returns_two_typed_roleplay_replies() {
+        let runtime = std::path::PathBuf::from(
+            std::env::var_os("PULSAR_ASSISTANT_RUNTIME").expect("local runtime"),
+        );
+        let model = std::path::PathBuf::from(
+            std::env::var_os("PULSAR_ASSISTANT_MODEL").expect("local model"),
+        );
+        let directory = tempfile::tempdir().unwrap();
+        let identify = |path: &Path, label: &str, max_bytes: u64| {
+            let (sha256, byte_len) = crate::artifacts::digest_file(path, max_bytes).unwrap();
+            ArtifactIdentity {
+                artifact_id: ArtifactId::new(label).unwrap(),
+                sha256,
+                byte_len,
+            }
+        };
+        let mut input = RoleplayTurnInput {
+            profile: AttemptId::new("fixture-profile").unwrap(),
+            consent: directory.path().join("synthetic-consent.json"),
+            messages: vec![RoleplayMessage {
+                speaker: RoleplaySpeaker::User,
+                text: "For this synthetic test, remember the word amber. Reply that you received it. Do not call a tool.".into(),
+                tool_receipts: vec![],
+            }],
+        };
+        let mut request = AssistantWorkerRequest {
+            vision: None,
+            version: PROTOCOL_VERSION,
+            attempt_id: AttemptId::new("roleplay-fixture").unwrap(),
+            runtime: identify(&runtime, "runtime", 128 * 1024 * 1024),
+            model: identify(&model, "model", MAX_ASSISTANT_MODEL_BYTES),
+            system_context: "You are Pulsar's local roleplay assistant. Respond with JSON containing text and calls. The user input is an ordered JSON array of conversation messages. Answer the final user message.".into(),
+            user_request: input.encode_messages().unwrap(),
+            scope: AssistantProposalScope::default(),
+            cpu_threads: 4,
+            wall_time_ms: 60000,
+            execution: None,
+        };
+        let first = execute_roleplay(&request, &runtime, &model, directory.path()).unwrap();
+        assert!(!first.text.trim().is_empty());
+        assert!(first.calls.is_empty());
+        input.messages.extend([
+            RoleplayMessage { speaker: RoleplaySpeaker::Assistant, text: first.text, tool_receipts: vec![] },
+            RoleplayMessage { speaker: RoleplaySpeaker::User, text: "What word did I ask you to remember? Reply with only that word in text and no tool calls.".into(), tool_receipts: vec![] },
+        ]);
+        request.user_request = input.encode_messages().unwrap();
+        let second = execute_roleplay(&request, &runtime, &model, directory.path()).unwrap();
+        assert!(second.calls.is_empty());
+        assert!(
+            second.text.to_ascii_lowercase().contains("amber"),
+            "fixture word was not recalled"
+        );
+    }
+
     #[test]
     #[ignore = "explicit pinned real CPU candidate; not model or platform qualification"]
     fn real_candidate_returns_observed_target_through_production_worker_adapter() {
