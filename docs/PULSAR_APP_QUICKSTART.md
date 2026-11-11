@@ -47,7 +47,7 @@ To watch a local clip by itself, enter the absolute video path, click **Open vid
 
 An operator can also configure an MCP client to start `pulsar-mcp PROJECT --consent /absolute/consent.json --media /absolute/clip.mp4`. Select the same consent document in Desktop Settings. The optional **propose_media** tool queues that clip for Desktop review. The operator confirms it in Player.
 
-With the same consent document selected, opening a video and funscript makes **Enable Handy for assistant** available. The toggle enables the loaded script at the configured limits and offset. The MCP **play_prepared_script** tool can request playback while that grant is active. **STOP** clears the grant. The tool reports when playback is queued, and Desktop shows the player state.
+With the same project open and consent document selected, opening a video and funscript makes **Enable Handy for assistant** available. The toggle enables the loaded script at the configured limits and offset. The MCP **play_prepared_script** tool can request playback while that grant is active. **STOP** clears the grant. The tool reports when playback is queued, and Desktop shows the player state.
 
 Set **Handy sync offset** while stopped or paused and press **Play** to apply it. Negative values move the Handy earlier, positive values move it later. **Reset** restores 0 ms. The setting starts at 0 ms when you reopen Desktop and does not write to the Handy or change the funscript.
 

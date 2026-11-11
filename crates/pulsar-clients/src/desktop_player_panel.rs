@@ -2,7 +2,7 @@
 use crate::{motion::ResponseBody, EngineApi, SessionClient};
 use eframe::egui;
 use pulsar_protocol::{
-    Command, DesktopPlaybackAction, DesktopPlaybackStatus, DESKTOP_SYNC_OFFSET_LIMIT_MS,
+    Command, DesktopPlaybackAction, DesktopPlaybackStatus, ProjectId, DESKTOP_SYNC_OFFSET_LIMIT_MS,
 };
 use std::{
     path::{Path, PathBuf},
@@ -281,7 +281,7 @@ impl PlayerPanel {
         }
     }
 
-    pub(crate) fn ui(&mut self, ui: &mut egui::Ui, consent: &Path) {
+    pub(crate) fn ui(&mut self, ui: &mut egui::Ui, consent: &Path, project: Option<&ProjectId>) {
         ui.heading("Video + Handy player");
         ui.label("Pulsar controls the video, audio and script. Video opens in an mpv window.");
         ui.small("Drop local files here, or paste their absolute paths. No model is needed.");
@@ -367,6 +367,7 @@ impl PlayerPanel {
             self.media_review_ui(ui, consent);
         }
         ui.separator();
+        let assistant_project = project.filter(|_| consent.is_absolute());
         ui.horizontal(|ui| {
             let mut enabled = self.status.armed;
             if ui
@@ -377,7 +378,7 @@ impl PlayerPanel {
                     egui::Checkbox::new(
                         &mut enabled,
                         if self.status.assistant_grant.is_some()
-                            || (!self.status.armed && consent.is_absolute())
+                            || (!self.status.armed && assistant_project.is_some())
                         {
                             "Enable Handy for assistant"
                         } else {
@@ -388,8 +389,9 @@ impl PlayerPanel {
                 .changed()
             {
                 let lane = if enabled { Lane::Normal } else { Lane::Urgent };
-                let action = if enabled && consent.is_absolute() {
+                let action = if let Some(project) = assistant_project.filter(|_| enabled) {
                     DesktopPlaybackAction::ArmAssistant {
+                        project: project.clone(),
                         consent: consent.to_path_buf(),
                         max_speed: self.max_speed,
                         min_pct: self.min_pct,

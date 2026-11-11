@@ -5313,8 +5313,11 @@ impl eframe::App for PulsarDesktop {
             });
         egui::CentralPanel::default().show(context, |ui| match self.tab {
             Tab::Player => {
-                self.desktop_player
-                    .ui(ui, Path::new(self.consent_path.trim()));
+                self.desktop_player.ui(
+                    ui,
+                    Path::new(self.consent_path.trim()),
+                    self.project.as_ref().map(|project| &project.project_id),
+                );
             }
             Tab::Settings => {
                 egui::ScrollArea::vertical().show(ui, |ui| {

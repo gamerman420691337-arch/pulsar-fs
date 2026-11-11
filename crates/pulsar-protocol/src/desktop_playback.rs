@@ -32,6 +32,7 @@ pub enum DesktopPlaybackAction {
         max_pct: u8,
     },
     ArmAssistant {
+        project: ProjectId,
         consent: PathBuf,
         max_speed: u16,
         min_pct: u8,
@@ -40,6 +41,7 @@ pub enum DesktopPlaybackAction {
     },
     AssistantPlay {
         grant: SessionId,
+        project: ProjectId,
         consent: PathBuf,
     },
     Play {
@@ -100,6 +102,7 @@ impl DesktopPlaybackAction {
                 min_pct,
                 max_pct,
                 sync_offset_ms,
+                ..
             } => {
                 validate_local_path(consent)?;
                 Self::Arm {

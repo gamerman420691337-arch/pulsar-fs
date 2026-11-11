@@ -121,6 +121,7 @@ impl Server<'_> {
                     Command::DesktopPlayback {
                         action: DesktopPlaybackAction::AssistantPlay {
                             grant,
+                            project: self.project.clone(),
                             consent: self.consent.to_path_buf(),
                         },
                         owner_proof: proof,

@@ -1,6 +1,9 @@
 //! One ephemeral Desktop playback owner, with bounded HSP buffering and player custody.
 use crate::desktop_hsp::{build_points, offset_points, HspClient, HspStream};
 use crate::desktop_mpv::MpvPlayer;
+use crate::device_control_session::{
+    DeviceControlSession, DeviceMotionCaps, SessionAuthority, DEFAULT_DEVICE_SESSION_LIFETIME_NS,
+};
 use anyhow::{ensure, Context, Result};
 use pulsar_protocol::{
     DesktopMediaReview, DesktopPlaybackAction as Action, DesktopPlaybackStatus as Status,
@@ -21,7 +24,8 @@ use std::{
 
 const MAX_REVIEWED_VIDEO_BYTES: u64 = 512 * 1024 * 1024;
 const AHEAD_MS: u64 = 5_000;
-const SESSION_LIFETIME: Duration = Duration::from_secs(20 * 60);
+const SESSION_LIFETIME: Duration = Duration::from_nanos(DEFAULT_DEVICE_SESSION_LIFETIME_NS);
+const DESKTOP_HANDY: &str = "desktop-handy";
 const HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(3);
 const DEVICE_CHECK_INTERVAL: Duration = Duration::from_secs(1);
 const START_LEAD_MS: u64 = 1_500;
@@ -317,6 +321,7 @@ impl ActiveConsent {
 struct AssistantDeviceGrant {
     id: SessionId,
     consent: ActiveConsent,
+    session: DeviceControlSession,
 }
 
 struct Player {
@@ -375,7 +380,9 @@ impl Player {
         let device = self.hsp.as_mut().map(|h| h.stop()).transpose();
         if disarm {
             self.armed_until = None;
-            self.assistant_grant = None;
+            if let Some(mut grant) = self.assistant_grant.take() {
+                grant.session.stop();
+            }
             self.hsp = None;
         }
         video?;
@@ -759,6 +766,7 @@ impl Player {
                 }
             }
             Action::ArmAssistant {
+                project,
                 consent,
                 max_speed,
                 min_pct,
@@ -772,12 +780,32 @@ impl Player {
                     document,
                 };
                 approval.check()?;
-                self.arm(shared, epoch, max_speed, min_pct, max_pct)?;
+                let caps = DeviceMotionCaps::new(max_pct - min_pct, min_pct, max_pct, max_speed)?;
+                self.arm(
+                    shared,
+                    epoch,
+                    caps.max_rate_per_second,
+                    caps.min_position,
+                    caps.max_position,
+                )?;
                 approval.check()?;
+                let id = SessionId::new(uuid::Uuid::new_v4().to_string())?;
+                let session = DeviceControlSession::open(
+                    SessionAuthority::UserSurface,
+                    id.as_str(),
+                    project,
+                    DESKTOP_HANDY,
+                    approval.document.session.declared_class,
+                    caps,
+                    DEFAULT_DEVICE_SESSION_LIFETIME_NS,
+                    review_now_ns()?,
+                )
+                .map_err(|refusal| refusal.error())?;
                 self.sync_offset_ms = sync_offset_ms;
                 self.assistant_grant = Some(AssistantDeviceGrant {
-                    id: SessionId::new(uuid::Uuid::new_v4().to_string())?,
+                    id,
                     consent: approval,
+                    session,
                 });
             }
             Action::AssistantPlay { .. } => self.play(shared, epoch)?,
@@ -811,7 +839,12 @@ impl Player {
         Ok(())
     }
     fn check_assistant_request(&self, action: &Action, shared: &Shared, epoch: u64) -> Result<()> {
-        if let Action::AssistantPlay { grant, consent } = action {
+        if let Action::AssistantPlay {
+            grant,
+            project,
+            consent,
+        } = action
+        {
             let current = self
                 .assistant_grant
                 .as_ref()
@@ -820,6 +853,16 @@ impl Player {
                 current.id == *grant && current.consent.path == *consent,
                 "Assistant Handy grant changed"
             );
+            current
+                .session
+                .check_scope(
+                    grant.as_str(),
+                    project,
+                    DESKTOP_HANDY,
+                    current.consent.document.session.declared_class,
+                    review_now_ns()?,
+                )
+                .map_err(|refusal| refusal.error())?;
             ensure!(self.hsp.is_some(), "Handy is disconnected");
             shared.check_device_session(epoch, self.armed_until, Instant::now())?;
         }
@@ -1148,8 +1191,21 @@ mod tests {
         player.hsp = Some(HspClient::test_client(&base));
         player.armed_until = Some(Instant::now() + SESSION_LIFETIME);
         let grant = SessionId::new("fixture-grant").unwrap();
+        let project = pulsar_protocol::ProjectId::new("fixture-project").unwrap();
+        let session = DeviceControlSession::open(
+            SessionAuthority::UserSurface,
+            grant.as_str(),
+            project.clone(),
+            DESKTOP_HANDY,
+            ContentClass::General,
+            DeviceMotionCaps::new(30, 35, 65, 150).unwrap(),
+            DEFAULT_DEVICE_SESSION_LIFETIME_NS,
+            review_now_ns().unwrap(),
+        )
+        .unwrap();
         player.assistant_grant = Some(AssistantDeviceGrant {
             id: grant.clone(),
+            session,
             consent: ActiveConsent {
                 path: consent.path().into(),
                 document,
@@ -1157,9 +1213,17 @@ mod tests {
         });
         let action = Action::AssistantPlay {
             grant,
+            project,
             consent: consent.path().into(),
         };
         *shared.heartbeat.lock().unwrap() = Instant::now();
+        let mut foreign = action.clone();
+        if let Action::AssistantPlay { project, .. } = &mut foreign {
+            *project = pulsar_protocol::ProjectId::new("another-project").unwrap();
+        }
+        assert!(player
+            .check_assistant_request(&foreign, &shared, 0)
+            .is_err());
         player.check_assistant_request(&action, &shared, 0).unwrap();
         player
             .apply(action.clone(), &shared, 0, directory.path())
@@ -1407,6 +1471,7 @@ mod tests {
         assert!(player
             .apply(
                 Action::ArmAssistant {
+                    project: pulsar_protocol::ProjectId::new("fixture-project").unwrap(),
                     consent: directory.path().join("missing.json"),
                     max_speed: 150,
                     min_pct: 35,
