@@ -151,6 +151,7 @@ def main():
         "first_sample_s": float(times[0]),
         "capture_source_anchor_s": source_anchor,
         "first_estimate_frame_index": first_pair["current_frame"],
+        "first_estimate_worker_sequence": payload["input"]["sequence"],
         "first_pair_analysis_ms": payload["pair_analysis_elapsed_ns"] / 1_000_000,
         "source_seconds_from_capture_anchor_to_first_estimate": float(times[0] - source_anchor),
         "last_sample_s": float(times[-1]),
