@@ -662,6 +662,7 @@ mod successor_bulk_reservation {
     fn accept(listener: &UnixListener) -> Option<UnixStream> {
         match listener.accept() {
             Ok((stream, _)) => {
+                stream.set_nonblocking(false).unwrap();
                 stream
                     .set_read_timeout(Some(Duration::from_secs(1)))
                     .unwrap();
