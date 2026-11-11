@@ -41,6 +41,13 @@ pub enum HspDispatchFailure {
     ConsentRequired,
     InvalidBudget,
     InvalidClock,
+    PlaybackClock(pulsar_protocol::ErrorCode),
+    SourcePhase {
+        code: pulsar_protocol::ErrorCode,
+        observation_sequence: u64,
+        bracket_ns: u64,
+        cause: HspSourcePhaseRefusal,
+    },
     Credentials,
     BindingMismatch,
     RemoteMismatch,
@@ -50,6 +57,15 @@ pub enum HspDispatchFailure {
     Cancelled,
     WorkerUnavailable,
     Authority(HspRuntimeError),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum HspSourcePhaseRefusal {
+    AlignmentBudget,
+    ClockIntervalOrAge,
+    OriginalEvidenceExpired,
+    DisplayAge,
+    Other,
 }
 
 /// Setup replaces a stream. Require an explicit previously observed idle state,
@@ -586,6 +602,7 @@ pub enum HspDispatchAttempt {
     /// journal claim; emergency dispatch does not create one. None is Unknown.
     Observed {
         response: Option<HspState>,
+        failure: Option<HspDispatchFailure>,
     },
 }
 #[must_use = "retain the exact effect and claim for completion and metadata retry"]
@@ -605,7 +622,7 @@ impl HspDispatchCompletion {
     ) -> Result<HspCompletionRecord, HspDispatchFailure> {
         let response = match &self.attempt {
             HspDispatchAttempt::Rejected(error) => return Err(error.clone()),
-            HspDispatchAttempt::Observed { response } => response,
+            HspDispatchAttempt::Observed { response, .. } => response,
         };
         let bytes = response.map(state_bytes);
         runtime
@@ -839,8 +856,8 @@ impl<'a> HspClaimGate<'a> {
         }
     }
 
-    /// Only preclaim mutex WouldBlock returns this original gate. Durable I/O,
-    /// validation and every outcome after begin_claim remain terminal here.
+    /// Only local mutex contention returns the original gate. A durable
+    /// claim stays in custody and is never repeated on reacquisition.
     pub fn try_apply<F>(
         mut self,
         owner: &HspNativeOwner,
@@ -850,102 +867,116 @@ impl<'a> HspClaimGate<'a> {
         F: FnMut(u64) -> Result<Option<HspDispatchFacts>, HspDispatchFailure>,
     {
         self.check_preclaim_wait(owner)?;
-        // Durable reads and FULL-synchronous commits can outlast the runtime
-        // watchdog's contention budget even with SQLite busy waiting disabled.
-        // Keep them outside the mutable runtime critical section.
-        let journal_mutex = self.journal;
-        let mut journal = match journal_mutex.try_lock() {
-            Ok(journal) => journal,
-            Err(TryLockError::WouldBlock) => {
-                self.preclaim_retry_delay(owner)?;
-                return Ok(HspPreclaimProgress::Contended(self));
-            }
-            Err(TryLockError::Poisoned(_)) => return Err(HspDispatchFailure::Journal),
-        };
-        self.check_preclaim_wait(owner)?;
-        let stream = journal
-            .hsp_stream(self.request.receipt.stream_id())
-            .map_err(|_| HspDispatchFailure::Journal)?;
-        if stream.record.registration != self.transport.binding.registration
-            || stream.record.device != native_identity(&self.transport.binding.device)
-            || stream.record.route_sha256 != self.transport.route.route_sha256()
-            || stream.record.route_namespace_sha256 != self.transport.route.namespace_sha256()
-        {
-            return Err(HspDispatchFailure::BindingMismatch);
-        }
-        let runtime_mutex = self.runtime;
-        let mut runtime = match runtime_mutex.try_lock() {
-            Ok(runtime) => runtime,
-            Err(TryLockError::WouldBlock) => {
-                drop(journal);
-                self.preclaim_retry_delay(owner)?;
-                return Ok(HspPreclaimProgress::Contended(self));
-            }
-            Err(TryLockError::Poisoned(_)) => return Err(HspDispatchFailure::Busy),
-        };
-        let now = self.check_preclaim_wait(owner)?;
-        let facts = facts_at(now)?;
-        if let Some(validate) = &self.facts_validator {
-            let facts = facts.as_ref().ok_or(HspDispatchFailure::Authority(
-                HspRuntimeError::ExpiredAuthority,
-            ))?;
-            validate(now, facts)?;
-        }
-        runtime
-            .validate_dispatch(&self.request.effect, now, facts.as_ref())
-            .map_err(HspDispatchFailure::Authority)?;
-        self.window
-            .bind(&self.request.effect, facts, runtime.policy())?;
-        self.check_preclaim_wait(owner)?;
-        self.custody
+        let already_claimed = self
+            .custody
             .lock()
             .unwrap_or_else(|p| p.into_inner())
-            .reservation
-            .begin_claim()
-            .map_err(HspDispatchFailure::Authority)?;
-        // Mark an in-progress durable attempt conservatively for unwinding. A
-        // normal Err proves no claim; panic after commit must remain Unknown.
-        self.custody
-            .lock()
-            .unwrap_or_else(|p| p.into_inner())
-            .attempted = true;
-        // ATTEMPTING retains this exact native reservation while the watchdog
-        // can run or retire the runtime. It cannot be abandoned as unsent, and
-        // no replacement worker can reserve this effect during durable I/O.
-        drop(runtime);
-        let claim = match journal.try_claim_hsp(&self.request.receipt, &self.request.effect) {
-            Ok(claim) => claim,
-            Err(_) => {
-                self.custody
-                    .lock()
-                    .unwrap_or_else(|p| p.into_inner())
-                    .reservation
-                    .reject_claim();
-                self.custody
-                    .lock()
-                    .unwrap_or_else(|p| p.into_inner())
-                    .attempted = false;
-                return Err(HspDispatchFailure::Journal);
+            .claim
+            .is_some();
+        if !already_claimed {
+            // Durable reads and FULL-synchronous commits can outlast the runtime
+            // watchdog's contention budget even with SQLite busy waiting disabled.
+            // Keep them outside the mutable runtime critical section.
+            let journal_mutex = self.journal;
+            let mut journal = match journal_mutex.try_lock() {
+                Ok(journal) => journal,
+                Err(TryLockError::WouldBlock) => {
+                    self.preclaim_retry_delay(owner)?;
+                    return Ok(HspPreclaimProgress::Contended(self));
+                }
+                Err(TryLockError::Poisoned(_)) => return Err(HspDispatchFailure::Journal),
+            };
+            self.check_preclaim_wait(owner)?;
+            let stream = journal
+                .hsp_stream(self.request.receipt.stream_id())
+                .map_err(|_| HspDispatchFailure::Journal)?;
+            if stream.record.registration != self.transport.binding.registration
+                || stream.record.device != native_identity(&self.transport.binding.device)
+                || stream.record.route_sha256 != self.transport.route.route_sha256()
+                || stream.record.route_namespace_sha256 != self.transport.route.namespace_sha256()
+            {
+                return Err(HspDispatchFailure::BindingMismatch);
             }
-        };
-        {
-            let mut custody = self.custody.lock().unwrap_or_else(|p| p.into_inner());
-            custody.reservation.claimed();
-            custody.claim = Some(claim);
-        }
-        drop(journal);
-        #[cfg(test)]
-        if let Some(hook) = self.after_claim_hook.take() {
-            hook();
+            let runtime_mutex = self.runtime;
+            let mut runtime = match runtime_mutex.try_lock() {
+                Ok(runtime) => runtime,
+                Err(TryLockError::WouldBlock) => {
+                    drop(journal);
+                    self.preclaim_retry_delay(owner)?;
+                    return Ok(HspPreclaimProgress::Contended(self));
+                }
+                Err(TryLockError::Poisoned(_)) => return Err(HspDispatchFailure::Busy),
+            };
+            let now = self.check_preclaim_wait(owner)?;
+            let facts = facts_at(now)?;
+            if let Some(validate) = &self.facts_validator {
+                let facts = facts.as_ref().ok_or(HspDispatchFailure::Authority(
+                    HspRuntimeError::ExpiredAuthority,
+                ))?;
+                validate(now, facts)?;
+            }
+            runtime
+                .validate_dispatch(&self.request.effect, now, facts.as_ref())
+                .map_err(HspDispatchFailure::Authority)?;
+            self.window
+                .bind(&self.request.effect, facts, runtime.policy())?;
+            self.check_preclaim_wait(owner)?;
+            self.custody
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .reservation
+                .begin_claim()
+                .map_err(HspDispatchFailure::Authority)?;
+            // Mark an in-progress durable attempt conservatively for unwinding. A
+            // normal Err proves no claim; panic after commit must remain Unknown.
+            self.custody
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .attempted = true;
+            // ATTEMPTING retains this exact native reservation while the watchdog
+            // can run or retire the runtime. It cannot be abandoned as unsent, and
+            // no replacement worker can reserve this effect during durable I/O.
+            drop(runtime);
+            let claim = match journal.try_claim_hsp(&self.request.receipt, &self.request.effect) {
+                Ok(claim) => claim,
+                Err(_) => {
+                    self.custody
+                        .lock()
+                        .unwrap_or_else(|p| p.into_inner())
+                        .reservation
+                        .reject_claim();
+                    self.custody
+                        .lock()
+                        .unwrap_or_else(|p| p.into_inner())
+                        .attempted = false;
+                    return Err(HspDispatchFailure::Journal);
+                }
+            };
+            {
+                let mut custody = self.custody.lock().unwrap_or_else(|p| p.into_inner());
+                custody.reservation.claimed();
+                custody.claim = Some(claim);
+            }
+            drop(journal);
+            #[cfg(test)]
+            if let Some(hook) = self.after_claim_hook.take() {
+                hook();
+            }
         }
         self.window.tick(self.clock, self.cancel)?;
         // A successful commit is durable custody, not continuing authority.
         // Sample fresh time and facts only after reacquiring this runtime. Any
         // refusal is an Unknown claimed attempt; the dispatcher must not resend.
-        let mut runtime = self
-            .runtime
-            .try_lock()
-            .map_err(|_| HspDispatchFailure::Busy)?;
+        // Return the same gate to release caller guards before waiting.
+        // Its claim stays in custody, so reacquisition skips durable I/O.
+        let mut runtime = match self.runtime.try_lock() {
+            Ok(runtime) => runtime,
+            Err(TryLockError::WouldBlock) => {
+                self.preclaim_retry_delay(owner)?;
+                return Ok(HspPreclaimProgress::Contended(self));
+            }
+            Err(TryLockError::Poisoned(_)) => return Err(HspDispatchFailure::Busy),
+        };
         let now = self.window.tick(self.clock, self.cancel)?;
         let facts = facts_at(now)?;
         if let Some(validate) = &self.facts_validator {
@@ -1062,7 +1093,7 @@ impl HspEmergencyStopCompletion {
         if self.observation.is_none() {
             let response = match &self.attempt {
                 HspDispatchAttempt::Rejected(error) => return Err(error.clone()),
-                HspDispatchAttempt::Observed { response } => response,
+                HspDispatchAttempt::Observed { response, .. } => response,
             };
             runtime
                 .validate_native_completion(&self.request.effect, &self.reservation)
@@ -1310,7 +1341,12 @@ impl HandyHspDispatcher {
                             .unwrap_or_else(|p| p.into_inner())
                             .attempted
                         {
-                            return HspDispatchAttempt::Observed { response: None };
+                            return HspDispatchAttempt::Observed {
+                                response: None,
+                                failure: Some(
+                                    result.err().unwrap_or(HspDispatchFailure::BindingMismatch),
+                                ),
+                            };
                         }
                         return HspDispatchAttempt::Rejected(
                             result.err().unwrap_or(HspDispatchFailure::BindingMismatch),
@@ -1325,13 +1361,23 @@ impl HandyHspDispatcher {
                         &clock,
                         &cancelled,
                     )
-                    .ok()
-                    .and_then(|bytes| handy_hsp_wire::decode_state(200, &bytes).ok());
-                HspDispatchAttempt::Observed {
-                    response: if cancelled.load(Ordering::Acquire) {
-                        None
-                    } else {
-                        response
+                    .and_then(|bytes| {
+                        handy_hsp_wire::decode_state(200, &bytes)
+                            .map_err(|_| HspDispatchFailure::InvalidResponse)
+                    });
+                let response = if cancelled.load(Ordering::Acquire) {
+                    Err(HspDispatchFailure::Cancelled)
+                } else {
+                    response
+                };
+                match response {
+                    Ok(state) => HspDispatchAttempt::Observed {
+                        response: Some(state),
+                        failure: None,
+                    },
+                    Err(error) => HspDispatchAttempt::Observed {
+                        response: None,
+                        failure: Some(error),
                     },
                 }
             });
@@ -1667,13 +1713,23 @@ impl HandyHspDispatcher {
                         &clock,
                         &cancelled,
                     )
-                    .ok()
-                    .and_then(|bytes| handy_hsp_wire::decode_state(200, &bytes).ok());
-                HspDispatchAttempt::Observed {
-                    response: if cancelled.load(Ordering::Acquire) {
-                        None
-                    } else {
-                        response
+                    .and_then(|bytes| {
+                        handy_hsp_wire::decode_state(200, &bytes)
+                            .map_err(|_| HspDispatchFailure::InvalidResponse)
+                    });
+                let response = if cancelled.load(Ordering::Acquire) {
+                    Err(HspDispatchFailure::Cancelled)
+                } else {
+                    response
+                };
+                match response {
+                    Ok(state) => HspDispatchAttempt::Observed {
+                        response: Some(state),
+                        failure: None,
+                    },
+                    Err(error) => HspDispatchAttempt::Observed {
+                        response: None,
+                        failure: Some(error),
                     },
                 }
             });
@@ -1749,7 +1805,10 @@ impl HandyHspDispatcher {
                 let attempted = custody.reservation.join();
                 let attempt = result.unwrap_or({
                     if attempted {
-                        HspDispatchAttempt::Observed { response: None }
+                        HspDispatchAttempt::Observed {
+                            response: None,
+                            failure: Some(HspDispatchFailure::WorkerUnavailable),
+                        }
                     } else {
                         HspDispatchAttempt::Rejected(HspDispatchFailure::WorkerUnavailable)
                     }
@@ -1767,7 +1826,10 @@ impl HandyHspDispatcher {
                 let attempted = active.reservation.join();
                 let attempt = result.unwrap_or({
                     if attempted {
-                        HspDispatchAttempt::Observed { response: None }
+                        HspDispatchAttempt::Observed {
+                            response: None,
+                            failure: Some(HspDispatchFailure::WorkerUnavailable),
+                        }
                     } else {
                         HspDispatchAttempt::Rejected(HspDispatchFailure::WorkerUnavailable)
                     }

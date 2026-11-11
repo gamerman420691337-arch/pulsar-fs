@@ -171,6 +171,9 @@ pub struct BrowserTimingReport {
     pub binding: BrowserTimingBinding,
     pub current: bool,
     pub observation: Option<BrowserTimingObservation>,
+    /// A consumed refresh that did not replace the retained observation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discarded_probe_sequence: Option<u64>,
     pub qualified: bool,
 }
 impl BrowserTimingReport {
@@ -180,6 +183,17 @@ impl BrowserTimingReport {
         self.binding.validate()?;
         if self.qualified {
             return Err(invalid("this observation is not qualified"));
+        }
+        if self.discarded_probe_sequence.is_some_and(|sequence| {
+            !self.current
+                || self
+                    .observation
+                    .as_ref()
+                    .is_none_or(|observation| sequence <= observation.sequence)
+        }) {
+            return Err(invalid(
+                "discarded probe has no earlier current observation",
+            ));
         }
         if let Some(observation) = &self.observation {
             observation.validate()?;
@@ -333,8 +347,33 @@ mod tests {
             }),
             binding,
             current: true,
+            discarded_probe_sequence: None,
             qualified: false,
         }
+    }
+
+    #[test]
+    fn discarded_probe_requires_an_earlier_current_observation() {
+        let mut r = report();
+        let old = serde_json::to_value(&r).unwrap();
+        assert!(old.get("discarded_probe_sequence").is_none());
+        assert_eq!(
+            serde_json::from_value::<BrowserTimingReport>(old).unwrap(),
+            r
+        );
+        r.discarded_probe_sequence = Some(2);
+        assert!(r.validate().is_ok());
+        r.observation.as_mut().unwrap().expires_at_boottime_ns += 1;
+        assert!(r.validate().is_err());
+        r.observation.as_mut().unwrap().expires_at_boottime_ns -= 1;
+        r.discarded_probe_sequence = Some(1);
+        assert!(r.validate().is_err());
+        r.discarded_probe_sequence = Some(2);
+        r.current = false;
+        assert!(r.validate().is_err());
+        r.current = true;
+        r.observation = None;
+        assert!(r.validate().is_err());
     }
 
     #[test]

@@ -14,10 +14,11 @@ use super::{
 use crate::{
     handy_hsp_dispatch::{
         HspClaimGate, HspClaimedHandoff, HspDispatchFailure, HspNativeOwner, HspPreclaimProgress,
+        HspSourcePhaseRefusal,
     },
     handy_hsp_execution::{
-        HspAuthorityEvaluation, HspAuthoritySnapshot, HspNativeAuthority, HspPlayIntent,
-        HspSessionHandle, HspWeakSessionHandle,
+        HspAuthorityEvaluation, HspAuthoritySnapshot, HspExecutionError, HspNativeAuthority,
+        HspPlayIntent, HspSessionHandle, HspWeakSessionHandle,
     },
     handy_hsp_runtime::{HspAuthorityWindow, HspBinding, HspDispatchFacts, HspPlayReference},
     handy_playback_clock::{HspClockPin, NativePlaybackClock},
@@ -37,7 +38,7 @@ use producer_read_test_hooks::{ProducerReadGuard, ProducerReadPause};
 use std::{
     collections::BTreeMap,
     sync::{atomic::AtomicU64, OnceLock, Weak},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 const MAX_OWNERS: usize = 64;
@@ -54,6 +55,12 @@ fn mismatch() -> ProtocolError {
     ProtocolError::new(
         ErrorCode::DependencyMismatch,
         "live HSP source binding differs",
+    )
+}
+fn producer_mismatch(detail: impl std::fmt::Display) -> ProtocolError {
+    ProtocolError::new(
+        ErrorCode::DependencyMismatch,
+        format!("live HSP source binding differs: {detail}"),
     )
 }
 /// A borrowed view of an already native-admitted CPU reply. Its original enum
@@ -103,6 +110,17 @@ fn selected_cpu_estimate<'a>(
 }
 fn dispatch(_: ProtocolError) -> HspDispatchFailure {
     HspDispatchFailure::BindingMismatch
+}
+fn timing_dispatch(error: BrowserTimingClaimFailure) -> HspDispatchFailure {
+    match error {
+        BrowserTimingClaimFailure::Contended => HspDispatchFailure::Busy,
+        BrowserTimingClaimFailure::Refused(error) if error.code == ErrorCode::Unavailable => {
+            HspDispatchFailure::Authority(
+                crate::handy_hsp_runtime::HspRuntimeError::ExpiredAuthority,
+            )
+        }
+        BrowserTimingClaimFailure::Refused(_) => HspDispatchFailure::BindingMismatch,
+    }
 }
 fn now() -> PResult<u64> {
     crate::handy_clock::boottime_ns()
@@ -198,6 +216,7 @@ impl Controller {
             .map(|owner| owner.snapshot(at))
             .transpose()
     }
+    #[track_caller]
     fn retire(&self) {
         if self.retired.swap(true, Ordering::AcqRel) {
             return;
@@ -221,6 +240,7 @@ impl Controller {
         }
         self.retirement_complete.store(true, Ordering::Release);
     }
+    #[track_caller]
     fn fail(&self, error: ProtocolError) -> ProtocolError {
         self.retire();
         if let Ok(mut controls) = self.controls.try_lock() {
@@ -377,10 +397,7 @@ impl Controller {
         let selected = (|| {
             let source = self.active_source().map_err(dispatch)?;
             let pin = self.clock_owner.get().map(|owner| owner.select_read());
-            let timing = source
-                .timing
-                .select_read()
-                .map_err(|_| HspDispatchFailure::BindingMismatch)?;
+            let timing = source.timing.select_read().map_err(timing_dispatch)?;
             Ok::<_, HspDispatchFailure>((source, pin, timing))
         })();
         // Even a failed selection receives one fresh evaluation tick. Callers
@@ -391,10 +408,8 @@ impl Controller {
         let pin = selected_pin
             .map(|selected| selected.evaluate_at(sampled_at_ns))
             .transpose()
-            .map_err(dispatch)?;
-        let observation = timing
-            .evaluate_at(sampled_at_ns)
-            .map_err(|_| HspDispatchFailure::BindingMismatch)?;
+            .map_err(|error| HspDispatchFailure::PlaybackClock(error.code))?;
+        let observation = timing.evaluate_at(sampled_at_ns).map_err(timing_dispatch)?;
         let snapshot = self
             .snapshot_from(
                 &source,
@@ -403,7 +418,23 @@ impl Controller {
                 pin.as_ref(),
                 project_tail,
             )
-            .map_err(dispatch)?;
+                        .map_err(|error| HspDispatchFailure::SourcePhase {
+                code: error.code,
+                observation_sequence: observation.sequence,
+                bracket_ns: observation.bracket.native_receive_ns
+                    - observation.bracket.native_issue_ns,
+                cause: match error.message.as_str() {
+                    "invalid state transition: browser start: combined alignment error exceeds accepted budget" =>
+                        HspSourcePhaseRefusal::AlignmentBudget,
+                    "invalid state transition: browser clock: mapped interval exceeds uncertainty or age horizon" =>
+                        HspSourcePhaseRefusal::ClockIntervalOrAge,
+                    "invalid state transition: browser start: original start evidence expired" =>
+                        HspSourcePhaseRefusal::OriginalEvidenceExpired,
+                    "invalid state transition: browser start: display residual escapes the admitted age horizon" =>
+                        HspSourcePhaseRefusal::DisplayAge,
+                    _ => HspSourcePhaseRefusal::Other,
+                },
+            })?;
         Ok(HspAuthorityEvaluation {
             sampled_at_ns,
             snapshot,
@@ -416,6 +447,36 @@ impl Controller {
         accepted: NativeAcceptedCapture,
         handle: &HspSessionHandle,
     ) -> PResult<()> {
+        // Retain this exact sample under delivery custody. On WouldBlock the
+        // runtime has not consumed it, so re-evaluate the same source and
+        // sample without changing timestamps or adding another queue.
+        let started = Instant::now();
+        let native_started = now()?;
+        let budget = Duration::from_millis(5);
+        loop {
+            if self.try_deliver_locked(state, source, &accepted, handle)? {
+                return Ok(());
+            }
+            std::thread::yield_now();
+            if started.elapsed() >= budget
+                || now()?
+                    .checked_sub(native_started)
+                    .is_none_or(|elapsed| u128::from(elapsed) >= budget.as_nanos())
+            {
+                return Err(producer_mismatch(
+                    "runtime offer contention exceeded its budget",
+                ));
+            }
+        }
+    }
+
+    fn try_deliver_locked(
+        &self,
+        state: &mut Delivery,
+        source: &SourceBundle,
+        accepted: &NativeAcceptedCapture,
+        handle: &HspSessionHandle,
+    ) -> PResult<bool> {
         #[cfg(test)]
         let probe = ProducerReadGuard::take(&self.producer_read_test);
         // The caller retains this exact source epoch under delivery custody.
@@ -428,12 +489,16 @@ impl Controller {
         let at = now()?;
         #[cfg(test)]
         probe.enter(HspProducerReadTestPhase::AfterSample, Some(at))?;
-        if !self.current(source, at)
-            || accepted.frame.identity != source.selection.identity
+        if !self.current(source, at) {
+            return Err(producer_mismatch("source is no longer current"));
+        }
+        if accepted.frame.identity != source.selection.identity
             || accepted.continuity_generation != source.continuity_generation
             || accepted.accepted_boottime.latest_ns > at
         {
-            return Err(mismatch());
+            return Err(producer_mismatch(
+                "capture identity, generation or observation order differs",
+            ));
         }
         let SelectedCpuEstimate {
             attempt_id,
@@ -451,7 +516,9 @@ impl Controller {
             || !accepted.estimate.fresh
             || accepted.estimate.qualified
         {
-            return Err(mismatch());
+            return Err(producer_mismatch(
+                "inference identity, freshness or qualification differs",
+            ));
         }
         if let Some(previous) = &state.last {
             let last = selected_cpu_estimate(
@@ -463,10 +530,10 @@ impl Controller {
                 || accepted.previous_frame != previous.frame
                 || input.sequence != last.sequence.checked_add(1).ok_or_else(mismatch)?
             {
-                return Err(mismatch());
+                return Err(producer_mismatch("adjacent capture continuity differs"));
             }
         }
-        let relative = Self::source_project(source, &accepted)?
+        let relative = Self::source_project(source, accepted)?
             .checked_sub(self.zero)
             .map_err(internal)?;
         let selected = quantize_hsp_point(
@@ -498,7 +565,10 @@ impl Controller {
             || max_lead.checked_mul(1000).ok_or_else(mismatch)?
                 > i128::from(lookahead.maximum_lead_us)
         {
-            return Err(mismatch());
+            return Err(producer_mismatch(format_args!(
+                "projected lead {min_lead}–{max_lead} ms outside {}–{} µs",
+                lookahead.minimum_lead_us, lookahead.maximum_lead_us,
+            )));
         }
         // Capture is an HTTP receipt bound. Include the entire independently
         // accepted acquisition→receipt allowance; never rename receipt exposure.
@@ -522,20 +592,23 @@ impl Controller {
         };
         #[cfg(test)]
         probe.sample(sample);
-        if handle
-            .offer(&source.selection.identity, sample)
-            .map_err(|_| unavailable())?
-            != HspOfferOutcome::Accepted
-        {
-            return Err(unavailable());
+        match handle.offer(&source.selection.identity, sample) {
+            Ok(HspOfferOutcome::Accepted) => {}
+            Ok(_) => return Err(unavailable()),
+            Err(HspExecutionError::Busy) => return Ok(false),
+            Err(error) => {
+                return Err(producer_mismatch(format_args!(
+                    "runtime offer refused ({error:?})"
+                )));
+            }
         }
         state.envelope = envelope;
         state.last_sample = Some(sample);
-        state.last = Some(accepted);
+        state.last = Some(accepted.clone());
         self.delivered.fetch_add(1, Ordering::AcqRel);
         #[cfg(test)]
         probe.delivered();
-        Ok(())
+        Ok(true)
     }
     fn finish_locked(
         &self,
@@ -652,7 +725,10 @@ impl Controller {
             original_stop_request_id: controls.stop.clone(),
             delivered_samples: self.delivered.load(Ordering::Acquire),
             active_source: self.active_source_status()?,
-            error: controls.error.clone(),
+            error: controls
+                .error
+                .clone()
+                .or_else(|| self.active.load_full()?.sink.first_error().cloned()),
         })
     }
 }
@@ -1374,6 +1450,7 @@ impl Engine {
             producer_read_test: Mutex::new(None),
         });
         let sink = Arc::new(EpochSink::new(&controller, selection.clone()));
+        timing.bind_hsp_refresh_policy(&subject.timing)?;
         let subscription = captures.register_native_delivery(selection.clone(), sink.clone())?;
         controller.active.store(Some(Arc::new(SourceBundle {
             generation: 1,

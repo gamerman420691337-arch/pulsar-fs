@@ -315,6 +315,7 @@ fn opened(request: &pulsar_protocol::Request) -> BrowserTimingReport {
         },
         current: true,
         observation: None,
+        discarded_probe_sequence: None,
         qualified: false,
     };
     report.validate().unwrap();

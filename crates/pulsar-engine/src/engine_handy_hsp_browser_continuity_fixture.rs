@@ -899,6 +899,24 @@ mod rendered_browser_continuity_fixture {
         };
         *value
     }
+    fn record_successor_abort(f: &Fixture, output: &std::path::Path) {
+        if output.join("successor-abort.json").exists() {
+            return;
+        }
+        let Ok(registry) = f.engine.live_captures.try_lock() else {
+            return;
+        };
+        let aborted = registry.successor_aborts_for_test(&f.session, &f.project);
+        drop(registry);
+        if !aborted.is_empty() {
+            record(
+                output,
+                "successor-abort.json",
+                &json!({"aborted":aborted,"qualified":false}),
+            );
+        }
+    }
+
     fn bounded_wait(root: &std::path::Path, deadline: Instant) {
         assert!(!stopped(root), "manual Stop before completion");
         assert!(
@@ -921,16 +939,61 @@ mod rendered_browser_continuity_fixture {
         let runtime = env_path("PULSAR_ORT_DYLIB");
         assert_eq!(artifact(&runtime).sha256, ORT_SHA);
         let inputs: Value = serde_json::from_slice(&fs::read(&fixture).unwrap()).unwrap();
-        assert_eq!(
-            inputs["kind"],
-            "authored-sterile-rendered-cpu-software-fixture"
+        let trained_model = std::env::var_os("PULSAR_HSP_RENDERED_TRAINED_MODEL").is_some();
+        let (media_path, model, reference_sha256) = if trained_model {
+            assert_eq!(inputs["origin"], "independently generated geometry");
+            assert_eq!(inputs["fps"], 12);
+            assert_eq!(inputs["frames"], 480);
+            assert_eq!(inputs["playback_offset_ms"], 0);
+            let cases = inputs["cases"].as_array().unwrap();
+            let clean: Vec<_> = cases
+                .iter()
+                .filter(|entry| entry["case"] == "clean")
+                .collect();
+            assert_eq!(clean.len(), 1);
+            let clean = clean[0];
+            let root = fixture.parent().unwrap();
+            let name = |field: &str| {
+                let name = clean[field].as_str().unwrap();
+                assert_eq!(std::path::Path::new(name).file_name().unwrap(), name);
+                root.join(name)
+            };
+            let media_path = name("clip");
+            let reference = artifact(&name("reference"));
+            assert_eq!(
+                artifact(&media_path).sha256,
+                clean["clip_sha256"].as_str().unwrap()
+            );
+            assert_eq!(
+                reference.sha256,
+                clean["reference_sha256"].as_str().unwrap()
+            );
+            let model = env_path("PULSAR_HSP_RENDERED_TRAINED_MODEL");
+            assert_eq!(
+                artifact(&model).sha256,
+                "002525328a27ffc060db997fd4b1618ab7c70dc6cf44c8f77dd54cc91d34df8f"
+            );
+            (media_path, model, Some(reference.sha256))
+        } else {
+            assert_eq!(
+                inputs["kind"],
+                "authored-sterile-rendered-cpu-software-fixture"
+            );
+            assert_eq!(inputs["duration_seconds"], 40);
+            assert_eq!(inputs["trained_model"], false);
+            assert_eq!(inputs["qualified"], false);
+            let media_path = input_path(&inputs, "media");
+            let model = input_path(&inputs, "model");
+            assert_eq!(artifact(&model).sha256, MODEL_SHA);
+            (media_path, model, None)
+        };
+        record(
+            &output,
+            "model-subjects.json",
+            &json!({"trained_model":trained_model,"model":artifact(&model),
+                "source":artifact(&media_path),"reference_sha256":reference_sha256,
+                "fixture":artifact(&fixture),"physical_device":false,"qualified":false}),
         );
-        assert_eq!(inputs["duration_seconds"], 40);
-        assert_eq!(inputs["trained_model"], false);
-        assert_eq!(inputs["qualified"], false);
-        let media_path = input_path(&inputs, "media");
-        let model = input_path(&inputs, "model");
-        assert_eq!(artifact(&model).sha256, MODEL_SHA);
         let f = native_fixture(worker.clone());
         ram_directory(f.dir.path());
         let engine = f.engine.clone();
@@ -1183,10 +1246,35 @@ mod rendered_browser_continuity_fixture {
         }
         ui_stage(&output, "awaiting_ui_bind", &originals);
         let origin = loop {
+            record_successor_abort(f, &output);
             discover_ui(f, &mut originals);
             if let Some(id) = &originals.stream {
                 let value = live_status(f, id);
-                assert!(value.error.is_none(), "public Bind refused: {value:?}");
+                if let Some(error) = &value.error {
+                    let original_timing = f
+                        .engine
+                        .handle(request(
+                            &f.session,
+                            Some(&f.project),
+                            None,
+                            Command::BrowserTimingStatus {
+                                binding_id: analysis.timing_binding_id.clone(),
+                                player: analysis.player.clone(),
+                            },
+                        ))
+                        .result;
+                    record(
+                        &output,
+                        "bind-refusal.json",
+                        &json!({
+                            "error":error,"native_error":value.native.as_ref().and_then(|native| native.error.as_ref()),
+                            "delivered_samples":value.native.as_ref().map(|native| native.delivered_samples),
+                            "original_browser_timing":original_timing,
+                            "trained_model":trained_model,"qualified":false,"physical_device":false
+                        }),
+                    );
+                    panic!("public Bind refused: {error}");
+                }
                 assert_eq!(
                     value.selection.capture_epoch, first.identity.epoch,
                     "positive UI Bind must precede the first original capture transfer"
@@ -1217,6 +1305,7 @@ mod rendered_browser_continuity_fixture {
         let mut last_ui_diagnostic = Instant::now() - Duration::from_secs(1);
         let mut ui_diagnostic_count = 0u32;
         let enable_id = loop {
+            record_successor_abort(f, &output);
             discover_ui(f, &mut originals);
             let stream = live_status(f, &bind_id);
             if last_ui_diagnostic.elapsed() >= Duration::from_millis(500) {
@@ -1234,6 +1323,37 @@ mod rendered_browser_continuity_fixture {
                 ui_diagnostic_count += 1;
                 assert!(ui_diagnostic_count <= 361);
                 last_ui_diagnostic = Instant::now();
+            }
+            if stream
+                .stream
+                .as_ref()
+                .and_then(|s| s.native.as_ref())
+                .is_some_and(|native| {
+                    native.runtime_state == HandyHspRuntimeState::StopAcknowledged
+                        && !native.native_active
+                        && !native.metadata_pending
+                })
+            {
+                let first_stop = rendered_browser_first_stop(f, &output, &bind_id);
+                let original_timing = f
+                    .engine
+                    .handle(request(
+                        &f.session,
+                        Some(&f.project),
+                        None,
+                        Command::BrowserTimingStatus {
+                            binding_id: analysis.timing_binding_id.clone(),
+                            player: analysis.player.clone(),
+                        },
+                    ))
+                    .result;
+                record(
+                    &output,
+                    "stop-before-play-native.json",
+                    &json!({"live":stream,"first_stop":first_stop,
+                        "original_browser_timing":original_timing,"qualified":false}),
+                );
+                panic!("native HSP stopped before the fixture observed Play: {first_stop}");
             }
             assert_eq!(stream.origin.as_ref(), Some(&origin));
             assert!(
@@ -1302,6 +1422,7 @@ mod rendered_browser_continuity_fixture {
         let mut original_ceiling = None;
         loop {
             if last_census.elapsed() >= Duration::from_millis(500) {
+                record_successor_abort(&x.f, &output);
                 let (c, t) = discover(&x.f);
                 captures.extend(c);
                 transfer_ids.extend(t);
@@ -1405,7 +1526,16 @@ mod rendered_browser_continuity_fixture {
                 else {
                     panic!("transfer report")
                 };
-                assert_ne!(value.phase, BrowserAnalysisTransferPhase::Aborted);
+                if value.phase == BrowserAnalysisTransferPhase::Aborted {
+                    record(
+                        &output,
+                        "transfer-refusal.json",
+                        &json!({
+                            "transfer":value,"live":stream,"clock":clock,"qualified":false
+                        }),
+                    );
+                    panic!("actual native transfer aborted: {:?}", value.error);
+                }
                 if value.phase == BrowserAnalysisTransferPhase::Transferred {
                     assert!(
                         value.predecessor_worker_joined
@@ -1429,12 +1559,26 @@ mod rendered_browser_continuity_fixture {
                     if transfers.len() != 2 {
                         let final_captures: Vec<_> =
                             captures.values().map(|id| snapshot(&x.f, id)).collect();
+                        let original_timing =
+                            x.f.engine
+                                .handle(request(
+                                    &x.f.session,
+                                    Some(&x.f.project),
+                                    None,
+                                    Command::BrowserTimingStatus {
+                                        binding_id: analysis.timing_binding_id.clone(),
+                                        player: analysis.player.clone(),
+                                    },
+                                ))
+                                .result;
+                        let first_stop = rendered_browser_first_stop(&x.f, &output, &bind_id);
                         let remote = peer.state.lock().unwrap();
                         record(
                             &output,
                             "early-stop-native.json",
                             &json!({
                                 "live":stream,"clock":clock,"captures":final_captures,"events":events,
+                                "original_browser_timing":original_timing,"first_stop":first_stop,
                                 "peer":{"setups":remote.setups,"plays":remote.plays,"stops":remote.stops,"tail":remote.tail,"consumed":remote.consumed,"points":remote.queue.len(),"calls":remote.calls},
                                 "qualified":false
                             }),
@@ -1611,8 +1755,31 @@ mod rendered_browser_continuity_fixture {
         record(
             &output,
             "completion.json",
-            &json!({"passed":true,"public_ui_controls":true,"direct_fixture_hsp_actions":false,"originals":originals,"history_only_restart":true,"fault_scenarios":"pending","source_authority_restored":false,"clock_authority_restored":false,"temporary_permits_restored":false,"clock_worker_joined":true,"browser_joined":true,"ipc_joined":true,"engine_joined":true,"localhost_peer_joined":true,"actual_rendered_browser":true,"one_engine":true,"two_transfers":transfers.len(),"crossed_original_media_deadline":crossed_media,"clock_generation":max_generation,"synchronizations":io.syncs.load(Ordering::Acquire),"clock_observations":io.reads.load(Ordering::Acquire),"qualified":false,"physical_device":false}),
+            &json!({"passed":true,"public_ui_controls":true,"direct_fixture_hsp_actions":false,"originals":originals,"history_only_restart":true,"fault_scenarios":"pending","source_authority_restored":false,"clock_authority_restored":false,"temporary_permits_restored":false,"clock_worker_joined":true,"browser_joined":true,"ipc_joined":true,"engine_joined":true,"localhost_peer_joined":true,"actual_rendered_browser":true,"trained_model":trained_model,"one_engine":true,"two_transfers":transfers.len(),"crossed_original_media_deadline":crossed_media,"clock_generation":max_generation,"synchronizations":io.syncs.load(Ordering::Acquire),"clock_observations":io.reads.load(Ordering::Acquire),"qualified":false,"physical_device":false}),
         );
+    }
+
+    fn rendered_browser_first_stop(f: &Fixture, output: &std::path::Path, id: &RequestId) -> Value {
+        let handle = f
+            .engine
+            .handy_hsp_execution
+            .try_lock()
+            .ok()
+            .and_then(|pump| pump.as_ref().map(|pump| pump.handle()));
+        let Some(handle) = handle else {
+            return json!({"available":false,"reason":"execution_handle_unavailable"});
+        };
+        match handle.first_stop_for_session(&f.session, &f.project, id) {
+            Ok(observation) => {
+                let result = json!({"available":true,"stream_request_id":id,
+                    "first_stop":observation.as_ref().map(|value|value.diagnostic())});
+                if observation.is_some() && !output.join("first-native-stop.json").exists() {
+                    record(output, "first-native-stop.json", &result);
+                }
+                result
+            }
+            Err(error) => json!({"available":false,"reason":format!("{error:?}")}),
+        }
     }
 
     include!("engine_handy_hsp_browser_fault_fixture.rs");

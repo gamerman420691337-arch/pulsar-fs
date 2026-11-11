@@ -18,28 +18,6 @@ struct DelayedBindOutcome {
     chain_ids: Value,
     source_generations: Value,
 }
-fn delayed_bind_first_stop(f: &Fixture, output: &std::path::Path, id: &RequestId) -> Value {
-    let handle = f
-        .engine
-        .handy_hsp_execution
-        .try_lock()
-        .ok()
-        .and_then(|pump| pump.as_ref().map(|pump| pump.handle()));
-    let Some(handle) = handle else {
-        return json!({"available":false,"reason":"execution_handle_unavailable"});
-    };
-    match handle.first_stop_for_session(&f.session, &f.project, id) {
-        Ok(observation) => {
-            let result = json!({"available":true,"stream_request_id":id,
-                "first_stop":observation.as_ref().map(|value|value.diagnostic())});
-            if observation.is_some() && !output.join("first-native-stop.json").exists() {
-                record(output, "first-native-stop.json", &result);
-            }
-            result
-        }
-        Err(error) => json!({"available":false,"reason":format!("{error:?}")}),
-    }
-}
 fn check_original_bind_gate(snapshot: &crate::daemon::TestResponseGateSnapshot, id: &RequestId) {
     assert_eq!(snapshot.request_id.as_ref(), Some(id));
     assert_eq!(snapshot.captures, 1);
@@ -249,7 +227,7 @@ impl DelayedBindRun<'_> {
             record(
                 self.output,
                 "delayed-bind-awaiting-stop.json",
-                &json!({"gate":gate,"live":native,"peer_effects":effect_counts(self.peer),"originals":ids_value(self.originals,self.cancel_id),"first_native_stop":delayed_bind_first_stop(self.f,self.output,&bind_id)}),
+                &json!({"gate":gate,"live":native,"peer_effects":effect_counts(self.peer),"originals":ids_value(self.originals,self.cancel_id),"first_native_stop":rendered_browser_first_stop(self.f,self.output,&bind_id)}),
             );
             check_original_bind_gate(&gate, &bind_id);
             assert!(
@@ -326,7 +304,7 @@ impl DelayedBindRun<'_> {
             record(
                 self.output,
                 "delayed-bind-cleanup.json",
-                &json!({"live":native,"originals":ids_value(self.originals,self.cancel_id),"first_native_stop":delayed_bind_first_stop(self.f,self.output,&bind_id)}),
+                &json!({"live":native,"originals":ids_value(self.originals,self.cancel_id),"first_native_stop":rendered_browser_first_stop(self.f,self.output,&bind_id)}),
             );
             assert!(self.originals.play.is_none() && self.originals.continuity.is_none());
             assert_eq!(native.origin.as_ref(), Some(&origin));

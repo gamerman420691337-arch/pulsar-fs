@@ -57,7 +57,10 @@ impl AdditionalStream {
                 },
                 setup_previous: HspSetupPreviousState::new(9, HspPlayState::Stopped).unwrap(),
             },
-            Arc::new(Credentials::for_test("fixture-api", "independent-fixture-connection")),
+            Arc::new(Credentials::for_test(
+                "fixture-api",
+                "independent-fixture-connection",
+            )),
             true,
             &rig.f.engine.handy_owner_token,
         )
@@ -448,6 +451,11 @@ fn engine_hsp_held_metadata_worker_allows_expiry_and_stop_then_persists_without_
     let task = hold.wait_entered(Instant::now() + WAIT).unwrap();
     assert_eq!(task.kind, HspMetadataTaskKind::Complete);
     assert_eq!(task.sequence, Some(2));
+    rig.offer(3);
+    rig.wait(
+        "a queued sample must not freeze the next effect during metadata custody",
+        |s| s.accepted_samples == 3 && s.metadata_pending && s.current_effect.is_none(),
+    );
     assert!(!hold.joined());
     assert_eq!(
         rig.history(),

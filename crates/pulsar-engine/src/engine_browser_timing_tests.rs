@@ -281,6 +281,59 @@ mod browser_timing_tests {
         assert!(!report(x.f.engine.handle(x.open.clone()).result.unwrap()).current);
     }
     #[test]
+    fn hsp_wide_refresh_consumes_nonce_without_extending_original_observation() {
+        let x = fixture_timing();
+        let initial = opened(&x);
+        let (_, observed) = first(&x, &initial.binding);
+        let original = observed.observation.unwrap();
+        let pin = native_pin(&x, &initial.binding);
+        pin.bind_hsp_refresh_policy(&HandyBrowserStartTiming {
+            clock: pulsar_core::BrowserClockAssumptions {
+                timestamp_error_ns: 1_000,
+                relative_rate_error_ppm: 20,
+                maximum_age_ns: 500_000_000,
+                maximum_interval_ns: 100_000_000,
+            },
+            reference: HandyBrowserStartReference::Callback,
+            display_early_ns: 2_000_000,
+            display_late_ns: 3_000_000,
+            source_correspondence_error_ns: 1_000_000,
+            discrete_media_phase_error_ns: 1_000_000,
+            media_rate_error_ppm: 20,
+            physical_execution_error_ns: 1_000_000,
+            maximum_start_age_ns: 500_000_000,
+            maximum_alignment_error_ns: 50_000_000,
+        })
+        .unwrap();
+        let wide = probe(at(&x, 30_000_000, issue(&x, &initial.binding, 2)).unwrap());
+        let retained = report(at(&x, 122_000_000, observe(&x, &wide, frame(2))).unwrap());
+        assert_eq!(retained.discarded_probe_sequence, Some(2));
+        assert_eq!(retained.observation.as_ref(), Some(&original));
+        assert_eq!(
+            pin.try_snapshot_native(x.base + 122_000_000).unwrap(),
+            original
+        );
+        assert!(at(&x, 123_000_000, observe(&x, &wide, frame(2))).is_err());
+        let second_wide = probe(at(&x, 130_000_000, issue(&x, &initial.binding, 3)).unwrap());
+        let retained = report(at(&x, 222_000_000, observe(&x, &second_wide, frame(3))).unwrap());
+        assert_eq!(retained.discarded_probe_sequence, Some(3));
+        assert_eq!(retained.observation.as_ref(), Some(&original));
+        let selected = pin.select_read().unwrap();
+        assert_eq!(
+            selected
+                .evaluate_at(original.expires_at_boottime_ns - 1)
+                .unwrap(),
+            original
+        );
+        assert!(selected
+            .evaluate_at(original.expires_at_boottime_ns)
+            .is_err());
+        let fresh = probe(at(&x, 230_000_000, issue(&x, &initial.binding, 4)).unwrap());
+        let replaced = report(at(&x, 240_000_000, observe(&x, &fresh, frame(4))).unwrap());
+        assert_eq!(replaced.discarded_probe_sequence, None);
+        assert_eq!(replaced.observation.unwrap().sequence, 4);
+    }
+    #[test]
     fn browser_timing_old_nonce_sequence_and_player_messages_cannot_retire_successors() {
         let x = fixture_timing();
         let initial = opened(&x);
@@ -750,7 +803,10 @@ mod browser_timing_tests {
         drop(held);
         task.join().unwrap();
         let response = outcome.expect("timing open waited for unrelated transfer sweep");
-        assert!(matches!(response.result, Ok(ResponseBody::BrowserTiming(_))));
+        assert!(matches!(
+            response.result,
+            Ok(ResponseBody::BrowserTiming(_))
+        ));
     }
 
     #[test]
@@ -767,7 +823,10 @@ mod browser_timing_tests {
         drop(held);
         task.join().unwrap();
         let response = outcome.expect("timing open waited for unrelated live-capture sweep");
-        assert!(matches!(response.result, Ok(ResponseBody::BrowserTiming(_))));
+        assert!(matches!(
+            response.result,
+            Ok(ResponseBody::BrowserTiming(_))
+        ));
     }
 
     #[test]

@@ -41,6 +41,7 @@ use std::{
 const MAX_SESSIONS: usize = 16;
 const MAILBOX_CAPACITY: usize = 4;
 const TICK: Duration = Duration::from_millis(20);
+const LIVE_APPEND_CLOCK_MARGIN_NS: u64 = 60_000_000;
 const DISPATCH_BUDGET: Duration = Duration::from_secs(3);
 pub(crate) const DRAIN_BUDGET: Duration = Duration::from_secs(12);
 // Transient producer contention does not revoke a valid stream. The interval is
@@ -399,6 +400,8 @@ pub(crate) struct HspFirstStopObservation {
     pub last_joined: Option<HspJoinedObservation>,
     pub source_file: &'static str,
     pub source_line: u32,
+    #[cfg(test)]
+    pub first_cancellation: Option<&'static std::panic::Location<'static>>,
 }
 impl HspFirstStopObservation {
     #[cfg(test)]
@@ -410,12 +413,15 @@ impl HspFirstStopObservation {
             "active_native_worker":self.active_native_worker,"active_ordinary":self.active_ordinary,"post_setup_bound":self.post_setup_bound,
             "last_joined":self.last_joined.as_ref().map(|j|serde_json::json!({"sequence":j.sequence,"kind":format!("{:?}",j.kind),"outcome":format!("{:?}",j.outcome)})),
             "source_file":self.source_file,"source_line":self.source_line,
+            "first_cancellation":self.first_cancellation.map(|site|serde_json::json!({"file":site.file(),"line":site.line()})),
             "scope":"first native Work branch; cancellation is not proof of a public UI action"})
     }
 }
 
 struct Session {
     first_stop: OnceLock<HspFirstStopObservation>,
+    #[cfg(test)]
+    first_cancellation: OnceLock<&'static std::panic::Location<'static>>,
     record: HspStreamRecord,
     runtime: Arc<Mutex<HandyHspRuntime>>,
     authority: Arc<dyn HspNativeAuthority>,
@@ -436,6 +442,14 @@ struct Session {
     metadata_pause: Mutex<Option<Arc<MetadataPause>>>,
     #[cfg(test)]
     metadata_busy: Mutex<Option<HspMetadataBusyObservation>>,
+}
+impl Session {
+    #[track_caller]
+    fn signal_cancellation(&self) {
+        #[cfg(test)]
+        let _ = self.first_cancellation.set(std::panic::Location::caller());
+        self.cancelled.store(true, Ordering::Release);
+    }
 }
 #[derive(Default)]
 struct Registry {
@@ -529,6 +543,8 @@ impl HspAdmission {
             preparation: None,
             session: Arc::new(Session {
                 first_stop: OnceLock::new(),
+                #[cfg(test)]
+                first_cancellation: OnceLock::new(),
                 record,
                 runtime: Arc::new(Mutex::new(runtime)),
                 authority,
@@ -769,7 +785,7 @@ impl HspExecutionHandle {
             // Retirement wins even if the following wait is already cancelled,
             // expired, or the bounded mailbox is full. No failed drain reopens.
             for session in &targets.sessions {
-                session.cancelled.store(true, Ordering::Release);
+                session.signal_cancellation();
                 session.owner.retire_ordinary();
             }
         }
@@ -927,7 +943,7 @@ impl HspExecutionHandle {
         self.stopped.store(true, Ordering::Release);
         if let Ok(registry) = self.registry.try_lock() {
             for session in registry.sessions.values() {
-                session.cancelled.store(true, Ordering::Release);
+                session.signal_cancellation();
                 session.owner.retire_ordinary();
             }
         }
@@ -1027,6 +1043,7 @@ impl HspWeakSessionHandle {
             wake: self.wake.clone(),
         })
     }
+    #[track_caller]
     pub(crate) fn cancel(&self) {
         if let Some(handle) = self.upgrade() {
             handle.cancel();
@@ -1038,9 +1055,10 @@ pub(crate) struct HspSessionRetirement {
     wake: thread::Thread,
 }
 impl HspSessionRetirement {
+    #[track_caller]
     pub(crate) fn cancel(&self) {
         if let Some(session) = self.session.upgrade() {
-            session.cancelled.store(true, Ordering::Release);
+            session.signal_cancellation();
             session.owner.retire_ordinary();
             self.wake.unpark();
         }
@@ -1080,11 +1098,11 @@ impl HspSessionHandle {
         sample: HspSample,
     ) -> Result<HspOfferOutcome, HspExecutionError> {
         self.ensure_open()?;
-        let mut runtime = self
-            .session
-            .runtime
-            .try_lock()
-            .map_err(|_| HspExecutionError::Busy)?;
+        let mut runtime = match self.session.runtime.try_lock() {
+            Ok(runtime) => runtime,
+            Err(TryLockError::WouldBlock) => return Err(HspExecutionError::Busy),
+            Err(TryLockError::Poisoned(_)) => return Err(HspExecutionError::Unavailable),
+        };
         // The evaluation clock belongs to this serialized runtime mutation.
         // A concurrent producer may have advanced core time before this lock.
         // The sample's own capture and acceptance timestamps remain unchanged.
@@ -1105,7 +1123,7 @@ impl HspSessionHandle {
             else {
                 runtime.stop();
                 self.session.owner.retire_ordinary();
-                self.session.cancelled.store(true, Ordering::Release);
+                self.session.signal_cancellation();
                 return Err(HspExecutionError::Capacity);
             };
             self.session.accepted.store(accepted, Ordering::Release);
@@ -1330,8 +1348,9 @@ impl HspSessionHandle {
     pub(crate) fn runtime_for_test(&self) -> Arc<Mutex<HandyHspRuntime>> {
         self.session.runtime.clone()
     }
+    #[track_caller]
     pub(crate) fn cancel(&self) {
-        self.session.cancelled.store(true, Ordering::Release);
+        self.session.signal_cancellation();
         self.session.owner.retire_ordinary();
         self.wake.unpark();
     }
@@ -1743,6 +1762,8 @@ impl Work {
             last_joined: self.last_joined.clone(),
             source_file: location.file(),
             source_line: location.line(),
+            #[cfg(test)]
+            first_cancellation: self.session.first_cancellation.get().copied(),
         });
     }
     #[track_caller]
@@ -1751,7 +1772,7 @@ impl Work {
         // initiating cause. Precise branch observations below win when present.
         self.record_first_stop(HspFirstStopReason::OtherNativeLatch, None, None, None, None);
         self.retired = true;
-        self.session.cancelled.store(true, Ordering::Release);
+        self.session.signal_cancellation();
         self.session.owner.retire_ordinary();
         self.session.authority.request_owned_stop();
         if let Ok(mut runtime) = self.session.runtime.try_lock() {
@@ -1866,9 +1887,13 @@ impl Work {
                     self.post_setup = Some(effect.clone());
                 }
                 if outcome == HspJoinedOutcome::Unknown {
+                    let failure = match &completion.attempt {
+                        HspDispatchAttempt::Observed { failure, .. } => failure.clone(),
+                        HspDispatchAttempt::Rejected(_) => unreachable!(),
+                    };
                     self.record_first_stop(
                         HspFirstStopReason::JoinedOutcomeUnknown,
-                        None,
+                        failure,
                         None,
                         effect.original_facts(),
                         None,
@@ -2846,9 +2871,15 @@ impl Work {
             self.publish();
             return;
         }
+        let ordinary_ready = self.metadata_task().is_none();
         if self.pending.is_none() && !self.stop_blocked {
             let next = self.session.runtime.try_lock().ok().map(|mut runtime| {
-                if runtime.is_finite_draining() {
+                // An ordinary effect must not freeze clock facts while the
+                // previous effect still has metadata custody. Stop retains
+                // its independent path and the watchdog already ran above.
+                if runtime.is_finite_draining()
+                    || (!ordinary_ready && runtime.state() != HspRuntimeState::StopRequired)
+                {
                     return Ok(None);
                 }
                 observe_for_settlement(self.session.authority.as_ref())
@@ -2863,9 +2894,14 @@ impl Work {
                     })
                     .and_then(|observation| {
                         runtime
-                            .next_effect(
+                            .next_effect_with_append_margin(
                                 observation.sampled_at_ns,
                                 observation.snapshot.facts.as_ref(),
+                                if self.session.authority.initial_source_cursor().is_some() {
+                                    LIVE_APPEND_CLOCK_MARGIN_NS
+                                } else {
+                                    0
+                                },
                             )
                             .map_err(HspDispatchFailure::Authority)
                             .inspect_err(|error| {
@@ -2890,7 +2926,7 @@ impl Work {
             .pending
             .as_ref()
             .is_some_and(|e| e.kind() == HspEffectKind::Stop)
-            || (!self.retired && self.metadata_task().is_none())
+            || (!self.retired && ordinary_ready)
         {
             self.start_pending(journal);
         }

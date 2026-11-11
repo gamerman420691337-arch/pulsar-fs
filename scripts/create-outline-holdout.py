@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw
 
 
 FPS = 12
-FRAMES = 144
+DEFAULT_SECONDS = 12
 SIZE = 256
 CASES = ("clean", "clutter", "low-contrast")
 
@@ -50,11 +50,11 @@ def frame(index, case):
     return image.tobytes()
 
 
-def build_case(output, case):
+def build_case(output, case, frames):
     clip = output / f"{case}.mp4"
     labels = output / f"{case}.funscript"
     with tempfile.TemporaryFile(dir=output) as raw:
-        for index in range(FRAMES):
+        for index in range(frames):
             raw.write(frame(index, case))
         raw.seek(0)
         subprocess.run(
@@ -65,7 +65,7 @@ def build_case(output, case):
         )
     actions = [
         {"at": round(index * 1000 / FPS), "pos": round(100 * (1 - endpoint(index)[1] / (SIZE - 1)))}
-        for index in range(FRAMES)
+        for index in range(frames)
     ]
     labels.write_text(json.dumps({"version": "1.0", "inverted": False, "range": 100,
                                   "actions": actions}, indent=2) + "\n")
@@ -76,10 +76,15 @@ def build_case(output, case):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path, help="New directory for the generated holdout")
-    output = parser.parse_args().output
+    parser.add_argument("--seconds", type=int, default=DEFAULT_SECONDS)
+    args = parser.parse_args()
+    if not 2 <= args.seconds <= 60:
+        parser.error("holdout duration must be between 2 and 60 seconds")
+    output = args.output
+    frames = FPS * args.seconds
     output.mkdir(mode=0o700)
-    cases = [build_case(output, case) for case in CASES]
-    manifest = {"origin": "independently generated geometry", "fps": FPS, "frames": FRAMES,
+    cases = [build_case(output, case, frames) for case in CASES]
+    manifest = {"origin": "independently generated geometry", "fps": FPS, "frames": frames,
                 "playback_offset_ms": 0, "cases": cases}
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
 

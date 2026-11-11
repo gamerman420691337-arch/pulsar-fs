@@ -101,7 +101,10 @@ fn native_preclaim_journal_then_runtime_contention_preserves_bytes_and_claims_on
     assert!(completion.claim.is_some());
     assert!(matches!(
         completion.attempt,
-        HspDispatchAttempt::Observed { response: Some(_) }
+        HspDispatchAttempt::Observed {
+            response: Some(_),
+            ..
+        }
     ));
     assert_eq!(completion.request.effect, effect);
     assert_eq!(
@@ -358,9 +361,17 @@ fn native_preclaim_postclaim_runtime_contention_is_unknown_without_second_put() 
                     start_hold.send(()).unwrap();
                     holding.recv_timeout(Duration::from_secs(2)).unwrap();
                 }));
-                let result = gate.try_apply(&owner, |now| Ok(Some(facts(now, 1_000_000_000))));
-                assert!(matches!(result, Err(HspDispatchFailure::Busy)));
-                Err(result.err().expect("claimed runtime refusal is terminal"))
+                let mut gate = gate;
+                loop {
+                    match gate.try_apply(&owner, |now| Ok(Some(facts(now, 1_000_000_000)))) {
+                        Ok(HspPreclaimProgress::Contended(mut original)) => {
+                            thread::sleep(original.preclaim_retry_delay(&owner)?);
+                            gate = original;
+                        }
+                        Ok(HspPreclaimProgress::Claimed(_)) => panic!("runtime is still held"),
+                        Err(error) => return Err(error),
+                    }
+                }
             },
         )
         .unwrap_or_else(|_| panic!("native dispatch start"));
@@ -368,7 +379,10 @@ fn native_preclaim_postclaim_runtime_contention_is_unknown_without_second_put() 
     assert!(completion.claim.is_some());
     assert!(matches!(
         completion.attempt,
-        HspDispatchAttempt::Observed { response: None }
+        HspDispatchAttempt::Observed {
+            response: None,
+            failure: Some(HspDispatchFailure::InvalidBudget)
+        }
     ));
     assert_eq!(
         rig.journal
@@ -448,4 +462,54 @@ fn native_preclaim_sqlite_busy_is_terminal_without_returning_gate() {
     assert!(completion.claim.is_none());
     assert_eq!(rig.peer.puts(), 0);
     writer.execute_batch("ROLLBACK").unwrap();
+}
+
+#[test]
+fn native_postclaim_reacquisition_reuses_original_claim_and_sends_once() {
+    let mut rig = Rig::new();
+    let request = rig.request(rig.next());
+    let runtime = rig.runtime.clone();
+    let owner = rig.owner.clone();
+    let (start, begin) = std::sync::mpsc::channel();
+    let (held, holding) = std::sync::mpsc::channel();
+    let (release, finish) = std::sync::mpsc::channel();
+    let (released, done) = std::sync::mpsc::channel();
+    let holder = thread::spawn(move || {
+        begin.recv_timeout(Duration::from_secs(2)).unwrap();
+        let guard = runtime.lock().unwrap();
+        held.send(()).unwrap();
+        finish.recv_timeout(Duration::from_secs(2)).unwrap();
+        drop(guard);
+        released.send(()).unwrap();
+    });
+    rig.dispatcher
+        .start(
+            request,
+            Instant::now() + Duration::from_secs(2),
+            move |_, _, gate| {
+                let gate = gate.with_after_claim_hook(Box::new(move || {
+                    start.send(()).unwrap();
+                    holding.recv_timeout(Duration::from_secs(2)).unwrap();
+                }));
+                let mut original = preclaim_contended(
+                    gate.try_apply(&owner, |now| Ok(Some(facts(now, 1_000_000_000))))?,
+                );
+                release.send(()).unwrap();
+                done.recv_timeout(Duration::from_secs(2)).unwrap();
+                original.check_preclaim_wait(&owner)?;
+                preclaim_claim(original, &owner)
+            },
+        )
+        .unwrap_or_else(|_| panic!("native dispatch start"));
+    let completion = rig.wait();
+    holder.join().unwrap();
+    assert!(completion.claim.is_some());
+    assert!(matches!(
+        completion.attempt,
+        HspDispatchAttempt::Observed {
+            response: Some(_),
+            failure: None
+        }
+    ));
+    assert_eq!(rig.peer.puts(), 1);
 }

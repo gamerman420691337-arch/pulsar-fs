@@ -1114,6 +1114,15 @@ impl HandyHspRuntime {
         now_ns: u64,
         facts: Option<&HspDispatchFacts>,
     ) -> Result<Option<HspEffect>, HspRuntimeError> {
+        self.next_effect_with_append_margin(now_ns, facts, 0)
+    }
+
+    pub(crate) fn next_effect_with_append_margin(
+        &mut self,
+        now_ns: u64,
+        facts: Option<&HspDispatchFacts>,
+        minimum_append_clock_ns: u64,
+    ) -> Result<Option<HspEffect>, HspRuntimeError> {
         if self.open() {
             self.tick(now_ns, facts)?;
         }
@@ -1160,6 +1169,11 @@ impl HandyHspRuntime {
             return self
                 .issue(HspEffectKind::Play, request, Some(original), None)
                 .map(Some);
+        }
+        // Wait before claiming samples or freezing an effect when the
+        // current clock window leaves too little dispatch scheduling room.
+        if facts.window.clock_until_ns().saturating_sub(now_ns) < minimum_append_clock_ns {
+            return Ok(None);
         }
         let chunk = match self.stream.claim(now_ns, facts.reference.phase) {
             Ok(chunk) => chunk,

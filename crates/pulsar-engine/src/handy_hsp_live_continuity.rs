@@ -62,6 +62,7 @@ pub(super) struct EpochSink {
     retired: AtomicBool,
     reservation: Option<NativeCaptureSuccessor>,
     first: OnceLock<NativeAcceptedCapture>,
+    first_error: OnceLock<ProtocolError>,
 }
 impl EpochSink {
     pub(super) fn is_retired(&self) -> bool {
@@ -74,6 +75,7 @@ impl EpochSink {
             retired: AtomicBool::new(false),
             reservation: None,
             first: OnceLock::new(),
+            first_error: OnceLock::new(),
         }
     }
     fn successor(controller: &Arc<Controller>, reservation: NativeCaptureSuccessor) -> Self {
@@ -83,6 +85,7 @@ impl EpochSink {
             retired: AtomicBool::new(false),
             reservation: Some(reservation),
             first: OnceLock::new(),
+            first_error: OnceLock::new(),
         }
     }
     fn stage_first(&self, owner: &Controller, accepted: NativeAcceptedCapture) -> PResult<()> {
@@ -128,7 +131,11 @@ impl EpochSink {
             .load_full()
             .filter(|source| source.selection == self.selection)
     }
+    pub(super) fn first_error(&self) -> Option<&ProtocolError> {
+        self.first_error.get()
+    }
     fn reject(&self, error: ProtocolError) -> ProtocolError {
+        let _ = self.first_error.set(error.clone());
         self.retire();
         error
     }
@@ -548,6 +555,7 @@ impl Controller {
         let sink = Arc::new(EpochSink::successor(&controller, reservation.clone()));
         let subscription =
             registry.register_native_successor_delivery(&reservation, sink.clone())?;
+        timing.bind_hsp_refresh_policy(&accepted.subject().timing)?;
         let generation = source.generation.checked_add(1).ok_or_else(unavailable)?;
         let bundle = Arc::new(SourceBundle {
             generation,
@@ -730,11 +738,18 @@ impl Controller {
             .ok_or_else(mismatch)?;
         if minimum < i128::from(lookahead.minimum_lead_us)
             || maximum > i128::from(lookahead.maximum_lead_us)
-            || at
-                .checked_sub(captured_at_ns)
-                .is_none_or(|age| age > self.policy.max_sample_age_ns)
         {
-            return Err(unavailable());
+            return Err(producer_mismatch(format_args!(
+                "successor projected lead {minimum}–{maximum} µs outside {}–{} µs",
+                lookahead.minimum_lead_us, lookahead.maximum_lead_us,
+            )));
+        }
+        let age = at.checked_sub(captured_at_ns).ok_or_else(mismatch)?;
+        if age > self.policy.max_sample_age_ns {
+            return Err(producer_mismatch(format_args!(
+                "successor sample age {age} ns exceeds {} ns",
+                self.policy.max_sample_age_ns,
+            )));
         }
         Ok(HspSample {
             point: selected.point,
@@ -760,7 +775,9 @@ impl Controller {
             || !staged.media.current()
             || !self.current(&source, at)
         {
-            return Err(unavailable());
+            return Err(producer_mismatch(
+                "successor transfer proof, media or predecessor is no longer current",
+            ));
         }
         source_qualification::revalidate_accepted_hsp_source(db, &self.pool, &source.source)?;
         source_qualification::revalidate_accepted_hsp_source(
@@ -886,7 +903,8 @@ impl Controller {
                 Err(error) if transition_wait(&error) => return Ok(()),
                 Err(error) => {
                     return Err(internal(format!(
-                        "native source transition admission failed: {error:?}"
+                        "native source transition admission failed: {error:?}; predecessor tail {} ms, successor first {} ms, maximum gap {} ms",
+                        last.point.time_ms, first.point.time_ms, self.policy.max_gap_ms
                     )))
                 }
             }

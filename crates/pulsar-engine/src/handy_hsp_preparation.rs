@@ -457,6 +457,7 @@ impl Entry {
         }
         Ok(now)
     }
+    #[track_caller]
     fn retire(&self) {
         self.cancel.store(true, Ordering::Release);
         if let Some(owner) = self.continuity.get() {
@@ -2017,62 +2018,91 @@ impl Engine {
                 "HSP stream handoff requires separate online control consent",
             ));
         }
-        let _admission = self
-            .handy_reconciliation_admission
-            .try_read()
-            .map_err(|_| unavailable("HSP recovery admission is fenced"))?;
         let entry = self.hsp_ready_entry(actor, project_id, preparation)?;
-        let now = entry.io.now()?;
-        let mut state = entry.state.lock().map_err(internal)?;
-        let ready = state.ready.as_ref().ok_or_else(mismatch)?;
-        if state.consumed
-            || state.pending.is_some()
-            || now >= ready.valid_until_ns
-            || binding.owner().as_str() != actor.as_str()
-            || binding.session() != &ready.record.device_session
-            || binding.clock_domain() != &ready.clocks.server.clock.domain
-            || binding.identity().live.project != *project_id
-            || binding.identity().live.revision != ready.record.revision
-            || child_request == ready.record.request_id
-        {
-            return Err(mismatch());
-        }
-        let clock_guard = Arc::new(PreparedClockGuard {
-            entry: entry.clone(),
-            binding: binding.clone(),
-            clocks: ready.clocks.clone(),
-            valid_until_ns: ready.valid_until_ns,
-        });
-        let observed = clock_owner::observe_source_current(
-            source.as_ref(),
-            &mut || entry.io.now(),
-            "native HSP source authority is unavailable",
-        )?;
-        let now = observed.sampled_at_ns;
-        if now >= ready.valid_until_ns {
-            return Err(mismatch());
-        }
-        let initial = observed
-            .snapshot
-            .facts
-            .ok_or_else(|| unavailable("native HSP source facts are absent"))?;
-        clock_guard.validate(now, &initial).map_err(|_| {
-            unavailable("native HSP source facts differ from original preparation clocks")
-        })?;
-        let consumed_source = clock_owner::ConsumedSource {
-            request: child_request.clone(),
-            binding: binding.clone(),
-            clocks: ready.clocks.clone(),
-            qualified: ready.qualified.clone(),
-            valid_until_ns: ready.valid_until_ns,
-            source: Arc::downgrade(&source),
-            record: stream_record(&ready.record, actor, &child_request, &binding),
+        // The original request remains in custody. A fresh observation can
+        // resolve a narrow timing refusal before preparation is consumed.
+        let refresh_deadline = Instant::now() + Duration::from_millis(100);
+        let (_admission, ready, consumed_source, clock_guard) = loop {
+            let _admission = self
+                .handy_reconciliation_admission
+                .try_read()
+                .map_err(|_| unavailable("HSP recovery admission is fenced"))?;
+            let now = entry.io.now()?;
+            let mut state = entry.state.lock().map_err(internal)?;
+            let ready = state.ready.as_ref().ok_or_else(mismatch)?;
+            if state.consumed
+                || state.pending.is_some()
+                || now >= ready.valid_until_ns
+                || binding.owner().as_str() != actor.as_str()
+                || binding.session() != &ready.record.device_session
+                || binding.clock_domain() != &ready.clocks.server.clock.domain
+                || binding.identity().live.project != *project_id
+                || binding.identity().live.revision != ready.record.revision
+                || child_request == ready.record.request_id
+            {
+                return Err(mismatch());
+            }
+            let clock_guard = Arc::new(PreparedClockGuard {
+                entry: entry.clone(),
+                binding: binding.clone(),
+                clocks: ready.clocks.clone(),
+                valid_until_ns: ready.valid_until_ns,
+            });
+            let mut refresh_needed = false;
+            let observed = clock_owner::observe_source_current(
+                source.as_ref(),
+                &mut || entry.io.now(),
+                "native HSP source authority is unavailable",
+                |failure| {
+                    use crate::handy_hsp_dispatch::HspSourcePhaseRefusal as Cause;
+                    refresh_needed = matches!(
+                        failure,
+                        HspDispatchFailure::SourcePhase {
+                            cause: Cause::AlignmentBudget
+                                | Cause::ClockIntervalOrAge
+                                | Cause::OriginalEvidenceExpired
+                                | Cause::DisplayAge,
+                            ..
+                        }
+                    );
+                },
+            );
+            let observed = match observed {
+                Err(_) if refresh_needed && Instant::now() < refresh_deadline => {
+                    drop(state);
+                    drop(_admission);
+                    thread::sleep(Duration::from_millis(5));
+                    continue;
+                }
+                result => result?,
+            };
+            let now = observed.sampled_at_ns;
+            if now >= ready.valid_until_ns {
+                return Err(mismatch());
+            }
+            let initial = observed
+                .snapshot
+                .facts
+                .ok_or_else(|| unavailable("native HSP source facts are absent"))?;
+            clock_guard.validate(now, &initial).map_err(|_| {
+                unavailable("native HSP source facts differ from original preparation clocks")
+            })?;
+            let consumed_source = clock_owner::ConsumedSource {
+                request: child_request.clone(),
+                binding: binding.clone(),
+                clocks: ready.clocks.clone(),
+                qualified: ready.qualified.clone(),
+                valid_until_ns: ready.valid_until_ns,
+                source: Arc::downgrade(&source),
+                record: stream_record(&ready.record, actor, &child_request, &binding),
+            };
+            let ready = state.ready.take().ok_or_else(mismatch)?;
+            state.consumed = true;
+            state.phase = HandyHspPreparationPhase::Retired;
+            state.candidate = None;
+            drop(state);
+            break (_admission, ready, consumed_source, clock_guard);
         };
-        let ready = state.ready.take().ok_or_else(mismatch)?;
-        state.consumed = true;
-        state.phase = HandyHspPreparationPhase::Retired;
-        state.candidate = None;
-        drop(state);
         let remote = ready.observation.remote_hsp.as_ref().ok_or_else(mismatch)?;
         let previous = match remote.play_state {
             HandyRemotePlayState::NotInitialized => {

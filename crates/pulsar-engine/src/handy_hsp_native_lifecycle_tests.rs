@@ -449,7 +449,7 @@ fn native_retirement_after_claim_preserves_unknown_without_put() {
     assert!(completion.claim.is_some());
     assert!(matches!(
         completion.attempt,
-        HspDispatchAttempt::Observed { response: None }
+        HspDispatchAttempt::Observed { response: None, .. }
     ));
     let record = completion
         .observe(
@@ -533,7 +533,7 @@ fn native_claim_suspend_releases_runtime_but_preserves_exact_claim_custody() {
     assert!(completion.claim.is_some());
     assert!(matches!(
         completion.attempt,
-        HspDispatchAttempt::Observed { response: None }
+        HspDispatchAttempt::Observed { response: None, .. }
     ));
     let record = completion
         .observe(
@@ -593,7 +593,7 @@ fn native_claim_completion_rechecks_fresh_facts_and_keeps_original_reference() {
     assert!(completion.claim.is_some());
     assert!(matches!(
         completion.attempt,
-        HspDispatchAttempt::Observed { response: None }
+        HspDispatchAttempt::Observed { response: None, .. }
     ));
     assert_eq!(
         rig.runtime.lock().unwrap().state(),
@@ -635,7 +635,7 @@ fn native_claim_completion_never_renews_original_expiry() {
     assert!(completion.claim.is_some());
     assert!(matches!(
         completion.attempt,
-        HspDispatchAttempt::Observed { response: None }
+        HspDispatchAttempt::Observed { response: None, .. }
     ));
     assert_eq!(rig.peer.puts(), 0);
 }

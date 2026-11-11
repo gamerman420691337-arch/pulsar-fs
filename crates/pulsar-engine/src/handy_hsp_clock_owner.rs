@@ -368,6 +368,7 @@ fn validate_dependencies(
         source.as_ref(),
         clock,
         "continuity source authority unavailable",
+        |_| {},
     )?;
     let facts = observed.snapshot.facts.ok_or_else(mismatch)?;
     if facts.binding() != binding
@@ -384,6 +385,7 @@ pub(super) fn observe_source_current(
     source: &dyn HspNativeAuthority,
     clock: &mut dyn FnMut() -> PResult<u64>,
     source_refusal: &'static str,
+    on_source_refusal: impl FnOnce(&HspDispatchFailure),
 ) -> PResult<HspAuthorityEvaluation> {
     let mut calls = 0u8;
     let mut sampled = None;
@@ -410,7 +412,17 @@ pub(super) fn observe_source_current(
     if let Some(error) = refusal {
         return Err(error);
     }
-    let observed = result.map_err(|_| unavailable(source_refusal))?;
+    let observed = result
+        .inspect_err(on_source_refusal)
+        .map_err(|failure| match failure {
+            HspDispatchFailure::PlaybackClock(_) | HspDispatchFailure::SourcePhase { .. } => {
+                ProtocolError::new(
+                    ErrorCode::Unavailable,
+                    format!("{source_refusal}: {failure:?}"),
+                )
+            }
+            _ => unavailable(source_refusal),
+        })?;
     if calls != 1 || sampled != Some(observed.sampled_at_ns) {
         return Err(mismatch());
     }
@@ -639,6 +651,7 @@ impl Engine {
             source.as_ref(),
             &mut || entry.budget(),
             "original source is unavailable",
+            |_| {},
         )?;
         let now = observed.sampled_at_ns;
         if now >= consumed.valid_until_ns || now < admission.admitted_at_ns {

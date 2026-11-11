@@ -123,6 +123,7 @@ struct Record {
     pending_reply: bool,
     report: Option<BrowserTimingReport>,
     probe: Option<BrowserTimingProbe>,
+    last_consumed_sequence: u64,
     release: ReleaseState,
     issue: Option<&'static str>,
     first_failure: Option<FailureDiagnostic>,
@@ -379,6 +380,7 @@ fn execute(client: &SessionClient, shared: &Shared, job: &Job) -> Result<Value> 
                     .observation
                     .as_ref()
                     .map_or(0, |o| o.sequence)
+                    .max(record.last_consumed_sequence)
                     .checked_add(1)
                     .context("timing sequence overflow")?;
                 Command::IssueBrowserTimingProbe {
@@ -457,6 +459,7 @@ fn accept_reply(shared: &Shared, job: &Job, reply: pulsar_protocol::ResponseBody
             .observation
             .as_ref()
             .map_or(0, |o| o.sequence)
+            .max(record.last_consumed_sequence)
             .checked_add(1)
             .context("timing sequence overflow")?;
         ensure!(
@@ -489,16 +492,39 @@ fn accept_reply(shared: &Shared, job: &Job, reply: pulsar_protocol::ResponseBody
                 .as_ref()
                 .context("timing observation absent")?;
             let probe = record.probe.as_ref().context("timing probe absent")?;
-            ensure!(
-                accepted.sequence == observation.sequence()?
-                    && accepted.frame == observation.frame
-                    && accepted.bracket.native_issue_ns == probe.issued_at_boottime_ns
-                    && accepted.bracket.native_receive_ns < probe.expires_at_boottime_ns,
-                "timing observation reply differs"
-            );
+            let submitted = observation.sequence()?;
+            if let Some(discarded) = report.discarded_probe_sequence {
+                ensure!(
+                    discarded == submitted
+                        && discarded == probe.sequence
+                        && record
+                            .report
+                            .as_ref()
+                            .and_then(|prior| prior.observation.as_ref())
+                            == Some(accepted),
+                    "discarded timing probe or retained observation differs"
+                );
+            } else {
+                ensure!(
+                    accepted.sequence == submitted
+                        && accepted.frame == observation.frame
+                        && accepted.bracket.native_issue_ns == probe.issued_at_boottime_ns
+                        && accepted.bracket.native_receive_ns < probe.expires_at_boottime_ns,
+                    "timing observation reply differs"
+                );
+            }
+            record.last_consumed_sequence = submitted;
             record.probe = None;
+        } else {
+            ensure!(
+                report.discarded_probe_sequence.is_none(),
+                "unsolicited discarded timing probe"
+            );
         }
-        let value = projection(&report);
+        let mut value = projection(&report);
+        if let Some(discarded) = report.discarded_probe_sequence {
+            value["discarded_probe_sequence"] = json!(discarded.to_string());
+        }
         record.report = Some(report);
         Ok(value)
     }
@@ -602,6 +628,7 @@ impl Timing {
                 pending_reply: false,
                 report: None,
                 probe: None,
+                last_consumed_sequence: 0,
                 release: ReleaseState::Needed,
                 issue: None,
                 first_failure: None,
@@ -880,6 +907,7 @@ impl Timing {
                 pending_reply: false,
                 report: None,
                 probe: None,
+                last_consumed_sequence: 0,
                 release: ReleaseState::Needed,
                 issue: None,
                 first_failure: None,

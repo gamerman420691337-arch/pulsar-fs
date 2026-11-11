@@ -32,7 +32,7 @@ function player({frameReply,holdStart=false,recording=false,limit="1024",candida
   Object.defineProperty(analysisVideo,'src',{get:()=>analysisSource,set(value){analysisSource=value;analysisVideo.readyState=0;analysisVideo.currentSrc='';if(analysisMetadata&&value?.startsWith('/media/'))Promise.resolve().then(()=>{if(analysisSource===value)analysisLoaded(value);});}});
   Object.defineProperty(analysisVideo,'currentTime',{get:()=>analysisPosition,set(value){analysisPosition=value;analysisVideo.seeking=true;const source=analysisSource;analysisEvents.seeking?.();if(analysisSeek)Promise.resolve().then(()=>{if(analysisSource===source&&analysisPosition===value)analysisSettled(value);});}});
   if(!frameCallbacks)delete video.requestVideoFrameCallback;
-  const elements={'analysis-continuity':{checked:false},'analysis-video':analysisVideo,'lookahead':{checked:lookahead},'lookahead-ms':{value:lookaheadMs},'lookahead-status':{textContent:''},'analysis-estimate':{textContent:''},camera:{},video,position:{value:0},status:{textContent:''},'guard-status':{textContent:''},'timing-status':{textContent:''},'inspect-timing':{},'handy-status':{textContent:''},'handy-selection':{textContent:''},'handy-inspect':{disabled:true},'handy-start':{disabled:true},'handy-original':{disabled:true},'handy-stop':{disabled:true},'handy-environment-ack':{checked:false},'handy-play-ack':{checked:false},'handy-online-ack':{checked:false},file:{},stop:{},"share-tab":{},record:{checked:recording},"record-limit":{value:limit},"recording-selection":{},"record-status":{},"record-details":{},"refresh-recordings":{},"read-recording":{},"retire-recordings":{},"retire-recordings-ack":{checked:false},"recording-history":{},"save-recording":{},"candidate-start":{value:"0"},"candidate-end":{value:"60"},"candidate-interval":{value:"200"},"stage-candidate":{},"retry-candidate":{},"candidate-status":{},"retire-candidate":{},"retire-candidate-ack":{checked:false},"candidate-history":{},"review-candidate":{},"candidate-message":{},"candidate-details":{},"commit-ack":{checked:false},"commit-candidate":{disabled:true},"retry-commit":{},"inspect-export":{},"download-script":{},"retry-export":{},"export-status":{},"retire-export":{},"retire-export-ack":{checked:false},"export-history":{},"export-history-selection":{},"history-download":{},"prepare-gaps":{},"stage-gaps":{},"gap-status":{},"retire-gap":{},"retire-gap-ack":{checked:false},"gap-history":{},"gap-ack":{checked:false}};
+  const elements={'analysis-continuity':{checked:false},'analysis-video':analysisVideo,'lookahead':{checked:lookahead},'lookahead-ms':{value:lookaheadMs},'lookahead-status':{textContent:''},'analysis-estimate':{textContent:''},camera:{},video,position:{value:0},status:{textContent:''},'guard-status':{textContent:''},'timing-status':{textContent:''},'timing-exchange':{textContent:''},'inspect-timing':{},'handy-status':{textContent:''},'handy-selection':{textContent:''},'handy-inspect':{disabled:true},'handy-start':{disabled:true},'handy-original':{disabled:true},'handy-stop':{disabled:true},'handy-environment-ack':{checked:false},'handy-play-ack':{checked:false},'handy-online-ack':{checked:false},file:{},stop:{},"share-tab":{},record:{checked:recording},"record-limit":{value:limit},"recording-selection":{},"record-status":{},"record-details":{},"refresh-recordings":{},"read-recording":{},"retire-recordings":{},"retire-recordings-ack":{checked:false},"recording-history":{},"save-recording":{},"candidate-start":{value:"0"},"candidate-end":{value:"60"},"candidate-interval":{value:"200"},"stage-candidate":{},"retry-candidate":{},"candidate-status":{},"retire-candidate":{},"retire-candidate-ack":{checked:false},"candidate-history":{},"review-candidate":{},"candidate-message":{},"candidate-details":{},"commit-ack":{checked:false},"commit-candidate":{disabled:true},"retry-commit":{},"inspect-export":{},"download-script":{},"retry-export":{},"export-status":{},"retire-export":{},"retire-export-ack":{checked:false},"export-history":{},"export-history-selection":{},"history-download":{},"prepare-gaps":{},"stage-gaps":{},"gap-status":{},"retire-gap":{},"retire-gap-ack":{checked:false},"gap-history":{},"gap-ack":{checked:false}};
   Object.assign(elements,{'refresh-media':{},'media-selection':{value:'',children:[],replaceChildren(){this.children=[];this.value='';},appendChild(option){this.children.push(option);if(!this.value)this.value=option.value;}},'media-details':{},'media-presentation-anchor':{value:'0'},'media-elapsed-anchor':{value:'0'},'media-clock-ack':{checked:false},'prepare-media':{},'inspect-media':{},'release-media':{},'media-message':{textContent:''}});
   Object.assign(elements,Object.fromEntries(['hsp-inspect','hsp-prepare','hsp-preparation-status','hsp-cancel','hsp-bind','hsp-continuity-enable','hsp-continuity-status','hsp-play','hsp-stop','hsp-status'].map(id=>[id,{disabled:true}])));
   Object.assign(elements,Object.fromEntries(['hsp-prepare-ack','hsp-environment-ack','hsp-online-ack','hsp-play-ack','hsp-continuity-ack'].map(id=>[id,{checked:false}])));
@@ -724,7 +724,15 @@ test('native timing uses one fresh callback atom and displays only an unqualifie
  const request=p.sent.find(r=>r.route==='/player/timing-observe');assert.ok(request);
  assert.deepEqual(jsonBody(request),{sequence:'1',probe_id:'probe-1',frame:{sample:{browser_tick_us:10000,media_time_us:100000,presented_frames:1,playing:true,seeking:false,ended:false,visible:true,playback_rate_milli:1000},callback_tick_us:10000,presentation_time_us:8000,expected_display_time_us:12000}});
  assert.match(p.elements['timing-status'].textContent,/10000000 ns/);assert.match(p.elements['timing-status'].textContent,/1\/2 s/);assert.match(p.elements['timing-status'].textContent,/Unqualified/);
+ assert.match(p.elements['timing-exchange'].textContent,/Probe 1: request .* ms, fresh frame .* ms\. Observation request .* ms\./);
  assert.ok(!p.sent.some(r=>Buffer.from(r.body).toString().includes('boottime')));
+});
+test('browser keeps the submitted probe measurement when observation is refused',async()=>{
+ const p=mediaPlayer({timing:true,replyOverride:r=>r.route==='/player/timing-observe'?{ok:false,json:async()=>({error:'observation refused'})}:null});
+ await prepareMedia(p);p.play();await flush();p.advance(15);await p.frame(.1,1);await flush();
+ assert.match(p.elements['timing-status'].textContent,/observation refused/);
+ assert.match(p.elements['timing-exchange'].textContent,/^Probe 1: request .* ms, fresh frame 15\.0 ms\.$/);
+ assert.equal(p.sent.filter(r=>r.route==='/player/timing-observe').length,1);
 });
 test('timing ignores cached or repeated frame counters after a delayed nonce reply',async()=>{
  const p=mediaPlayer({timing:true,holdRoute:'/player/timing-probe'});await prepareMedia(p);p.play();await p.frame(.1,1);await flush();
@@ -732,6 +740,34 @@ test('timing ignores cached or repeated frame counters after a delayed nonce rep
  p.releaseRoute();await flush();await p.frame(.1,1);assert.equal(p.sent.filter(r=>r.route==='/player/timing-observe').length,0);
  p.advance(1);await p.frame(.2,2);await flush();assert.equal(p.sent.filter(r=>r.route==='/player/timing-observe').length,1);
  assert.equal(jsonBody(p.sent.find(r=>r.route==='/player/timing-observe')).frame.sample.media_time_us,200000);
+});
+test('timing refresh accounts for measured probe latency and adjacent frame cadence',async()=>{
+ const p=mediaPlayer({timing:true,holdRoute:'/player/timing-probe'});await prepareMedia(p);p.play();await flush();
+ await p.frame(.1,1);p.advance(15);p.releaseRoute();await flush();
+ p.advance(68);await p.frame(.183333,2);await flush();
+ const probes=()=>p.sent.filter(r=>r.route==='/player/timing-probe').length;
+ assert.equal(probes(),1);
+ p.advance(134);await flush();assert.equal(probes(),1);
+ p.advance(1);await flush();assert.equal(probes(),2);
+});
+test('HSP-configured playback refreshes before the ordinary timing cadence',async()=>{
+ const p=mediaPlayer({timing:true,hspConfigured:true});await prepareMedia(p);p.play();await flush();await p.frame(.1,1);await flush();
+ const probes=()=>p.sent.filter(r=>r.route==='/player/timing-probe').length;
+ assert.equal(probes(),1);
+ p.advance(124);await flush();assert.equal(probes(),1);
+ p.advance(1);await flush();assert.equal(probes(),2);
+});
+test('discarded timing refresh preserves the original local expiry',async()=>{
+ const p=mediaPlayer({timing:true,replyOverride:r=>{
+  if(r.route!=='/player/timing-observe'||jsonBody(r).sequence!=='2')return null;
+  return {ok:true,json:async()=>({current:true,qualified:false,discarded_probe_sequence:'2',
+   observation:{sequence:'1',bracket_width_ns:'10000000',project_phase:{numerator:'1',denominator:'2'}}})};
+ }});
+ await prepareMedia(p);p.play();await flush();await p.frame(.1,1);await flush();
+ p.advance(250);await flush();await p.frame(.2,2);await flush();
+ assert.match(p.elements['timing-status'].textContent,/10000000 ns/);
+ p.advance(2750);await flush();
+ assert.match(p.elements['timing-status'].textContent,/expired locally/);
 });
 test('timing observation lane continues while original inference Start is held',async()=>{
  const p=mediaPlayer({timing:true,holdStart:true});await prepareMedia(p);p.play();await flush();
@@ -1228,6 +1264,19 @@ function hspAck(p,...ids){for(const id of ids){p.elements['hsp-'+id+'-ack'].chec
 async function inspectHspPlayer(p){await startLookahead(p);await p.analysisFrame(1.1);await p.elements['hsp-inspect'].onclick();}
 async function bindHspPlayer(p){await inspectHspPlayer(p);hspAck(p,'prepare');await p.elements['hsp-prepare'].onclick();hspAck(p,'environment','online');await p.elements['hsp-bind'].onclick();}
 
+test('HSP Bind waits for a current browser bracket within the inspected source limit',async()=>{
+ const p=hspPlayer({replyOverride:r=>{
+  if(r.route!=='/player/timing-observe'||jsonBody(r).sequence!=='2')return null;
+  return {ok:true,json:async()=>({current:true,qualified:false,observation:{sequence:'2',bracket_width_ns:'8000000',project_phase:{numerator:'1',denominator:'2'}}})};
+ }});
+ p.setHspView({source:{maximum_timing_bracket_ns:'9000000'}});
+ await inspectHspPlayer(p);hspAck(p,'prepare');await p.elements['hsp-prepare'].onclick();hspAck(p,'environment','online');
+ assert.equal(p.elements['hsp-bind'].disabled,true);
+ await p.elements['hsp-bind'].onclick();
+ assert.ok(!p.sent.some(r=>r.route==='/player/hsp-bind'));
+ p.advance(125);await flush();await p.frame(.2,2);await flush();
+ assert.equal(p.elements['hsp-bind'].disabled,false);
+});
 test('HSP video Play starts only visible timing and real analysis callbacks',async()=>{
  const p=hspPlayer();hspAck(p,'prepare','environment','online','play','continuity');await startLookahead(p);await p.analysisFrame(1.1);
  assert.ok(!p.sent.some(r=>r.route.startsWith('/player/hsp-')));assert.equal(p.elements['hsp-prepare'].disabled,true);assert.equal(p.elements['hsp-play-ack'].checked,false);
@@ -1281,7 +1330,7 @@ test('HSP natural analysis tail keeps visible player; pause and seek still retir
 
 // These authored observations drive the real client callback/transfer state machine.
 // They are ordering tests, not evidence of native promotion or physical playback.
-function twoTransferHspPlayer(){
+function twoTransferHspPlayer(holdRoute=null,discardSecondTiming=false){
  let selectedPlayer,policy,current=1,upload=null,nextUpload=null,successor=null,sequence=0;
  const ok=data=>({ok:true,json:async()=>data});
  const epoch=n=>n===1?'epoch-one':n===2?'epoch-two':'epoch-three';
@@ -1289,13 +1338,17 @@ function twoTransferHspPlayer(){
  const base=()=>({active:true,identity:{epoch:epoch(current)},options:{lease_ms:30000,policy:{maximum_analysis_age_ns:2e9}},inference:{completed:0}});
  const transfer=phase=>({original_request_id:'transfer-'+current,preparation_request_id:'successor-prepare-'+current,predecessor:{epoch:epoch(current)},successor:{epoch:epoch(current+1)},boundary:{native_only:true},phase,predecessor_worker_joined:phase!=='boundary_reserved'&&phase!=='joining_predecessor',predecessor_delivery_settled:phase!=='boundary_reserved'&&phase!=='joining_predecessor',successor_pair_accepted:!!nextUpload});
  const pending=phase=>({...base(),browser:{analysis_feed:feed(current),analysis_last_upload:upload,analysis_successor:{original_request_id:'successor-prepare-'+current,feed:successor,report:{original_request_id:'successor-prepare-'+current,predecessor:{epoch:epoch(current)},successor:{identity:{epoch:epoch(current+1)},options:{lease_ms:30000}},phase:'prepared'},transfer:phase?transfer(phase):null,last_upload:nextUpload}}});
- const p=hspPlayer({replyOverride:r=>{
+ const p=hspPlayer({holdRoute,replyOverride:r=>{
   if(r.route==='/start'){const start=jsonBody(r);policy=start.analysis.policy;selectedPlayer={launch_id:r.headers['X-Pulsar-Launch'],page_id:r.headers['X-Pulsar-Page'],player_id:r.headers['X-Pulsar-Player'],source_id:r.headers['X-Pulsar-Source'],generation:Number(r.headers['X-Pulsar-Generation']),time_basis:start.source_time_basis};}
   if(r.route==='/frame'){const h=rgbPacket(r).header;upload={media_us:h.media_us,observation:h.analysis};return ok({...base(),browser:{analysis_feed:feed(current),analysis_last_upload:upload,analysis_continuity:{enabled:true,prepare_due:current<3,media_preparation_request_id:'media-prepare-'+current}}});}
   if(r.route==='/media/continue'||r.route==='/media/continue-status')return ok({...readyMedia,preparation_request_id:'media-prepare-'+(current+1)});
   if(r.route==='/player/timing-next-open')return ok({pending:true});
   if(r.route==='/player/timing-next-probe')return ok({sequence:String(++sequence),probe_id:'next-probe-'+sequence,probe_timeout_ms:1000,observation_timeout_ms:3000});
-  if(r.route==='/player/timing-next-observe')return ok({current:true,qualified:false,observation:{sequence:jsonBody(r).sequence}});
+  if(r.route==='/player/timing-next-observe'){
+   const sequence=jsonBody(r).sequence;
+   if(discardSecondTiming&&sequence==='2')return ok({current:true,qualified:false,discarded_probe_sequence:sequence,observation:{sequence:'1'}});
+   return ok({current:true,qualified:false,observation:{sequence}});
+  }
   if(r.route==='/analysis/prepare'){successor=feed(current+1);nextUpload=null;return ok(pending());}
   if(r.route==='/analysis/transfer')return ok(pending('awaiting_successor_pair'));
   if(r.route==='/analysis/successor-frame'){const h=rgbPacket(r).header;nextUpload={media_us:h.media_us,observation:h.analysis};return ok(pending('ready_for_transfer'));}
@@ -1305,14 +1358,52 @@ function twoTransferHspPlayer(){
 }
 test('HSP two committed analysis transfers preserve one Bind and Play without synthetic callbacks',async()=>{
  const p=twoTransferHspPlayer();await bindHspPlayer(p);hspAck(p,'continuity');await p.elements['hsp-continuity-enable'].onclick();hspAck(p,'play');await p.elements['hsp-play'].onclick();const src=p.elements.video.src,loads=p.elements.video.loads;
- await flush();await p.frame(.2,2);await flush();await flush();assert.equal(p.continuityState().phase,'boundary');await p.analysisFrame(1.2);await p.analysisFrame(1.3);p.advance(100);await flush();await flush();assert.equal(p.continuityState().count,1);
- await p.frame(.3,3);await flush();await p.analysisFrame(1.4);await flush();await flush();await p.frame(.4,4);await flush();await flush();assert.equal(p.continuityState().phase,'boundary');await p.analysisFrame(1.5);await p.analysisFrame(1.6);p.advance(100);await flush();await flush();assert.equal(p.continuityState().count,2);assert.equal(p.continuityState().epoch,'epoch-three');
+ await flush();await p.frame(.2,2);await flush();await flush();assert.equal(p.continuityState().phase,'boundary');await p.analysisFrame(1.2);await p.analysisFrame(1.3);await p.analysisFrame(1.4);
+ assert.equal(p.sent.filter(r=>r.route==='/frame'||r.route==='/analysis/successor-frame').length,3);
+ p.advance(100);await flush();await flush();assert.equal(p.continuityState().count,1);
+ const retained=rgbPacket(p.sent.filter(r=>r.route==='/frame').at(-1));assert.equal(retained.header.media_us,1400000);
+ assert.equal(retained.header.analysis.visible_media_us,200000);
+ await p.frame(.3,3);await flush();await p.frame(.4,4);await flush();await flush();assert.equal(p.continuityState().phase,'boundary');await p.analysisFrame(1.5);await p.analysisFrame(1.6);p.advance(100);await flush();await flush();assert.equal(p.continuityState().count,2);assert.equal(p.continuityState().epoch,'epoch-three');
  p.setHspView({stream:{request_id:'original-stream',phase:'playing',active_source_generation:3,delivered_samples:5}});await p.elements['hsp-status'].onclick();assert.match(p.elements['hsp-details'].textContent,/original-stream/);assert.match(p.elements['hsp-details'].textContent,/"active_source_generation": 3/);
  const uploads=p.sent.filter(r=>r.route==='/frame'||r.route==='/analysis/successor-frame').map(rgbPacket);assert.deepEqual(uploads.map(x=>x.header.media_us),[1100000,1200000,1300000,1400000,1500000,1600000]);assert.ok(uploads.every(x=>x.pixels.every(v=>v===128)));assert.equal(p.drawSources.length,6);assert.equal(p.elements.video.src,src);assert.equal(p.elements.video.loads,loads);assert.equal(p.sent.filter(r=>r.route==='/player/start').length,1);assert.equal(p.sent.filter(r=>r.route==='/analysis/transfer').length,2);
  for(const route of ['prepare','bind','play','continuity-enable'])assert.equal(p.sent.filter(r=>r.route==='/player/hsp-'+route).length,1);p.analysisEnd(2);await flushFinish();assert.equal(jsonBody(p.sent.find(r=>r.route==='/analysis/finish')).capture_epoch,'epoch-three');assert.equal(p.elements.video.paused,false);
 });
 
 
+test('HSP staged successor tolerates a discard without restarting preparation',async()=>{
+ const p=twoTransferHspPlayer(null,true);await bindHspPlayer(p);
+ await flush();await p.frame(.2,2);await flush();await flush();
+ assert.equal(p.continuityState().phase,'boundary');
+ p.advance(125);await flush();await p.frame(.24,3);await flush();
+ assert.equal(p.sent.filter(r=>r.route==='/player/timing-next-observe').length,2);
+ assert.equal(p.sent.filter(r=>r.route==='/analysis/prepare').length,1);
+ assert.equal(p.continuityState().phase,'boundary');
+ assert.equal(p.elements.video.paused,false);
+ const probes=()=>p.sent.filter(r=>r.route==='/player/timing-next-probe').length;
+ assert.equal(probes(),2);
+ p.advance(19);await flush();assert.equal(probes(),2);
+ p.advance(1);await flush();assert.equal(probes(),3);
+});
+test('HSP retains the first successor callback while predecessor settlement is held',async()=>{
+ const p=twoTransferHspPlayer('/analysis/transfer');await bindHspPlayer(p);
+ await flush();await p.frame(.2,2);await flush();await flush();
+ assert.equal(p.continuityState().phase,'boundary');
+ const boundary=p.analysisFrame(1.2);await flush();
+ assert.equal(p.continuityState().phase,'reserving');
+ await p.analysisFrame(1.3);
+ assert.ok(!p.sent.some(r=>r.route==='/analysis/successor-frame'));
+ p.releaseRoute();await boundary;await flush();
+ const first=rgbPacket(p.sent.find(r=>r.route==='/analysis/successor-frame'));
+ await p.analysisFrame(1.4);await flush();
+ assert.equal(first.header.media_us,1300000);
+ assert.equal(first.header.analysis.visible_media_us,200000);
+ assert.ok(first.pixels.every(v=>v===128));
+ p.advance(100);await flush();await flush();assert.equal(p.continuityState().count,1);
+ const observations=p.sent.filter(r=>r.route==='/player/timing-observe').length;
+ await p.analysisFrame(1.5);await flush();
+ assert.equal(p.sent.filter(r=>r.route==='/player/timing-observe').length,observations);
+ assert.equal(rgbPacket(p.sent.filter(r=>r.route==='/frame').at(-1)).header.media_us,1500000);
+});
 test('HSP held Bind cannot block Stop or restore its stale Prefilling reply',async()=>{
  const p=hspPlayer({holdRoute:'/player/hsp-bind'});await inspectHspPlayer(p);hspAck(p,'prepare');await p.elements['hsp-prepare'].onclick();hspAck(p,'environment','online');const pending=p.elements['hsp-bind'].onclick();await flush();await p.elements['hsp-stop'].onclick();p.releaseRoute();await pending;hspAck(p,'play');await p.elements['hsp-play'].onclick();
  assert.equal(p.sent.filter(r=>r.route==='/player/hsp-stop').length,1);assert.ok(!p.sent.some(r=>r.route==='/player/hsp-play'));assert.match(p.elements['hsp-status-message'].textContent,/stopped/);

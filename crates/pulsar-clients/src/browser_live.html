@@ -1,6 +1,6 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pulsar live browser preview</title>
 <style>body{background:#151922;color:#eee;font:17px system-ui;max-width:1000px;margin:32px auto;padding:16px}video{width:100%;max-height:65vh;background:#000}button,input{font:inherit;margin:8px 4px;padding:8px}progress{width:100%;height:32px}#status{white-space:pre-wrap}small{color:#bbc}</style>
-<h1>Pulsar browser motion preview</h1><p>Select a local video, explicitly share a browser tab, or use a camera. Play at normal speed to analyze it. Pause or seek clears the preview and stops its capture.</p><label><input id="record" type="checkbox"> Record accepted estimates for the next playback</label><label> Maximum estimates per capture <input id="record-limit" type="number" min="1" max="4096" value="1024"></label><input id="file" type="file" accept="video/*"><button id="share-tab">Share a browser tab</button><button id="camera">Use camera</button><p>Camera access is requested only by Use camera; no microphone is requested. Camera timestamps describe browser presentation, not a calibrated device clock. Shared-tab timestamps describe the captured stream, not the source player timeline. Tab-player seeking/pause detection and toy synchronization remain unavailable.</p><section><h2>Engine media and placement</h2><p>Prepare exact imported bytes from an active Engine placement. Local files, cameras, and shared tabs remain unbound. The clock mapping below is producer-declared, not calibrated or synchronized.</p><button id="refresh-media">Refresh Engine sources</button><select id="media-selection" aria-label="Engine source and placement"></select><pre id="media-details"></pre><label>Browser presentation anchor (microseconds) <input id="media-presentation-anchor" type="text" inputmode="numeric" value="0"></label><label>Native source-elapsed anchor (microseconds) <input id="media-elapsed-anchor" type="text" inputmode="numeric" value="0"></label><label><input id="media-clock-ack" type="checkbox"> I declare this anchor mapping; defaults are not calibration or synchronization evidence</label><p>Anchor and catalog edits apply only to a new preparation after releasing the original selection.</p><button id="prepare-media">Prepare selected source</button><button id="inspect-media">Inspect original preparation</button><button id="release-media">Release prepared source</button><p id="media-message">No Engine source prepared. Preparation does not start playback, inference, or device motion.</p></section><section><label><input id="lookahead" type="checkbox"> Analyze ahead using prepared Engine media</label><label>Requested lead (ms) <input id="lookahead-ms" type="number" min="1" max="15000" value="1000"></label><label><input id="analysis-continuity" type="checkbox"> Continue analysis for longer videos</label><p id="lookahead-status">Lookahead is off. Ordinary preview uses the visible player.</p><video id="analysis-video" muted playsinline hidden aria-label="Analysis reader ahead of visible playback" style="width:180px;max-height:120px"></video><p id="analysis-estimate"></p></section><video id="video" controls playsinline></video><button id="stop">Stop preview</button><button id="resume-after-seek" hidden>Resume analysis after seek</button><progress id="position" max="1" value="0"></progress><p id="status">Choose a video to begin.</p><p id="guard-status">Handy stop guard: no player registered. Monitoring does not establish browser/device synchronization or physical stopping.</p><p id="timing-status">Browser timing: no prepared player. Transport observations do not calibrate display, source, or device timing.</p><button id="inspect-timing">Inspect original timing status</button><section><h2>Prepared Handy browser Start (hosted HSSP)</h2><p>Video Play starts analysis and browser timing only. Device Start is a separate explicit action using a prepared Active controller and accepted browser/source dossier.</p><button id="handy-inspect" disabled>Inspect prepared selection</button><pre id="handy-selection"></pre><label><input id="handy-environment-ack" type="checkbox"> I confirm this browser environment matches the displayed accepted dossier</label><label><input id="handy-play-ack" type="checkbox"> Start the selected Handy playback</label><label><input id="handy-online-ack" type="checkbox"> Allow ongoing qualified device timing inspections during this playback</label><button id="handy-start" disabled>Start selected Handy playback</button><button id="handy-original" disabled>Inspect ORIGINAL Start</button><button id="handy-stop" disabled>Stop/release Handy</button><p id="handy-status">Prepared browser playback controls are not configured. No device motion is requested by video Play.</p><small>Controller and clock input can expire during setup. Stale input requires explicit fresh preparation. Transport acknowledgment does not establish physical response or stopping.</small></section><section id="hsp-panel"><h2>Handy HSP live analysis</h2><p>Video Play starts analysis and browser timing only. Inspect the native device and source selection, then explicitly prepare synchronization, bind current analysis, and Play the device.</p><button id="hsp-inspect" disabled>Inspect HSP selection</button><pre id="hsp-selection"></pre><label><input id="hsp-prepare-ack" type="checkbox"> Allow synchronization for the displayed device</label><button id="hsp-prepare" disabled>Prepare synchronization</button><button id="hsp-preparation-status" disabled>Inspect ORIGINAL preparation</button><button id="hsp-cancel" disabled>Cancel ORIGINAL preparation</button><label><input id="hsp-environment-ack" type="checkbox"> I confirm this browser environment matches the displayed source dossier</label><label><input id="hsp-online-ack" type="checkbox"> Allow ongoing online device control for this HSP stream</label><button id="hsp-bind" disabled>Bind current analysis</button><p id="hsp-continuity-duration">No bounded HSP continuity duration selected.</p><label><input id="hsp-continuity-ack" type="checkbox"> Enable HSP continuity for the displayed native duration</label><button id="hsp-continuity-enable" disabled>Enable bounded HSP continuity</button><button id="hsp-continuity-status" disabled>Inspect ORIGINAL continuity</button><label><input id="hsp-play-ack" type="checkbox"> Play the selected Handy HSP stream</label><button id="hsp-play" disabled>Play HSP stream</button><button id="hsp-stop" disabled>Stop ORIGINAL HSP stream</button><button id="hsp-status" disabled>Inspect ORIGINAL HSP status</button><p id="hsp-status-message" role="status">HSP controls are not configured. Video Play requests no device motion.</p><pre id="hsp-details"></pre><small>Readiness and remaining time are native observations. Expired preparation requires fresh explicit consent. Engine admission remains authoritative. Original Stop and cancel remain available while other work is pending. Transport acknowledgment does not confirm physical motion or stopping.</small></section><section><h2>Retained inference recordings</h2><button id="refresh-recordings">Refresh recordings</button><select id="recording-selection" aria-label="Retained capture recording"></select><button id="read-recording">Read first page</button><label><input id="retire-recordings-ack" type="checkbox"> Retire the selected stopped playback from the active index, preserving its records</label><button id="retire-recordings">Retire stopped playback index</button><button id="recording-history">Inspect retired recording index</button><button id="save-recording">Save inference record (.json)</button><p id="record-status">Recording is optional. Stop playback before saving. This is inferred/provisional evidence, not a funscript.</p><pre id="record-details"></pre></section><section><h2>Recorded motion candidate</h2><p>Select a stopped capture above. Staging includes its entire playback and all retained continuation captures. Missing coverage stays unavailable.</p><label>Project range start (seconds) <input id="candidate-start" type="number" min="0" step="0.001" value="0"></label><label>Project range end (seconds) <input id="candidate-end" type="number" min="0" step="0.001" value="60"></label><label>Maximum interpolation interval (ms) <input id="candidate-interval" type="number" min="0.001" max="1000" step="0.001" value="200"></label><button id="stage-candidate">Stage selected playback</button><button id="retry-candidate">Retry original staging request</button><button id="candidate-status">Inspect retained staging intent</button><label><input id="retire-candidate-ack" type="checkbox"> Retire the confirmed recording candidate, preserving Engine history</label><button id="retire-candidate">Retire confirmed recording candidate</button><button id="candidate-history">Inspect retired recording candidates</button><button id="review-candidate">Review candidate diagnostics</button><label><input id="commit-ack" type="checkbox"> Replace the project master with this reviewed candidate, preserving its remaining gaps</label><button id="commit-candidate" disabled>Commit reviewed candidate</button><button id="retry-commit">Retry original commit request</button><button id="prepare-gaps">Prepare all inspected Stroke gaps</button><label><input id="gap-ack" type="checkbox"> Author linear bridges and nearest-value edge holds for all inspected gaps</label><button id="stage-gaps">Stage or resume prepared gap proposal</button><button id="gap-status">Inspect or recover gap proposal intent</button><label><input id="retire-gap-ack" type="checkbox"> Retire the confirmed gap proposal, preserving Engine history</label><button id="retire-gap">Retire confirmed gap proposal</button><button id="gap-history">Inspect retired gap proposals</button><button id="inspect-export">Inspect committed Stroke for export</button><button id="download-script">Download inspected Stroke (.funscript)</button><button id="export-status">Inspect or recover script export intent</button><label><input id="retire-export-ack" type="checkbox"> Retire the confirmed export intent, preserving its files and history</label><button id="retire-export">Retire confirmed export intent</button><button id="export-history">Refresh retained export history</button><select id="export-history-selection" aria-label="Retained export history"></select><button id="history-download">Download selected retained export</button><button id="retry-export">Retry original script download</button><p id="candidate-message">Staging creates an uncommitted proposal. Commit is explicit and preserves gaps. No funscript export or device playback is started.</p><pre id="candidate-details"></pre></section><small>Explicit model output, unqualified motion preview. Prepared Handy Start requires separate accepted browser/source evidence and explicit consent. Optional existing-play monitoring can request stopping on player loss. HSP live device streaming requires its separate preparation, binding and Play controls. Server frame-receipt timing excludes browser capture/transfer delay. Gap repair authors synthetic motion and requires review and a separate commit. Script download requires a separately inspected, gap-free committed master.</small>
+<h1>Pulsar browser motion preview</h1><p>Select a local video, explicitly share a browser tab, or use a camera. Play at normal speed to analyze it. Pause or seek clears the preview and stops its capture.</p><label><input id="record" type="checkbox"> Record accepted estimates for the next playback</label><label> Maximum estimates per capture <input id="record-limit" type="number" min="1" max="4096" value="1024"></label><input id="file" type="file" accept="video/*"><button id="share-tab">Share a browser tab</button><button id="camera">Use camera</button><p>Camera access is requested only by Use camera; no microphone is requested. Camera timestamps describe browser presentation, not a calibrated device clock. Shared-tab timestamps describe the captured stream, not the source player timeline. Tab-player seeking/pause detection and toy synchronization remain unavailable.</p><section><h2>Engine media and placement</h2><p>Prepare exact imported bytes from an active Engine placement. Local files, cameras, and shared tabs remain unbound. The clock mapping below is producer-declared, not calibrated or synchronized.</p><button id="refresh-media">Refresh Engine sources</button><select id="media-selection" aria-label="Engine source and placement"></select><pre id="media-details"></pre><label>Browser presentation anchor (microseconds) <input id="media-presentation-anchor" type="text" inputmode="numeric" value="0"></label><label>Native source-elapsed anchor (microseconds) <input id="media-elapsed-anchor" type="text" inputmode="numeric" value="0"></label><label><input id="media-clock-ack" type="checkbox"> I declare this anchor mapping; defaults are not calibration or synchronization evidence</label><p>Anchor and catalog edits apply only to a new preparation after releasing the original selection.</p><button id="prepare-media">Prepare selected source</button><button id="inspect-media">Inspect original preparation</button><button id="release-media">Release prepared source</button><p id="media-message">No Engine source prepared. Preparation does not start playback, inference, or device motion.</p></section><section><label><input id="lookahead" type="checkbox"> Analyze ahead using prepared Engine media</label><label>Requested lead (ms) <input id="lookahead-ms" type="number" min="1" max="15000" value="1000"></label><label><input id="analysis-continuity" type="checkbox"> Continue analysis for longer videos</label><p id="lookahead-status">Lookahead is off. Ordinary preview uses the visible player.</p><video id="analysis-video" muted playsinline hidden aria-label="Analysis reader ahead of visible playback" style="width:180px;max-height:120px"></video><p id="analysis-estimate"></p></section><video id="video" controls playsinline></video><button id="stop">Stop preview</button><button id="resume-after-seek" hidden>Resume analysis after seek</button><progress id="position" max="1" value="0"></progress><p id="status">Choose a video to begin.</p><p id="guard-status">Handy stop guard: no player registered. Monitoring does not establish browser/device synchronization or physical stopping.</p><p id="timing-status">Browser timing: no prepared player. Transport observations do not calibrate display, source, or device timing.</p><button id="inspect-timing">Inspect original timing status</button><details><summary>Browser timing diagnostics</summary><p id="timing-exchange"></p></details><section><h2>Prepared Handy browser Start (hosted HSSP)</h2><p>Video Play starts analysis and browser timing only. Device Start is a separate explicit action using a prepared Active controller and accepted browser/source dossier.</p><button id="handy-inspect" disabled>Inspect prepared selection</button><pre id="handy-selection"></pre><label><input id="handy-environment-ack" type="checkbox"> I confirm this browser environment matches the displayed accepted dossier</label><label><input id="handy-play-ack" type="checkbox"> Start the selected Handy playback</label><label><input id="handy-online-ack" type="checkbox"> Allow ongoing qualified device timing inspections during this playback</label><button id="handy-start" disabled>Start selected Handy playback</button><button id="handy-original" disabled>Inspect ORIGINAL Start</button><button id="handy-stop" disabled>Stop/release Handy</button><p id="handy-status">Prepared browser playback controls are not configured. No device motion is requested by video Play.</p><small>Controller and clock input can expire during setup. Stale input requires explicit fresh preparation. Transport acknowledgment does not establish physical response or stopping.</small></section><section id="hsp-panel"><h2>Handy HSP live analysis</h2><p>Video Play starts analysis and browser timing only. Inspect the native device and source selection, then explicitly prepare synchronization, bind current analysis, and Play the device.</p><button id="hsp-inspect" disabled>Inspect HSP selection</button><pre id="hsp-selection"></pre><label><input id="hsp-prepare-ack" type="checkbox"> Allow synchronization for the displayed device</label><button id="hsp-prepare" disabled>Prepare synchronization</button><button id="hsp-preparation-status" disabled>Inspect ORIGINAL preparation</button><button id="hsp-cancel" disabled>Cancel ORIGINAL preparation</button><label><input id="hsp-environment-ack" type="checkbox"> I confirm this browser environment matches the displayed source dossier</label><label><input id="hsp-online-ack" type="checkbox"> Allow ongoing online device control for this HSP stream</label><button id="hsp-bind" disabled>Bind current analysis</button><p id="hsp-continuity-duration">No bounded HSP continuity duration selected.</p><label><input id="hsp-continuity-ack" type="checkbox"> Enable HSP continuity for the displayed native duration</label><button id="hsp-continuity-enable" disabled>Enable bounded HSP continuity</button><button id="hsp-continuity-status" disabled>Inspect ORIGINAL continuity</button><label><input id="hsp-play-ack" type="checkbox"> Play the selected Handy HSP stream</label><button id="hsp-play" disabled>Play HSP stream</button><button id="hsp-stop" disabled>Stop ORIGINAL HSP stream</button><button id="hsp-status" disabled>Inspect ORIGINAL HSP status</button><p id="hsp-status-message" role="status">HSP controls are not configured. Video Play requests no device motion.</p><pre id="hsp-details"></pre><small>Readiness and remaining time are native observations. Expired preparation requires fresh explicit consent. Engine admission remains authoritative. Original Stop and cancel remain available while other work is pending. Transport acknowledgment does not confirm physical motion or stopping.</small></section><section><h2>Retained inference recordings</h2><button id="refresh-recordings">Refresh recordings</button><select id="recording-selection" aria-label="Retained capture recording"></select><button id="read-recording">Read first page</button><label><input id="retire-recordings-ack" type="checkbox"> Retire the selected stopped playback from the active index, preserving its records</label><button id="retire-recordings">Retire stopped playback index</button><button id="recording-history">Inspect retired recording index</button><button id="save-recording">Save inference record (.json)</button><p id="record-status">Recording is optional. Stop playback before saving. This is inferred/provisional evidence, not a funscript.</p><pre id="record-details"></pre></section><section><h2>Recorded motion candidate</h2><p>Select a stopped capture above. Staging includes its entire playback and all retained continuation captures. Missing coverage stays unavailable.</p><label>Project range start (seconds) <input id="candidate-start" type="number" min="0" step="0.001" value="0"></label><label>Project range end (seconds) <input id="candidate-end" type="number" min="0" step="0.001" value="60"></label><label>Maximum interpolation interval (ms) <input id="candidate-interval" type="number" min="0.001" max="1000" step="0.001" value="200"></label><button id="stage-candidate">Stage selected playback</button><button id="retry-candidate">Retry original staging request</button><button id="candidate-status">Inspect retained staging intent</button><label><input id="retire-candidate-ack" type="checkbox"> Retire the confirmed recording candidate, preserving Engine history</label><button id="retire-candidate">Retire confirmed recording candidate</button><button id="candidate-history">Inspect retired recording candidates</button><button id="review-candidate">Review candidate diagnostics</button><label><input id="commit-ack" type="checkbox"> Replace the project master with this reviewed candidate, preserving its remaining gaps</label><button id="commit-candidate" disabled>Commit reviewed candidate</button><button id="retry-commit">Retry original commit request</button><button id="prepare-gaps">Prepare all inspected Stroke gaps</button><label><input id="gap-ack" type="checkbox"> Author linear bridges and nearest-value edge holds for all inspected gaps</label><button id="stage-gaps">Stage or resume prepared gap proposal</button><button id="gap-status">Inspect or recover gap proposal intent</button><label><input id="retire-gap-ack" type="checkbox"> Retire the confirmed gap proposal, preserving Engine history</label><button id="retire-gap">Retire confirmed gap proposal</button><button id="gap-history">Inspect retired gap proposals</button><button id="inspect-export">Inspect committed Stroke for export</button><button id="download-script">Download inspected Stroke (.funscript)</button><button id="export-status">Inspect or recover script export intent</button><label><input id="retire-export-ack" type="checkbox"> Retire the confirmed export intent, preserving its files and history</label><button id="retire-export">Retire confirmed export intent</button><button id="export-history">Refresh retained export history</button><select id="export-history-selection" aria-label="Retained export history"></select><button id="history-download">Download selected retained export</button><button id="retry-export">Retry original script download</button><p id="candidate-message">Staging creates an uncommitted proposal. Commit is explicit and preserves gaps. No funscript export or device playback is started.</p><pre id="candidate-details"></pre></section><small>Explicit model output, unqualified motion preview. Prepared Handy Start requires separate accepted browser/source evidence and explicit consent. Optional existing-play monitoring can request stopping on player loss. HSP live device streaming requires its separate preparation, binding and Play controls. Server frame-receipt timing excludes browser capture/transfer delay. Gap repair authors synthetic motion and requires review and a separate commit. Script download requires a separately inspected, gap-free committed master.</small>
 <script>
 'use strict';
 const PAGE_SCOPE = /*__PULSAR_PAGE_SCOPE__*/ null;
@@ -41,7 +41,7 @@ function samplePlayer(){
  if(!presentedFrame)return null;
  const browser_tick_us=Math.round(performance.now()*1000),playback_rate_milli=Math.round(video.playbackRate*1000);
  if(!Number.isSafeInteger(browser_tick_us)||browser_tick_us<0||!Number.isInteger(playback_rate_milli)||playback_rate_milli<0||playback_rate_milli>16000)throw Error('Invalid player observation.');
- return {browser_tick_us,...presentedFrame,playing:!video.paused,seeking:video.seeking,ended:video.ended,visible:document.visibilityState==='visible',playback_rate_milli};
+ return {browser_tick_us,media_time_us:presentedFrame.media_time_us,presented_frames:presentedFrame.presented_frames,playing:!video.paused,seeking:video.seeking,ended:video.ended,visible:document.visibilityState==='visible',playback_rate_milli};
 }
 async function heartbeat(scope){
  if(!currentPlayer(scope))return;
@@ -62,7 +62,7 @@ async function registerPlayer(attempt){
  if(!p||p.launch_id!==PAGE_SCOPE.launch_id||p.page_id!==PAGE_SCOPE.page_id||p.source_id!==attempt.source_id||p.generation!==attempt.generation||p.time_basis!==attempt.time_basis||typeof p.player_id!=='string'||!p.player_id||typeof result.player_capability!=='string'||!result.player_capability||!Number.isInteger(result.heartbeat_interval_ms)||result.heartbeat_interval_ms<1||result.heartbeat_interval_ms>1000)throw Error('Native player registration did not match this playback.');
  const scope={...p,player_capability:result.player_capability,heartbeat_interval_ms:result.heartbeat_interval_ms,timer:null};
  if(playerAttempt!==attempt||!armed||generation!==attempt.generation){await Promise.all([releasePlayer(scope),confirmedCaptureStop(scope)]);return null;}
- playerScope=lastPlayerScope=scope;guardStatus.textContent=guardMessage(result.guard);void heartbeat(scope);beginTiming(scope,result.timing);beginHandy(scope,analysisReader?{configured:false}:result.handy);beginHsp(scope,result.hsp);if(analysisReader&&!scope.timing)throw Error('Lookahead requires current visible-player timing.');return scope;
+ playerScope=lastPlayerScope=scope;guardStatus.textContent=guardMessage(result.guard);void heartbeat(scope);beginTiming(scope,result.timing,result.hsp?.configured===true);beginHandy(scope,analysisReader?{configured:false}:result.handy);beginHsp(scope,result.hsp);if(analysisReader&&!scope.timing)throw Error('Lookahead requires current visible-player timing.');return scope;
 }
 function stopTiming(scope){const t=scope?.timing;if(!t)return;t.stopped=true;t.observationCurrent=false;t.probe=null;for(const key of ['timer','deadline','expiry']){if(t[key]!==null)clearTimeout(t[key]);t[key]=null;}}
 function timingUnavailable(scope,message){if(!currentPlayer(scope))return;stopTiming(scope);timingStatus.textContent='Browser timing unavailable: '+message+' No calibrated synchronization is claimed.';if(analysisReader)failAnalysis(analysisReader,'Visible-player timing unavailable: '+message);}
@@ -77,10 +77,28 @@ function showTiming(report,historical=false){
  if(typeof o.bracket_width_ns!=='string'||!/^[0-9]+$/.test(o.bracket_width_ns)||!p||typeof p.numerator!=='string'||!/^[-]?[0-9]+$/.test(p.numerator)||typeof p.denominator!=='string'||!/^[1-9][0-9]*$/.test(p.denominator)||!counter(o.sequence))throw Error('Invalid native timing observation.');
  timingStatus.textContent=(historical?'Inspected original timing report; no measurement loop restarted. ':'')+'Measured callback execution bracket width: '+o.bracket_width_ns+' ns. Declared project phase: '+p.numerator+'/'+p.denominator+' s. Unqualified; no display, source, model, or physical calibration.';
 }
-function beginTiming(scope,configuration){
+function armTimingExpiry(scope,t,deadline){
+ if(t.expiry!==null)clearTimeout(t.expiry);
+ t.expiry=setTimeout(()=>{t.expiry=null;t.observationCurrent=false;hspButtons();if(currentPlayer(scope)&&!t.stopped){timingStatus.textContent='Browser timing observation expired locally; waiting for a new native observation. Unqualified.';if(analysisReader)failAnalysis(analysisReader,'Original visible-player observation expired.');}},Math.max(0,deadline-performance.now()));
+}
+function beginTiming(scope,configuration,hspConfigured,adoptedDeadline=null){
+ document.getElementById('timing-exchange').textContent='';
  if(!configuration?.configured){timingStatus.textContent='Browser timing unavailable for unbound local files, camera or shared-tab sources.';return;}
  if(configuration.error){timingStatus.textContent='Browser timing unavailable: '+configuration.error;return;}
- scope.timing={stopped:false,observationCurrent:false,inflight:false,probe:null,timer:null,deadline:null,expiry:null,handoffHeld:false};void timingProbe(scope);
+ const t=scope.timing={hspConfigured,stopped:false,observationCurrent:adoptedDeadline!==null&&adoptedDeadline>performance.now(),inflight:false,probe:null,timer:null,deadline:null,expiry:null,handoffHeld:false};
+ if(t.observationCurrent)armTimingExpiry(scope,t,adoptedDeadline);
+ void timingProbe(scope);
+}
+// Scheduling only: the native probe still requires a later observed frame.
+function timingRefreshDelay(frame,at,probeMs,hspConfigured,discarded=false){
+ const minimum=hspConfigured?(discarded?5:40):125,maximum=hspConfigured?(discarded?75:125):250;
+ if(!frame||!Number.isFinite(frame.cadence_ms)||frame.cadence_ms<20||frame.cadence_ms>125)return maximum;
+ // Leave time for the probe response before the predicted callback.
+ const responseMarginMs=Number.isFinite(probeMs)?Math.max(25,probeMs+17):25;
+ const probeLeadMs=Math.min(responseMarginMs,frame.cadence_ms/2,42);
+ const earliest=at+minimum,phase=frame.callback_ms-probeLeadMs;
+ const predicted=phase+Math.ceil((earliest-phase)/frame.cadence_ms)*frame.cadence_ms;
+ return Math.min(maximum,Math.max(minimum,predicted-at));
 }
 async function timingProbe(scope){
  const t=scope.timing;if(!currentPlayer(scope)||!t||t.stopped||t.inflight||t.probe)return;
@@ -105,13 +123,25 @@ function timingFrame(scope,now,metadata,sampledAt){
   t.probe=null;t.inflight=true;if(t.deadline!==null)clearTimeout(t.deadline);t.deadline=null;
   void (async()=>{
    try{
+    const exchange=document.getElementById('timing-exchange');
+    const probeMs=probe.received_tick_us/1000-probe.sentAt,frameMs=(browser_tick_us-probe.received_tick_us)/1000;
+    const measurement=`Probe ${probe.sequence}: request ${probeMs.toFixed(1)} ms, fresh frame ${frameMs.toFixed(1)} ms.`;
+    exchange.textContent=measurement;
+    const observeSentAt=performance.now();
     const report=await timingPost('/player/timing-observe',new TextEncoder().encode(JSON.stringify({sequence:probe.sequence,probe_id:probe.probe_id,frame})),scope);
     if(!currentPlayer(scope)||t.stopped)return;
+    if(report.discarded_probe_sequence!==undefined){
+     if(report.discarded_probe_sequence!==probe.sequence||!report.current||!t.observationCurrent||t.expiry===null)throw Error('Discarded timing probe differs or no current observation remains.');
+     showTiming(report);
+     t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},timingRefreshDelay(presentedFrame,performance.now(),probeMs,t.hspConfigured,true));
+     return;
+    }
     if(report.observation?.sequence!==probe.sequence)throw Error('Timing observation sequence differs.');
-    showTiming(report);if(!report.current){stopTiming(scope);if(analysisReader)failAnalysis(analysisReader,'Visible-player timing retired.');return;}t.observationCurrent=true;
-    if(t.expiry!==null)clearTimeout(t.expiry);
-    t.expiry=setTimeout(()=>{t.expiry=null;t.observationCurrent=false;if(currentPlayer(scope)&&!t.stopped){timingStatus.textContent='Browser timing observation expired locally; waiting for a new native observation. Unqualified.';if(analysisReader)failAnalysis(analysisReader,'Original visible-player observation expired.');}},Math.max(0,probe.sentAt+probe.observationTimeoutMs-performance.now()));
-    t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},250);
+    showTiming(report);
+    exchange.textContent=measurement+` Observation request ${(performance.now()-observeSentAt).toFixed(1)} ms.`;
+    if(!report.current){stopTiming(scope);hspButtons();if(analysisReader)failAnalysis(analysisReader,'Visible-player timing retired.');return;}t.observationCurrent=true;t.bracketWidthNs=report.observation.bracket_width_ns;hspButtons();
+    armTimingExpiry(scope,t,probe.sentAt+probe.observationTimeoutMs);
+    t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},timingRefreshDelay(presentedFrame,performance.now(),probeMs,t.hspConfigured));
    }catch(e){if(!t.stopped&&scope.timing===t)timingUnavailable(scope,e.message);}finally{t.inflight=false;}
   })();
  }catch(e){timingUnavailable(scope,e.message);}
@@ -153,7 +183,12 @@ function hspButtons(){
  const ready=configured&&current&&h.inspected&&!h.busy&&!h.readBusy&&!h.uncertain&&!h.retired&&!h.stopping&&!h.cancelling&&!v?.pending_action;
  document.getElementById('hsp-inspect').disabled=!configured||!current||h.busy||h.readBusy;
  document.getElementById('hsp-prepare').disabled=!ready||v?.can_prepare!==true||!hspChecked('hsp-prepare-ack');
- document.getElementById('hsp-bind').disabled=!ready||v?.can_bind!==true||!hspChecked('hsp-environment-ack')||!hspChecked('hsp-online-ack');
+ const bracketLimit=v?.source?.maximum_timing_bracket_ns,observedBracket=scope?.timing?.bracketWidthNs;
+ const hasBracketLimit=typeof bracketLimit==='string'&&/^[1-9][0-9]{0,19}$/.test(bracketLimit);
+ const bindTimingReady=!hasBracketLimit||(scope?.timing?.observationCurrent===true&&typeof observedBracket==='string'&&BigInt(observedBracket)<=BigInt(bracketLimit));
+ const bind=document.getElementById('hsp-bind');
+ bind.disabled=!ready||v?.can_bind!==true||!bindTimingReady||!hspChecked('hsp-environment-ack')||!hspChecked('hsp-online-ack');
+ bind.title=bindTimingReady?'':'Waiting for a current browser timing bracket within the source limit.';
  document.getElementById('hsp-continuity-enable').disabled=!ready||v?.can_enable_continuity!==true||!hspChecked('hsp-continuity-ack')||!Number.isSafeInteger(v?.continuity_duration_ms)||v.continuity_duration_ms<1;
  document.getElementById('hsp-play').disabled=!ready||v?.can_play!==true||!hspChecked('hsp-play-ack')||(hspChecked('hsp-continuity-ack')&&v?.continuity?.current!==true);
  for(const id of ['hsp-status','hsp-preparation-status','hsp-continuity-status'])document.getElementById(id).disabled=!configured||h.readBusy;
@@ -471,7 +506,11 @@ function sameAnalysisSubmission(left,right){
 }
 function stopContinuation(state){const c=state?.continuation;if(!c)return;c.retired=true;for(const key of ['timer','timingTimer','probeTimer','expiryTimer'])if(c[key]!==null&&c[key]!==undefined)clearTimeout(c[key]);c.probe=null;if(c.heldTiming)c.heldTiming.handoffHeld=false;}
 function currentContinuation(state,c){return currentAnalysis(state)&&currentPlayer(c.scope)&&state.continuation===c&&!c.retired;}
-function continuationLater(state,c,action){if(!currentContinuation(state,c))return;c.timer=setTimeout(()=>{c.timer=null;void action();},100);}
+function continuationLater(state,c,action){
+ if(!currentContinuation(state,c))return;
+ const awaitingBoundary=c.scope.timing?.hspConfigured===true&&['reserving','joining','pair'].includes(c.phase);
+ c.timer=setTimeout(()=>{c.timer=null;void action();},awaitingBoundary?25:100);
+}
 function checkSuccessor(report,state,c){
  const next=report.browser?.analysis_successor,r=next?.report,feed=next?.feed;
  if(!next||!r||!feed||next.original_request_id!==r.original_request_id||r.predecessor?.epoch!==c.predecessor||feed.capture_epoch!==r.successor?.identity?.epoch||feed.capture_epoch===c.predecessor)throw Error('Successor report changed its original capture identities.');
@@ -517,16 +556,25 @@ function continuationTimingFrame(state,now,metadata,sampledAt){
   c.probe=null;c.timingBusy=true;if(c.probeTimer!==null)clearTimeout(c.probeTimer);c.probeTimer=null;
   void(async()=>{try{
    const report=await timingPost('/player/timing-next-observe',new TextEncoder().encode(JSON.stringify({sequence:probe.sequence,probe_id:probe.probe_id,frame})),playerScope);if(!currentContinuation(state,c))return;
-   if(!report.current||report.observation?.sequence!==probe.sequence)throw Error('Successor observation differs or expired.');
-   if(c.expiryTimer!==null)clearTimeout(c.expiryTimer);c.expiryTimer=setTimeout(()=>failAnalysis(state,'Successor timing observation expired.'),Math.max(0,probe.sentAt+probe.observationTimeoutMs-performance.now()));
-   if(c.phase==='timing'){c.phase='preparing';void prepareAnalysisContinuation(state,c);}
-   if(!['reserving','pair','joining'].includes(c.phase))c.timingTimer=setTimeout(()=>{c.timingTimer=null;void continuationProbe(state,c);},250);
+   if(report.discarded_probe_sequence!==undefined){
+    if(report.discarded_probe_sequence!==probe.sequence||!report.current||c.timingDeadline===null||c.timingDeadline<=performance.now())throw Error('Discarded successor probe differs or original timing expired.');
+   }else{
+    if(!report.current||report.observation?.sequence!==probe.sequence)throw Error('Successor observation differs or expired.');
+    c.timingDeadline=probe.sentAt+probe.observationTimeoutMs;
+    if(c.expiryTimer!==null)clearTimeout(c.expiryTimer);c.expiryTimer=setTimeout(()=>failAnalysis(state,'Successor timing observation expired.'),Math.max(0,c.timingDeadline-performance.now()));
+    if(c.phase==='timing'){c.phase='preparing';void prepareAnalysisContinuation(state,c);}
+   }
+   if(!['reserving','pair','joining'].includes(c.phase)){
+    const probeMs=probe.received_tick_us/1000-probe.sentAt;
+    const delay=c.scope.timing?.hspConfigured===true?timingRefreshDelay(presentedFrame,performance.now(),probeMs,true,report.discarded_probe_sequence!==undefined):250;
+    c.timingTimer=setTimeout(()=>{c.timingTimer=null;void continuationProbe(state,c);},delay);
+   }
   }catch(e){failAnalysis(state,'Successor observation unavailable: '+e.message);}finally{c.timingBusy=false;}})();
  }catch(e){failAnalysis(state,e.message);}
 }
 function maybePrepareContinuation(report,state){
  if(!state.selection.continuity||state.continuation||state.inputPhase!=='open'||report.browser?.analysis_continuity?.prepare_due!==true)return;
- const c={scope:playerScope,phase:'media',predecessor:epoch,prepareId:null,prepareSentAt:null,captureDeadline:null,feed:null,transferId:null,pairAck:null,pairSent:false,committedReport:null,heldTiming:null,timer:null,timingTimer:null,probeTimer:null,expiryTimer:null,probe:null,timingBusy:false,retired:false};state.continuation=c;
+ const c={scope:playerScope,phase:'media',predecessor:epoch,prepareId:null,prepareSentAt:null,captureDeadline:null,feed:null,transferId:null,pairAck:null,pairSent:false,pairFrame:null,postPairFrame:null,committedReport:null,heldTiming:null,timer:null,timingTimer:null,probeTimer:null,expiryTimer:null,timingDeadline:null,probe:null,timingBusy:false,retired:false};state.continuation=c;
  const inspect=async(first)=>{if(!currentContinuation(state,c))return;try{
   const media=await mediaPost(first?'/media/continue':'/media/continue-status',{selection_id:state.media.selection_id},false,c.scope);if(!currentContinuation(state,c))return;
   if(media.selection_id!==state.media.selection_id||!['pending','ready'].includes(media.state))throw Error('Media successor identity or state differs.');
@@ -535,6 +583,15 @@ function maybePrepareContinuation(report,state){
    await post('/player/timing-next-open',new Uint8Array(),playerScope);if(!currentContinuation(state,c))return;c.phase='timing';void continuationProbe(state,c);
   }else continuationLater(state,c,()=>inspect(false));
  }catch(e){failAnalysis(state,'Media continuation unavailable: '+e.message);}};void inspect(true);
+}
+function successorPairBlocked(c){
+ const t=c.scope.timing;
+ return busy||c.timingBusy||c.probe||t?.inflight||t?.probe;
+}
+function offerRetainedSuccessorPair(state,c){
+ if(!currentContinuation(state,c)||c.phase!=='pair'||c.pairSent||!c.pairFrame||successorPairBlocked(c))return;
+ const retained=c.pairFrame;c.pairFrame=null;
+ void offerAnalysisFrame(state,retained);
 }
 function receiveContinuation(report,state,c){
  if(!currentContinuation(state,c))return;
@@ -548,11 +605,16 @@ function receiveContinuation(report,state,c){
   if(!c.pairAck){c.committedReport=report;c.phase='joining';return false;}
   stopContinuation(state);state.feed=null;checkAnalysisFeed(report,state,playerScope);epoch=state.feed.capture_epoch;state.captureDeadline=c.captureDeadline;state.lastSubmitted=c.pairAck;state.lastAck=c.pairAck;state.continuation=null;state.continuationCount++;
   const mediaRequest=report.browser?.analysis_continuity?.media_preparation_request_id;if(typeof mediaRequest!=='string'||!mediaRequest)throw Error('Committed source preparation identity missing.');state.media.preparation_request_id=mediaRequest;
-  stopTiming(playerScope);beginTiming(playerScope,{configured:true});lookaheadStatus.textContent='Capture transfer confirmed; the same visible player continues. Any skipped frames remain gaps.';
-  showAnalysis(report,0,c.pairAck.submitted.media_us,c.pairAck.capturedAt,state);return true;
+  const hspConfigured=playerScope.timing?.hspConfigured===true;stopTiming(playerScope);beginTiming(playerScope,{configured:true},hspConfigured,c.timingDeadline);lookaheadStatus.textContent='Capture transfer confirmed; the same visible player continues. Any skipped frames remain gaps.';
+  showAnalysis(report,0,c.pairAck.submitted.media_us,c.pairAck.capturedAt,state);
+  const retained=c.postPairFrame;c.postPairFrame=null;
+  if(retained)void Promise.resolve().then(()=>{
+   if(currentAnalysis(state)&&currentPlayer(c.scope)&&!busy&&state.inputPhase==='open'&&epoch===c.feed.capture_epoch)void offerAnalysisFrame(state,retained);
+  });
+  return true;
  }
  if(!['boundary_reserved','joining_predecessor','awaiting_successor_pair','ready_for_transfer'].includes(transfer.phase))throw Error('Invalid native transfer phase.');
- if(!c.pairSent){if(transfer.predecessor_worker_joined!==true||transfer.predecessor_delivery_settled!==true){c.phase='joining';return false;}c.phase='pair';if(playerScope.timing){c.heldTiming=playerScope.timing;c.heldTiming.handoffHeld=true;}}else c.phase='joining';return false;
+ if(!c.pairSent){if(transfer.predecessor_worker_joined!==true||transfer.predecessor_delivery_settled!==true){c.phase='joining';return false;}c.phase='pair';if(playerScope.timing){c.heldTiming=playerScope.timing;c.heldTiming.handoffHeld=true;}offerRetainedSuccessorPair(state,c);}else c.phase='joining';return false;
 }
 async function inspectContinuation(state,c){
  if(!currentContinuation(state,c))return;
@@ -687,10 +749,19 @@ function showAnalysis(report,roundTrip,media_us,capturedAt,state){
  analysisEstimate.textContent=`Ahead-of-player estimate: ${(p*100).toFixed(1)}% at source ${time.toFixed(3)} s. Frame request round trip: ${roundTrip.toFixed(1)} ms. Unqualified.`;
  promoteFutureEstimate();
 }
-async function submitAnalysisFrame(reader,media_us,capturedAt,state,analysis){
+function copyFrameRgb(reader){
+ ctx.drawImage(reader,0,0,64,64);const rgba=ctx.getImageData(0,0,64,64).data,rgb=new Uint8Array(12288);
+ for(let i=0,j=0;i<rgba.length;i+=4){rgb[j++]=rgba[i];rgb[j++]=rgba[i+1];rgb[j++]=rgba[i+2];}
+ return rgb;
+}
+async function offerAnalysisFrame(state,frame){
+ const pending=submitAnalysisFrame(analysisVideo,frame.media_us,frame.capturedAt,state,frame.analysis,frame.rgb);
+ state.inFlight=pending;try{await pending;}finally{if(state.inFlight===pending)state.inFlight=null;}
+}
+async function submitAnalysisFrame(reader,media_us,capturedAt,state,analysis,retainedRgb){
  if(busy)return;busy=true;const observed=generation,attempt=playerAttempt;
  try{
-  ctx.drawImage(reader,0,0,64,64);const rgba=ctx.getImageData(0,0,64,64).data,rgb=new Uint8Array(12288);for(let i=0,j=0;i<rgba.length;i+=4){rgb[j++]=rgba[i];rgb[j++]=rgba[i+1];rgb[j++]=rgba[i+2];}
+  const rgb=retainedRgb??copyFrameRgb(reader);
   const scope=await attempt.promise;if(!scope||observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;
   if(!epoch){if(state){state.startupPhase='waiting for Engine capture admission';}const start={media_us,recording_maximum:recordingMaximum,source_time_basis:scope.time_basis,...(state?{analysis:state.selection}:{})};const report=await post('/start',new TextEncoder().encode(JSON.stringify(start)),scope);if(observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;if(state){checkAnalysisFeed(report,state,scope);const lease=report.options?.lease_ms;if(!Number.isInteger(lease)||lease<1||lease>30000)throw Error('Original capture lease is invalid.');state.captureDeadline=capturedAt+lease;epoch=report.identity.epoch;if(receiveAnalysisFallback(report,state,scope))return;}epoch=report.identity.epoch;}
   if(observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;
@@ -702,7 +773,10 @@ async function submitAnalysisFrame(reader,media_us,capturedAt,state,analysis){
   const sent=performance.now(),report=await post(next?'/analysis/successor-frame':'/frame',body,scope);if(observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;
   if(next){const successor=checkSuccessor(report,state,c);if(!sameAnalysisSubmission(successor.last_upload,submission.submitted))throw Error('Successor G acknowledgment differs from original callback.');c.pairAck=submission;if(c.committedReport)receiveContinuation(c.committedReport,state,c);else if(currentContinuation(state,c)&&c.timer===null)continuationLater(state,c,()=>inspectContinuation(state,c));}
   else if(state){if(receiveAnalysisFallback(report,state,scope))return;checkAnalysisFeed(report,state,scope);if(!sameAnalysisSubmission(report.browser?.analysis_last_upload,submission.submitted))throw Error('Native frame acknowledgement differs from its original browser observation.');state.lastAck=submission;if(state.timer!==null){clearTimeout(state.timer);state.timer=null;}showAnalysis(report,performance.now()-sent,media_us,capturedAt,state);if(c?.phase==='boundary')await reserveContinuationBoundary(state,c);else maybePrepareContinuation(report,state);}else show(report,performance.now()-sent,media_us,capturedAt);
- }catch(e){if(observed===generation){pauseVideo();clear('Analysis stopped: '+e.message);}}finally{busy=false;}
+ }catch(e){if(observed===generation){pauseVideo();clear('Analysis stopped: '+e.message);}}finally{
+  busy=false;
+  if(state?.continuation)offerRetainedSuccessorPair(state,state.continuation);
+ }
 }
 function scheduleAnalysis(state){if(currentAnalysis(state))state.callback=analysisVideo.requestVideoFrameCallback((now,metadata)=>{state.callback=null;return analysisFrame(state,now,metadata);});}
 async function analysisFrame(state,now,metadata){
@@ -718,8 +792,21 @@ async function analysisFrame(state,now,metadata){
   const lead=media_us-presentedFrame.media_time_us,p=state.selection.policy;
   if(lead<p.minimum_lead_us||lead>p.maximum_lead_us)throw Error('Observed frame lead left the original lookahead bounds.');
   lookaheadStatus.textContent=`Observed frame lead: ${(lead/1000).toFixed(1)} ms. Requested: ${(p.target_lead_us/1000).toFixed(1)} ms; admitted range ${(p.minimum_lead_us/1000).toFixed(1)}–${(p.maximum_lead_us/1000).toFixed(1)} ms. Producer-declared timestamps; see HSP status for device control.`;
-  const c=state.continuation;if(busy||c&&(['reserving','joining'].includes(c.phase)||c.phase==='pair'&&(c.timingBusy||c.probe||playerScope.timing.inflight||playerScope.timing.probe)))return;
-  const pending=submitAnalysisFrame(analysisVideo,media_us,capturedAt,state,{visible_media_us:presentedFrame.media_time_us,visible_presented_frames:presentedFrame.presented_frames,visible_tick_us:visibleFrameTickUs,analysis_tick_us:tick,presented_frames});state.inFlight=pending;try{await pending;}finally{if(state.inFlight===pending)state.inFlight=null;}
+  const c=state.continuation,frame={media_us,capturedAt,analysis:{visible_media_us:presentedFrame.media_time_us,visible_presented_frames:presentedFrame.presented_frames,visible_tick_us:visibleFrameTickUs,analysis_tick_us:tick,presented_frames}};
+  const hsp=c?.scope.timing?.hspConfigured===true;
+  const pairBlocked=c?.phase==='pair'&&successorPairBlocked(c);
+  if(hsp&&!c.pairSent&&(['reserving','joining'].includes(c.phase)||pairBlocked)&&!c.pairFrame){
+   c.pairFrame={...frame,rgb:copyFrameRgb(analysisVideo)};return;
+  }
+  if(hsp&&c.phase==='joining'&&c.pairSent&&!c.postPairFrame){
+   c.postPairFrame={...frame,rgb:copyFrameRgb(analysisVideo)};return;
+  }
+  if(busy||c&&(['reserving','joining'].includes(c.phase)||pairBlocked))return;
+  if(c?.phase==='pair'&&c.pairFrame){
+   const retained=c.pairFrame;c.pairFrame=null;
+   c.postPairFrame={...frame,rgb:copyFrameRgb(analysisVideo)};
+   await offerAnalysisFrame(state,retained);
+  }else await offerAnalysisFrame(state,frame);
  }catch(e){failAnalysis(state,e.message);}
 }
 video.addEventListener('play',()=>{
@@ -767,7 +854,8 @@ async function frame(now,metadata){
  video.requestVideoFrameCallback(frame);if(!armed||video.paused||video.seeking)return;
  const capturedAt=performance.now(),media_us=Math.round(metadata.mediaTime*1e6),presented_frames=metadata.presentedFrames;
  if(!Number.isSafeInteger(media_us)||media_us<0||!Number.isSafeInteger(presented_frames)||presented_frames<0){pauseVideo();clear('Invalid video frame timestamp or counter.');return;}
- presentedFrame={media_time_us:media_us,presented_frames};visibleFrameTickUs=browserMicros(capturedAt);presentationUs=media_us;expireMotion();promoteFutureEstimate();
+ const cadence_ms=presentedFrame&&presented_frames===presentedFrame.presented_frames+1?(media_us-presentedFrame.media_time_us)/1000:null;
+ presentedFrame={media_time_us:media_us,presented_frames,cadence_ms,callback_ms:now};visibleFrameTickUs=browserMicros(capturedAt);presentationUs=media_us;expireMotion();promoteFutureEstimate();
  if(preparedMedia){if(media_us<preparedMedia.trim_start_us){status.textContent='Waiting for the declared placement trim to begin.';return;}if(media_us>=preparedMedia.trim_end_us){pauseVideo();clear('Declared placement trim ended. Seek within its range, then use Resume analysis after seek.');return;}}
  timingFrame(playerScope,now,metadata,capturedAt);continuationTimingFrame(analysisReader,now,metadata,capturedAt);
  if(analysisReader){const state=analysisReader;if(state.inputPhase==='open'&&state.lastTime!==null&&state.ready){const lead=state.lastTime-media_us,p=state.selection.policy;if(lead<p.minimum_lead_us||lead>p.maximum_lead_us){failAnalysis(state,'Visible playback left the original observed analysis lead bounds.');return;}}return;}

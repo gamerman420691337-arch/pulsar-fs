@@ -17,10 +17,10 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-STERILE-BROWSER-MOTION-001",
-    "scope": "The rendered browser produced 154 fresh estimates with a trained outline tracker. On the 146 estimates within complete supplied reference anchors, position error averaged 17.94 points and correlation was 0.745 at zero shift. Scoring now validates the complete capture and reports the initial 1.417 seconds without estimates.",
+    "evidence": "EV-TRAINED-HSP-ONE-TRANSFER",
+    "scope": "The trained outline tracker completed one of two native transfers in the rendered browser HSP loopback and delivered 140 samples. A successor coverage gap stopped simulated playback.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "The sterile browser workflow generated motion, but the tracker missed the motion screen. Physical live playback remains pending. Desktop local-file HSP playback and its zero-default offset retain their prior evidence.",
+    "failure_summary": "Rendered browser HSP continuity remains unverified. The supplied sterile reference still misses its learned-motion screen. Desktop local-file playback at zero offset retains prior operator evidence; live generated physical playback remains pending.",
     "source_stamp": [
       {
         "path": "Cargo.lock",
@@ -4390,7 +4390,8 @@
         "EV-STASH-WORKSPACE-RETRY-PASS",
         "EV-STASH-EXPLICIT-CAPTURE-MERGED",
         "EV-STASH-LOOPBACK-530EE45",
-        "EV-STASH-ANNOTATED-CPU-542F2BB"
+        "EV-STASH-ANNOTATED-CPU-542F2BB",
+        "EV-STASH-SELECTED-PACK-SHUTDOWN-C3ACFBC"
       ]
     },
     {
@@ -4554,7 +4555,14 @@
         "EV-BROWSER-DESKTOP-HANDOFF-66C3DE6",
         "EV-OUTLINE-HOLDOUT-CPU",
         "EV-STERILE-OUTLINE-PROXY",
-        "EV-OUTLINE-HOLDOUT-BROWSER"
+        "EV-OUTLINE-HOLDOUT-BROWSER",
+        "EV-TRAINED-HSP-LOOPBACK-EARLY-STOP",
+        "EV-TRAINED-HSP-NATIVE-CANCELLATION",
+        "EV-TRAINED-HSP-APPEND-UNKNOWN",
+        "EV-TRAINED-HSP-ALIGNMENT-BOUND",
+        "EV-TRAINED-HSP-TIMING-BREAKDOWN",
+        "EV-TRAINED-HSP-MATCHED-ADAPTIVE-PROBE",
+        "EV-TRAINED-HSP-ONE-TRANSFER"
       ]
     },
     {
@@ -20261,6 +20269,386 @@
         {
           "pointer": [
             "physical_device_test"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-TRAINED-HSP-LOOPBACK-EARLY-STOP",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/outline-holdout-hsp-40s/play-acknowledged-early-stop/result.json",
+      "sha256": "b67faa261bfc62999198c2656898be1901b7ea9ad4da786f11b7485dff57fe5a",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Browser Live with the trained outline graph reached one loopback Setup, Play and Stop and accepted 35 samples. It stopped before either required native transfer. Physical playback, stopping and continuity remain unqualified.",
+      "assertions": [
+        {
+          "pointer": [
+            "rendered_browser"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "trained_model"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "loopback_setup_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "loopback_play_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "loopback_stop_count"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "accepted_samples"
+          ],
+          "equals": 35
+        },
+        {
+          "pointer": [
+            "completed_native_transfers"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "expected_native_transfers"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "physical_device_test"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualification_passed"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-TRAINED-HSP-NATIVE-CANCELLATION",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/outline-holdout-hsp-40s/native-cancellation-after-play/first-native-stop.json",
+      "sha256": "b67f4cd4c5bf81188e1c5d4f4fcbcfefadbadbc1ea914fa4add030100b909bea",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered browser HSP stopped after the native pump observed cancellation with an acknowledged Append. The initiating cancellation caller remains unresolved.",
+      "assertions": [
+        {
+          "pointer": [
+            "first_stop",
+            "reason"
+          ],
+          "equals": "cancellation_observed"
+        },
+        {
+          "pointer": [
+            "first_stop",
+            "last_joined",
+            "kind"
+          ],
+          "equals": "Append"
+        },
+        {
+          "pointer": [
+            "first_stop",
+            "last_joined",
+            "outcome"
+          ],
+          "equals": "Acknowledged"
+        }
+      ]
+    },
+    {
+      "id": "EV-TRAINED-HSP-APPEND-UNKNOWN",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/outline-holdout-hsp-40s/append-outcome-unknown/first-native-stop.json",
+      "sha256": "c40bdd19be8c3bed37f7ea3d6863af9a69697121ba5802f72f8ca1cadaefd83b",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered browser HSP stopped after an Append had an unknown outcome. The loopback peer did not log that append.",
+      "assertions": [
+        {
+          "pointer": [
+            "first_stop",
+            "reason"
+          ],
+          "equals": "joined_outcome_unknown"
+        },
+        {
+          "pointer": [
+            "first_stop",
+            "last_joined",
+            "kind"
+          ],
+          "equals": "Append"
+        },
+        {
+          "pointer": [
+            "first_stop",
+            "last_joined",
+            "outcome"
+          ],
+          "equals": "Unknown"
+        }
+      ]
+    },
+    {
+      "id": "EV-TRAINED-HSP-ALIGNMENT-BOUND",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/outline-holdout-hsp-40s/source-phase-refusal/alignment-lower-bound.json",
+      "sha256": "02e3c1520db388b01bb9bbb3c31797e97b2e10365e92c05dd0ca9d69d6cba785",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "The rendered loopback stopped during source-phase validation. The observed browser bracket alone, with the admitted display and source residuals, yields an alignment error lower bound above the accepted budget. The physical gate stays open.",
+      "assertions": [
+        {
+          "pointer": [
+            "bracket_width_ns"
+          ],
+          "equals": 91193903
+        },
+        {
+          "pointer": [
+            "alignment_error_lower_bound_ns"
+          ],
+          "equals": 51596952
+        },
+        {
+          "pointer": [
+            "admitted_maximum_ns"
+          ],
+          "equals": 50000000
+        },
+        {
+          "pointer": [
+            "qualification_passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-TRAINED-HSP-TIMING-BREAKDOWN",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/outline-holdout-hsp-40s/browser-timing-breakdown/summary.json",
+      "sha256": "1b6623a704b18affbd8f7b9bf91f848ca5dae1c3a4261b46e7ff15d90006f5d5",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered trained-model HSP loopback reached Play. Twenty browser probe breakdowns were recorded; the terminal native bracket widened to 111.748 ms and the browser breakdown for that probe was unavailable. Both expected continuity transfers remain unverified.",
+      "assertions": [
+        {
+          "pointer": [
+            "observed_probes"
+          ],
+          "equals": 20
+        },
+        {
+          "pointer": [
+            "maximum_sampled_bracket_ns"
+          ],
+          "equals": 40580972
+        },
+        {
+          "pointer": [
+            "median_frame_wait_ms"
+          ],
+          "equals": 16.25
+        },
+        {
+          "pointer": [
+            "terminal_probe_sequence"
+          ],
+          "equals": 50
+        },
+        {
+          "pointer": [
+            "terminal_bracket_ns"
+          ],
+          "equals": 111748458
+        },
+        {
+          "pointer": [
+            "terminal_browser_breakdown_captured"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-SELECTED-PACK-SHUTDOWN-C3ACFBC",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/stash-selected-pack-shutdown-c3acfbc/result.json",
+      "sha256": "14823e526081b08901a25f334c1552f153fe1357763d294a201fc98dc9e9cd39",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "The native shutdown regression preserved the original pending generation ledger byte for byte. Two authored selected-pack batches passed across restart on loopback Stash, including explicit placement. Installed Stash remains unqualified.",
+      "assertions": [
+        {
+          "pointer": [
+            "stash_engine_tests_passed"
+          ],
+          "equals": 70
+        },
+        {
+          "pointer": [
+            "selected_pack_cases_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "shutdown_regression_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "mock_stash"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "installed_stash_qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-TRAINED-HSP-MATCHED-ADAPTIVE-PROBE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/outline-holdout-hsp-40s/adaptive-matched-frame-wait/browser-timing.json",
+      "sha256": "88ce2db34b57f71cddf4664b99b3471f88eac0d786fc61f4ca9e991c93e5bca7",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "The adaptive rendered loopback matched browser probe 27 to a 91.067 ms native bracket. The browser waited 78.3 ms for a fresh frame. The Engine rejected the source phase before observed playback; continuity and physical qualification remain open.",
+      "assertions": [
+        {
+          "pointer": [
+            "sequence"
+          ],
+          "equals": 27
+        },
+        {
+          "pointer": [
+            "probe_ms"
+          ],
+          "equals": 18.6
+        },
+        {
+          "pointer": [
+            "frame_wait_ms"
+          ],
+          "equals": 78.3
+        },
+        {
+          "pointer": [
+            "observation_request_ms"
+          ],
+          "equals": 9.9
+        },
+        {
+          "pointer": [
+            "native_bracket_ns"
+          ],
+          "equals": 91067306
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-TRAINED-HSP-ONE-TRANSFER",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/outline-holdout-hsp-40s/one-transfer-coverage-stop/result.json",
+      "sha256": "20522bf71b20fa278133b17c5b26fc987a7fa034ec95da47328a96491564ebc4",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered trained-model HSP completed one native source transfer on loopback and stopped on successor coverage gap. The second transfer, finite tail and physical verification remain open.",
+      "assertions": [
+        {
+          "pointer": [
+            "completed_transfers"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "required_transfers"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "active_source_generation"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "delivered_samples"
+          ],
+          "equals": 140
+        },
+        {
+          "pointer": [
+            "loopback_plays"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "loopback_stops"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "terminal_error"
+          ],
+          "equals": "CoverageGap"
+        },
+        {
+          "pointer": [
+            "physical_device"
           ],
           "equals": false
         }
