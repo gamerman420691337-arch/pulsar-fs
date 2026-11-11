@@ -287,18 +287,25 @@ pub(crate) fn snapshot_opened_reserved(
     if !snapshot_unchanged(&before, &after) {
         bail!("source changed while snapshotting");
     }
-    temp.as_file().sync_all()?;
     let (hash, actual_size) = digest_file(temp.path(), max_bytes)?;
     if actual_size != size {
         bail!("snapshot size differs from captured source");
     }
+    // Commit content and read-only permissions together before publishing on Unix.
+    // Windows needs a writable temporary name for collision cleanup.
+    let mut permissions = temp.as_file().metadata()?.permissions();
+    permissions.set_readonly(true);
+    #[cfg(unix)]
+    temp.as_file().set_permissions(permissions)?;
+    temp.as_file().sync_all()?;
     let destination = dir.join(&hash);
     match temp.persist_noclobber(&destination) {
-        Ok(file) => {
-            let mut permissions = file.metadata()?.permissions();
-            permissions.set_readonly(true);
-            file.set_permissions(permissions)?;
-            file.sync_all()?;
+        Ok(_file) => {
+            #[cfg(not(unix))]
+            {
+                _file.set_permissions(permissions)?;
+                _file.sync_all()?;
+            }
         }
         Err(error) if error.error.kind() == std::io::ErrorKind::AlreadyExists => {
             let (existing, existing_size) = digest_file(&destination, max_bytes)?;
@@ -607,7 +614,11 @@ mod tests {
         let (snapshot, _, bytes) =
             snapshot_opened_reserved(&mut input, directory.path(), 100, 0).unwrap();
         assert_eq!(bytes, 14);
-        assert_eq!(fs::read(snapshot).unwrap(), b"selected bytes");
+        assert_eq!(fs::read(&snapshot).unwrap(), b"selected bytes");
+        assert!(fs::metadata(&snapshot).unwrap().permissions().readonly());
+        let (reused, _, _) =
+            snapshot_opened_reserved(&mut input, directory.path(), 100, 0).unwrap();
+        assert_eq!(reused, snapshot);
     }
     #[test]
     fn refuses_snapshot_budget() {

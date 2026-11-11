@@ -4401,6 +4401,7 @@
         "EV-STERILE-BROWSER-STARTUP-RERUN",
         "EV-STERILE-BROWSER-ACK-DEADLINE",
         "EV-STERILE-BROWSER-CPU-STARTUP-TRACE",
+        "EV-STERILE-BROWSER-CPU-LAUNCH-STAGES",
         "EV-RENDERED-200MS-RECORDING",
         "EV-RENDERED-200MS-RECORDING-EXPORT",
         "EV-RENDERED-SEEK-200MS",
@@ -18625,6 +18626,37 @@
             "first_estimate_worker_sequence"
           ],
           "equals": 1
+        },
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_MOTION_SCREEN"
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-CPU-LAUNCH-STAGES",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-cpu-launch-stages/result.json",
+      "sha256": "343d8e68f5e74949ab1ae2956aad57e672eb681be781d6a35ea3030e0c758fbf",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Chromium CPU startup took 865 ms from launch to Ready. Host staging and custody took 575 ms, spawning took 12 ms, and spawn to Ready took 277 ms. The model motion screen still failed.",
+      "assertions": [
+        {
+          "pointer": [
+            "cpu_launch_stages_ms",
+            "host_staging_and_custody"
+          ],
+          "equals": 575
+        },
+        {
+          "pointer": [
+            "cpu_startup_trace",
+            "launch_to_ready_ms"
+          ],
+          "equals": 865
         },
         {
           "pointer": [
