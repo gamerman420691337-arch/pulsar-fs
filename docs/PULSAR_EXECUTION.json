@@ -4372,7 +4372,8 @@
         "EV-STASH-EXPLICIT-FINAL-SOURCE",
         "EV-STASH-WORKSPACE-CHECK-INTERRUPTED",
         "EV-STASH-WORKSPACE-RETRY-PASS",
-        "EV-STASH-EXPLICIT-CAPTURE-MERGED"
+        "EV-STASH-EXPLICIT-CAPTURE-MERGED",
+        "EV-STASH-LOOPBACK-530EE45"
       ]
     },
     {
@@ -4854,6 +4855,41 @@
     }
   ],
   "evidence": [
+    {
+      "id": "EV-STASH-LOOPBACK-530EE45",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/stash-loopback-530ee45/result.json",
+      "sha256": "75a1a9493f1f7a434239b2eefdf560bd6117a66d9e24b36fad1583fdc127b1dd",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Four native CLI and Engine loopback tests at 530ee45 verified publication lineage refusal, batch restart, source-clock replay, and archived mixed-sampling proof correspondence. Configured server, credentials and actual library workflow remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "head"
+          ],
+          "equals": "530ee45c6ad3703e886972f541f7c4cacc0e87ef"
+        },
+        {
+          "pointer": [
+            "mock_stash"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "test_log_sha256"
+          ],
+          "equals": "de05827edee4bb0918f7cc0bedeed803780adb91a47c97d6b7332e5f2a222b87"
+        }
+      ]
+    },
     {
       "id": "EV-DESKTOP-PLAYER-SEEK-DISPLAY",
       "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/desktop-player-a5819f8/result.json",
