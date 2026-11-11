@@ -899,6 +899,24 @@ mod rendered_browser_continuity_fixture {
         };
         *value
     }
+    fn record_successor_abort(f: &Fixture, output: &std::path::Path) {
+        if output.join("successor-abort.json").exists() {
+            return;
+        }
+        let Ok(registry) = f.engine.live_captures.try_lock() else {
+            return;
+        };
+        let aborted = registry.successor_aborts_for_test(&f.session, &f.project);
+        drop(registry);
+        if !aborted.is_empty() {
+            record(
+                output,
+                "successor-abort.json",
+                &json!({"aborted":aborted,"qualified":false}),
+            );
+        }
+    }
+
     fn bounded_wait(root: &std::path::Path, deadline: Instant) {
         assert!(!stopped(root), "manual Stop before completion");
         assert!(
@@ -1228,6 +1246,7 @@ mod rendered_browser_continuity_fixture {
         }
         ui_stage(&output, "awaiting_ui_bind", &originals);
         let origin = loop {
+            record_successor_abort(f, &output);
             discover_ui(f, &mut originals);
             if let Some(id) = &originals.stream {
                 let value = live_status(f, id);
@@ -1273,6 +1292,7 @@ mod rendered_browser_continuity_fixture {
         let mut last_ui_diagnostic = Instant::now() - Duration::from_secs(1);
         let mut ui_diagnostic_count = 0u32;
         let enable_id = loop {
+            record_successor_abort(f, &output);
             discover_ui(f, &mut originals);
             let stream = live_status(f, &bind_id);
             if last_ui_diagnostic.elapsed() >= Duration::from_millis(500) {
@@ -1371,6 +1391,7 @@ mod rendered_browser_continuity_fixture {
         let mut original_ceiling = None;
         loop {
             if last_census.elapsed() >= Duration::from_millis(500) {
+                record_successor_abort(&x.f, &output);
                 let (c, t) = discover(&x.f);
                 captures.extend(c);
                 transfer_ids.extend(t);

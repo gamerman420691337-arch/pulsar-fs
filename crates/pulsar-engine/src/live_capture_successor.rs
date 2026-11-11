@@ -168,6 +168,8 @@ pub(super) struct SuccessorEntry {
     native: NativeCaptureSuccessor,
     phase: BrowserAnalysisSuccessorPhase,
     transfer: Option<TransferWork>,
+    #[cfg(test)]
+    abort_error: Option<ProtocolError>,
 }
 /// Retry custody is limited to an observed local mutex WouldBlock. No generic
 /// protocol error or native clock/authority refusal becomes retry permission.
@@ -565,6 +567,10 @@ impl Registry {
             return Ok(());
         }
         slot.phase = BrowserAnalysisSuccessorPhase::Aborted;
+        #[cfg(test)]
+        {
+            slot.abort_error = Some(error.clone());
+        }
         slot.native.0.retired.store(true, Ordering::Release);
         slot.native
             .0
@@ -635,6 +641,26 @@ impl Registry {
 
 #[cfg(test)]
 impl Registry {
+    pub(in crate::authority) fn successor_aborts_for_test(
+        &self,
+        owner: &SessionId,
+        project: &ProjectId,
+    ) -> Vec<(RequestId, ProtocolError)> {
+        self.successors
+            .values()
+            .filter(|slot| {
+                let source = slot.native.predecessor();
+                &source.owner == owner && &source.identity.project == project
+            })
+            .filter_map(|slot| {
+                Some((
+                    slot.native.preparation_request_id().clone(),
+                    slot.abort_error.clone()?,
+                ))
+            })
+            .collect()
+    }
+
     /// Authored CPU state only. This launches no process and does not construct
     /// an actual worker-join receipt; native campaigns cover actual custody.
     pub(in crate::authority) fn authored_successor_for_test(
@@ -777,6 +803,8 @@ impl Registry {
                 native: native.clone(),
                 phase: BrowserAnalysisSuccessorPhase::Preparing,
                 transfer: None,
+                #[cfg(test)]
+                abort_error: None,
             },
         );
         Ok(native)
@@ -1511,6 +1539,8 @@ impl Engine {
                         native: native.clone(),
                         phase: BrowserAnalysisSuccessorPhase::Preparing,
                         transfer: None,
+                        #[cfg(test)]
+                        abort_error: None,
                     },
                 );
                 drop(registry);
