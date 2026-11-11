@@ -741,6 +741,15 @@ test('timing ignores cached or repeated frame counters after a delayed nonce rep
  p.advance(1);await p.frame(.2,2);await flush();assert.equal(p.sent.filter(r=>r.route==='/player/timing-observe').length,1);
  assert.equal(jsonBody(p.sent.find(r=>r.route==='/player/timing-observe')).frame.sample.media_time_us,200000);
 });
+test('timing refresh accounts for measured probe latency and adjacent frame cadence',async()=>{
+ const p=mediaPlayer({timing:true,holdRoute:'/player/timing-probe'});await prepareMedia(p);p.play();await flush();
+ await p.frame(.1,1);p.advance(15);p.releaseRoute();await flush();
+ p.advance(68);await p.frame(.183333,2);await flush();
+ const probes=()=>p.sent.filter(r=>r.route==='/player/timing-probe').length;
+ assert.equal(probes(),1);
+ p.advance(134);await flush();assert.equal(probes(),1);
+ p.advance(1);await flush();assert.equal(probes(),2);
+});
 test('timing observation lane continues while original inference Start is held',async()=>{
  const p=mediaPlayer({timing:true,holdStart:true});await prepareMedia(p);p.play();await flush();
  const pending=p.frame(.1);await flush();assert.equal(p.sent.filter(r=>r.route==='/player/timing-observe').length,1);
