@@ -288,6 +288,15 @@ impl Request {
                 ))
             }
             Command::ApplyAssistantEdit { approval } => approval.validate()?,
+            Command::RunRoleplayTurn { input, owner_proof } => {
+                if self.project.is_none() || self.expected_revision.is_some() {
+                    return Err(ProtocolError::invalid(
+                        "roleplay requires a project without a revision precondition",
+                    ));
+                }
+                bounded_text(owner_proof, 64, "host-local roleplay owner capability")?;
+                input.encode_messages()?;
+            }
             Command::StartAssistant { spec } => spec.validate()?,
             Command::ResolveAssistantStart { reference } => reference.validate()?,
             Command::StartWasmEdit { spec } => spec.validate()?,
@@ -1934,6 +1943,10 @@ pub enum Command {
     PrepareAssistantImage {
         source_version: SourceVersionId,
     },
+    RunRoleplayTurn {
+        input: RoleplayTurnInput,
+        owner_proof: String,
+    },
     StartAssistant {
         spec: AssistantStart,
     },
@@ -3065,6 +3078,7 @@ impl std::fmt::Debug for Command {
             Self::AssistantTargets => "AssistantTargets",
             Self::AssistantProfiles => "AssistantProfiles",
             Self::PrepareAssistantImage { .. } => "PrepareAssistantImage",
+            Self::RunRoleplayTurn { .. } => "RunRoleplayTurn",
             Self::StartAssistant { .. } => "StartAssistant",
             Self::ResolveAssistantStart { .. } => "ResolveAssistantStart",
             Self::AssistantStatus { .. } => "AssistantStatus",
@@ -3545,6 +3559,9 @@ impl Command {
     }
 
     pub fn is_mutating(&self) -> bool {
+        if matches!(self, Self::RunRoleplayTurn { .. }) {
+            return false;
+        }
         if let Self::DesktopPlayback { action, .. } = self {
             return !matches!(action, DesktopPlaybackAction::Status);
         }
@@ -3757,6 +3774,7 @@ pub enum ResponseBody {
     AssistantTargets(Box<AssistantTargetCatalog>),
     AssistantProfiles(Vec<AssistantProfile>),
     AssistantImage(Box<AssistantImageContext>),
+    RoleplayReply(Box<RoleplayReply>),
     Assistant(Box<AssistantReport>),
     AssistantAttempts(Vec<AssistantReport>),
     WasmEditorInfo(WasmEditorInfo),
@@ -3926,6 +3944,7 @@ impl std::fmt::Debug for ResponseBody {
             Self::AssistantProfiles(value) => {
                 f.debug_tuple("AssistantProfiles").field(value).finish()
             }
+            Self::RoleplayReply(_) => f.write_str("RoleplayReply(<private>)"),
             Self::Assistant(value) => f.debug_tuple("Assistant").field(value).finish(),
             Self::AssistantAttempts(value) => {
                 f.debug_tuple("AssistantAttempts").field(value).finish()

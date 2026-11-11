@@ -25,14 +25,75 @@ pub enum RoleplayToolCall {
     ProposeMedia {},
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RoleplayReply {
     pub text: String,
     pub calls: Vec<RoleplayToolCall>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+pub const MAX_ROLEPLAY_HISTORY_MESSAGES: usize = 15;
+
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RoleplaySpeaker {
+    User,
+    Assistant,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RoleplayMessage {
+    pub speaker: RoleplaySpeaker,
+    pub text: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RoleplayTurnInput {
+    pub profile: crate::AttemptId,
+    pub consent: std::path::PathBuf,
+    pub messages: Vec<RoleplayMessage>,
+}
+
+impl RoleplayTurnInput {
+    pub fn encode_messages(&self) -> Result<String, ProtocolError> {
+        if !self.consent.is_absolute() || self.consent.as_os_str().len() > 4096 {
+            return Err(ProtocolError::invalid(
+                "roleplay needs an absolute bounded consent path",
+            ));
+        }
+        if self.messages.is_empty()
+            || self.messages.len() > MAX_ROLEPLAY_HISTORY_MESSAGES
+            || self.messages.len() % 2 == 0
+            || self.messages.iter().enumerate().any(|(index, message)| {
+                message.speaker
+                    != if index % 2 == 0 {
+                        RoleplaySpeaker::User
+                    } else {
+                        RoleplaySpeaker::Assistant
+                    }
+                    || message.text.trim().is_empty()
+                    || message.text.contains('\0')
+                    || message.text.len() > MAX_ROLEPLAY_REPLY_BYTES
+            })
+        {
+            return Err(ProtocolError::invalid(
+                "roleplay history requires bounded alternating messages ending with the user",
+            ));
+        }
+        let encoded = serde_json::to_string(&self.messages)
+            .map_err(|_| ProtocolError::invalid("roleplay history encoding failed"))?;
+        if encoded.len() > crate::MAX_ASSISTANT_USER_REQUEST_BYTES {
+            return Err(ProtocolError::invalid(
+                "roleplay history exceeds the encoded byte bound",
+            ));
+        }
+        Ok(encoded)
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RoleplayWorkerResponse {
     pub version: u16,
@@ -90,6 +151,48 @@ impl RoleplayReply {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn turn_history_is_alternating_bounded_and_debug_redacted() {
+        let mut input = RoleplayTurnInput {
+            profile: crate::AttemptId::new("fixture").unwrap(),
+            consent: std::env::temp_dir().join("consent.json"),
+            messages: vec![RoleplayMessage {
+                speaker: RoleplaySpeaker::User,
+                text: "private fixture text".into(),
+            }],
+        };
+        assert!(input
+            .encode_messages()
+            .unwrap()
+            .contains("private fixture text"));
+        assert!(!format!(
+            "{:?}",
+            crate::Command::RunRoleplayTurn {
+                input: input.clone(),
+                owner_proof: "fixture".into(),
+            }
+        )
+        .contains("private fixture text"));
+        assert!(!format!(
+            "{:?}",
+            crate::ResponseBody::RoleplayReply(Box::new(RoleplayReply {
+                text: "private fixture text".into(),
+                calls: vec![],
+            }))
+        )
+        .contains("private fixture text"));
+        input.messages.push(RoleplayMessage {
+            speaker: RoleplaySpeaker::Assistant,
+            text: "reply".into(),
+        });
+        assert!(input.encode_messages().is_err());
+        input.messages.push(RoleplayMessage {
+            speaker: RoleplaySpeaker::User,
+            text: "x".repeat(MAX_ROLEPLAY_REPLY_BYTES + 1),
+        });
+        assert!(input.encode_messages().is_err());
+    }
 
     #[test]
     fn text_has_no_effect_authority_and_only_typed_calls_are_admitted() {

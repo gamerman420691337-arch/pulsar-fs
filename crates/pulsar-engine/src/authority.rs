@@ -1070,6 +1070,13 @@ impl Engine {
             .session
             .as_ref()
             .ok_or_else(|| ProtocolError::new(ErrorCode::Unauthorized, "pairing is required"))?;
+        if let Command::RunRoleplayTurn { input, .. } = &request.command {
+            {
+                let db = self.db.lock().map_err(internal)?;
+                self.authorize(&db, request, session)?;
+            }
+            return self.run_roleplay_turn(input);
+        }
         let fingerprint = format!(
             "{:x}",
             Sha256::digest(request_fingerprint(request).map_err(internal)?)
@@ -2264,6 +2271,7 @@ impl Engine {
             }
             Command::Capabilities => ResponseBody::Capabilities(self.capabilities()),
             Command::AssistantProfiles
+            | Command::RunRoleplayTurn { .. }
             | Command::StartAssistant { .. }
             | Command::ResolveAssistantStart { .. }
             | Command::AssistantStatus { .. }
@@ -3288,7 +3296,9 @@ impl Engine {
         if !self.stash_batch_permitted(db, request, session)? {
             self.authenticate(db, session, request.auth_token.as_deref())?;
         }
-        if let Command::DesktopPlayback { owner_proof, .. } = &request.command {
+        if let Command::DesktopPlayback { owner_proof, .. }
+        | Command::RunRoleplayTurn { owner_proof, .. } = &request.command
+        {
             let difference = self
                 .handy_owner_token
                 .bytes()
@@ -3297,10 +3307,12 @@ impl Engine {
             if owner_proof.len() != self.handy_owner_token.len() || difference != 0 {
                 return Err(ProtocolError::new(
                     ErrorCode::Forbidden,
-                    "player requires the host-local Handy owner capability",
+                    "local player or roleplay requires the host owner capability",
                 ));
             }
-            return Ok(());
+            if matches!(request.command, Command::DesktopPlayback { .. }) {
+                return Ok(());
+            }
         }
         if let Command::CheckModelPackCatalog { owner_proof, .. }
         | Command::RefreshModelCatalog { owner_proof, .. }
