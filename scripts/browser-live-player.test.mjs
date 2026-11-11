@@ -843,6 +843,15 @@ test('lookahead startup times out before the first frame acknowledgment',async()
  p.releaseFrame();await pending;
  assert.equal(p.futurePreview().entries.length,0);
 });
+test('the first acknowledged lookahead frame cancels the startup deadline',async()=>{
+ const p=mediaPlayer({lookahead:true,timing:true});
+ await startLookahead(p);
+ await p.analysisFrame(1.1);
+ assert.ok(p.evaluate('analysisReader.lastAck !== null'));
+ assert.equal(p.evaluate('analysisReader.timer'),null);
+ assert.equal(p.elements.video.paused,false);
+ assert.ok(!p.sent.some(r=>r.route==='/player/stop'));
+});
 test('decoded lookahead frames cannot cancel startup timeout before native timing is ready', async()=>{
  const p=mediaPlayer({lookahead:true,timing:true,holdRoute:'/player/timing-observe'});
  await startLookahead(p);await p.analysisFrame(1.1);
