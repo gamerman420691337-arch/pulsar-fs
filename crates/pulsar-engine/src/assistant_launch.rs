@@ -34,11 +34,32 @@ pub struct AssistantVisionAssets {
     pub rgb_path: PathBuf,
 }
 #[derive(Clone, Debug)]
-pub struct AssistantExecution {
-    pub response: AssistantWorkerResponse,
+pub struct AssistantExecution<T = AssistantWorkerResponse> {
+    pub response: T,
     pub worker_identity: ArtifactIdentity,
     pub worker_peak_memory_bytes: u64,
 }
+#[derive(Clone, Copy)]
+pub(crate) enum WorkerRole {
+    Proposal,
+    Roleplay,
+}
+impl WorkerRole {
+    pub(crate) fn argument(self) -> &'static str {
+        match self {
+            Self::Proposal => "assistant-worker",
+            Self::Roleplay => "roleplay-worker",
+        }
+    }
+
+    fn response_limit(self) -> u64 {
+        match self {
+            Self::Proposal => MAX_ASSISTANT_WORKER_RESPONSE_BYTES,
+            Self::Roleplay => MAX_ROLEPLAY_WORKER_RESPONSE_BYTES,
+        }
+    }
+}
+
 fn failure(code: ErrorCode, error: impl std::fmt::Display) -> ProtocolError {
     ProtocolError::new(code, error.to_string())
 }
@@ -74,6 +95,23 @@ fn validate_response(
     AssistantProposal::decode(&bytes, &expected.scope)?;
     Ok(())
 }
+fn validate_roleplay_response(
+    expected: &AssistantWorkerRequest,
+    actual: &RoleplayWorkerResponse,
+) -> Result<(), ProtocolError> {
+    if actual.version != expected.version
+        || actual.attempt_id != expected.attempt_id
+        || actual.runtime != expected.runtime
+        || actual.model != expected.model
+    {
+        return Err(failure(
+            ErrorCode::DependencyMismatch,
+            "roleplay response identity differs from original attempt",
+        ));
+    }
+    actual.reply.validate()
+}
+
 fn same_image(image: &assets::Image, expected: &ArtifactIdentity) -> Result<(), ProtocolError> {
     if image.sha256 != expected.sha256 || image.byte_len != expected.byte_len {
         return Err(failure(
@@ -188,6 +226,50 @@ pub(crate) fn execute(
     cancel: &AtomicBool,
     deadline: Instant,
 ) -> Result<AssistantExecution, ProtocolError> {
+    execute_worker(
+        parent,
+        request,
+        paths,
+        cancel,
+        deadline,
+        WorkerRole::Proposal,
+        validate_response,
+    )
+}
+
+pub(crate) fn execute_roleplay(
+    parent: Parent<'_>,
+    request: &AssistantWorkerRequest,
+    paths: &AssistantLaunchAssets,
+    cancel: &AtomicBool,
+    deadline: Instant,
+) -> Result<AssistantExecution<RoleplayWorkerResponse>, ProtocolError> {
+    validate_roleplay_worker_input(request)?;
+    if paths.vision.is_some() {
+        return Err(ProtocolError::invalid(
+            "roleplay launch does not admit vision assets",
+        ));
+    }
+    execute_worker(
+        parent,
+        request,
+        paths,
+        cancel,
+        deadline,
+        WorkerRole::Roleplay,
+        validate_roleplay_response,
+    )
+}
+
+fn execute_worker<T: serde::de::DeserializeOwned>(
+    parent: Parent<'_>,
+    request: &AssistantWorkerRequest,
+    paths: &AssistantLaunchAssets,
+    cancel: &AtomicBool,
+    deadline: Instant,
+    role: WorkerRole,
+    validate_reply: fn(&AssistantWorkerRequest, &T) -> Result<(), ProtocolError>,
+) -> Result<AssistantExecution<T>, ProtocolError> {
     let Parent {
         config,
         pool,
@@ -283,6 +365,7 @@ pub(crate) fn execute(
                 (rgb.fd(), rgb.byte_len),
             )
         }),
+        role,
     )
     .map_err(|e| failure(ErrorCode::Unavailable, e))?;
     images.0.inherit(&mut command)?;
@@ -314,7 +397,7 @@ pub(crate) fn execute(
     custody
         .spawn(&mut command)
         .map_err(|e| failure(ErrorCode::Unavailable, e))?;
-    let transport = (|| -> Result<AssistantWorkerResponse, ProtocolError> {
+    let transport = (|| -> Result<T, ProtocolError> {
         let (mut stdin, mut stdout, stderr) =
             {
                 let mut child = custody.child();
@@ -344,10 +427,10 @@ pub(crate) fn execute(
         let mut bytes = Vec::new();
         monitor
             .read(&mut stdout)
-            .take(MAX_ASSISTANT_WORKER_RESPONSE_BYTES + 1)
+            .take(role.response_limit() + 1)
             .read_to_end(&mut bytes)
             .map_err(|e| failure(ErrorCode::Unavailable, e))?;
-        if bytes.len() as u64 > MAX_ASSISTANT_WORKER_RESPONSE_BYTES {
+        if bytes.len() as u64 > role.response_limit() {
             return Err(failure(
                 ErrorCode::ResourceExhausted,
                 "assistant response exceeded byte cap",
@@ -375,9 +458,9 @@ pub(crate) fn execute(
                 format!("assistant worker exited {status}"),
             ));
         }
-        let response: AssistantWorkerResponse = serde_json::from_slice(&bytes)
+        let response: T = serde_json::from_slice(&bytes)
             .map_err(|e| failure(ErrorCode::DependencyMismatch, e))?;
-        validate_response(request, &response)?;
+        validate_reply(request, &response)?;
         Ok(response)
     })();
     let retirement = if transport.is_ok() {

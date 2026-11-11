@@ -50,6 +50,7 @@ pub enum ResponseBody {
     AssistantTargets(Box<pulsar_protocol::AssistantTargetCatalog>),
     AssistantProfiles(Vec<pulsar_protocol::AssistantProfile>),
     AssistantImage(Box<pulsar_protocol::AssistantImageContext>),
+    RoleplayReply(Box<pulsar_protocol::RoleplayReply>),
     Assistant(Box<pulsar_protocol::AssistantReport>),
     AssistantAttempts(Vec<pulsar_protocol::AssistantReport>),
     WasmEditorInfo(pulsar_protocol::WasmEditorInfo),
@@ -200,6 +201,7 @@ impl std::fmt::Debug for ResponseBody {
             Self::AssistantTargets(_) => "AssistantTargets",
             Self::AssistantProfiles(_) => "AssistantProfiles",
             Self::AssistantImage(_) => "AssistantImage",
+            Self::RoleplayReply(_) => "RoleplayReply(<private>)",
             Self::Assistant(_) => "Assistant",
             Self::AssistantAttempts(_) => "AssistantAttempts",
             Self::WasmEditorInfo(_) => "WasmEditorInfo",
@@ -466,6 +468,10 @@ impl MotionCache {
                     profile.validate()?;
                 }
                 ResponseBody::AssistantProfiles(value)
+            }
+            wire::ResponseBody::RoleplayReply(value) => {
+                value.validate()?;
+                ResponseBody::RoleplayReply(value)
             }
             wire::ResponseBody::Assistant(value) => {
                 value.validate()?;

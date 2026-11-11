@@ -69,6 +69,7 @@ pub(crate) fn assistant_command(
     runtime: (i32, u64),
     model: (i32, u64),
     vision: Option<((i32, u64), (i32, u64))>,
+    role: crate::assistant_launch::WorkerRole,
 ) -> anyhow::Result<Command> {
     command_inner(
         config,
@@ -76,7 +77,7 @@ pub(crate) fn assistant_command(
         group,
         &[],
         Path::new("/out"),
-        "assistant-worker",
+        role.argument(),
         LaunchAssets::Assistant {
             worker,
             runtime,

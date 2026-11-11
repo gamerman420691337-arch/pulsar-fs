@@ -283,7 +283,7 @@ struct PendingMediaReview {
     custody: tempfile::TempDir,
 }
 
-fn review_now_ns() -> Result<u64> {
+pub(crate) fn review_now_ns() -> Result<u64> {
     use std::time::{SystemTime, UNIX_EPOCH};
     Ok(SystemTime::now()
         .duration_since(UNIX_EPOCH)?
@@ -292,12 +292,12 @@ fn review_now_ns() -> Result<u64> {
 }
 
 #[cfg(not(unix))]
-fn read_review_consent(_path: &std::path::Path) -> Result<RoleplayConsentDocument> {
+pub(crate) fn read_review_consent(_path: &std::path::Path) -> Result<RoleplayConsentDocument> {
     anyhow::bail!("private media review consent is unavailable on this platform")
 }
 
 #[cfg(unix)]
-fn read_review_consent(path: &std::path::Path) -> Result<RoleplayConsentDocument> {
+pub(crate) fn read_review_consent(path: &std::path::Path) -> Result<RoleplayConsentDocument> {
     use std::io::Read;
     {
         use std::os::unix::fs::MetadataExt;

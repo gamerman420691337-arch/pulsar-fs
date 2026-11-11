@@ -30,6 +30,27 @@ fn request() -> AssistantWorkerRequest {
     }
 }
 #[test]
+fn roleplay_parent_refuses_foreign_identity_and_over_budget_reply() {
+    let request = request();
+    let mut response = RoleplayWorkerResponse {
+        version: request.version,
+        attempt_id: request.attempt_id.clone(),
+        runtime: request.runtime.clone(),
+        model: request.model.clone(),
+        reply: RoleplayReply {
+            text: "fixture".into(),
+            calls: vec![],
+        },
+    };
+    assert!(validate_roleplay_response(&request, &response).is_ok());
+    response.model.sha256 = "b".repeat(64);
+    assert!(validate_roleplay_response(&request, &response).is_err());
+    response.model = request.model.clone();
+    response.reply.calls = vec![RoleplayToolCall::DeviceStatus {}; MAX_ROLEPLAY_TURN_CALLS + 1];
+    assert!(validate_roleplay_response(&request, &response).is_err());
+}
+
+#[test]
 fn parent_requires_original_identity_and_its_own_context() {
     let r = request();
     let good = AssistantWorkerResponse {
