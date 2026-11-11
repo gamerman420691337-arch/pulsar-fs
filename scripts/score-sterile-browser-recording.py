@@ -7,8 +7,6 @@ import itertools
 import json
 from pathlib import Path
 
-import numpy as np
-
 MAX_MAE_POINTS = 15
 MIN_CORRELATION = 0.85
 CLIP_DURATION_MS = 14_250
@@ -49,6 +47,8 @@ def read_reference(folder):
 
 
 def read_recording(path, model_hash, source_hash):
+    import numpy as np
+
     recording = json.loads(path.read_text())
     if recording.get("kind") != "pulsar-live-inference-recording" or recording.get(
         "qualified"
@@ -110,6 +110,8 @@ def read_recording(path, model_hash, source_hash):
 
 
 def main():
+    import numpy as np
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("recording", type=Path)
     parser.add_argument("model", type=Path)
