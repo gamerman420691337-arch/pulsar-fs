@@ -400,6 +400,7 @@ impl HandyBrowserStartDecision {
             binding: self.timing_binding.clone(),
             current: true,
             observation: Some(self.observation.clone()),
+            discarded_probe_sequence: None,
             qualified: false,
         }
         .validate()?;

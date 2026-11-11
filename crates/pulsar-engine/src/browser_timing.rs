@@ -597,6 +597,7 @@ impl Entry {
             binding: self.binding.clone(),
             current: !self.retired,
             observation: self.observation.as_ref().map(|o| o.value.clone()),
+            discarded_probe_sequence: None,
             qualified: false,
         }
     }
@@ -912,6 +913,7 @@ impl Engine {
             },
             current: true,
             observation: None,
+            discarded_probe_sequence: None,
             qualified: false,
         };
         report.validate()?;
