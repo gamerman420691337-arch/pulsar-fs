@@ -164,6 +164,8 @@ pub struct DesktopMediaReview {
 pub struct DesktopPlaybackStatus {
     pub loaded: bool,
     pub armed: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub limits_applied: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assistant_grant: Option<SessionId>,
     pub playing: bool,

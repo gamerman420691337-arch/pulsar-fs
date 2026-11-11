@@ -138,6 +138,9 @@ impl PlayerPanel {
                 self.status.expires_in_ms.div_ceil(1000)
             ));
         }
+        if self.status.limits_applied {
+            ui.label("Motion limited");
+        }
         if ui.button(egui::RichText::new("STOP").strong()).clicked() {
             self.send(DesktopPlaybackAction::Stop, Lane::Stop);
         }
@@ -420,6 +423,9 @@ impl PlayerPanel {
                 "No media loaded"
             };
             ui.strong(state);
+            if self.status.limits_applied {
+                ui.label("Motion limited by the configured speed or stroke range");
+            }
             if self.status.armed {
                 ui.label(format!(
                     "Session expires in {} s",

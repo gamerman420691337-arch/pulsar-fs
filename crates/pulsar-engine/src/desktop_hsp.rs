@@ -344,7 +344,7 @@ pub fn build_points(
     max_speed: f32,
     min_pct: f32,
     max_pct: f32,
-) -> Vec<(u32, u8)> {
+) -> (Vec<(u32, u8)>, bool) {
     let mut sorted: Vec<(i64, i32)> = actions.iter().copied().filter(|&(t, _)| t >= 0).collect();
     sorted.sort_by_key(|&(t, _)| t);
     sorted.dedup_by(|b, a| {
@@ -359,6 +359,7 @@ pub fn build_points(
     let span = (max_pct - min_pct).max(0.0);
     let mut out = Vec::with_capacity(sorted.len());
     let mut prev: Option<(i64, f32)> = None;
+    let mut limits_applied = false;
     for (t, pos) in sorted {
         let mut p = (pos.clamp(0, 100)) as f32;
         if let Some((pt, pp)) = prev {
@@ -367,6 +368,7 @@ pub fn build_points(
         }
         prev = Some((t, p));
         let x = (min_pct + p / 100.0 * span).round().clamp(0.0, 100.0) as u8;
+        limits_applied |= i32::from(x) != pos;
         out.push((t as u32, x));
     }
     // HSP requires two initial points. Split long linear segments so that this
@@ -390,7 +392,7 @@ pub fn build_points(
     if let Some(point) = out.last() {
         bounded.push(*point);
     }
-    bounded
+    (bounded, limits_applied)
 }
 
 /// Express the normalized points from `build_points` in video time. A delay holds
@@ -436,6 +438,13 @@ pub fn offset_points(points: &[(u32, u8)], offset_ms: i16) -> Vec<(u32, u8)> {
 mod tests {
     use super::*;
     #[test]
+    fn reports_when_the_configured_caps_change_positions() {
+        assert!(!build_points(&[(0, 20), (1000, 80)], 300.0, 0.0, 100.0).1);
+        assert!(build_points(&[(0, 0), (1000, 100)], 300.0, 35.0, 65.0).1);
+        assert!(build_points(&[(0, 0), (10, 100)], 300.0, 0.0, 100.0).1);
+    }
+
+    #[test]
     fn offset_holds_or_interpolates_at_video_boundaries() {
         let points = [(0, 20), (1_000, 80), (2_000, 80)];
         assert_eq!(offset_points(&points, 0), points);
@@ -452,11 +461,11 @@ mod tests {
 
     #[test]
     fn long_segments_keep_a_five_second_preload_bound() {
-        let points = build_points(&[(0, 40), (60_000, 60)], 150.0, 0.0, 100.0);
+        let points = build_points(&[(0, 40), (60_000, 60)], 150.0, 0.0, 100.0).0;
         assert_eq!(points.first(), Some(&(0, 40)));
         assert_eq!(points.last(), Some(&(60_000, 60)));
         assert!(points.windows(2).all(|p| p[1].0 - p[0].0 <= 5000));
-        let delayed = build_points(&[(30_000, 40), (60_000, 40)], 150.0, 0.0, 100.0);
+        let delayed = build_points(&[(30_000, 40), (60_000, 40)], 150.0, 0.0, 100.0).0;
         assert_eq!(delayed.first(), Some(&(0, 40)));
         assert_eq!(delayed[1], (5000, 40));
     }
@@ -464,21 +473,21 @@ mod tests {
     #[test]
     fn speed_limit_caps_stroke_rate() {
         // 100 units in 100 ms is 1000 u/s; limit 300 u/s allows 30 units.
-        let pts = build_points(&[(0, 0), (100, 100)], 300.0, 0.0, 100.0);
+        let pts = build_points(&[(0, 0), (100, 100)], 300.0, 0.0, 100.0).0;
         assert_eq!(pts, vec![(0, 0), (100, 30)]);
     }
 
     #[test]
     fn slow_strokes_pass_unchanged() {
-        let pts = build_points(&[(0, 0), (1000, 100), (2000, 0)], 300.0, 0.0, 100.0);
+        let pts = build_points(&[(0, 0), (1000, 100), (2000, 0)], 300.0, 0.0, 100.0).0;
         assert_eq!(pts, vec![(0, 0), (1000, 100), (2000, 0)]);
-        let ok = build_points(&[(0, 0), (500, 100)], 300.0, 0.0, 100.0);
+        let ok = build_points(&[(0, 0), (500, 100)], 300.0, 0.0, 100.0).0;
         assert_eq!(ok, vec![(0, 0), (500, 100)]);
     }
 
     #[test]
     fn range_mapping_and_dedup() {
-        let pts = build_points(&[(0, 0), (500, 50), (500, 100)], 1000.0, 10.0, 90.0);
+        let pts = build_points(&[(0, 0), (500, 50), (500, 100)], 1000.0, 10.0, 90.0).0;
         assert_eq!(pts, vec![(0, 10), (500, 90)]);
     }
 }
