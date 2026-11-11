@@ -88,7 +88,7 @@ jobs:
           shared-key: full-v2
       - name: Install Linux runtime dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg libasound2-dev libudev-dev pkg-config
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg libasound2-dev libudev-dev pkg-config bubblewrap
       - name: Install Windows media tools
         if: runner.os == 'Windows'
         run: choco install ffmpeg --no-progress -y
@@ -99,6 +99,7 @@ jobs:
         run: cargo test -p pulsar-core -p pulsar-protocol -p pulsar-clients --locked
       - name: Test Linux Engine and media contracts
         if: runner.os == 'Linux'
-        run: cargo test -p pulsar-engine --lib --locked
-      # Subprocess confinement additionally needs the identified native host's
-      # delegated cgroup v2 and bubblewrap; hosted CI does not establish it.
+        run: |
+          timeout 15s sudo loginctl enable-linger "$(id -un)"
+          timeout 15s sudo systemctl start "user@$(id -u).service"
+          PULSAR_ENGINE_TEST_RUNTIME_SECONDS=1200 scripts/test-engine-delegated.sh -- --test-threads=1
