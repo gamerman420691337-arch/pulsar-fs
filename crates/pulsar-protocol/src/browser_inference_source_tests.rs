@@ -129,7 +129,7 @@ fn browser_source_policy_refuses_profile_model_path_and_lease_substitution() {
     changed.inference.as_mut().unwrap().profile.cpu_threads += 1;
     assert!(!policy.matches_manifest(&epoch, &changed, &stream).unwrap());
     let mut changed = options.clone();
-    changed.inference.as_mut().unwrap().model_path = "/other/model".into();
+    changed.inference.as_mut().unwrap().model_path = crate::test_host_path("other/model").into();
     assert!(!policy.matches_manifest(&epoch, &changed, &stream).unwrap());
     let mut changed = stream.clone();
     changed.budget.wall_time_ms -= 1;
@@ -196,7 +196,7 @@ fn browser_semantics_preserve_fresh_epoch_coordinates_without_granting_equivalen
     next.presentation_anchor = LiveClockTick(100);
     reanchor(&mut next, SourceTimestamp::new(6, 1).unwrap());
     let selected = next.inference.as_mut().unwrap();
-    selected.model_path = "/another/model-alias".into();
+    selected.model_path = crate::test_host_path("another/model-alias").into();
     selected.profile.cpu_threads += 1;
     selected.profile.runtime.sha256 = "c".repeat(64);
     selected.profile.runtime.artifact_id = ArtifactId::new("c".repeat(64)).unwrap();
