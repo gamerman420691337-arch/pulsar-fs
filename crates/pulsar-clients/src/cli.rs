@@ -1473,8 +1473,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: ProtectionCommands,
     },
-    /// Generate into an existing project and apply only unlocked candidate axes.
+    /// Generate into an existing project, optionally stopping for candidate review.
     Regenerate {
+        /// Return the uncommitted candidate for review before an explicit merge.
+        #[arg(long)]
+        stage_only: bool,
         project: String,
         source_version: String,
         #[arg(long)]

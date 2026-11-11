@@ -4272,7 +4272,7 @@
         "APP-PLAYBACK"
       ],
       "exit": "Exercise an actual admitted model/runtime on permitted media through the user app, review confidence/target/view/timing, protect edits, regenerate selectively and export approved motion. Retain held-out quality and human-effort measurements under QUALITY-DATA; synthetic/diagnostic fixtures do not establish useful defaults.",
-      "evidence": ["EV-STERILE-OFFLINE-GENERATION", "EV-STERILE-SELECTIVE-REGENERATION", "EV-STERILE-REGENERATION-PROTECTION"]
+      "evidence": ["EV-STERILE-OFFLINE-GENERATION", "EV-STERILE-SELECTIVE-REGENERATION", "EV-STERILE-REGENERATION-PROTECTION", "EV-STERILE-REGENERATION-STAGE-ONLY"]
     },
     {
       "id": "QUALITY-DATA",
@@ -19315,6 +19315,35 @@
         {
           "pointer": [
             "revision_after"
+          ],
+          "equals": 2
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-REGENERATION-STAGE-ONLY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/sterile-stage-only-regeneration/result.json",
+      "sha256": "66b9fc0810e4271669ed7cf5a8802a321c4d46c70cd462f69dd5c9a80b9289f9",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Production CLI stage-only regeneration returned a reviewable candidate without changing revision 1 or export bytes. Explicit review and bounded merge advanced revision to 2, preserving every action outside the interval.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "stage_export_byte_identical"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "revision_after_merge"
           ],
           "equals": 2
         }

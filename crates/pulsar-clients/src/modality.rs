@@ -289,8 +289,8 @@ fn print_candidate_review(candidate: &CandidateSnapshot) {
     }
 }
 
-/// Existing project generation does not replace protected or absent axes.
-pub(crate) fn regenerate(
+/// Stage regeneration at the explicitly selected project revision.
+pub(crate) fn regenerate_candidate(
     api: &mut impl EngineApi,
     project: &str,
     source: &str,
@@ -298,7 +298,7 @@ pub(crate) fn regenerate(
     settings: GenerationSettings,
     model: Option<&Path>,
     preset: &str,
-) -> Result<()> {
+) -> Result<CandidateSnapshot> {
     settings.validate()?;
     let project = get_snapshot(api, &ProjectId::new(project)?)?;
     anyhow::ensure!(
@@ -318,8 +318,26 @@ pub(crate) fn regenerate(
         ResponseBody::Job(job) => job,
         _ => bail!("Unexpected regeneration job response"),
     };
+    let job_id = job.job_id.clone();
     let candidate = await_candidate(api, &project, job)?;
+    if candidate.project_id != project.project_id
+        || candidate.base_revision != revision
+        || candidate.job_id.as_ref() != Some(&job_id)
+    {
+        return Err(ProtocolError::new(
+            ErrorCode::DependencyMismatch,
+            "regeneration candidate differs from the requested project, revision, or job",
+        )
+        .into());
+    }
     print_candidate_review(&candidate);
+    Ok(candidate)
+}
+
+pub(crate) fn apply_regeneration(
+    api: &mut impl EngineApi,
+    candidate: CandidateSnapshot,
+) -> Result<()> {
     let range = candidate.project_interval;
     let axes = candidate
         .program
@@ -334,8 +352,8 @@ pub(crate) fn regenerate(
             axes,
             range,
         },
-        Some(project.project_id),
-        Some(revision),
+        Some(candidate.project_id),
+        Some(candidate.base_revision),
     )?)
 }
 
