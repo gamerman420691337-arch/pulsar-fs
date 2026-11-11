@@ -211,10 +211,9 @@ mod local {
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_nanos();
-            Self(std::env::temp_dir().join(format!(
-                "pulsar-protocol-{}-{nonce}-{label}.sock",
-                std::process::id()
-            )))
+            Self(
+                std::env::temp_dir().join(format!("pc-{:x}-{nonce:x}-{label}", std::process::id())),
+            )
         }
     }
     impl Drop for SocketPath {
@@ -225,7 +224,7 @@ mod local {
 
     #[test]
     fn mismatched_response_poisoned_not_reused() {
-        let path = SocketPath::new("identity");
+        let path = SocketPath::new("i");
         let listener = UnixListener::bind(&path.0).unwrap();
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
@@ -253,7 +252,7 @@ mod local {
 
     #[test]
     fn whole_rpc_deadline_resists_slow_header() {
-        let path = SocketPath::new("deadline");
+        let path = SocketPath::new("d");
         let listener = UnixListener::bind(&path.0).unwrap();
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
