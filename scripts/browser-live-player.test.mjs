@@ -821,6 +821,19 @@ test('pause while Handy Start response is held retires exact player and late rep
 });
 
 async function startLookahead(p){await prepareMedia(p);p.play();await flush();await p.frame(.1);await flush();}
+test('decoded lookahead frames cannot cancel startup timeout before native timing is ready', async()=>{
+ const p=mediaPlayer({lookahead:true,timing:true,holdRoute:'/player/timing-observe'});
+ await startLookahead(p);await p.analysisFrame(1.1);
+ assert.equal(p.elements.video.paused,false);
+ p.advance(5000);await flush();
+ assert.equal(p.elements.video.paused,true);
+ assert.match(p.elements.status.textContent,/startup deadline/);
+ const stoppedMessage=p.elements.status.textContent;
+ p.releaseRoute();await flush();
+ assert.equal(p.elements.status.textContent,stoppedMessage);
+ assert.ok(!p.sent.some(r=>r.route==='/start'||r.route==='/frame'));
+});
+
 function rgbPacket(request){const bytes=Buffer.from(request.body),split=bytes.indexOf(10);return {header:JSON.parse(bytes.subarray(0,split)),pixels:bytes.subarray(split+1)};}
 test('lookahead uses the exact prepared URL and actual analysis callback PTS with a native feed',async()=>{
  const p=mediaPlayer({lookahead:true,timing:true,handyConfigured:true});await startLookahead(p);
