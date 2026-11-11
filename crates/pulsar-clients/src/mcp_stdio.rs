@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 const PROTOCOL: &str = "2025-06-18";
 const MAX_MESSAGE_BYTES: u64 = 64 * 1024;
 const MAX_WORK_CALLS: u32 = 128;
+const MAX_TOOL_ARGUMENT_BYTES: usize = 8 * 1024;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -27,53 +28,108 @@ struct ProposePattern {
 #[serde(deny_unknown_fields)]
 struct NoArguments {}
 
-fn tools(media_configured: bool) -> Value {
-    let mut entries = vec![
-        json!({
-            "name": "read_candidate",
-            "description": "Read a retained candidate in the configured project.",
-            "inputSchema": {"type":"object","additionalProperties":false,"required":["candidate_id"],
-                "properties":{"candidate_id":{"type":"string"}}}
-        }),
-        json!({
-            "name": "propose_pattern",
-            "description": "Stage an explicit pattern for review at the named revision.",
-            "inputSchema": {"type":"object","additionalProperties":false,"required":["revision","pattern"],
-                "properties":{"revision":{"type":"integer","minimum":0},"pattern":{"type":"string","maxLength":24576}}}
-        }),
-        json!({
-            "name": "stop_playback",
-            "description": "Stop the local Engine-owned Desktop player.",
-            "inputSchema": {"type":"object","additionalProperties":false}
-        }),
-        json!({
-            "name": "play_prepared_script",
-            "description": "Request playback of the loaded script under the active user-enabled Handy grant.",
-            "inputSchema": {"type":"object","additionalProperties":false}
-        }),
-        json!({
-            "name": "project_summary",
-            "description": "Read the current revision and source counts for the configured project.",
-            "inputSchema": {"type":"object","additionalProperties":false}
-        }),
-        json!({
-            "name": "device_status",
-            "description": "Read the local player and Handy session state.",
-            "inputSchema": {"type":"object","additionalProperties":false}
-        }),
-        json!({
-            "name": "pause_presentation",
-            "description": "Pause local video-only presentation and cancel its pending review.",
-            "inputSchema": {"type":"object","additionalProperties":false}
-        }),
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Tool {
+    ReadCandidate,
+    ProposePattern,
+    StopPlayback,
+    PlayPreparedScript,
+    ProjectSummary,
+    DeviceStatus,
+    PausePresentation,
+    ProposeMedia,
+}
+
+#[derive(PartialEq, Eq)]
+enum ToolClass {
+    Read,
+    Author,
+    Effect,
+    Stop,
+}
+
+impl Tool {
+    const ALL: [Self; 8] = [
+        Self::ReadCandidate,
+        Self::ProposePattern,
+        Self::StopPlayback,
+        Self::PlayPreparedScript,
+        Self::ProjectSummary,
+        Self::DeviceStatus,
+        Self::PausePresentation,
+        Self::ProposeMedia,
     ];
-    if media_configured {
-        entries.push(json!({
-            "name": "propose_media",
-            "description": "Queue the host-selected local clip for review in Pulsar Desktop.",
-            "inputSchema": {"type":"object","additionalProperties":false}
-        }));
+
+    fn class(self) -> ToolClass {
+        match self {
+            Self::ReadCandidate | Self::ProjectSummary | Self::DeviceStatus => ToolClass::Read,
+            Self::ProposePattern => ToolClass::Author,
+            Self::PlayPreparedScript | Self::ProposeMedia => ToolClass::Effect,
+            Self::StopPlayback | Self::PausePresentation => ToolClass::Stop,
+        }
     }
+
+    fn available(self, media_configured: bool) -> bool {
+        self != Self::ProposeMedia || media_configured
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::ReadCandidate => "read_candidate",
+            Self::ProposePattern => "propose_pattern",
+            Self::StopPlayback => "stop_playback",
+            Self::PlayPreparedScript => "play_prepared_script",
+            Self::ProjectSummary => "project_summary",
+            Self::DeviceStatus => "device_status",
+            Self::PausePresentation => "pause_presentation",
+            Self::ProposeMedia => "propose_media",
+        }
+    }
+
+    fn descriptor(self) -> Value {
+        let description = match self {
+            Self::ReadCandidate => "Read a retained candidate in the configured project.",
+            Self::ProposePattern => "Stage an explicit pattern for review at the named revision.",
+            Self::StopPlayback => "Stop the local Engine-owned Desktop player.",
+            Self::PlayPreparedScript => {
+                "Request playback of the loaded script under the active user-enabled Handy grant."
+            }
+            Self::ProjectSummary => {
+                "Read the current revision and source counts for the configured project."
+            }
+            Self::DeviceStatus => "Read the local player and Handy session state.",
+            Self::PausePresentation => {
+                "Pause local video-only presentation and cancel its pending review."
+            }
+            Self::ProposeMedia => {
+                "Queue the host-selected local clip for review in Pulsar Desktop."
+            }
+        };
+        let mut schema = json!({"type":"object","additionalProperties":false});
+        match self {
+            Self::ReadCandidate => {
+                schema["required"] = json!(["candidate_id"]);
+                schema["properties"] = json!({"candidate_id":{"type":"string"}});
+            }
+            Self::ProposePattern => {
+                schema["required"] = json!(["revision", "pattern"]);
+                schema["properties"] = json!({
+                    "revision":{"type":"integer","minimum":0},
+                    "pattern":{"type":"string","maxLength":MAX_TOOL_ARGUMENT_BYTES}
+                });
+            }
+            _ => {}
+        }
+        json!({"name":self.name(),"description":description,"inputSchema":schema})
+    }
+}
+
+fn tools(media_configured: bool) -> Value {
+    let entries: Vec<_> = Tool::ALL
+        .into_iter()
+        .filter(|tool| tool.available(media_configured))
+        .map(Tool::descriptor)
+        .collect();
     json!({"tools": entries})
 }
 
@@ -110,14 +166,14 @@ impl Server<'_> {
         Ok(*status)
     }
 
-    fn execute(&mut self, name: &str, arguments: Value) -> Result<Value> {
-        if matches!(name, "stop_playback" | "pause_presentation") {
+    fn execute(&mut self, tool: Tool, arguments: Value) -> Result<Value> {
+        if tool.class() == ToolClass::Stop {
             let _: NoArguments = serde_json::from_value(arguments)?;
             let proof = self.owner_proof()?;
             let mut client = SessionClient::connect(self.endpoint, self.bootstrap)?;
             let deadline = Instant::now() + Duration::from_secs(5);
             client.set_operation_deadline(Some(deadline));
-            if name == "pause_presentation" {
+            if tool == Tool::PausePresentation {
                 wait_desktop_playback_control(
                     &mut client,
                     &proof,
@@ -138,8 +194,8 @@ impl Server<'_> {
         require_roleplay_attestation(self.consent, consent_now_ns())?;
         let mut client = SessionClient::connect(self.endpoint, self.bootstrap)?;
         client.set_operation_deadline(Some(Instant::now() + Duration::from_secs(5)));
-        match name {
-            "project_summary" => {
+        match tool {
+            Tool::ProjectSummary => {
                 let _: NoArguments = serde_json::from_value(arguments)?;
                 let project = get_snapshot(&mut client, &self.project)?;
                 Ok(json!({
@@ -149,7 +205,7 @@ impl Server<'_> {
                     "placement_count": project.placements.len()
                 }))
             }
-            "device_status" => {
+            Tool::DeviceStatus => {
                 let _: NoArguments = serde_json::from_value(arguments)?;
                 let status = Self::player_status(&mut client, self.owner_proof()?)?;
                 Ok(json!({
@@ -163,7 +219,7 @@ impl Server<'_> {
                     "physical_playback_verified": false
                 }))
             }
-            "play_prepared_script" => {
+            Tool::PlayPreparedScript => {
                 let _: NoArguments = serde_json::from_value(arguments)?;
                 let proof = self.owner_proof()?;
                 let status = Self::player_status(&mut client, proof.clone())?;
@@ -187,7 +243,7 @@ impl Server<'_> {
                 };
                 Ok(json!({"playback_queued":true,"physical_playback_verified":false}))
             }
-            "propose_media" => {
+            Tool::ProposeMedia => {
                 let _: NoArguments = serde_json::from_value(arguments)?;
                 let video = self.media.context("No media is configured")?;
                 let response = client.execute(
@@ -206,7 +262,7 @@ impl Server<'_> {
                 };
                 Ok(json!({"proposal_queued":true,"playback_started":false}))
             }
-            "read_candidate" => {
+            Tool::ReadCandidate => {
                 let input: ReadCandidate = serde_json::from_value(arguments)?;
                 let response = client.execute(
                     Command::GetCandidate {
@@ -220,7 +276,7 @@ impl Server<'_> {
                 };
                 Ok(serde_json::to_value(response)?)
             }
-            "propose_pattern" => {
+            Tool::ProposePattern => {
                 let input: ProposePattern = serde_json::from_value(arguments)?;
                 let pattern = patterns::build_pattern_input(&input.pattern)?;
                 let project = get_snapshot(&mut client, &self.project)?;
@@ -234,7 +290,9 @@ impl Server<'_> {
                     candidate,
                 )))?)
             }
-            _ => anyhow::bail!("Unknown MCP tool"),
+            Tool::StopPlayback | Tool::PausePresentation => {
+                unreachable!("handled by the stop path")
+            }
         }
     }
 }
@@ -286,27 +344,26 @@ fn handle(server: &mut Server<'_>, state: &mut Lifecycle, request: Value) -> Opt
         }
         "tools/list" => tools(server.media.is_some()),
         "tools/call" => {
-            let Some(
-                name @ ("read_candidate"
-                | "propose_pattern"
-                | "stop_playback"
-                | "propose_media"
-                | "play_prepared_script"
-                | "project_summary"
-                | "device_status"
-                | "pause_presentation"),
-            ) = params["name"].as_str()
-            else {
+            let Some(tool) = params["name"].as_str().and_then(|name| {
+                Tool::ALL
+                    .into_iter()
+                    .find(|tool| tool.name() == name && tool.available(server.media.is_some()))
+            }) else {
                 return Some(error(id, -32602, "Unknown tool"));
             };
-            if name == "propose_media" && server.media.is_none() {
-                return Some(error(id, -32602, "Unknown tool"));
-            }
             let args = params
                 .get("arguments")
                 .cloned()
                 .unwrap_or_else(|| json!({}));
-            let (text, failed) = match server.execute(name, args) {
+            if !args.is_object() || serde_json::to_vec(&args).ok()?.len() > MAX_TOOL_ARGUMENT_BYTES
+            {
+                return Some(error(
+                    id,
+                    -32602,
+                    "Tool arguments exceed the object or size bound",
+                ));
+            }
+            let (text, failed) = match server.execute(tool, args) {
                 Ok(value) => (value.to_string(), false),
                 Err(_) => (
                     "Pulsar refused the tool call or could not confirm its result".into(),
@@ -425,6 +482,10 @@ mod tests {
             "params":{"name":"play_playback","arguments":{}}}))
         .unwrap();
         assert_eq!(denied["error"]["code"], -32602);
+        let oversized = request(json!({"jsonrpc":"2.0","id":4,"method":"tools/call",
+            "params":{"name":"propose_pattern","arguments":{"revision":0,"pattern":"x".repeat(MAX_TOOL_ARGUMENT_BYTES)}}}))
+        .unwrap();
+        assert_eq!(oversized["error"]["code"], -32602);
         assert_eq!(server.work_calls, 0);
     }
 }
