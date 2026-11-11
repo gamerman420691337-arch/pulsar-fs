@@ -4528,7 +4528,8 @@
         "EV-MACOS-TIMING-FIXTURE-NATIVE-RED",
         "EV-MACOS-TIMING-BLOCKING-FIXTURE-DRAFT",
         "EV-MACOS-IMPORT-FIXTURE-MERGED",
-        "EV-MACOS-TIMING-FIXTURE-NATIVE-GREEN"
+        "EV-MACOS-TIMING-FIXTURE-NATIVE-GREEN",
+        "EV-NATIVE-BROWSER-TIMING-65149D6"
       ]
     },
     {
@@ -4852,6 +4853,53 @@
     }
   ],
   "evidence": [
+    {
+      "id": "EV-NATIVE-BROWSER-TIMING-65149D6",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/browser-timing-65149d6/summary.json",
+      "sha256": "621c01bf9cbf2278320c6ed6003da1c98607326266d846ab26843c24a5d964c8",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "The native browser timing campaign used the 65149d6 application and worker with a private Engine and authored diagnostic inputs. It retained 39 observations across two capture epochs and three timing bindings, with zero device effects. Rendered browser, model quality, and physical acceptance remain open.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "actual_engine"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "actual_native_timing_exchange"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "observations"
+          ],
+          "equals": 39
+        },
+        {
+          "pointer": [
+            "rendered_browser"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "real_device_contacted"
+          ],
+          "equals": false
+        }
+      ]
+    },
     {
       "id": "EV-DELEGATED-ENGINE-HSP-RETIREMENT",
       "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/delegated-engine-b513f72.json",
