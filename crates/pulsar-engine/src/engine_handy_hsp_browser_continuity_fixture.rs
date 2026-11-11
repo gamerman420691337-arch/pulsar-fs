@@ -921,16 +921,61 @@ mod rendered_browser_continuity_fixture {
         let runtime = env_path("PULSAR_ORT_DYLIB");
         assert_eq!(artifact(&runtime).sha256, ORT_SHA);
         let inputs: Value = serde_json::from_slice(&fs::read(&fixture).unwrap()).unwrap();
-        assert_eq!(
-            inputs["kind"],
-            "authored-sterile-rendered-cpu-software-fixture"
+        let trained_model = std::env::var_os("PULSAR_HSP_RENDERED_TRAINED_MODEL").is_some();
+        let (media_path, model, reference_sha256) = if trained_model {
+            assert_eq!(inputs["origin"], "independently generated geometry");
+            assert_eq!(inputs["fps"], 12);
+            assert_eq!(inputs["frames"], 480);
+            assert_eq!(inputs["playback_offset_ms"], 0);
+            let cases = inputs["cases"].as_array().unwrap();
+            let clean: Vec<_> = cases
+                .iter()
+                .filter(|entry| entry["case"] == "clean")
+                .collect();
+            assert_eq!(clean.len(), 1);
+            let clean = clean[0];
+            let root = fixture.parent().unwrap();
+            let name = |field: &str| {
+                let name = clean[field].as_str().unwrap();
+                assert_eq!(std::path::Path::new(name).file_name().unwrap(), name);
+                root.join(name)
+            };
+            let media_path = name("clip");
+            let reference = artifact(&name("reference"));
+            assert_eq!(
+                artifact(&media_path).sha256,
+                clean["clip_sha256"].as_str().unwrap()
+            );
+            assert_eq!(
+                reference.sha256,
+                clean["reference_sha256"].as_str().unwrap()
+            );
+            let model = env_path("PULSAR_HSP_RENDERED_TRAINED_MODEL");
+            assert_eq!(
+                artifact(&model).sha256,
+                "002525328a27ffc060db997fd4b1618ab7c70dc6cf44c8f77dd54cc91d34df8f"
+            );
+            (media_path, model, Some(reference.sha256))
+        } else {
+            assert_eq!(
+                inputs["kind"],
+                "authored-sterile-rendered-cpu-software-fixture"
+            );
+            assert_eq!(inputs["duration_seconds"], 40);
+            assert_eq!(inputs["trained_model"], false);
+            assert_eq!(inputs["qualified"], false);
+            let media_path = input_path(&inputs, "media");
+            let model = input_path(&inputs, "model");
+            assert_eq!(artifact(&model).sha256, MODEL_SHA);
+            (media_path, model, None)
+        };
+        record(
+            &output,
+            "model-subjects.json",
+            &json!({"trained_model":trained_model,"model":artifact(&model),
+                "source":artifact(&media_path),"reference_sha256":reference_sha256,
+                "fixture":artifact(&fixture),"physical_device":false,"qualified":false}),
         );
-        assert_eq!(inputs["duration_seconds"], 40);
-        assert_eq!(inputs["trained_model"], false);
-        assert_eq!(inputs["qualified"], false);
-        let media_path = input_path(&inputs, "media");
-        let model = input_path(&inputs, "model");
-        assert_eq!(artifact(&model).sha256, MODEL_SHA);
         let f = native_fixture(worker.clone());
         ram_directory(f.dir.path());
         let engine = f.engine.clone();
@@ -1611,7 +1656,7 @@ mod rendered_browser_continuity_fixture {
         record(
             &output,
             "completion.json",
-            &json!({"passed":true,"public_ui_controls":true,"direct_fixture_hsp_actions":false,"originals":originals,"history_only_restart":true,"fault_scenarios":"pending","source_authority_restored":false,"clock_authority_restored":false,"temporary_permits_restored":false,"clock_worker_joined":true,"browser_joined":true,"ipc_joined":true,"engine_joined":true,"localhost_peer_joined":true,"actual_rendered_browser":true,"one_engine":true,"two_transfers":transfers.len(),"crossed_original_media_deadline":crossed_media,"clock_generation":max_generation,"synchronizations":io.syncs.load(Ordering::Acquire),"clock_observations":io.reads.load(Ordering::Acquire),"qualified":false,"physical_device":false}),
+            &json!({"passed":true,"public_ui_controls":true,"direct_fixture_hsp_actions":false,"originals":originals,"history_only_restart":true,"fault_scenarios":"pending","source_authority_restored":false,"clock_authority_restored":false,"temporary_permits_restored":false,"clock_worker_joined":true,"browser_joined":true,"ipc_joined":true,"engine_joined":true,"localhost_peer_joined":true,"actual_rendered_browser":true,"trained_model":trained_model,"one_engine":true,"two_transfers":transfers.len(),"crossed_original_media_deadline":crossed_media,"clock_generation":max_generation,"synchronizations":io.syncs.load(Ordering::Acquire),"clock_observations":io.reads.load(Ordering::Acquire),"qualified":false,"physical_device":false}),
         );
     }
 
