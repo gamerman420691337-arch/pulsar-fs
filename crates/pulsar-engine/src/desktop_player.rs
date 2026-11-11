@@ -258,9 +258,26 @@ fn read_review_consent(path: &std::path::Path) -> Result<RoleplayConsentDocument
     }
 }
 
+struct ActiveMediaConsent {
+    path: PathBuf,
+    document: RoleplayConsentDocument,
+}
+
+impl ActiveMediaConsent {
+    fn check(&self) -> Result<()> {
+        let current = read_review_consent(&self.path)
+            .map_err(|_| anyhow::anyhow!("Reviewed media consent is unavailable"))?;
+        ensure!(current == self.document, "Reviewed media consent changed");
+        current
+            .admit_effect(review_now_ns()?)
+            .map_err(|reason| anyhow::anyhow!("Reviewed media consent refused: {}", reason.label()))
+    }
+}
+
 struct Player {
     mpv: Option<MpvPlayer>,
     reviewed_media: Option<tempfile::TempDir>,
+    active_media_consent: Option<ActiveMediaConsent>,
     pending_review: Option<PendingMediaReview>,
     approval: RoleplayEffectApproval,
     hsp: Option<HspClient>,
@@ -279,6 +296,7 @@ impl Default for Player {
         Self {
             mpv: None,
             reviewed_media: None,
+            active_media_consent: None,
             pending_review: None,
             approval: {
                 let mut nonce = [0; 32];
@@ -320,6 +338,7 @@ impl Player {
             mpv.close();
         }
         self.reviewed_media = None;
+        self.active_media_consent = None;
         self.raw.clear();
         self.points = Arc::new(Vec::new());
     }
@@ -340,6 +359,9 @@ impl Player {
         }
     }
     fn play(&mut self, shared: &Shared, epoch: u64) -> Result<()> {
+        if let Some(consent) = &self.active_media_consent {
+            consent.check()?;
+        }
         let script_end = self.end_ms();
         let mpv = self.mpv.as_mut().context("Open a video and script first")?;
         let state = mpv.state()?;
@@ -516,6 +538,10 @@ impl Player {
         );
         self.open_media(&pending.snapshot, &pending.video, shared, directory)?;
         self.reviewed_media = Some(pending.custody);
+        self.active_media_consent = Some(ActiveMediaConsent {
+            path: pending.status.consent_path,
+            document: current,
+        });
         self.play(shared, epoch)
     }
 
@@ -699,6 +725,9 @@ impl Player {
         Ok(())
     }
     fn tick(&mut self) -> Result<(u64, u64, bool)> {
+        if let Some(consent) = &self.active_media_consent {
+            consent.check()?;
+        }
         let Some(mpv) = self.mpv.as_mut() else {
             return Ok((0, 0, false));
         };
@@ -798,6 +827,7 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
         }
         if last_tick.elapsed() >= Duration::from_millis(50) {
             let was_playing = player.playing;
+            let reviewing_media = player.active_media_consent.is_some();
             let result = player.tick();
             if result.is_err() {
                 player.close();
@@ -813,9 +843,15 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
                             status.message = "Playback paused or finished".into();
                         }
                     }
-                    Err(_) => {
-                        status.message =
-                            "Video player closed or unavailable; Handy stopped and disarmed".into();
+                    Err(error) => {
+                        status.message = if reviewing_media {
+                            format!("Reviewed media closed: {error}")
+                                .chars()
+                                .take(400)
+                                .collect()
+                        } else {
+                            "Video player closed or unavailable; Handy stopped and disarmed".into()
+                        };
                         status.playing = false;
                     }
                 }
@@ -1010,8 +1046,19 @@ mod tests {
             .prepare_media_review(video, consent.path().into(), &shared, 0, runtime)
             .unwrap();
         let review = player.pending_review.as_ref().unwrap().status.review;
+        let active = ActiveMediaConsent {
+            path: consent.path().into(),
+            document: document.clone(),
+        };
+        active.check().unwrap();
         document.withdraw_attestation(review_now_ns().unwrap());
         std::fs::write(consent.path(), serde_json::to_vec(&document).unwrap()).unwrap();
+        player.active_media_consent = Some(active);
+        assert_eq!(
+            player.tick().unwrap_err().to_string(),
+            "Reviewed media consent changed"
+        );
+        player.active_media_consent = None;
         let error = player
             .confirm_media_review(review, &shared, 0, runtime)
             .unwrap_err();
