@@ -62,7 +62,7 @@ async function registerPlayer(attempt){
  if(!p||p.launch_id!==PAGE_SCOPE.launch_id||p.page_id!==PAGE_SCOPE.page_id||p.source_id!==attempt.source_id||p.generation!==attempt.generation||p.time_basis!==attempt.time_basis||typeof p.player_id!=='string'||!p.player_id||typeof result.player_capability!=='string'||!result.player_capability||!Number.isInteger(result.heartbeat_interval_ms)||result.heartbeat_interval_ms<1||result.heartbeat_interval_ms>1000)throw Error('Native player registration did not match this playback.');
  const scope={...p,player_capability:result.player_capability,heartbeat_interval_ms:result.heartbeat_interval_ms,timer:null};
  if(playerAttempt!==attempt||!armed||generation!==attempt.generation){await Promise.all([releasePlayer(scope),confirmedCaptureStop(scope)]);return null;}
- playerScope=lastPlayerScope=scope;guardStatus.textContent=guardMessage(result.guard);void heartbeat(scope);beginTiming(scope,result.timing);beginHandy(scope,analysisReader?{configured:false}:result.handy);beginHsp(scope,result.hsp);if(analysisReader&&!scope.timing)throw Error('Lookahead requires current visible-player timing.');return scope;
+ playerScope=lastPlayerScope=scope;guardStatus.textContent=guardMessage(result.guard);void heartbeat(scope);beginTiming(scope,result.timing,result.hsp?.configured===true);beginHandy(scope,analysisReader?{configured:false}:result.handy);beginHsp(scope,result.hsp);if(analysisReader&&!scope.timing)throw Error('Lookahead requires current visible-player timing.');return scope;
 }
 function stopTiming(scope){const t=scope?.timing;if(!t)return;t.stopped=true;t.observationCurrent=false;t.probe=null;for(const key of ['timer','deadline','expiry']){if(t[key]!==null)clearTimeout(t[key]);t[key]=null;}}
 function timingUnavailable(scope,message){if(!currentPlayer(scope))return;stopTiming(scope);timingStatus.textContent='Browser timing unavailable: '+message+' No calibrated synchronization is claimed.';if(analysisReader)failAnalysis(analysisReader,'Visible-player timing unavailable: '+message);}
@@ -77,21 +77,22 @@ function showTiming(report,historical=false){
  if(typeof o.bracket_width_ns!=='string'||!/^[0-9]+$/.test(o.bracket_width_ns)||!p||typeof p.numerator!=='string'||!/^[-]?[0-9]+$/.test(p.numerator)||typeof p.denominator!=='string'||!/^[1-9][0-9]*$/.test(p.denominator)||!counter(o.sequence))throw Error('Invalid native timing observation.');
  timingStatus.textContent=(historical?'Inspected original timing report; no measurement loop restarted. ':'')+'Measured callback execution bracket width: '+o.bracket_width_ns+' ns. Declared project phase: '+p.numerator+'/'+p.denominator+' s. Unqualified; no display, source, model, or physical calibration.';
 }
-function beginTiming(scope,configuration){
+function beginTiming(scope,configuration,hspConfigured){
  document.getElementById('timing-exchange').textContent='';
  if(!configuration?.configured){timingStatus.textContent='Browser timing unavailable for unbound local files, camera or shared-tab sources.';return;}
  if(configuration.error){timingStatus.textContent='Browser timing unavailable: '+configuration.error;return;}
- scope.timing={stopped:false,observationCurrent:false,inflight:false,probe:null,timer:null,deadline:null,expiry:null,handoffHeld:false};void timingProbe(scope);
+ scope.timing={hspConfigured,stopped:false,observationCurrent:false,inflight:false,probe:null,timer:null,deadline:null,expiry:null,handoffHeld:false};void timingProbe(scope);
 }
 // Scheduling only: the native probe still requires a later observed frame.
-function timingRefreshDelay(frame,at,probeMs){
- if(!frame||!Number.isFinite(frame.cadence_ms)||frame.cadence_ms<20||frame.cadence_ms>125)return 250;
+function timingRefreshDelay(frame,at,probeMs,hspConfigured){
+ const minimum=hspConfigured?40:125,maximum=hspConfigured?125:250;
+ if(!frame||!Number.isFinite(frame.cadence_ms)||frame.cadence_ms<20||frame.cadence_ms>125)return maximum;
  // Leave time for the probe response before the predicted callback.
  const responseMarginMs=Number.isFinite(probeMs)?Math.max(25,probeMs+17):25;
  const probeLeadMs=Math.min(responseMarginMs,frame.cadence_ms/2,42);
- const earliest=at+125,phase=frame.callback_ms-probeLeadMs;
+ const earliest=at+minimum,phase=frame.callback_ms-probeLeadMs;
  const predicted=phase+Math.ceil((earliest-phase)/frame.cadence_ms)*frame.cadence_ms;
- return Math.min(250,Math.max(125,predicted-at));
+ return Math.min(maximum,Math.max(minimum,predicted-at));
 }
 async function timingProbe(scope){
  const t=scope.timing;if(!currentPlayer(scope)||!t||t.stopped||t.inflight||t.probe)return;
@@ -126,7 +127,7 @@ function timingFrame(scope,now,metadata,sampledAt){
     if(report.discarded_probe_sequence!==undefined){
      if(report.discarded_probe_sequence!==probe.sequence||!report.current||!t.observationCurrent||t.expiry===null)throw Error('Discarded timing probe differs or no current observation remains.');
      showTiming(report);
-     t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},timingRefreshDelay(presentedFrame,performance.now(),probeMs));
+     t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},timingRefreshDelay(presentedFrame,performance.now(),probeMs,t.hspConfigured));
      return;
     }
     if(report.observation?.sequence!==probe.sequence)throw Error('Timing observation sequence differs.');
@@ -135,7 +136,7 @@ function timingFrame(scope,now,metadata,sampledAt){
     if(!report.current){stopTiming(scope);if(analysisReader)failAnalysis(analysisReader,'Visible-player timing retired.');return;}t.observationCurrent=true;
     if(t.expiry!==null)clearTimeout(t.expiry);
     t.expiry=setTimeout(()=>{t.expiry=null;t.observationCurrent=false;if(currentPlayer(scope)&&!t.stopped){timingStatus.textContent='Browser timing observation expired locally; waiting for a new native observation. Unqualified.';if(analysisReader)failAnalysis(analysisReader,'Original visible-player observation expired.');}},Math.max(0,probe.sentAt+probe.observationTimeoutMs-performance.now()));
-    t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},timingRefreshDelay(presentedFrame,performance.now(),probeMs));
+    t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},timingRefreshDelay(presentedFrame,performance.now(),probeMs,t.hspConfigured));
    }catch(e){if(!t.stopped&&scope.timing===t)timingUnavailable(scope,e.message);}finally{t.inflight=false;}
   })();
  }catch(e){timingUnavailable(scope,e.message);}

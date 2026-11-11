@@ -750,6 +750,13 @@ test('timing refresh accounts for measured probe latency and adjacent frame cade
  p.advance(134);await flush();assert.equal(probes(),1);
  p.advance(1);await flush();assert.equal(probes(),2);
 });
+test('HSP-configured playback refreshes before the ordinary timing cadence',async()=>{
+ const p=mediaPlayer({timing:true,hspConfigured:true});await prepareMedia(p);p.play();await flush();await p.frame(.1,1);await flush();
+ const probes=()=>p.sent.filter(r=>r.route==='/player/timing-probe').length;
+ assert.equal(probes(),1);
+ p.advance(124);await flush();assert.equal(probes(),1);
+ p.advance(1);await flush();assert.equal(probes(),2);
+});
 test('discarded timing refresh preserves the original local expiry',async()=>{
  const p=mediaPlayer({timing:true,replyOverride:r=>{
   if(r.route!=='/player/timing-observe'||jsonBody(r).sequence!=='2')return null;
