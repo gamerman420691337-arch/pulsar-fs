@@ -410,7 +410,15 @@ pub(super) fn observe_source_current(
     if let Some(error) = refusal {
         return Err(error);
     }
-    let observed = result.map_err(|_| unavailable(source_refusal))?;
+    let observed = result.map_err(|failure| match failure {
+        HspDispatchFailure::PlaybackClock(_) | HspDispatchFailure::SourcePhase(_) => {
+            ProtocolError::new(
+                ErrorCode::Unavailable,
+                format!("{source_refusal}: {failure:?}"),
+            )
+        }
+        _ => unavailable(source_refusal),
+    })?;
     if calls != 1 || sampled != Some(observed.sampled_at_ns) {
         return Err(mismatch());
     }
