@@ -240,13 +240,12 @@ mod sockets {
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_nanos();
-            let path = std::env::temp_dir()
-                .join(format!("pulsar-package-upload-{}-{id}", std::process::id()));
+            let path = std::env::temp_dir().join(format!("pi-{:x}-{id:x}", std::process::id()));
             fs::create_dir(&path).unwrap();
             Self(path)
         }
         fn endpoint(&self) -> PathBuf {
-            self.0.join("bulk.sock")
+            self.0.join("s")
         }
     }
     impl Drop for SocketDirectory {

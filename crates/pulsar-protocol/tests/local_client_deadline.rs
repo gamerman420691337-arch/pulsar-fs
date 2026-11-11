@@ -20,16 +20,14 @@ impl SocketDirectory {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let path = std::env::temp_dir().join(format!(
-            "pulsar-local-deadline-{label}-{}-{nonce}",
-            std::process::id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("pd-{:x}-{nonce:x}-{label}", std::process::id()));
         fs::create_dir(&path).unwrap();
         Self(path)
     }
 
     fn endpoint(&self) -> PathBuf {
-        self.0.join("engine.sock")
+        self.0.join("s")
     }
 }
 
@@ -96,7 +94,7 @@ fn assert_timeout(result: &Result<Response, TransportError>) {
 
 #[test]
 fn ordinary_control_call_without_absolute_deadline_remains_usable() {
-    let directory = SocketDirectory::new("ordinary");
+    let directory = SocketDirectory::new("o");
     let listener = UnixListener::bind(directory.endpoint()).unwrap();
     let server = serve_ack(listener, Duration::from_millis(20));
     let mut client = LocalClient::connect(directory.endpoint(), Duration::from_secs(2)).unwrap();
@@ -107,7 +105,7 @@ fn ordinary_control_call_without_absolute_deadline_remains_usable() {
 
 #[test]
 fn absolute_deadline_can_shorten_but_never_extend() {
-    let directory = SocketDirectory::new("shorten");
+    let directory = SocketDirectory::new("s");
     let listener = UnixListener::bind(directory.endpoint()).unwrap();
     let server = serve_ack(listener, Duration::from_millis(650));
     let mut client = LocalClient::connect(directory.endpoint(), Duration::from_secs(2)).unwrap();
@@ -131,7 +129,7 @@ fn absolute_deadline_can_shorten_but_never_extend() {
 
 #[test]
 fn expired_absolute_deadline_cannot_be_revived() {
-    let directory = SocketDirectory::new("expired");
+    let directory = SocketDirectory::new("e");
     let _listener = UnixListener::bind(directory.endpoint()).unwrap();
     let mut client = LocalClient::connect(directory.endpoint(), Duration::from_secs(2)).unwrap();
     let expired = Instant::now() - Duration::from_millis(1);
@@ -151,7 +149,7 @@ fn expired_absolute_deadline_cannot_be_revived() {
 
 #[test]
 fn longer_absolute_deadline_does_not_extend_per_call_timeout() {
-    let directory = SocketDirectory::new("per-call");
+    let directory = SocketDirectory::new("p");
     let listener = UnixListener::bind(directory.endpoint()).unwrap();
     let server = serve_ack(listener, Duration::from_millis(500));
     let mut client =
@@ -185,7 +183,7 @@ fn small_backlog_listener(path: &Path) -> UnixListener {
 #[cfg(target_os = "linux")]
 #[test]
 fn connection_setup_and_call_share_one_absolute_budget() {
-    let directory = SocketDirectory::new("connect-call");
+    let directory = SocketDirectory::new("c");
     let endpoint = directory.endpoint();
     let listener = small_backlog_listener(&endpoint);
     let fillers = [
