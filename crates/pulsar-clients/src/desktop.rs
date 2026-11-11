@@ -175,6 +175,21 @@ fn execute_work(client: &mut impl EngineApi, work: RpcWork) -> anyhow::Result<Re
             None,
         )
         .map(|snapshot| ResponseBody::Project(Box::new(snapshot))),
+        RpcCommand::Wire(Command::MergeCandidate {
+            candidate_id,
+            axes,
+            range,
+        }) => crate::merge_candidate(
+            client,
+            work.project
+                .ok_or_else(|| anyhow::anyhow!("Candidate merge lacks project identity"))?,
+            work.revision
+                .ok_or_else(|| anyhow::anyhow!("Candidate merge lacks reviewed revision"))?,
+            candidate_id,
+            axes,
+            range,
+        )
+        .map(|snapshot| ResponseBody::Project(Box::new(snapshot))),
         RpcCommand::Wire(Command::ExportAxis { path, axis }) => crate::export_axis(
             client,
             work.project
