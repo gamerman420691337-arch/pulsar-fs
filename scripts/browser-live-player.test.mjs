@@ -1264,6 +1264,19 @@ function hspAck(p,...ids){for(const id of ids){p.elements['hsp-'+id+'-ack'].chec
 async function inspectHspPlayer(p){await startLookahead(p);await p.analysisFrame(1.1);await p.elements['hsp-inspect'].onclick();}
 async function bindHspPlayer(p){await inspectHspPlayer(p);hspAck(p,'prepare');await p.elements['hsp-prepare'].onclick();hspAck(p,'environment','online');await p.elements['hsp-bind'].onclick();}
 
+test('HSP Bind waits for a current browser bracket within the inspected source limit',async()=>{
+ const p=hspPlayer({replyOverride:r=>{
+  if(r.route!=='/player/timing-observe'||jsonBody(r).sequence!=='2')return null;
+  return {ok:true,json:async()=>({current:true,qualified:false,observation:{sequence:'2',bracket_width_ns:'8000000',project_phase:{numerator:'1',denominator:'2'}}})};
+ }});
+ p.setHspView({source:{maximum_timing_bracket_ns:'9000000'}});
+ await inspectHspPlayer(p);hspAck(p,'prepare');await p.elements['hsp-prepare'].onclick();hspAck(p,'environment','online');
+ assert.equal(p.elements['hsp-bind'].disabled,true);
+ await p.elements['hsp-bind'].onclick();
+ assert.ok(!p.sent.some(r=>r.route==='/player/hsp-bind'));
+ p.advance(125);await flush();await p.frame(.2,2);await flush();
+ assert.equal(p.elements['hsp-bind'].disabled,false);
+});
 test('HSP video Play starts only visible timing and real analysis callbacks',async()=>{
  const p=hspPlayer();hspAck(p,'prepare','environment','online','play','continuity');await startLookahead(p);await p.analysisFrame(1.1);
  assert.ok(!p.sent.some(r=>r.route.startsWith('/player/hsp-')));assert.equal(p.elements['hsp-prepare'].disabled,true);assert.equal(p.elements['hsp-play-ack'].checked,false);

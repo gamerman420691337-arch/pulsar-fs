@@ -79,7 +79,7 @@ function showTiming(report,historical=false){
 }
 function armTimingExpiry(scope,t,deadline){
  if(t.expiry!==null)clearTimeout(t.expiry);
- t.expiry=setTimeout(()=>{t.expiry=null;t.observationCurrent=false;if(currentPlayer(scope)&&!t.stopped){timingStatus.textContent='Browser timing observation expired locally; waiting for a new native observation. Unqualified.';if(analysisReader)failAnalysis(analysisReader,'Original visible-player observation expired.');}},Math.max(0,deadline-performance.now()));
+ t.expiry=setTimeout(()=>{t.expiry=null;t.observationCurrent=false;hspButtons();if(currentPlayer(scope)&&!t.stopped){timingStatus.textContent='Browser timing observation expired locally; waiting for a new native observation. Unqualified.';if(analysisReader)failAnalysis(analysisReader,'Original visible-player observation expired.');}},Math.max(0,deadline-performance.now()));
 }
 function beginTiming(scope,configuration,hspConfigured,adoptedDeadline=null){
  document.getElementById('timing-exchange').textContent='';
@@ -139,7 +139,7 @@ function timingFrame(scope,now,metadata,sampledAt){
     if(report.observation?.sequence!==probe.sequence)throw Error('Timing observation sequence differs.');
     showTiming(report);
     exchange.textContent=measurement+` Observation request ${(performance.now()-observeSentAt).toFixed(1)} ms.`;
-    if(!report.current){stopTiming(scope);if(analysisReader)failAnalysis(analysisReader,'Visible-player timing retired.');return;}t.observationCurrent=true;
+    if(!report.current){stopTiming(scope);hspButtons();if(analysisReader)failAnalysis(analysisReader,'Visible-player timing retired.');return;}t.observationCurrent=true;t.bracketWidthNs=report.observation.bracket_width_ns;hspButtons();
     armTimingExpiry(scope,t,probe.sentAt+probe.observationTimeoutMs);
     t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},timingRefreshDelay(presentedFrame,performance.now(),probeMs,t.hspConfigured));
    }catch(e){if(!t.stopped&&scope.timing===t)timingUnavailable(scope,e.message);}finally{t.inflight=false;}
@@ -183,7 +183,12 @@ function hspButtons(){
  const ready=configured&&current&&h.inspected&&!h.busy&&!h.readBusy&&!h.uncertain&&!h.retired&&!h.stopping&&!h.cancelling&&!v?.pending_action;
  document.getElementById('hsp-inspect').disabled=!configured||!current||h.busy||h.readBusy;
  document.getElementById('hsp-prepare').disabled=!ready||v?.can_prepare!==true||!hspChecked('hsp-prepare-ack');
- document.getElementById('hsp-bind').disabled=!ready||v?.can_bind!==true||!hspChecked('hsp-environment-ack')||!hspChecked('hsp-online-ack');
+ const bracketLimit=v?.source?.maximum_timing_bracket_ns,observedBracket=scope?.timing?.bracketWidthNs;
+ const hasBracketLimit=typeof bracketLimit==='string'&&/^[1-9][0-9]{0,19}$/.test(bracketLimit);
+ const bindTimingReady=!hasBracketLimit||(scope?.timing?.observationCurrent===true&&typeof observedBracket==='string'&&BigInt(observedBracket)<=BigInt(bracketLimit));
+ const bind=document.getElementById('hsp-bind');
+ bind.disabled=!ready||v?.can_bind!==true||!bindTimingReady||!hspChecked('hsp-environment-ack')||!hspChecked('hsp-online-ack');
+ bind.title=bindTimingReady?'':'Waiting for a current browser timing bracket within the source limit.';
  document.getElementById('hsp-continuity-enable').disabled=!ready||v?.can_enable_continuity!==true||!hspChecked('hsp-continuity-ack')||!Number.isSafeInteger(v?.continuity_duration_ms)||v.continuity_duration_ms<1;
  document.getElementById('hsp-play').disabled=!ready||v?.can_play!==true||!hspChecked('hsp-play-ack')||(hspChecked('hsp-continuity-ack')&&v?.continuity?.current!==true);
  for(const id of ['hsp-status','hsp-preparation-status','hsp-continuity-status'])document.getElementById(id).disabled=!configured||h.readBusy;

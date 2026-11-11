@@ -315,7 +315,8 @@ impl Native {
             dossier: json!({"qualification_id":dossier.dossier_id,
                 "qualification_revision":bounded(dossier.revision),"state":dossier.state,
                 "origin":subject.origin,"environment_sha256":subject.browser_environment.sha256,
-                "model_sha256":subject.inference_profile.model.sha256}),
+                "model_sha256":subject.inference_profile.model.sha256,
+                "maximum_timing_bracket_ns":subject.timing.clock.maximum_interval_ns.to_string()}),
             source,
         })
     }
