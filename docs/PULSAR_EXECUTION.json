@@ -4219,7 +4219,8 @@
         "EV-STERILE-STUDIO-EOF-CAP",
         "EV-STERILE-STUDIO-EOF-NEGOTIATED",
         "EV-STERILE-STUDIO-MIXED-PREVIEW",
-        "EV-STERILE-STUDIO-MIXED-REVERSE"
+        "EV-STERILE-STUDIO-MIXED-REVERSE",
+        "EV-DESKTOP-PLAYER-SEEK-DISPLAY"
       ],
       "next_proof": "Linux rendered evidence now covers script import, review, commit, timeline add and drag, Undo/Redo, restart/reopen, and export. Rendered Linux Studio preview now covers seeking at the edited key and advancing the same video. Exercise the integrated workflow on additional supported platforms. The operator previously confirmed motion and close visual sync in the local-video/HSP demo."
     },
@@ -4853,6 +4854,59 @@
     }
   ],
   "evidence": [
+    {
+      "id": "EV-DESKTOP-PLAYER-SEEK-DISPLAY",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/desktop-player-a5819f8/result.json",
+      "sha256": "f0d2f1df32335f125aaa14d1afd35a6fcbf6d61eb800ebd28376b98d4e472fc6",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Rendered Linux Player playback on a5819f8 tracked the playback position, reset both displays to zero on Stop, and preserved an unapplied seek target across status polls. Handy remained disabled at zero offset.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "rendered"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "stopped_position_ms"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "stopped_seek_ms"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "unapplied_seek_ms"
+          ],
+          "equals": 10000
+        },
+        {
+          "pointer": [
+            "handy_enabled"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "offset_ms"
+          ],
+          "equals": 0
+        }
+      ]
+    },
     {
       "id": "EV-NATIVE-BROWSER-TIMING-65149D6",
       "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/browser-timing-65149d6/summary.json",
