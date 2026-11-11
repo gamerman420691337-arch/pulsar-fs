@@ -174,8 +174,7 @@ fn declaration_capture_refuses_drift_oversize_and_nonregular_files() {
     #[cfg(unix)]
     {
         let fifo = dir.path().join("fifo");
-        let result = std::process::Command::new("timeout")
-            .args(["5s", "mkfifo"])
+        let result = std::process::Command::new("/usr/bin/mkfifo")
             .arg(&fifo)
             .status()
             .unwrap();

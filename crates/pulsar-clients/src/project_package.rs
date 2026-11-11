@@ -1153,7 +1153,7 @@ mod tests {
     fn private_staging_is_not_visible_as_destination_until_durable_publish() {
         use std::os::unix::fs::MetadataExt;
         let root = tempfile::tempdir().unwrap();
-        let destination = root.path().join("result.pulsar");
+        let destination = root.path().canonicalize().unwrap().join("result.pulsar");
         let mut stage = DestinationStage::new(&destination).unwrap();
         stage.file_mut().write_all(b"verified bytes").unwrap();
         assert!(!destination.exists());
@@ -1190,7 +1190,7 @@ mod tests {
     fn normal_drop_and_publish_remove_owned_recovery_journal() {
         for publish in [false, true] {
             let root = tempfile::tempdir().unwrap();
-            let destination = root.path().join("result.pulsar");
+            let destination = root.path().canonicalize().unwrap().join("result.pulsar");
             let mut stage = DestinationStage::new(&destination).unwrap();
             stage.bind_recovery(recovery_binding()).unwrap();
             stage.file_mut().write_all(b"bytes").unwrap();
