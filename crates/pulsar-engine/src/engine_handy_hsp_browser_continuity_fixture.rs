@@ -1685,5 +1685,28 @@ mod rendered_browser_continuity_fixture {
         );
     }
 
+    fn rendered_browser_first_stop(f: &Fixture, output: &std::path::Path, id: &RequestId) -> Value {
+        let handle = f
+            .engine
+            .handy_hsp_execution
+            .try_lock()
+            .ok()
+            .and_then(|pump| pump.as_ref().map(|pump| pump.handle()));
+        let Some(handle) = handle else {
+            return json!({"available":false,"reason":"execution_handle_unavailable"});
+        };
+        match handle.first_stop_for_session(&f.session, &f.project, id) {
+            Ok(observation) => {
+                let result = json!({"available":true,"stream_request_id":id,
+                    "first_stop":observation.as_ref().map(|value|value.diagnostic())});
+                if observation.is_some() && !output.join("first-native-stop.json").exists() {
+                    record(output, "first-native-stop.json", &result);
+                }
+                result
+            }
+            Err(error) => json!({"available":false,"reason":format!("{error:?}")}),
+        }
+    }
+
     include!("engine_handy_hsp_browser_fault_fixture.rs");
 }
