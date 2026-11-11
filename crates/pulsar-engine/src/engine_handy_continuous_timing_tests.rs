@@ -493,9 +493,11 @@ fn handy_continuous_timing_stop_progresses_while_refresh_read_is_stalled() {
                 (
                     |h, _| Ok(h.downloaded.clone()),
                     |_, _, clock| {
-                        assert!(engine.db.try_lock().is_ok());
-                        assert!(engine.handy_preparations.try_lock().is_ok());
-                        assert!(engine._device_effect_journal.try_lock().is_ok());
+                        // Background owners can briefly take these locks. A
+                        // lock held by this refresh cannot become available here.
+                        handy_execution_wait(|| engine.db.try_lock().is_ok());
+                        handy_execution_wait(|| engine.handy_preparations.try_lock().is_ok());
+                        handy_execution_wait(|| engine._device_effect_journal.try_lock().is_ok());
                         entered.send(()).unwrap();
                         gate.recv_timeout(std::time::Duration::from_secs(5))
                             .unwrap();
