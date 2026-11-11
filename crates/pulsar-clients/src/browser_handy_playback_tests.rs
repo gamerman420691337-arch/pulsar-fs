@@ -337,6 +337,7 @@ fn renewal_and_exact_stop_continue_while_start_and_device_refresh_replies_are_he
                 }
                 Err(e) => panic!("authored socket accept {e}"),
             };
+            socket.set_nonblocking(false).unwrap();
             socket
                 .set_read_timeout(Some(Duration::from_secs(1)))
                 .unwrap();

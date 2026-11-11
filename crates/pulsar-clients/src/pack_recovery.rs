@@ -662,7 +662,7 @@ mod tests {
                                 completed.push(id);
                             }
                             Err(error) => {
-                                assert!(error.to_string().contains("busy"), "{error}");
+                                assert!(error.to_string().contains("busy"), "{error:#}");
                                 refused.push(id);
                             }
                         }
