@@ -520,6 +520,17 @@ impl Walker<'_> {
                 }
             }
         } else {
+            let has_edit_origin: bool = self
+                .db
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM edit_candidate_lineage WHERE candidate=?1)",
+                    [candidate],
+                    |row| row.get(0),
+                )
+                .map_err(internal)?;
+            if !has_edit_origin {
+                return Err(mismatch());
+            }
             if let Some(pool) = self.pool {
                 let candidate = CandidateId::new(candidate).map_err(|_| mismatch())?;
                 let origin = edit_clock_origins::load(self.db, self.project, &candidate, pool)?;
