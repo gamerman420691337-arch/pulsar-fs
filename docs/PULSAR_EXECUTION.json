@@ -4404,6 +4404,7 @@
         "EV-STERILE-BROWSER-CPU-LAUNCH-STAGES",
         "EV-STERILE-BROWSER-SINGLE-SYNC",
         "EV-STERILE-BROWSER-CPU-ASSET-STAGES",
+        "EV-STERILE-BROWSER-BATCH-SYNC",
         "EV-RENDERED-200MS-RECORDING",
         "EV-RENDERED-200MS-RECORDING-EXPORT",
         "EV-RENDERED-SEEK-200MS",
@@ -18719,6 +18720,36 @@
             "first_sample_s"
           ],
           "equals": 1.75
+        },
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_MOTION_SCREEN"
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-BATCH-SYNC",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-batch-sync-rerun/result.json",
+      "sha256": "613ea9cc55f1d952c2dc1d4ba75aa9b9f46bada064bf7258e0c825a9c11c5546",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Chromium passed startup with batched directory sync. Staging measured 1196 ms versus 762 ms in the previous per-asset trace. The uncontrolled runs do not establish a performance gain. The motion screen still failed.",
+      "assertions": [
+        {
+          "pointer": [
+            "cpu_launch_stages_ms",
+            "host_staging_and_custody"
+          ],
+          "equals": 1196
+        },
+        {
+          "pointer": [
+            "first_sample_s"
+          ],
+          "equals": 2.333333
         },
         {
           "pointer": [
