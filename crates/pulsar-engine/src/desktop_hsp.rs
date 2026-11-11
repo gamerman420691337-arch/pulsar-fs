@@ -510,6 +510,42 @@ mod tests {
     }
 
     #[test]
+    fn all_supported_speed_caps_survive_sync_offset_and_preload_splits() {
+        let actions = [
+            (0, 0),
+            (1, 100),
+            (3, 0),
+            (7, 100),
+            (90, 0),
+            (1000, 100),
+            (1025, 50),
+            (5001, 99),
+            (10500, 0),
+            (19000, 100),
+        ];
+        for speed in 1..=300 {
+            let (points, _) = build_points(&actions, speed, 10.0, 80.0);
+            for offset in [-2000, -400, -1, 0, 1, 400, 2000] {
+                let shifted = offset_points(&points, offset);
+                let expected_end = shifted.last().unwrap().0;
+                let (limited, _) = limit_quantized_rate(shifted, speed);
+                assert_eq!(limited.first().unwrap().0, 0);
+                assert_eq!(limited.last().unwrap().0, expected_end);
+                assert!(limited.iter().all(|point| (10..=80).contains(&point.1)));
+                assert!(
+                    limited.windows(2).all(|pair| {
+                        let gap = pair[1].0 - pair[0].0;
+                        (1..=5000).contains(&gap)
+                            && u32::from(pair[1].1.abs_diff(pair[0].1)) * 1000
+                                <= u32::from(speed) * gap
+                    }),
+                    "speed={speed}, offset={offset}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn speed_limit_caps_stroke_rate() {
         // 100 units in 100 ms is 1000 u/s; limit 300 u/s allows 30 units.
         let pts = build_points(&[(0, 0), (100, 100)], 300, 0.0, 100.0).0;
