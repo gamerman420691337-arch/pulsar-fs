@@ -13,6 +13,11 @@ pub enum DesktopPlaybackAction {
     OpenMedia {
         video: PathBuf,
     },
+    /// Host-owned playback of the exact bytes identified during media review.
+    OpenReviewedMedia {
+        video: PathBuf,
+        sha256: String,
+    },
     Arm {
         enabled: bool,
         max_speed: u16,
@@ -54,6 +59,18 @@ impl DesktopPlaybackAction {
                 validate_local_path(script)?;
             }
             Self::OpenMedia { video } => validate_local_path(video)?,
+            Self::OpenReviewedMedia { video, sha256 } => {
+                validate_local_path(video)?;
+                if sha256.len() != 64
+                    || !sha256
+                        .bytes()
+                        .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+                {
+                    return Err(ProtocolError::invalid(
+                        "reviewed video needs a lowercase SHA-256 digest",
+                    ));
+                }
+            }
             Self::Arm {
                 enabled: true,
                 max_speed,
