@@ -206,7 +206,6 @@ struct ScriptPoint {
 struct PendingMediaReview {
     status: DesktopMediaReview,
     scope: RoleplayEffectScope,
-    consent: PathBuf,
     video: PathBuf,
     snapshot: PathBuf,
     custody: tempfile::TempDir,
@@ -472,6 +471,7 @@ impl Player {
         self.pending_review = Some(PendingMediaReview {
             status: DesktopMediaReview {
                 review,
+                consent_path: consent,
                 sha256,
                 byte_len,
                 video_name: video
@@ -481,7 +481,6 @@ impl Player {
                     .into(),
             },
             scope,
-            consent,
             video,
             snapshot,
             custody,
@@ -506,7 +505,7 @@ impl Player {
         );
         let pending = self.pending_review.take().expect("review checked");
         let now = review_now_ns()?;
-        let current = read_review_consent(&pending.consent)?;
+        let current = read_review_consent(&pending.status.consent_path)?;
         self.approval
             .confirm(review, &pending.scope, &current, now)
             .and_then(|()| self.approval.consume(review, &pending.scope, &current, now))

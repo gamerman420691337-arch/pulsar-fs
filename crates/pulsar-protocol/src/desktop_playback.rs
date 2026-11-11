@@ -118,6 +118,7 @@ impl DesktopPlaybackAction {
 #[serde(deny_unknown_fields)]
 pub struct DesktopMediaReview {
     pub review: EffectReview,
+    pub consent_path: PathBuf,
     pub video_name: String,
     pub sha256: String,
     pub byte_len: u64,
