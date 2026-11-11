@@ -314,10 +314,24 @@ mod browser_timing_tests {
             original
         );
         assert!(at(&x, 123_000_000, observe(&x, &wide, frame(2))).is_err());
-        let fresh = probe(at(&x, 130_000_000, issue(&x, &initial.binding, 3)).unwrap());
-        let replaced = report(at(&x, 140_000_000, observe(&x, &fresh, frame(3))).unwrap());
+        let second_wide = probe(at(&x, 130_000_000, issue(&x, &initial.binding, 3)).unwrap());
+        let retained = report(at(&x, 222_000_000, observe(&x, &second_wide, frame(3))).unwrap());
+        assert_eq!(retained.discarded_probe_sequence, Some(3));
+        assert_eq!(retained.observation.as_ref(), Some(&original));
+        let selected = pin.select_read().unwrap();
+        assert_eq!(
+            selected
+                .evaluate_at(original.expires_at_boottime_ns - 1)
+                .unwrap(),
+            original
+        );
+        assert!(selected
+            .evaluate_at(original.expires_at_boottime_ns)
+            .is_err());
+        let fresh = probe(at(&x, 230_000_000, issue(&x, &initial.binding, 4)).unwrap());
+        let replaced = report(at(&x, 240_000_000, observe(&x, &fresh, frame(4))).unwrap());
         assert_eq!(replaced.discarded_probe_sequence, None);
-        assert_eq!(replaced.observation.unwrap().sequence, 3);
+        assert_eq!(replaced.observation.unwrap().sequence, 4);
     }
     #[test]
     fn browser_timing_old_nonce_sequence_and_player_messages_cannot_retire_successors() {
