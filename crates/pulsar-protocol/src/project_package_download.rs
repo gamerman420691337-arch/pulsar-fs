@@ -296,7 +296,7 @@ mod socket_tests {
     struct SocketDir(PathBuf);
     impl Drop for SocketDir {
         fn drop(&mut self) {
-            let _ = fs::remove_file(self.0.join("bulk.sock"));
+            let _ = fs::remove_file(self.0.join("b"));
             let _ = fs::remove_dir(&self.0);
         }
     }
@@ -305,12 +305,10 @@ mod socket_tests {
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!(
-            "pulsar-package-bulk-{}-{nonce}",
-            std::process::id()
-        ));
+        // Darwin's temporary directory can already occupy much of sun_path.
+        let dir = std::env::temp_dir().join(format!("pb-{:x}-{nonce:x}", std::process::id()));
         fs::create_dir(&dir).unwrap();
-        let path = dir.join("bulk.sock");
+        let path = dir.join("b");
         let listener = UnixListener::bind(&path).unwrap();
         let artifact = PackageArtifactDescriptor {
             format_version: 1,
