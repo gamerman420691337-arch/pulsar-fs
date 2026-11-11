@@ -19,26 +19,33 @@ def digest(path):
 
 
 def read_reference(folder):
+    def point(at, pos):
+        if type(at) is not int or at < 0 or type(pos) is not int or not 0 <= pos <= 100:
+            raise ValueError("Reference actions require nonnegative integer times and positions from 0 to 100")
+        return {"at": at, "pos": pos}
+
     def actions(suffix):
-        return [
-            {"at": action["at"], "pos": action["pos"]}
-            for action in json.loads((folder / f"353079142771.{suffix}").read_text())[
-                "actions"
-            ]
-        ]
+        data = json.loads((folder / f"353079142771.{suffix}").read_text())
+        return [point(action["at"], action["pos"]) for action in data["actions"]]
 
     script = actions("funscript")
-    csv = [
-        dict(zip(("at", "pos"), map(int, line.split(","))))
-        for line in (folder / "353079142771.csv").read_text().splitlines()
-        if line and not line.startswith("#")
-    ]
+    csv = []
+    for line in (folder / "353079142771.csv").read_text().splitlines():
+        if not line or line.startswith("#"):
+            continue
+        fields = line.split(",")
+        if len(fields) != 2:
+            raise ValueError("Reference CSV requires exactly two columns")
+        csv.append(point(*(int(field) for field in fields)))
     if script != csv or script != actions("json"):
         raise ValueError("Supplied references differ")
     if any(b["at"] <= a["at"] for a, b in itertools.pairwise(script)):
         raise ValueError("Reference timestamps must be strictly increasing")
     # Do not extend the final incomplete stroke past the video.
-    return [action for action in script if action["at"] <= CLIP_DURATION_MS]
+    within_clip = [action for action in script if action["at"] <= CLIP_DURATION_MS]
+    if len(within_clip) < 2:
+        raise ValueError("Reference requires at least two actions within the clip")
+    return within_clip
 
 
 def read_recording(path, model_hash, source_hash):
