@@ -10,7 +10,7 @@ runtime_seconds=${PULSAR_ENGINE_TEST_RUNTIME_SECONDS:-540}
 
 exec timeout "$((runtime_seconds + 10))s" systemd-run --user --wait --pipe --collect --quiet \
     --expand-environment=no --working-directory="$repo" --setenv="PATH=$PATH" \
-    -p "RuntimeMaxSec=${runtime_seconds}s" -p 'Delegate=cpu memory pids' -p DelegateSubgroup=runner \
+    -p "RuntimeMaxSec=${runtime_seconds}s" -p UMask=0022 -p 'Delegate=cpu memory pids' -p DelegateSubgroup=runner \
     /usr/bin/bash -euc '
         scope=$(sed -n "s/^0:://p" /proc/self/cgroup)
         case "$scope" in
