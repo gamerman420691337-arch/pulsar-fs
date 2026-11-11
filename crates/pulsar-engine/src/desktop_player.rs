@@ -22,6 +22,17 @@ const SESSION_LIFETIME: Duration = Duration::from_secs(20 * 60);
 const HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(3);
 const START_LEAD_MS: u64 = 1_500;
 
+// Higher-priority interrupts subsume lower-priority ones.
+fn interrupt_priority(action: &Action) -> u8 {
+    match action {
+        Action::Close => 4,
+        Action::Stop => 3,
+        Action::Arm { enabled: false, .. } => 2,
+        Action::Pause => 1,
+        _ => 0,
+    }
+}
+
 struct Shared {
     status: Mutex<Status>,
     queue: Mutex<VecDeque<(u64, Action)>>,
@@ -104,17 +115,19 @@ impl Service {
             *owner = Some(session.into());
         }
         *shared.heartbeat.lock().map_err(|_| internal())? = Instant::now();
-        let interrupts = matches!(
-            action,
-            Action::Stop | Action::Close | Action::Pause | Action::Arm { enabled: false, .. }
-        );
+        let priority = interrupt_priority(action);
+        let interrupts = priority > 0;
         let mut queue = shared.queue.lock().map_err(|_| internal())?;
         if interrupts {
             // Every queued action belongs to the superseded playback epoch.
             // Reclaim their slots before admitting Stop, even at capacity.
             let epoch = shared.epoch.fetch_add(1, Ordering::SeqCst) + 1;
+            let interrupt = match queue.front() {
+                Some((_, pending)) if interrupt_priority(pending) > priority => pending.clone(),
+                _ => action.clone(),
+            };
             queue.clear();
-            queue.push_back((epoch, action.clone()));
+            queue.push_back((epoch, interrupt));
         } else {
             if queue.len() >= 32 {
                 return Err(ProtocolError::new(
@@ -494,7 +507,10 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
         }
         let command = shared.queue.lock().ok().and_then(|mut q| q.pop_front());
         if let Some((generation, action)) = command {
-            if generation != shared.epoch.load(Ordering::SeqCst) {
+            // A newer interrupt may arrive after this action leaves the queue.
+            // Apply an already-dequeued interrupt before processing the newer one.
+            if interrupt_priority(&action) == 0 && generation != shared.epoch.load(Ordering::SeqCst)
+            {
                 continue;
             }
             let closed = matches!(action, Action::Close);
@@ -689,6 +705,27 @@ mod tests {
         assert_eq!(failure.to_string(), "Open a video and script first");
         assert!(player.hsp.is_none());
         assert!(player.armed_until.is_none());
+    }
+
+    #[test]
+    fn a_later_pause_cannot_discard_stop_or_close() {
+        let service = Service {
+            shared: Arc::new(Shared::new()),
+        };
+        for (index, expected) in [(0, Action::Stop), (1, Action::Close)] {
+            service
+                .request("player", &format!("interrupt-{index}"), &expected)
+                .unwrap();
+            service
+                .request("player", &format!("pause-{index}"), &Action::Pause)
+                .unwrap();
+            let mut queue = service.shared.queue.lock().unwrap();
+            assert_eq!(queue.len(), 1);
+            assert_eq!(
+                interrupt_priority(&queue.pop_front().unwrap().1),
+                interrupt_priority(&expected)
+            );
+        }
     }
 
     #[test]
