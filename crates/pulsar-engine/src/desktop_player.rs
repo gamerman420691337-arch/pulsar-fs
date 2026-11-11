@@ -100,7 +100,7 @@ impl Service {
             }
             return Ok(status);
         }
-        if owner.is_none() || matches!(action, Action::Open { .. }) {
+        if owner.is_none() || matches!(action, Action::Open { .. } | Action::OpenMedia { .. }) {
             *owner = Some(session.into());
         }
         *shared.heartbeat.lock().map_err(|_| internal())? = Instant::now();
@@ -229,15 +229,20 @@ impl Player {
         }
     }
     fn play(&mut self, shared: &Shared, epoch: u64) -> Result<()> {
-        let end = self.end_ms();
+        let script_end = self.end_ms();
         let mpv = self.mpv.as_mut().context("Open a video and script first")?;
         let state = mpv.state()?;
+        let end = if script_end == 0 {
+            state.duration_ms
+        } else {
+            script_end
+        };
         mpv.pause(true)?;
         if state.eof || state.position_ms >= end {
             mpv.seek(0)?;
         }
         let position = mpv.state()?.position_ms;
-        ensure!(position < end, "seek before the end of the script");
+        ensure!(position < end, "seek before the end of playback");
         if let Some(hsp) = self.hsp.as_mut() {
             ensure!(
                 self.armed_until.is_some_and(|t| t > Instant::now()),
@@ -351,6 +356,20 @@ impl Player {
                     .to_string_lossy()
                     .into();
             }
+            Action::OpenMedia { video } => {
+                self.close();
+                self.mpv = Some(MpvPlayer::open(&video, directory)?);
+                let mut status = shared
+                    .status
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("player status unavailable"))?;
+                status.video_name = video
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into();
+                status.script_name.clear();
+            }
             Action::Arm {
                 enabled,
                 max_speed,
@@ -359,7 +378,10 @@ impl Player {
             } => {
                 self.stop(true)?;
                 if enabled {
-                    ensure!(self.mpv.is_some(), "Open a video and script first");
+                    ensure!(
+                        self.mpv.is_some() && self.points.len() >= 2,
+                        "Open a video and script first"
+                    );
                     let api = std::env::var("HANDY_API_KEY")
                         .context("Start Pulsar with secrets run: HANDY_API_KEY missing")?;
                     let connection = std::env::var("HANDY_CONNECTION_KEY")
@@ -430,7 +452,8 @@ impl Player {
             if let (Some(stream), Some(hsp)) = (self.stream.as_mut(), self.hsp.as_mut()) {
                 stream.load_until(hsp, state.position_ms + AHEAD_MS)?;
             }
-            if state.position_ms >= self.end_ms() {
+            let script_end = self.end_ms();
+            if script_end != 0 && state.position_ms >= script_end {
                 self.stop(false)?;
             }
         }
@@ -478,7 +501,11 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
             let result = player.apply(action, &shared, generation, &directory);
             let message = match result {
                 Ok(()) => if player.playing {
-                    "Playing video and script"
+                    if player.hsp.is_some() {
+                        "Playing video and script"
+                    } else {
+                        "Playing video"
+                    }
                 } else if player.armed_until.is_some() {
                     "Handy enabled; press Play"
                 } else if player.mpv.is_some() {

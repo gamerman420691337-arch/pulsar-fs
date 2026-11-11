@@ -10,6 +10,9 @@ pub enum DesktopPlaybackAction {
         video: PathBuf,
         script: PathBuf,
     },
+    OpenMedia {
+        video: PathBuf,
+    },
     Arm {
         enabled: bool,
         max_speed: u16,
@@ -34,18 +37,23 @@ fn is_zero_offset(offset: &i16) -> bool {
     *offset == 0
 }
 
+fn validate_local_path(path: &std::path::Path) -> Result<(), ProtocolError> {
+    if !path.is_absolute() || path.as_os_str().len() > 4096 {
+        return Err(ProtocolError::invalid(
+            "player needs bounded absolute local paths",
+        ));
+    }
+    Ok(())
+}
+
 impl DesktopPlaybackAction {
     pub fn validate(&self) -> Result<(), ProtocolError> {
         match self {
             Self::Open { video, script } => {
-                for path in [video, script] {
-                    if !path.is_absolute() || path.as_os_str().len() > 4096 {
-                        return Err(ProtocolError::invalid(
-                            "player needs bounded absolute local paths",
-                        ));
-                    }
-                }
+                validate_local_path(video)?;
+                validate_local_path(script)?;
             }
+            Self::OpenMedia { video } => validate_local_path(video)?,
             Self::Arm {
                 enabled: true,
                 max_speed,

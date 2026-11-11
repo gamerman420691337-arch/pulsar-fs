@@ -251,6 +251,17 @@ impl PlayerPanel {
                 self.open();
             }
             if ui
+                .add_enabled(!self.busy(), egui::Button::new("Open video only"))
+                .clicked()
+            {
+                let video = PathBuf::from(self.video.trim());
+                if video.is_absolute() {
+                    self.send(DesktopPlaybackAction::OpenMedia { video }, Lane::Normal);
+                } else {
+                    self.error = Some("Choose an absolute local video path.".into());
+                }
+            }
+            if ui
                 .add_enabled(
                     self.status.loaded || self.status.busy,
                     egui::Button::new("Close player"),
@@ -268,7 +279,9 @@ impl PlayerPanel {
             let mut enabled = self.status.armed;
             if ui
                 .add_enabled(
-                    self.status.loaded && (!self.busy() || enabled),
+                    self.status.loaded
+                        && !self.status.script_name.is_empty()
+                        && (!self.busy() || enabled),
                     egui::Checkbox::new(&mut enabled, "Enable Handy"),
                 )
                 .changed()
