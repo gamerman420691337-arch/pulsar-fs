@@ -115,6 +115,7 @@ use std::{
 
 pub use desktop::PulsarDesktop;
 mod assistant_client;
+mod mcp_stdio;
 mod roleplay_consent_state;
 pub use roleplay_consent_state::{
     attest, create as create_consent, escalate as escalate_consent, grant as grant_consent,
@@ -315,6 +316,9 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
         return run_gui(endpoint.to_owned(), bootstrap.to_owned());
     };
     match command {
+        Commands::Mcp { project, consent } => {
+            mcp_stdio::run(endpoint, bootstrap, ProjectId::new(project)?, &consent)
+        }
         Commands::Roleplay { command } => run_roleplay_command(command, endpoint, bootstrap),
         Commands::JobAttempts {project,job,after_attempt,limit} => {
             let mut client=SessionClient::connect(endpoint,bootstrap)?;
