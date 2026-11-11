@@ -325,6 +325,37 @@ mod tests {
         assert_eq!(a.phase_error_ns, 333_334);
     }
     #[test]
+    fn rendered_bracket_spike_exceeds_admitted_alignment_budget() {
+        let mut r = request();
+        r.clock = BrowserClockAssumptions {
+            timestamp_error_ns: 1_000,
+            relative_rate_error_ppm: 20,
+            maximum_age_ns: 1_000_000_000,
+            maximum_interval_ns: 100_000_000,
+        };
+        r.display_early_ns = 2_000_000;
+        r.display_late_ns = 3_000_000;
+        r.source_correspondence_error_ns = 1_000_000;
+        r.discrete_media_phase_error_ns = 1_000_000;
+        r.media_rate_error_ppm = 20;
+        r.physical_execution_error_ns = 1_000_000;
+        r.maximum_start_age_ns = 500_000_000;
+        r.maximum_alignment_error_ns = 50_000_000;
+        for width in [40_580_972, 91_067_306] {
+            r.bracket.native_receive_ns = r.bracket.native_issue_ns + width;
+            r.reference_boottime_ns = r.bracket.native_receive_ns + 1_000_000;
+            let alignment = r.calculate();
+            if width == 40_580_972 {
+                assert!(alignment.unwrap().total_error_ns < r.maximum_alignment_error_ns);
+            } else {
+                assert!(
+                    matches!(alignment, Err(CoreError::InvalidTransition(message))
+                    if message == "browser start: combined alignment error exceeds accepted budget")
+                );
+            }
+        }
+    }
+    #[test]
     fn negative_overflow_expired_and_excess_budget_refuse() {
         for case in 0..7 {
             let mut r = request();
