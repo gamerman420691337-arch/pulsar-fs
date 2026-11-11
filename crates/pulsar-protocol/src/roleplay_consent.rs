@@ -598,6 +598,30 @@ impl RoleplayConsentDocument {
         self.session.admit_effect(self.attestation.as_ref(), now_ns)
     }
 
+    /// Check the consent precondition for the exact proposed effect scope.
+    /// Successful consent still requires a separate approval for the effect.
+    pub fn admit_effect_for(
+        &self,
+        participants: &[ParticipantRef],
+        content_class: ContentClass,
+        provider: &ProviderScope,
+        now_ns: u64,
+    ) -> Result<(), ConsentRefusal> {
+        self.admit_effect(now_ns)?;
+        if content_class != self.session.declared_class
+            || provider != &self.session.declared_provider
+            || participants.len() != self.session.participants.len()
+            || !self
+                .session
+                .participants
+                .iter()
+                .all(|record| participants.contains(&record.participant))
+        {
+            return Err(ConsentRefusal::ConsentAbsent);
+        }
+        Ok(())
+    }
+
     /// Redacted operational view: class, scope and local references only.
     pub fn summary(&self, now_ns: u64) -> ConsentSummary {
         let effect = self.admit_effect(now_ns);
@@ -699,6 +723,44 @@ mod tests {
         assert_eq!(
             session.admit_effect(Some(&attestation), 100),
             Err(ConsentRefusal::AdultAttestationWithdrawn)
+        );
+    }
+
+    #[test]
+    fn effect_scope_requires_every_exact_participant_class_and_provider() {
+        let mut document = RoleplayConsentDocument::least_permissive();
+        document.attest(1);
+        let first = participant("first");
+        let second = participant("second");
+        let class = ContentClass::General;
+        let local = ProviderScope::local();
+        document.session.grant(first.clone(), class, 2).unwrap();
+        document.session.grant(second.clone(), class, 2).unwrap();
+        let exact = [second.clone(), first.clone()];
+        assert_eq!(document.admit_effect_for(&exact, class, &local, 3), Ok(()));
+        for wrong in [
+            vec![first.clone()],
+            vec![first.clone(), first.clone()],
+            vec![first.clone(), participant("other")],
+            vec![first, second, participant("other")],
+        ] {
+            assert_eq!(
+                document.admit_effect_for(&wrong, class, &local, 3),
+                Err(ConsentRefusal::ConsentAbsent)
+            );
+        }
+        assert_eq!(
+            document.admit_effect_for(&exact, ContentClass::Mature, &local, 3),
+            Err(ConsentRefusal::ConsentAbsent)
+        );
+        assert_eq!(
+            document.admit_effect_for(
+                &exact,
+                class,
+                &ProviderScope::remote(ProviderRef::new("remote-fixture").unwrap()),
+                3,
+            ),
+            Err(ConsentRefusal::ConsentAbsent)
         );
     }
 
