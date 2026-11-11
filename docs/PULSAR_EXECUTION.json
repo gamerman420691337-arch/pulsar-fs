@@ -4333,7 +4333,8 @@
         "EV-RECORDING-BOUNDARY-DRAFT",
         "EV-RECORDING-BOUNDARY-CURRENT",
         "EV-RECORDING-BOUNDARY-PORTABLE",
-        "EV-DELEGATED-HOST-NATIVE-ASSISTANT"
+        "EV-DELEGATED-HOST-NATIVE-ASSISTANT",
+        "EV-HOSTED-FULL-542F2BB"
       ]
     },
     {
@@ -4532,7 +4533,8 @@
         "EV-MACOS-TIMING-BLOCKING-FIXTURE-DRAFT",
         "EV-MACOS-IMPORT-FIXTURE-MERGED",
         "EV-MACOS-TIMING-FIXTURE-NATIVE-GREEN",
-        "EV-NATIVE-BROWSER-TIMING-65149D6"
+        "EV-NATIVE-BROWSER-TIMING-65149D6",
+        "EV-BROWSER-TIMING-275ABD6"
       ]
     },
     {
@@ -4856,6 +4858,76 @@
     }
   ],
   "evidence": [
+    {
+      "id": "EV-HOSTED-FULL-542F2BB",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/hosted-full-ci-542f2bb.json",
+      "sha256": "2f0f0dbf95284168cdf0ade93659bcee9ee3e4f910cf18f0ba0f2687e85e84fe",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "GitHub Actions full Linux, macOS and Windows software jobs passed on 542f2bb.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "completed"
+        },
+        {
+          "pointer": [
+            "conclusion"
+          ],
+          "equals": "success"
+        },
+        {
+          "pointer": [
+            "headSha"
+          ],
+          "equals": "542f2bbcee8c16231283896d9a6118ee1b9ff7a4"
+        }
+      ]
+    },
+    {
+      "id": "EV-BROWSER-TIMING-275ABD6",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/browser-timing-275abd6/summary.json",
+      "sha256": "db301f2ddc8d6173d74a2e4406e61a550452db021f547b60ae79b5f2a228ecdd",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Native local Engine and authored diagnostic graph exchanged 42 timing observations without device contact.",
+      "assertions": [
+        {
+          "pointer": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "observations"
+          ],
+          "equals": 42
+        },
+        {
+          "pointer": [
+            "actual_native_timing_exchange"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "real_device_contacted"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
     {
       "id": "EV-STASH-ANNOTATED-CPU-542F2BB",
       "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/stash-annotated-cpu-542f2bb/result.json",
