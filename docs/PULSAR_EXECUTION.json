@@ -4272,7 +4272,7 @@
         "APP-PLAYBACK"
       ],
       "exit": "Exercise an actual admitted model/runtime on permitted media through the user app, review confidence/target/view/timing, protect edits, regenerate selectively and export approved motion. Retain held-out quality and human-effort measurements under QUALITY-DATA; synthetic/diagnostic fixtures do not establish useful defaults.",
-      "evidence": []
+      "evidence": ["EV-STERILE-OFFLINE-GENERATION", "EV-STERILE-SELECTIVE-REGENERATION", "EV-STERILE-REGENERATION-PROTECTION"]
     },
     {
       "id": "QUALITY-DATA",
@@ -19230,6 +19230,93 @@
             "decoded_frame"
           ],
           "equals": 170
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-OFFLINE-GENERATION",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/sterile-offline-generation/result.json",
+      "sha256": "aa467efc0e8d11faf6b1df11189f6b416b97ef63b50218552b8f1811bc200a3e",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "The production Linux CLI generated from the original sterile clip using the trained outline model, printed Engine review flags, committed, and exported 171 ordered actions. The zero-shift model screen still failed. Target annotation, selective regeneration and useful generation remain open.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS_WORKFLOW"
+        },
+        {
+          "pointer": [
+            "actions"
+          ],
+          "equals": 171
+        },
+        {
+          "pointer": [
+            "motion_screen"
+          ],
+          "equals": "FAIL"
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-SELECTIVE-REGENERATION",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/sterile-selective-regeneration/result.json",
+      "sha256": "5e5c202d6d2bbc904390493d83de1e4be5d811a981f24b22542c8bbe20611467",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Production CLI regenerated a bounded Stroke interval using the trained sterile tracker. All exported actions outside 4.000\u20135.500 seconds matched the original, including the nonoverlapping protected interval. The overlapping-protection trial did not complete after the Engine exited.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "outside_actions_identical"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "after_actions"
+          ],
+          "equals": 68
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-REGENERATION-PROTECTION",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/sterile-regeneration-protection/result.json",
+      "sha256": "f9bf6f2e8eed47b954807df827f84b3331450f48ed025fe7f6f7def79b7012ea",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Production CLI attempted trained regeneration overlapping a protected Stroke range. The Engine found no writable change and refused the merge. The project stayed at revision 2 and the before/after exports were byte-identical.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "export_byte_identical"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "revision_after"
+          ],
+          "equals": 2
         }
       ]
     }
