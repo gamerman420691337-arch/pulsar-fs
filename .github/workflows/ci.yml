@@ -71,6 +71,8 @@ jobs:
           cargo test -p pulsar-core --lib --locked
           cargo test -p pulsar-protocol --lib project_package::tests --locked | tee "$RUNNER_TEMP/protocol-results.txt"
           grep -Eq 'test result: ok\. [1-9][0-9]* passed;' "$RUNNER_TEMP/protocol-results.txt"
+          cargo test -p pulsar-protocol --lib roleplay_effect::tests --locked | tee "$RUNNER_TEMP/roleplay-results.txt"
+          grep -Eq 'test result: ok\. [1-9][0-9]* passed;' "$RUNNER_TEMP/roleplay-results.txt"
 
   full:
     name: Full (${{ matrix.os }})
