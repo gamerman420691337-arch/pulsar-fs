@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "reconciled_on": "2026-11-07",
+  "reconciled_on": "2026-11-10",
   "timezone": "America/New_York",
   "full_roadmap": "incomplete",
   "runner_state": "paused",
@@ -18,7 +18,7 @@
   "working_tree": {
     "build_state": "unverified",
     "evidence": "EV-STERILE-BROWSER-MOTION-001",
-    "scope": "The rendered browser produced 154 fresh estimates with a trained outline tracker. On the 146 estimates within complete supplied reference anchors, position error averaged 17.94 points and correlation was 0.745 at zero shift.",
+    "scope": "The rendered browser produced 154 fresh estimates with a trained outline tracker. On the 146 estimates within complete supplied reference anchors, position error averaged 17.94 points and correlation was 0.745 at zero shift. Scoring now validates the complete capture and reports the initial 1.417 seconds without estimates.",
     "active_work": "BROWSER-DEMO",
     "failure_summary": "The sterile browser workflow generated motion, but the tracker missed the motion screen. Physical live playback remains pending. Desktop local-file HSP playback and its zero-default offset retain their prior evidence.",
     "source_stamp": [
@@ -4397,6 +4397,7 @@
         "EV-RENDERED-420-REPEAT",
         "EV-RENDERED-CURRENT-RECORDING-EXPORT",
         "EV-STERILE-BROWSER-MOTION-001",
+        "EV-STERILE-BROWSER-COVERAGE",
         "EV-RENDERED-200MS-RECORDING",
         "EV-RENDERED-200MS-RECORDING-EXPORT",
         "EV-RENDERED-SEEK-200MS",
@@ -18526,6 +18527,20 @@
         {"pointer": ["rendered_browser"], "equals": true},
         {"pointer": ["accepted_fresh_estimates"], "equals": 154},
         {"pointer": ["physical_handy_test"], "equals": false}
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-COVERAGE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-recording-coverage/result.json",
+      "sha256": "0d78a9eb1a0e43932462fefe4e046f5e032f41e8b6c96758c55f767c45c16e3b",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Replayed the retained browser capture through complete-page and capture-identity checks. The first 1.417 seconds of the supplied reference lack estimates. Within the scored interval, the largest gap is 83.334 ms. The original motion failure remains.",
+      "assertions": [
+        {"pointer": ["status"], "equals": "FAIL_MOTION_SCREEN"},
+        {"pointer": ["reference_start_unobserved_ms"], "equals": 1416.667},
+        {"pointer": ["scored_estimates"], "equals": 146}
       ]
     }
   ],

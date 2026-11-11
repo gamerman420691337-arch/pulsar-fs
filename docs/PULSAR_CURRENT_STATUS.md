@@ -4,7 +4,7 @@
 
 The [execution dashboard](PULSAR_MILESTONES.md) is the single current work queue and milestone ledger.
 
-Reconciled **2026-11-07**. Roadmap **INCOMPLETE**; autonomous runner observation **paused**.
+Reconciled **2026-11-10**. Roadmap **INCOMPLETE**; autonomous runner observation **paused**.
 
 **Working tree: UNVERIFIED.** The sterile browser workflow generated motion, but the tracker missed the motion screen. Physical live playback remains pending. Desktop local-file HSP playback and its zero-default offset retain their prior evidence.
 

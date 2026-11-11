@@ -49,7 +49,30 @@ def read_recording(path, model_hash, source_hash):
         raise ValueError("Expected an unqualified browser inference recording")
     times = []
     positions = []
-    for page in recording["pages"]:
+    pages = recording["pages"]
+    if not pages:
+        raise ValueError("Recording has no pages")
+    first = pages[0]
+    identity_fields = (
+        "identity",
+        "engine_epoch",
+        "recording_request_id",
+        "inference_attempt",
+        "browser_media",
+        "profile",
+        "total_samples",
+    )
+    for index, page in enumerate(pages):
+        expected_next = len(times) + len(page["samples"])
+        if (
+            any(page[field] != first[field] for field in identity_fields)
+            or not page["samples"]
+            or page["discarded"]
+            or page["exhausted"]
+            or page["after"] != len(times)
+            or page["next"] != (None if index == len(pages) - 1 else expected_next)
+        ):
+            raise ValueError("Recording pages are incomplete or belong to different captures")
         if (
             page["source_time_basis"] != "source_media_presentation"
             or page["active"]
@@ -68,7 +91,9 @@ def read_recording(path, model_hash, source_hash):
             positions.append(sample["position"] * 100)
     times, positions = np.array(times), np.array(positions)
     if (
-        len(times) < 2
+        len(times) != first["total_samples"]
+        or len(times) < 2
+        or not np.all(np.isfinite(times))
         or np.any(np.diff(times) <= 0)
         or not np.all(np.isfinite(positions))
         or np.any((positions < 0) | (positions > 100))
@@ -101,6 +126,7 @@ def main():
     reference_positions = np.array([point["pos"] for point in reference])
     expected = np.interp(times[scored] * 1000, reference_times, reference_positions)
     observed = positions[scored]
+    scored_times_ms = times[scored] * 1000
     mae = float(np.abs(observed - expected).mean())
     correlation = None
     if np.ptp(expected) and np.ptp(observed):
@@ -121,6 +147,9 @@ def main():
         "first_sample_s": float(times[0]),
         "last_sample_s": float(times[-1]),
         "reference_end_ms": last_reference_ms,
+        "reference_start_unobserved_ms": float(scored_times_ms[0] - reference_times[0]),
+        "reference_end_unobserved_ms": float(last_reference_ms - scored_times_ms[-1]),
+        "largest_scored_sample_gap_ms": float(np.diff(scored_times_ms).max()),
         "normalized_position_mae_points": mae,
         "correlation": correlation,
         "sample_gap_median_ms": float(np.median(np.diff(times)) * 1000),
