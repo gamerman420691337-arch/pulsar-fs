@@ -28,9 +28,33 @@ To reproduce the model, run [the training script](../scripts/train-sterile-brows
 For a fresh project using the original sterile clip, pass the Pulsar executable,
 clip, ONNX model and a new output directory to
 [`prepare-sterile-browser-demo.py`](../scripts/prepare-sterile-browser-demo.py).
-It prints the Browser live command and its private state directory. Run the command
-with that directory as `PULSAR_STATE_DIR` and the same runtime environment used
-for preparation.
+It prints the Browser Live command and its private state directory. Set
+`PULSAR_ORT_DYLIB` for both preparation and playback. The profile records the
+runtime's identity. The Engine needs the runtime file when you press Play.
+
+```sh
+export PULSAR_ORT_DYLIB=/absolute/path/to/libonnxruntime.so.1
+python3 scripts/prepare-sterile-browser-demo.py ./target/debug/pulsar \
+  /absolute/path/to/handonly_sync_animation.mp4 \
+  /absolute/path/to/trained-outline-tracker.onnx \
+  /absolute/path/to/new-demo-state
+```
+
+Copy the project ID and revision from the printed command. Launch the device-off
+preview with the printed state directory and options file.
+
+```sh
+PULSAR_STATE_DIR=/absolute/path/to/new-demo-state/state \
+  ./target/debug/pulsar browser-live PROJECT REVISION \
+  /absolute/path/to/new-demo-state/options.json
+```
+
+Open the loopback URL printed by Pulsar. Enable **Record accepted estimates for
+the next playback**, then refresh Engine sources and select the imported clip.
+Keep both anchors at zero for this unit-rate fixture, declare the mapping, and
+click **Prepare selected source**. Press the video's Play control. At the end,
+use **Retained inference recordings** to refresh, select the recording, read its
+first page, and save the inference record.
 
 Use the [imported-source workflow](PULSAR_BROWSER_SOURCE_MEDIA.md) to import media,
 create an active unit-rate placement and prepare the exact source in Browser live.
