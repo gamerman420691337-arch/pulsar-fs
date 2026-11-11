@@ -25,28 +25,36 @@ struct ProposePattern {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct StopPlayback {}
+struct NoArguments {}
 
-fn tools() -> Value {
-    json!({"tools": [
-        {
+fn tools(media_configured: bool) -> Value {
+    let mut entries = vec![
+        json!({
             "name": "read_candidate",
             "description": "Read a retained candidate in the configured project.",
             "inputSchema": {"type":"object","additionalProperties":false,"required":["candidate_id"],
                 "properties":{"candidate_id":{"type":"string"}}}
-        },
-        {
+        }),
+        json!({
             "name": "propose_pattern",
             "description": "Stage an explicit pattern for review at the named revision.",
             "inputSchema": {"type":"object","additionalProperties":false,"required":["revision","pattern"],
                 "properties":{"revision":{"type":"integer","minimum":0},"pattern":{"type":"string","maxLength":24576}}}
-        },
-        {
+        }),
+        json!({
             "name": "stop_playback",
             "description": "Stop the local Engine-owned Desktop player.",
             "inputSchema": {"type":"object","additionalProperties":false}
-        }
-    ]})
+        }),
+    ];
+    if media_configured {
+        entries.push(json!({
+            "name": "propose_media",
+            "description": "Queue the host-selected local clip for review in Pulsar Desktop.",
+            "inputSchema": {"type":"object","additionalProperties":false}
+        }));
+    }
+    json!({"tools": entries})
 }
 
 struct Server<'a> {
@@ -54,18 +62,23 @@ struct Server<'a> {
     bootstrap: &'a Path,
     project: ProjectId,
     consent: &'a Path,
+    media: Option<&'a Path>,
     work_calls: u32,
 }
 
 impl Server<'_> {
+    fn owner_proof(&self) -> Result<String> {
+        let directory = self
+            .bootstrap
+            .parent()
+            .context("Engine state directory is missing")?;
+        project_package::read_local_owner_proof(directory, "handy-owner.token")
+    }
+
     fn execute(&mut self, name: &str, arguments: Value) -> Result<Value> {
         if name == "stop_playback" {
-            let _: StopPlayback = serde_json::from_value(arguments)?;
-            let directory = self
-                .bootstrap
-                .parent()
-                .context("Engine state directory is missing")?;
-            let proof = project_package::read_local_owner_proof(directory, "handy-owner.token")?;
+            let _: NoArguments = serde_json::from_value(arguments)?;
+            let proof = self.owner_proof()?;
             let mut client = SessionClient::connect(self.endpoint, self.bootstrap)?;
             let deadline = Instant::now() + Duration::from_secs(5);
             client.set_operation_deadline(Some(deadline));
@@ -82,6 +95,25 @@ impl Server<'_> {
         let mut client = SessionClient::connect(self.endpoint, self.bootstrap)?;
         client.set_operation_deadline(Some(Instant::now() + Duration::from_secs(5)));
         match name {
+            "propose_media" => {
+                let _: NoArguments = serde_json::from_value(arguments)?;
+                let video = self.media.context("No media is configured")?;
+                let response = client.execute(
+                    Command::DesktopPlayback {
+                        action: DesktopPlaybackAction::PrepareMediaReview {
+                            video: video.to_path_buf(),
+                            consent: self.consent.to_path_buf(),
+                        },
+                        owner_proof: self.owner_proof()?,
+                    },
+                    None,
+                    None,
+                )?;
+                let ResponseBody::DesktopPlayback(_) = response else {
+                    anyhow::bail!("Engine returned an unexpected media review response");
+                };
+                Ok(json!({"proposal_queued":true,"playback_started":false}))
+            }
             "read_candidate" => {
                 let input: ReadCandidate = serde_json::from_value(arguments)?;
                 let response = client.execute(
@@ -160,13 +192,17 @@ fn handle(server: &mut Server<'_>, state: &mut Lifecycle, request: Value) -> Opt
         _ if *state != Lifecycle::Ready => {
             return Some(error(id, -32000, "MCP initialization required"));
         }
-        "tools/list" => tools(),
+        "tools/list" => tools(server.media.is_some()),
         "tools/call" => {
-            let Some(name @ ("read_candidate" | "propose_pattern" | "stop_playback")) =
-                params["name"].as_str()
+            let Some(
+                name @ ("read_candidate" | "propose_pattern" | "stop_playback" | "propose_media"),
+            ) = params["name"].as_str()
             else {
                 return Some(error(id, -32602, "Unknown tool"));
             };
+            if name == "propose_media" && server.media.is_none() {
+                return Some(error(id, -32602, "Unknown tool"));
+            }
             let args = params
                 .get("arguments")
                 .cloned()
@@ -190,12 +226,14 @@ pub(crate) fn run(
     bootstrap: &Path,
     project: ProjectId,
     consent: &Path,
+    media: Option<&Path>,
 ) -> Result<()> {
     let mut server = Server {
         endpoint,
         bootstrap,
         project,
         consent,
+        media,
         work_calls: 0,
     };
     let mut state = Lifecycle::New;
@@ -231,12 +269,25 @@ mod tests {
     use super::*;
 
     #[test]
+    fn media_proposal_is_optional_and_accepts_no_model_path() {
+        let listed = tools(true);
+        assert_eq!(listed["tools"][3]["name"], "propose_media");
+        assert_eq!(
+            listed["tools"][3]["inputSchema"]["additionalProperties"],
+            false
+        );
+        assert!(serde_json::from_value::<NoArguments>(json!({"video":"/untrusted.mp4"})).is_err());
+        assert!(serde_json::from_value::<NoArguments>(json!({})).is_ok());
+    }
+
+    #[test]
     fn mcp_requires_initialization_and_refuses_unlisted_effects() {
         let mut server = Server {
             endpoint: Path::new("unused"),
             bootstrap: Path::new("unused"),
             project: ProjectId::new("fixture").unwrap(),
             consent: Path::new("unused"),
+            media: None,
             work_calls: 0,
         };
         let mut state = Lifecycle::New;
