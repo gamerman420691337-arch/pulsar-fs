@@ -4232,15 +4232,16 @@
         "M5-DEVICE",
         "M3-ROLEPLAY"
       ],
-      "state": "planned",
+      "state": "in_progress",
       "owner": "Client/API agent; orchestrator owns shared contract",
       "depends_on": [
         "CPU-BUILD"
       ],
-      "exit": "Desktop, CLI, browser and assistant share typed workflow operations over EngineApi/SessionClient, preserving request IDs, revisions, deadlines, cancellation, candidate review and explicit device-control sessions. No client duplicates durable state or hardware authority. Port useful bench/legacy HSP behavior through this seam and demonstrate equivalent Stop/recovery semantics. Existing CLI compatibility remains.",
+      "exit": "Desktop, CLI, browser and assistant share typed workflow operations over EngineApi/SessionClient, preserving request IDs, revisions, deadlines, cancellation, candidate review and explicit device-control sessions. No client duplicates durable state or hardware authority. Port useful bench/legacy HSP behavior through this seam and demonstrate equivalent Stop/recovery semantics. Existing CLI compatibility remains. CLI and Desktop share revision-bound script import and checked candidate commit, merge and axis export. Native CLI staging and explicit merge preserve motion outside the selected interval. Browser and assistant coverage and equivalent Stop/recovery across surfaces remain open.",
       "evidence": [
         "EV-INTEGRATION-BUILD-001",
-        "EV-INTEGRATION-BUILD-002"
+        "EV-INTEGRATION-BUILD-002",
+        "EV-STERILE-REGENERATION-STAGE-ONLY"
       ]
     },
     {
