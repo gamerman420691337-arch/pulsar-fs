@@ -382,6 +382,21 @@ pub struct StashBatchOptions {
     pub tag: Option<StashBatchTag>,
 }
 impl StashBatchOptions {
+    /// Validate the executable settings after attaching each catalog view.
+    pub fn validate_execution_preset(&self, has_model: bool) -> Result<(), ProtocolError> {
+        if self.annotated_views.is_empty() {
+            return self
+                .settings
+                .validate_execution_preset(&self.preset, has_model);
+        }
+        for entry in &self.annotated_views {
+            let mut settings = self.settings.clone();
+            settings.annotated_view = Some(entry.view.clone());
+            settings.validate_execution_preset(&self.preset, has_model)?;
+        }
+        Ok(())
+    }
+
     pub fn validate(&self) -> Result<(), ProtocolError> {
         self.connection.validate()?;
         validate_stash_batch_source_plans(

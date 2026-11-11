@@ -40,8 +40,7 @@ pub(crate) fn generate_missing(
     };
     options.validate()?;
     if options.model_pack.is_none() || options.settings.model_input.is_some() {
-        options.settings.validate_execution_preset(
-            &options.preset,
+        options.validate_execution_preset(
             options.model_path.is_some() || options.model_pack.is_some(),
         )?;
     }
