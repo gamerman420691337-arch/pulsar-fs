@@ -110,7 +110,7 @@ fn proposal_schema(scope: &AssistantProposalScope) -> Result<Vec<u8>> {
     )?)
 }
 
-pub fn run_worker() -> Result<()> {
+fn read_worker_request() -> Result<AssistantWorkerRequest> {
     ensure!(
         std::env::var("PULSAR_WORKER_CONFINED").as_deref() == Ok("1"),
         "assistant role requires parent-owned confinement"
@@ -127,23 +127,13 @@ pub fn run_worker() -> Result<()> {
     let request: AssistantWorkerRequest =
         serde_json::from_slice(&bytes).context("decode assistant worker request")?;
     request.validate()?;
-    let result = execute(
-        &request,
-        Path::new(RUNTIME),
-        Path::new(MODEL),
-        Path::new("/tmp"),
-    )?;
-    let response = AssistantWorkerResponse {
-        vision: request.vision,
-        version: PROTOCOL_VERSION,
-        attempt_id: request.attempt_id,
-        runtime: request.runtime,
-        model: request.model,
-        proposal: result,
-    };
-    let encoded = serde_json::to_vec(&response)?;
+    Ok(request)
+}
+
+fn write_worker_response(response: &impl serde::Serialize, limit: u64) -> Result<()> {
+    let encoded = serde_json::to_vec(response)?;
     ensure!(
-        encoded.len() as u64 <= MAX_ASSISTANT_WORKER_RESPONSE_BYTES,
+        encoded.len() as u64 <= limit,
         "assistant response transport exceeded"
     );
     let mut stdout = std::io::stdout().lock();
@@ -152,6 +142,113 @@ pub fn run_worker() -> Result<()> {
     stdout.flush()?;
     Ok(())
 }
+
+pub fn run_worker() -> Result<()> {
+    let request = read_worker_request()?;
+    let proposal = execute(
+        &request,
+        Path::new(RUNTIME),
+        Path::new(MODEL),
+        Path::new("/tmp"),
+    )?;
+    write_worker_response(
+        &AssistantWorkerResponse {
+            vision: request.vision,
+            version: PROTOCOL_VERSION,
+            attempt_id: request.attempt_id,
+            runtime: request.runtime,
+            model: request.model,
+            proposal,
+        },
+        MAX_ASSISTANT_WORKER_RESPONSE_BYTES,
+    )
+}
+
+fn roleplay_schema() -> Result<Vec<u8>> {
+    use serde_json::{json, to_value};
+    let mut calls = Vec::new();
+    for call in [
+        RoleplayToolCall::ReadCandidate {
+            candidate_id: CandidateId::new("schema")?,
+        },
+        RoleplayToolCall::ProposePattern {
+            revision: 0,
+            pattern: String::new(),
+        },
+        RoleplayToolCall::StopPlayback {},
+        RoleplayToolCall::PlayPreparedScript {},
+        RoleplayToolCall::ProjectSummary {},
+        RoleplayToolCall::DeviceStatus {},
+        RoleplayToolCall::PausePresentation {},
+        RoleplayToolCall::ProposeMedia {},
+    ] {
+        let mut arguments = json!({"type":"object","properties":{},"additionalProperties":false});
+        match call {
+            RoleplayToolCall::ReadCandidate { .. } => {
+                arguments["properties"] = json!({"candidate_id":{"type":"string"}});
+                arguments["required"] = json!(["candidate_id"]);
+            }
+            RoleplayToolCall::ProposePattern { .. } => {
+                arguments["properties"] = json!({"revision":{"type":"integer","minimum":0},
+                    "pattern":{"type":"string","maxLength":MAX_ROLEPLAY_TOOL_ARGUMENT_BYTES}});
+                arguments["required"] = json!(["revision", "pattern"]);
+            }
+            _ => {}
+        }
+        calls.push(json!({"type":"object","properties":{
+            "name":{"const":to_value(call)?["name"]}, "arguments":arguments
+        },"required":["name","arguments"],"additionalProperties":false}));
+    }
+    Ok(crate::assistant_schema::encode(
+        &json!({"type":"object","properties":{
+        "text":{"type":"string","maxLength":MAX_ROLEPLAY_REPLY_BYTES},
+        "calls":{"type":"array","items":{"oneOf":calls},"maxItems":MAX_ROLEPLAY_TURN_CALLS}
+    },"required":["text","calls"],"additionalProperties":false}),
+    )?)
+}
+
+fn decode_roleplay_completion(bytes: &[u8]) -> Result<RoleplayReply> {
+    let body = bytes
+        .strip_suffix(EOG_TRAILER)
+        .context("roleplay runtime omitted exact EOG envelope")?;
+    let reply: RoleplayReply = serde_json::from_slice(body).context("decode roleplay reply")?;
+    reply.validate()?;
+    Ok(reply)
+}
+
+pub fn run_roleplay_worker() -> Result<()> {
+    let request = read_worker_request()?;
+    let scope = &request.scope;
+    ensure!(
+        request.vision.is_none()
+            && scope.creative_patterns.is_none()
+            && scope.target_ids.is_empty()
+            && scope.review_ids.is_empty()
+            && scope.edit_recipe_ids.is_empty()
+            && scope.allowed_sample_strides.is_empty(),
+        "roleplay worker accepts text conversation without proposal or vision inputs"
+    );
+    let bytes = execute_runtime(
+        &request,
+        Path::new(RUNTIME),
+        Path::new(MODEL),
+        Path::new("/tmp"),
+        &roleplay_schema()?,
+        MAX_ROLEPLAY_WORKER_RESPONSE_BYTES as usize,
+    )?;
+    let reply = decode_roleplay_completion(&bytes)?;
+    write_worker_response(
+        &RoleplayWorkerResponse {
+            version: PROTOCOL_VERSION,
+            attempt_id: request.attempt_id,
+            runtime: request.runtime,
+            model: request.model,
+            reply,
+        },
+        MAX_ROLEPLAY_WORKER_RESPONSE_BYTES,
+    )
+}
+
 fn check(deadline: Instant) -> Result<()> {
     ensure!(
         Instant::now() < deadline,
@@ -373,6 +470,25 @@ fn execute(
     model: &Path,
     work_root: &Path,
 ) -> Result<AssistantProposal> {
+    let bytes = execute_runtime(
+        request,
+        runtime,
+        model,
+        work_root,
+        &proposal_schema(&request.scope)?,
+        MAX_ASSISTANT_PROPOSAL_BYTES,
+    )?;
+    decode_runtime(&bytes, request)
+}
+
+fn execute_runtime(
+    request: &AssistantWorkerRequest,
+    runtime: &Path,
+    model: &Path,
+    work_root: &Path,
+    grammar: &[u8],
+    output_limit: usize,
+) -> Result<Vec<u8>> {
     request.validate()?;
     let deadline = Instant::now()
         .checked_add(Duration::from_millis(request.wall_time_ms))
@@ -387,7 +503,7 @@ fn execute(
     let schema = directory.path().join("proposal.schema.json");
     write_private(&user, request.user_request.as_bytes())?;
     write_private(&system, request.system_context.as_bytes())?;
-    write_private(&schema, &proposal_schema(&request.scope)?)?;
+    write_private(&schema, grammar)?;
     check(deadline)?;
     let vision_image = directory.path().join("image.ppm");
     if let Some(vision) = &request.vision {
@@ -419,7 +535,7 @@ fn execute(
     crate::launch_pipes::nonblocking(&stderr)?;
     let cancel = AtomicBool::new(false);
     let mut monitor = crate::launch_pipes::Monitor::new(deadline, &cancel, stderr);
-    let limit = MAX_ASSISTANT_PROPOSAL_BYTES
+    let limit = output_limit
         + if request.vision.is_none() {
             EOG_TRAILER.len()
         } else {
@@ -444,12 +560,40 @@ fn execute(
     check(deadline)?;
     // Diagnostics never become user explanation or an inferred action.
     ensure!(status.success(), "assistant runtime failed: {status}");
-    decode_runtime(&bytes, request)
+    Ok(bytes)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn roleplay_worker_requires_exact_envelope_and_typed_calls() {
+        let valid =
+            br#"{"text":"Stop is available","calls":[{"name":"stop_playback","arguments":{}}]}"#;
+        let wrapped = [valid.as_slice(), EOG_TRAILER].concat();
+        assert_eq!(
+            decode_roleplay_completion(&wrapped).unwrap().calls,
+            [RoleplayToolCall::StopPlayback {}]
+        );
+        assert!(decode_roleplay_completion(valid).is_err());
+        let invalid =
+            br#"{"text":"ok","calls":[{"name":"stop_playback","arguments":{"force":true}}]}"#;
+        assert!(decode_roleplay_completion(&[invalid.as_slice(), EOG_TRAILER].concat()).is_err());
+        let schema: serde_json::Value =
+            serde_json::from_slice(&roleplay_schema().unwrap()).unwrap();
+        assert_eq!(
+            schema["properties"]["calls"]["maxItems"],
+            MAX_ROLEPLAY_TURN_CALLS
+        );
+        assert_eq!(
+            schema["properties"]["calls"]["items"]["oneOf"]
+                .as_array()
+                .unwrap()
+                .len(),
+            8
+        );
+    }
+
     #[test]
     fn vision_rgb_converter_checks_digest_dimensions_and_emits_exact_pnm() {
         let root = tempfile::tempdir().unwrap();

@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub const MAX_ROLEPLAY_TOOL_ARGUMENT_BYTES: usize = 8 * 1024;
 pub const MAX_ROLEPLAY_TURN_CALLS: usize = 4;
 pub const MAX_ROLEPLAY_REPLY_BYTES: usize = 8 * 1024;
+pub const MAX_ROLEPLAY_WORKER_RESPONSE_BYTES: u64 = 48 * 1024;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(
@@ -29,6 +30,16 @@ pub enum RoleplayToolCall {
 pub struct RoleplayReply {
     pub text: String,
     pub calls: Vec<RoleplayToolCall>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RoleplayWorkerResponse {
+    pub version: u16,
+    pub attempt_id: crate::AttemptId,
+    pub runtime: crate::ArtifactIdentity,
+    pub model: crate::ArtifactIdentity,
+    pub reply: RoleplayReply,
 }
 
 impl RoleplayReply {

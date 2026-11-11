@@ -64,6 +64,15 @@ fn dispatch(args: &[OsString]) -> Result<()> {
             }
             crate::worker::run_progress_worker()
         }
+        Some("roleplay-worker") => {
+            if args.len() != 1 {
+                bail!("roleplay worker accepts only a bounded data-only request");
+            }
+            #[cfg(target_os = "linux")]
+            return crate::assistant_worker::run_roleplay_worker();
+            #[cfg(not(target_os = "linux"))]
+            bail!("roleplay worker requires Linux confinement");
+        }
         Some("assistant-worker") => {
             if args.len() != 1 {
                 bail!("assistant worker accepts only a bounded data-only request");
