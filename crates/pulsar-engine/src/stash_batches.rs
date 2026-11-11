@@ -240,8 +240,7 @@ impl Engine {
                     }
                 }
                 if options.model_pack.is_none() || options.settings.model_input.is_some() {
-                    options.settings.validate_execution_preset(
-                        &options.preset,
+                    options.validate_execution_preset(
                         options.model_path.is_some() || options.model_pack.is_some(),
                     )?;
                 }
@@ -312,8 +311,7 @@ impl Engine {
                             .settings;
                     }
                 }
-                options.settings.validate_execution_preset(
-                    &options.preset,
+                options.validate_execution_preset(
                     options.model_path.is_some() || options.model_pack.is_some(),
                 )?;
                 self.admit_stash_generation(&options.settings, &options.annotated_views)?;
@@ -624,9 +622,7 @@ impl Engine {
             model.as_ref().map(|model| model.path.clone())
         };
         options.validate()?;
-        options
-            .settings
-            .validate_execution_preset(&options.preset, model.is_some())?;
+        options.validate_execution_preset(model.is_some())?;
         self.admit_stash_generation(&options.settings, &options.annotated_views)?;
         if let Some(profile) = &options.settings.inference_profile {
             if model
