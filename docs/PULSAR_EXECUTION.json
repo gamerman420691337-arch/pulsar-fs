@@ -3704,7 +3704,8 @@
       "next_proof": "Implement and verify the tool broker, class split, digest-bound single-use approvals, unconditional stop, budgets and transcript exclusion through actual CLI/desktop consumers; retain refusal cases for every denied capability and for missing attestation or absent participant consent.",
       "evidence": [
         "EV-MCP-MEDIA-PROPOSAL",
-        "EV-MCP-MEDIA-CANCEL"
+        "EV-MCP-MEDIA-CANCEL",
+        "EV-ROLEPLAY-NATIVE-89D97EE"
       ],
       "source_refs": [
         "docs/adr/0012-in-product-roleplay-assistant.md",
@@ -4734,7 +4735,8 @@
       "exit": "Implement the typed tool broker with read/author/effect/stop classes, digest-bound single-use approval for media presentation with the concrete consequence disclosed, user-only bounded device-control sessions under DCS-01..09, current attestation and every participant's consent for effects, unconditional stop, per-turn and per-session budgets, local bounded conversation state excluded from evidence and logs, and explicit refusal for every denied capability. Verify through actual CLI and desktop consumers, not authored callbacks alone.",
       "evidence": [
         "EV-MCP-MEDIA-PROPOSAL",
-        "EV-MCP-MEDIA-CANCEL"
+        "EV-MCP-MEDIA-CANCEL",
+        "EV-ROLEPLAY-NATIVE-89D97EE"
       ]
     },
     {
@@ -4769,7 +4771,8 @@
       "exit": "Expose read and candidate authoring, media proposal with digest-bound Desktop confirmation, prepared script playback under a user-only bounded device session, and ungated Stop through pulsar-mcp. Verify refusals, expiry, replay, stop while pending, and session boundaries through actual consumers. Retain separate physical-device evidence.",
       "evidence": [
         "EV-MCP-MEDIA-PROPOSAL",
-        "EV-MCP-MEDIA-CANCEL"
+        "EV-MCP-MEDIA-CANCEL",
+        "EV-ROLEPLAY-NATIVE-89D97EE"
       ]
     },
     {
@@ -20045,6 +20048,71 @@
             "6",
             "result",
             "isError"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-ROLEPLAY-NATIVE-89D97EE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/desktop-roleplay-native-89d97ee/result.json",
+      "sha256": "52e7f196d9e7de598a14d5900f1b6606aa1f962af7697061add8429a053a1466",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Linux Desktop completed two turns with one local GGUF candidate and routed a typed project summary. The synthetic prompt marker was absent from the private Engine state and service journal. Physical, broad model and cross-platform acceptance remain open.",
+      "assertions": [
+        {
+          "pointer": [
+            "source_commit"
+          ],
+          "equals": "89d97ee3fef5d0290c097ac133a4a7243d5951d7"
+        },
+        {
+          "pointer": [
+            "rendered_desktop"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "local_real_model"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "completed_turns"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "synthetic_context_recalled"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "typed_project_summary_accepted"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "sample_marker_absent_from_engine_state"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "sample_marker_absent_from_engine_journal"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "physical_device_test"
           ],
           "equals": false
         }
