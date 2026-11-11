@@ -1361,11 +1361,15 @@ test('HSP staged successor tolerates a discard without restarting preparation',a
  const p=twoTransferHspPlayer(null,true);await bindHspPlayer(p);
  await flush();await p.frame(.2,2);await flush();await flush();
  assert.equal(p.continuityState().phase,'boundary');
- p.advance(125);await flush();await p.frame(.3,3);await flush();
+ p.advance(125);await flush();await p.frame(.24,3);await flush();
  assert.equal(p.sent.filter(r=>r.route==='/player/timing-next-observe').length,2);
  assert.equal(p.sent.filter(r=>r.route==='/analysis/prepare').length,1);
  assert.equal(p.continuityState().phase,'boundary');
  assert.equal(p.elements.video.paused,false);
+ const probes=()=>p.sent.filter(r=>r.route==='/player/timing-next-probe').length;
+ assert.equal(probes(),2);
+ p.advance(19);await flush();assert.equal(probes(),2);
+ p.advance(1);await flush();assert.equal(probes(),3);
 });
 test('HSP retains the first successor callback while predecessor settlement is held',async()=>{
  const p=twoTransferHspPlayer('/analysis/transfer');await bindHspPlayer(p);

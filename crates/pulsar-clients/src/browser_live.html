@@ -90,8 +90,8 @@ function beginTiming(scope,configuration,hspConfigured,adoptedDeadline=null){
  void timingProbe(scope);
 }
 // Scheduling only: the native probe still requires a later observed frame.
-function timingRefreshDelay(frame,at,probeMs,hspConfigured){
- const minimum=hspConfigured?40:125,maximum=hspConfigured?125:250;
+function timingRefreshDelay(frame,at,probeMs,hspConfigured,discarded=false){
+ const minimum=hspConfigured?(discarded?5:40):125,maximum=hspConfigured?(discarded?75:125):250;
  if(!frame||!Number.isFinite(frame.cadence_ms)||frame.cadence_ms<20||frame.cadence_ms>125)return maximum;
  // Leave time for the probe response before the predicted callback.
  const responseMarginMs=Number.isFinite(probeMs)?Math.max(25,probeMs+17):25;
@@ -133,7 +133,7 @@ function timingFrame(scope,now,metadata,sampledAt){
     if(report.discarded_probe_sequence!==undefined){
      if(report.discarded_probe_sequence!==probe.sequence||!report.current||!t.observationCurrent||t.expiry===null)throw Error('Discarded timing probe differs or no current observation remains.');
      showTiming(report);
-     t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},timingRefreshDelay(presentedFrame,performance.now(),probeMs,t.hspConfigured));
+     t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},timingRefreshDelay(presentedFrame,performance.now(),probeMs,t.hspConfigured,true));
      return;
     }
     if(report.observation?.sequence!==probe.sequence)throw Error('Timing observation sequence differs.');
@@ -561,7 +561,7 @@ function continuationTimingFrame(state,now,metadata,sampledAt){
    }
    if(!['reserving','pair','joining'].includes(c.phase)){
     const probeMs=probe.received_tick_us/1000-probe.sentAt;
-    const delay=c.scope.timing?.hspConfigured===true?timingRefreshDelay(presentedFrame,performance.now(),probeMs,true):250;
+    const delay=c.scope.timing?.hspConfigured===true?timingRefreshDelay(presentedFrame,performance.now(),probeMs,true,report.discarded_probe_sequence!==undefined):250;
     c.timingTimer=setTimeout(()=>{c.timingTimer=null;void continuationProbe(state,c);},delay);
    }
   }catch(e){failAnalysis(state,'Successor observation unavailable: '+e.message);}finally{c.timingBusy=false;}})();
