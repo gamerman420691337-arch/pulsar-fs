@@ -99,6 +99,7 @@ impl Shared {
             .map(|pending| pending.status.clone());
         status.loaded = player.mpv.is_some();
         status.armed = player.armed_until.is_some();
+        status.assistant_control = player.assistant_consent.is_some();
         status.connected = player.hsp.is_some();
         status.playing = player.playing;
         status.expires_in_ms = player.armed_until.map_or(0, |t| {
@@ -281,26 +282,27 @@ fn read_review_consent(path: &std::path::Path) -> Result<RoleplayConsentDocument
     }
 }
 
-struct ActiveMediaConsent {
+struct ActiveConsent {
     path: PathBuf,
     document: RoleplayConsentDocument,
 }
 
-impl ActiveMediaConsent {
+impl ActiveConsent {
     fn check(&self) -> Result<()> {
         let current = read_review_consent(&self.path)
-            .map_err(|_| anyhow::anyhow!("Reviewed media consent is unavailable"))?;
-        ensure!(current == self.document, "Reviewed media consent changed");
+            .map_err(|_| anyhow::anyhow!("Session consent is unavailable"))?;
+        ensure!(current == self.document, "Session consent changed");
         current
             .admit_effect(review_now_ns()?)
-            .map_err(|reason| anyhow::anyhow!("Reviewed media consent refused: {}", reason.label()))
+            .map_err(|reason| anyhow::anyhow!("Session consent refused: {}", reason.label()))
     }
 }
 
 struct Player {
     mpv: Option<MpvPlayer>,
     reviewed_media: Option<tempfile::TempDir>,
-    active_media_consent: Option<ActiveMediaConsent>,
+    active_media_consent: Option<ActiveConsent>,
+    assistant_consent: Option<ActiveConsent>,
     pending_review: Option<PendingMediaReview>,
     approval: RoleplayEffectApproval,
     hsp: Option<HspClient>,
@@ -320,6 +322,7 @@ impl Default for Player {
             mpv: None,
             reviewed_media: None,
             active_media_consent: None,
+            assistant_consent: None,
             pending_review: None,
             approval: {
                 let mut nonce = [0; 32];
@@ -349,6 +352,7 @@ impl Player {
         let device = self.hsp.as_mut().map(|h| h.stop()).transpose();
         if disarm {
             self.armed_until = None;
+            self.assistant_consent = None;
             self.hsp = None;
         }
         video?;
@@ -383,6 +387,9 @@ impl Player {
     }
     fn play(&mut self, shared: &Shared, epoch: u64) -> Result<()> {
         if let Some(consent) = &self.active_media_consent {
+            consent.check()?;
+        }
+        if let Some(consent) = &self.assistant_consent {
             consent.check()?;
         }
         let script_end = self.end_ms();
@@ -425,6 +432,9 @@ impl Player {
                 clock.rtt_ms < START_LEAD_MS,
                 "Handy network is too slow to synchronize; retry Play"
             );
+            if let Some(consent) = &self.assistant_consent {
+                consent.check()?;
+            }
             let start = Instant::now() + Duration::from_millis(START_LEAD_MS);
             shared.check_device_session(epoch, self.armed_until, start)?;
             hsp.play(position as i32, 1.0, &clock.advanced(START_LEAD_MS))?;
@@ -552,7 +562,7 @@ impl Player {
         );
         self.open_media(&pending.snapshot, &pending.video, shared, directory)?;
         self.reviewed_media = Some(pending.custody);
-        self.active_media_consent = Some(ActiveMediaConsent {
+        self.active_media_consent = Some(ActiveConsent {
             path: pending.status.consent_path,
             document: current,
         });
@@ -578,6 +588,47 @@ impl Player {
             .to_string_lossy()
             .into();
         status.script_name.clear();
+        Ok(())
+    }
+
+    fn arm(
+        &mut self,
+        shared: &Shared,
+        epoch: u64,
+        max_speed: u16,
+        min_pct: u8,
+        max_pct: u8,
+    ) -> Result<()> {
+        ensure!(
+            self.mpv.is_some() && self.points.len() >= 2,
+            "Open a video and script first"
+        );
+        let api = std::env::var("HANDY_API_KEY")
+            .context("Start Pulsar with secrets run: HANDY_API_KEY missing")?;
+        let connection = std::env::var("HANDY_CONNECTION_KEY")
+            .context("Start Pulsar with secrets run: HANDY_CONNECTION_KEY missing")?;
+        ensure!(
+            !api.trim().is_empty() && !connection.trim().is_empty(),
+            "Handy credential references are empty"
+        );
+        let mut hsp = HspClient::new(&api, &connection);
+        ensure!(
+            hsp.connected()?,
+            "Handy is offline; connect it and enable again"
+        );
+        hsp.ensure_hsp_mode()?;
+        hsp.stop()?;
+        let _ = hsp.user_offset_ms();
+        ensure!(
+            shared.epoch.load(Ordering::SeqCst) == epoch,
+            "enable cancelled"
+        );
+        self.max_speed = max_speed;
+        self.min_pct = min_pct;
+        self.max_pct = max_pct;
+        self.points();
+        self.hsp = Some(hsp);
+        self.armed_until = Some(Instant::now() + SESSION_LIFETIME);
         Ok(())
     }
 
@@ -677,37 +728,27 @@ impl Player {
             } => {
                 self.stop(true)?;
                 if enabled {
-                    ensure!(
-                        self.mpv.is_some() && self.points.len() >= 2,
-                        "Open a video and script first"
-                    );
-                    let api = std::env::var("HANDY_API_KEY")
-                        .context("Start Pulsar with secrets run: HANDY_API_KEY missing")?;
-                    let connection = std::env::var("HANDY_CONNECTION_KEY")
-                        .context("Start Pulsar with secrets run: HANDY_CONNECTION_KEY missing")?;
-                    ensure!(
-                        !api.trim().is_empty() && !connection.trim().is_empty(),
-                        "Handy credential references are empty"
-                    );
-                    let mut hsp = HspClient::new(&api, &connection);
-                    ensure!(
-                        hsp.connected()?,
-                        "Handy is offline; connect it and enable again"
-                    );
-                    hsp.ensure_hsp_mode()?;
-                    hsp.stop()?;
-                    let _ = hsp.user_offset_ms();
-                    ensure!(
-                        shared.epoch.load(Ordering::SeqCst) == epoch,
-                        "enable cancelled"
-                    );
-                    self.max_speed = max_speed;
-                    self.min_pct = min_pct;
-                    self.max_pct = max_pct;
-                    self.points();
-                    self.hsp = Some(hsp);
-                    self.armed_until = Some(Instant::now() + SESSION_LIFETIME);
+                    self.arm(shared, epoch, max_speed, min_pct, max_pct)?;
                 }
+            }
+            Action::ArmAssistant {
+                consent,
+                max_speed,
+                min_pct,
+                max_pct,
+                sync_offset_ms,
+            } => {
+                self.stop(true)?;
+                let document = read_review_consent(&consent)?;
+                let approval = ActiveConsent {
+                    path: consent,
+                    document,
+                };
+                approval.check()?;
+                self.arm(shared, epoch, max_speed, min_pct, max_pct)?;
+                approval.check()?;
+                self.sync_offset_ms = sync_offset_ms;
+                self.assistant_consent = Some(approval);
             }
             Action::Play { sync_offset_ms } => {
                 self.sync_offset_ms = sync_offset_ms;
@@ -740,6 +781,9 @@ impl Player {
     }
     fn tick(&mut self) -> Result<(u64, u64, bool)> {
         if let Some(consent) = &self.active_media_consent {
+            consent.check()?;
+        }
+        if let Some(consent) = &self.assistant_consent {
             consent.check()?;
         }
         let Some(mpv) = self.mpv.as_mut() else {
@@ -878,6 +922,7 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
         if let Ok(mut status) = shared.status.lock() {
             status.loaded = player.mpv.is_some();
             status.armed = player.armed_until.is_some();
+            status.assistant_control = player.assistant_consent.is_some();
             status.connected = player.hsp.is_some();
             status.expires_in_ms = player.armed_until.map_or(0, |t| {
                 t.saturating_duration_since(Instant::now()).as_millis() as u64
@@ -1063,7 +1108,7 @@ mod tests {
             .prepare_media_review(video, consent.path().into(), &shared, 0, runtime)
             .unwrap();
         let review = player.pending_review.as_ref().unwrap().status.review;
-        let active = ActiveMediaConsent {
+        let active = ActiveConsent {
             path: consent.path().into(),
             document: document.clone(),
         };
@@ -1073,7 +1118,7 @@ mod tests {
         player.active_media_consent = Some(active);
         assert_eq!(
             player.tick().unwrap_err().to_string(),
-            "Reviewed media consent changed"
+            "Session consent changed"
         );
         player.active_media_consent = None;
         let error = player
@@ -1115,6 +1160,28 @@ mod tests {
             .apply(Action::Stop, &shared, 0, std::path::Path::new("unused"))
             .unwrap();
         assert!(player.armed_until.is_none());
+    }
+
+    #[test]
+    fn assistant_arming_refuses_missing_consent_before_device_contact() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut player = Player::default();
+        assert!(player
+            .apply(
+                Action::ArmAssistant {
+                    consent: directory.path().join("missing.json"),
+                    max_speed: 150,
+                    min_pct: 35,
+                    max_pct: 65,
+                    sync_offset_ms: 0,
+                },
+                &Shared::new(),
+                0,
+                directory.path()
+            )
+            .is_err());
+        assert!(player.assistant_consent.is_none());
+        assert!(player.hsp.is_none());
     }
 
     #[test]

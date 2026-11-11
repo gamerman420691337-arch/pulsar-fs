@@ -129,7 +129,12 @@ impl PlayerPanel {
         }
         if self.status.armed {
             ui.label(format!(
-                "Handy enabled · {} s left",
+                "{} · {} s left",
+                if self.status.assistant_control {
+                    "Assistant Handy control"
+                } else {
+                    "Handy enabled"
+                },
                 self.status.expires_in_ms.div_ceil(1000)
             ));
         }
@@ -369,23 +374,42 @@ impl PlayerPanel {
                     self.status.loaded
                         && !self.status.script_name.is_empty()
                         && (!self.busy() || enabled),
-                    egui::Checkbox::new(&mut enabled, "Enable Handy"),
+                    egui::Checkbox::new(
+                        &mut enabled,
+                        if self.status.assistant_control
+                            || (!self.status.armed && consent.is_absolute())
+                        {
+                            "Enable Handy for assistant"
+                        } else {
+                            "Enable Handy"
+                        },
+                    ),
                 )
                 .changed()
             {
                 let lane = if enabled { Lane::Normal } else { Lane::Urgent };
-                self.send(
+                let action = if enabled && consent.is_absolute() {
+                    DesktopPlaybackAction::ArmAssistant {
+                        consent: consent.to_path_buf(),
+                        max_speed: self.max_speed,
+                        min_pct: self.min_pct,
+                        max_pct: self.max_pct,
+                        sync_offset_ms: self.sync_offset_ms,
+                    }
+                } else {
                     DesktopPlaybackAction::Arm {
                         enabled,
                         max_speed: self.max_speed,
                         min_pct: self.min_pct,
                         max_pct: self.max_pct,
-                    },
-                    lane,
-                );
+                    }
+                };
+                self.send(action, lane);
             }
             let state = if self.status.playing {
                 "Playing"
+            } else if self.status.assistant_control {
+                "Assistant Handy control enabled"
             } else if self.status.armed {
                 "Handy enabled"
             } else if self.status.loaded {
