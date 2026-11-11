@@ -110,6 +110,17 @@ fn selected_cpu_estimate<'a>(
 fn dispatch(_: ProtocolError) -> HspDispatchFailure {
     HspDispatchFailure::BindingMismatch
 }
+fn timing_dispatch(error: BrowserTimingClaimFailure) -> HspDispatchFailure {
+    match error {
+        BrowserTimingClaimFailure::Contended => HspDispatchFailure::Busy,
+        BrowserTimingClaimFailure::Refused(error) if error.code == ErrorCode::Unavailable => {
+            HspDispatchFailure::Authority(
+                crate::handy_hsp_runtime::HspRuntimeError::ExpiredAuthority,
+            )
+        }
+        BrowserTimingClaimFailure::Refused(_) => HspDispatchFailure::BindingMismatch,
+    }
+}
 fn now() -> PResult<u64> {
     crate::handy_clock::boottime_ns()
 }
@@ -385,10 +396,7 @@ impl Controller {
         let selected = (|| {
             let source = self.active_source().map_err(dispatch)?;
             let pin = self.clock_owner.get().map(|owner| owner.select_read());
-            let timing = source
-                .timing
-                .select_read()
-                .map_err(|_| HspDispatchFailure::BindingMismatch)?;
+            let timing = source.timing.select_read().map_err(timing_dispatch)?;
             Ok::<_, HspDispatchFailure>((source, pin, timing))
         })();
         // Even a failed selection receives one fresh evaluation tick. Callers
@@ -400,9 +408,7 @@ impl Controller {
             .map(|selected| selected.evaluate_at(sampled_at_ns))
             .transpose()
             .map_err(dispatch)?;
-        let observation = timing
-            .evaluate_at(sampled_at_ns)
-            .map_err(|_| HspDispatchFailure::BindingMismatch)?;
+        let observation = timing.evaluate_at(sampled_at_ns).map_err(timing_dispatch)?;
         let snapshot = self
             .snapshot_from(
                 &source,
