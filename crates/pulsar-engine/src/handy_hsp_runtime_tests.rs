@@ -188,6 +188,30 @@ fn data_and_polling_never_create_play_or_duplicate_effects() {
 }
 
 #[test]
+fn append_clock_margin_waits_without_claiming_or_renewing_a_sample() {
+    let mut runtime = runtime();
+    let fresh = facts(100, -100);
+    prefill(&mut runtime, &fresh);
+    play(&mut runtime, &fresh);
+    offer(&mut runtime, &[200, 300], 3, &fresh);
+    let short = facts_for(binding(1), 100, -100, 150);
+    assert_eq!(
+        runtime.next_effect_with_append_margin(100, Some(&short), 60),
+        Ok(None)
+    );
+    assert!(runtime.in_flight().is_none());
+    let append = runtime
+        .next_effect_with_append_margin(100, Some(&fresh), 60)
+        .unwrap()
+        .unwrap();
+    assert_eq!(append.kind(), HspEffectKind::Append);
+    assert_eq!(
+        append.original_facts().unwrap().window().clock_until_ns(),
+        2000
+    );
+}
+
+#[test]
 fn stop_latches_during_blocked_append_and_late_ack_cannot_rearm() {
     let mut runtime = runtime();
     let facts = facts(100, -100);

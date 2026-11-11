@@ -41,6 +41,7 @@ use std::{
 const MAX_SESSIONS: usize = 16;
 const MAILBOX_CAPACITY: usize = 4;
 const TICK: Duration = Duration::from_millis(20);
+const LIVE_APPEND_CLOCK_MARGIN_NS: u64 = 60_000_000;
 const DISPATCH_BUDGET: Duration = Duration::from_secs(3);
 pub(crate) const DRAIN_BUDGET: Duration = Duration::from_secs(12);
 // Transient producer contention does not revoke a valid stream. The interval is
@@ -2893,9 +2894,14 @@ impl Work {
                     })
                     .and_then(|observation| {
                         runtime
-                            .next_effect(
+                            .next_effect_with_append_margin(
                                 observation.sampled_at_ns,
                                 observation.snapshot.facts.as_ref(),
+                                if self.session.authority.initial_source_cursor().is_some() {
+                                    LIVE_APPEND_CLOCK_MARGIN_NS
+                                } else {
+                                    0
+                                },
                             )
                             .map_err(HspDispatchFailure::Authority)
                             .inspect_err(|error| {
