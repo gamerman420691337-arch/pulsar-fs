@@ -4555,7 +4555,9 @@
         "EV-OUTLINE-HOLDOUT-CPU",
         "EV-STERILE-OUTLINE-PROXY",
         "EV-OUTLINE-HOLDOUT-BROWSER",
-        "EV-TRAINED-HSP-LOOPBACK-EARLY-STOP"
+        "EV-TRAINED-HSP-LOOPBACK-EARLY-STOP",
+        "EV-TRAINED-HSP-NATIVE-CANCELLATION",
+        "EV-TRAINED-HSP-APPEND-UNKNOWN"
       ]
     },
     {
@@ -20335,6 +20337,74 @@
             "qualification_passed"
           ],
           "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-TRAINED-HSP-NATIVE-CANCELLATION",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/outline-holdout-hsp-40s/native-cancellation-after-play/first-native-stop.json",
+      "sha256": "b67f4cd4c5bf81188e1c5d4f4fcbcfefadbadbc1ea914fa4add030100b909bea",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered browser HSP stopped after the native pump observed cancellation with an acknowledged Append. The initiating cancellation caller remains unresolved.",
+      "assertions": [
+        {
+          "pointer": [
+            "first_stop",
+            "reason"
+          ],
+          "equals": "cancellation_observed"
+        },
+        {
+          "pointer": [
+            "first_stop",
+            "last_joined",
+            "kind"
+          ],
+          "equals": "Append"
+        },
+        {
+          "pointer": [
+            "first_stop",
+            "last_joined",
+            "outcome"
+          ],
+          "equals": "Acknowledged"
+        }
+      ]
+    },
+    {
+      "id": "EV-TRAINED-HSP-APPEND-UNKNOWN",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/outline-holdout-hsp-40s/append-outcome-unknown/first-native-stop.json",
+      "sha256": "c40bdd19be8c3bed37f7ea3d6863af9a69697121ba5802f72f8ca1cadaefd83b",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered browser HSP stopped after an Append had an unknown outcome. The loopback peer did not log that append.",
+      "assertions": [
+        {
+          "pointer": [
+            "first_stop",
+            "reason"
+          ],
+          "equals": "joined_outcome_unknown"
+        },
+        {
+          "pointer": [
+            "first_stop",
+            "last_joined",
+            "kind"
+          ],
+          "equals": "Append"
+        },
+        {
+          "pointer": [
+            "first_stop",
+            "last_joined",
+            "outcome"
+          ],
+          "equals": "Unknown"
         }
       ]
     }
