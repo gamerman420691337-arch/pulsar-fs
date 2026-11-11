@@ -25,6 +25,13 @@ To reproduce the model, run [the training script](../scripts/train-sterile-brows
 
 ## Prepare the source and two readers
 
+For a fresh project using the original sterile clip, pass the Pulsar executable,
+clip, ONNX model and a new output directory to
+[`prepare-sterile-browser-demo.py`](../scripts/prepare-sterile-browser-demo.py).
+It prints the Browser live command and its private state directory. Run the command
+with that directory as `PULSAR_STATE_DIR` and the same runtime environment used
+for preparation.
+
 Use the [imported-source workflow](PULSAR_BROWSER_SOURCE_MEDIA.md) to import media,
 create an active unit-rate placement and prepare the exact source in Browser live.
 The [live-options workflow](PULSAR_DESKTOP_LIVE_OPTIONS.md) supplies an explicit CPU
