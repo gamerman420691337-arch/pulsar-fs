@@ -176,9 +176,21 @@ pub(crate) struct EditGesture {
     pub axis: Axis,
     pub points: Vec<EditorPoint>,
     pub selected: usize,
+    pub original_point: EditorPoint,
 }
 
 impl EditGesture {
+    pub fn move_by(&mut self, nanos: i64, position: f64, duration_nanos: i64) {
+        self.points[self.selected] = EditorPoint {
+            nanos: self
+                .original_point
+                .nanos
+                .saturating_add(nanos)
+                .clamp(0, duration_nanos),
+            position: (self.original_point.position + position).clamp(0.0, 1.0),
+        };
+    }
+
     pub fn finish(self) -> Result<(EditProposal, ProjectId, RevisionId)> {
         let program = replace_axis(&self.base_program, self.axis, &self.points)?;
         Ok((
@@ -260,7 +272,7 @@ mod tests {
     #[test]
     fn gesture_stays_draft_and_commits_against_original_revision() {
         let original = MotionProgram::default();
-        let gesture = EditGesture {
+        let mut gesture = EditGesture {
             project_id: ProjectId::new("project").unwrap(),
             base_revision: RevisionId::new(4),
             base_program: original.clone().into(),
@@ -270,7 +282,15 @@ mod tests {
                 position: 0.2,
             }],
             selected: 0,
+            original_point: EditorPoint {
+                nanos: 10_000_000,
+                position: 0.2,
+            },
         };
+        gesture.move_by(0, 0.1, 20_000_000);
+        assert_eq!(gesture.points[0].nanos, 10_000_000);
+        gesture.move_by(1_000_000, 0.0, 20_000_000);
+        assert_eq!(gesture.points[0].position, 0.2);
         let (command, _, revision) = gesture.finish().unwrap();
         assert_eq!(revision.value(), 4);
         assert!(original.tracks().is_empty());
