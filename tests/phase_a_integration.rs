@@ -150,10 +150,19 @@ impl Fixture {
         command: &mut ProcessCommand,
         label: &str,
     ) -> Result<(ExitStatus, String, String)> {
+        self.run_with_input(command, label, Stdio::null())
+    }
+
+    fn run_with_input(
+        &self,
+        command: &mut ProcessCommand,
+        label: &str,
+        stdin: Stdio,
+    ) -> Result<(ExitStatus, String, String)> {
         let stdout_path = self.root.join(format!("{label}.stdout"));
         let stderr_path = self.root.join(format!("{label}.stderr"));
         command
-            .stdin(Stdio::null())
+            .stdin(stdin)
             .stdout(File::create(&stdout_path)?)
             .stderr(File::create(&stderr_path)?);
         let mut child = OwnedChild(command.spawn()?);
@@ -1291,5 +1300,80 @@ fn historical_reader_database_refusal(variable: &str) -> Result<()> {
     assert_eq!(recovered.placements, placed.placements);
     assert_eq!(recovered.revision, placed.revision);
     assert_eq!(recovered.motion.program, placed.motion.program);
+    Ok(())
+}
+
+#[test]
+fn standalone_mcp_stages_a_candidate_and_stops_without_approving_effects() -> Result<()> {
+    use serde_json::json;
+
+    let fixture = Fixture::new()?;
+    let mut client = fixture.client()?;
+    let project = project(client.execute(
+        Command::CreateProject {
+            name: "MCP stdio fixture".into(),
+        },
+        None,
+        None,
+    )?)?;
+    let consent = fixture.root.join("mcp-consent.json");
+    pulsar_clients::create_consent(&consent, &RoleplayConsentDocument::least_permissive())?;
+    pulsar_clients::attest(&consent, 1)?;
+    let input_path = fixture.root.join("mcp-input.jsonl");
+    let mut input = File::create(&input_path)?;
+    for message in [
+        json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{
+            "protocolVersion":"2025-06-18","capabilities":{},
+            "clientInfo":{"name":"fixture","version":"1"}}}),
+        json!({"jsonrpc":"2.0","method":"notifications/initialized"}),
+        json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
+        json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"propose_pattern",
+            "arguments":{"revision":0,"pattern":"pattern=triangle axis=stroke duration=2s frequency=1hz amplitude=0.1 offset=0.5 sample_hz=8"}}}),
+        json!({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"play_playback"}}),
+        json!({"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"stop_playback"}}),
+    ] {
+        writeln!(input, "{message}")?;
+    }
+    drop(input);
+    let (status, stdout, stderr) = fixture.run_with_input(
+        ProcessCommand::new(env!("CARGO_BIN_EXE_pulsar-mcp"))
+            .arg(project.project_id.as_str())
+            .arg("--consent")
+            .arg(&consent)
+            .env("PULSAR_STATE_DIR", &fixture.state)
+            .env_remove("HANDY_API_KEY")
+            .env_remove("HANDY_CONNECTION_KEY"),
+        "mcp",
+        Stdio::from(File::open(input_path)?),
+    )?;
+    assert!(status.success(), "{stderr}");
+    let replies = stdout
+        .lines()
+        .map(serde_json::from_str::<Value>)
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    assert_eq!(
+        replies.iter().map(|r| r["id"].as_u64()).collect::<Vec<_>>(),
+        [Some(1), Some(2), Some(3), Some(4), Some(5)]
+    );
+    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 3);
+    let tool_value = |i: usize| {
+        serde_json::from_str::<Value>(replies[i]["result"]["content"][0]["text"].as_str().unwrap())
+    };
+    let candidate = tool_value(2)?;
+    assert_eq!(candidate["kind"], "candidate");
+    assert_eq!(candidate["value"]["base_revision"], 0);
+    assert_eq!(replies[3]["error"]["code"], -32602);
+    assert_eq!(
+        tool_value(4)?,
+        json!({"playback_stopped":true,"physical_stop_verified":false})
+    );
+    let current = client.execute(
+        Command::OpenProject {
+            project_id: project.project_id,
+        },
+        None,
+        None,
+    )?;
+    assert_eq!(self::project(current)?.revision, project.revision);
     Ok(())
 }

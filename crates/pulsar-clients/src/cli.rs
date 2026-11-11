@@ -193,6 +193,12 @@ pub enum RoleplayCommands {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    /// Serve project-scoped tools over MCP stdio.
+    Mcp {
+        project: String,
+        #[arg(long, value_parser = parse_private_document_path)]
+        consent: PathBuf,
+    },
     /// Record, inspect and withdraw roleplay consent and adult attestation.
     Roleplay {
         #[command(subcommand)]
