@@ -1097,11 +1097,11 @@ impl HspSessionHandle {
         sample: HspSample,
     ) -> Result<HspOfferOutcome, HspExecutionError> {
         self.ensure_open()?;
-        let mut runtime = self
-            .session
-            .runtime
-            .try_lock()
-            .map_err(|_| HspExecutionError::Busy)?;
+        let mut runtime = match self.session.runtime.try_lock() {
+            Ok(runtime) => runtime,
+            Err(TryLockError::WouldBlock) => return Err(HspExecutionError::Busy),
+            Err(TryLockError::Poisoned(_)) => return Err(HspExecutionError::Unavailable),
+        };
         // The evaluation clock belongs to this serialized runtime mutation.
         // A concurrent producer may have advanced core time before this lock.
         // The sample's own capture and acceptance timestamps remain unchanged.

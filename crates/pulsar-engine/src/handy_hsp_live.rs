@@ -16,8 +16,8 @@ use crate::{
         HspClaimGate, HspClaimedHandoff, HspDispatchFailure, HspNativeOwner, HspPreclaimProgress,
     },
     handy_hsp_execution::{
-        HspAuthorityEvaluation, HspAuthoritySnapshot, HspNativeAuthority, HspPlayIntent,
-        HspSessionHandle, HspWeakSessionHandle,
+        HspAuthorityEvaluation, HspAuthoritySnapshot, HspExecutionError, HspNativeAuthority,
+        HspPlayIntent, HspSessionHandle, HspWeakSessionHandle,
     },
     handy_hsp_runtime::{HspAuthorityWindow, HspBinding, HspDispatchFacts, HspPlayReference},
     handy_playback_clock::{HspClockPin, NativePlaybackClock},
@@ -37,7 +37,7 @@ use producer_read_test_hooks::{ProducerReadGuard, ProducerReadPause};
 use std::{
     collections::BTreeMap,
     sync::{atomic::AtomicU64, OnceLock, Weak},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 const MAX_OWNERS: usize = 64;
@@ -424,6 +424,36 @@ impl Controller {
         accepted: NativeAcceptedCapture,
         handle: &HspSessionHandle,
     ) -> PResult<()> {
+        // Retain this exact sample under delivery custody. On WouldBlock the
+        // runtime has not consumed it, so re-evaluate the same source and
+        // sample without changing timestamps or adding another queue.
+        let started = Instant::now();
+        let native_started = now()?;
+        let budget = Duration::from_millis(5);
+        loop {
+            if self.try_deliver_locked(state, source, &accepted, handle)? {
+                return Ok(());
+            }
+            std::thread::yield_now();
+            if started.elapsed() >= budget
+                || now()?
+                    .checked_sub(native_started)
+                    .is_none_or(|elapsed| u128::from(elapsed) >= budget.as_nanos())
+            {
+                return Err(producer_mismatch(
+                    "runtime offer contention exceeded its budget",
+                ));
+            }
+        }
+    }
+
+    fn try_deliver_locked(
+        &self,
+        state: &mut Delivery,
+        source: &SourceBundle,
+        accepted: &NativeAcceptedCapture,
+        handle: &HspSessionHandle,
+    ) -> PResult<bool> {
         #[cfg(test)]
         let probe = ProducerReadGuard::take(&self.producer_read_test);
         // The caller retains this exact source epoch under delivery custody.
@@ -480,7 +510,7 @@ impl Controller {
                 return Err(producer_mismatch("adjacent capture continuity differs"));
             }
         }
-        let relative = Self::source_project(source, &accepted)?
+        let relative = Self::source_project(source, accepted)?
             .checked_sub(self.zero)
             .map_err(internal)?;
         let selected = quantize_hsp_point(
@@ -539,20 +569,23 @@ impl Controller {
         };
         #[cfg(test)]
         probe.sample(sample);
-        if handle
-            .offer(&source.selection.identity, sample)
-            .map_err(|error| producer_mismatch(format_args!("runtime offer refused ({error:?})")))?
-            != HspOfferOutcome::Accepted
-        {
-            return Err(unavailable());
+        match handle.offer(&source.selection.identity, sample) {
+            Ok(HspOfferOutcome::Accepted) => {}
+            Ok(_) => return Err(unavailable()),
+            Err(HspExecutionError::Busy) => return Ok(false),
+            Err(error) => {
+                return Err(producer_mismatch(format_args!(
+                    "runtime offer refused ({error:?})"
+                )));
+            }
         }
         state.envelope = envelope;
         state.last_sample = Some(sample);
-        state.last = Some(accepted);
+        state.last = Some(accepted.clone());
         self.delivered.fetch_add(1, Ordering::AcqRel);
         #[cfg(test)]
         probe.delivered();
-        Ok(())
+        Ok(true)
     }
     fn finish_locked(
         &self,
