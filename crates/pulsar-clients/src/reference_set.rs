@@ -15,7 +15,7 @@ pub(crate) enum ReferenceViewInput {
     File(PathBuf),
 }
 
-#[cfg(all(test, not(target_os = "linux")))]
+#[cfg(all(test, not(any(target_os = "linux", target_os = "macos"))))]
 mod unsupported_platform_tests {
     use super::*;
 
