@@ -1317,7 +1317,7 @@ test('HSP natural analysis tail keeps visible player; pause and seek still retir
 
 // These authored observations drive the real client callback/transfer state machine.
 // They are ordering tests, not evidence of native promotion or physical playback.
-function twoTransferHspPlayer(){
+function twoTransferHspPlayer(holdRoute=null){
  let selectedPlayer,policy,current=1,upload=null,nextUpload=null,successor=null,sequence=0;
  const ok=data=>({ok:true,json:async()=>data});
  const epoch=n=>n===1?'epoch-one':n===2?'epoch-two':'epoch-three';
@@ -1325,7 +1325,7 @@ function twoTransferHspPlayer(){
  const base=()=>({active:true,identity:{epoch:epoch(current)},options:{lease_ms:30000,policy:{maximum_analysis_age_ns:2e9}},inference:{completed:0}});
  const transfer=phase=>({original_request_id:'transfer-'+current,preparation_request_id:'successor-prepare-'+current,predecessor:{epoch:epoch(current)},successor:{epoch:epoch(current+1)},boundary:{native_only:true},phase,predecessor_worker_joined:phase!=='boundary_reserved'&&phase!=='joining_predecessor',predecessor_delivery_settled:phase!=='boundary_reserved'&&phase!=='joining_predecessor',successor_pair_accepted:!!nextUpload});
  const pending=phase=>({...base(),browser:{analysis_feed:feed(current),analysis_last_upload:upload,analysis_successor:{original_request_id:'successor-prepare-'+current,feed:successor,report:{original_request_id:'successor-prepare-'+current,predecessor:{epoch:epoch(current)},successor:{identity:{epoch:epoch(current+1)},options:{lease_ms:30000}},phase:'prepared'},transfer:phase?transfer(phase):null,last_upload:nextUpload}}});
- const p=hspPlayer({replyOverride:r=>{
+ const p=hspPlayer({holdRoute,replyOverride:r=>{
   if(r.route==='/start'){const start=jsonBody(r);policy=start.analysis.policy;selectedPlayer={launch_id:r.headers['X-Pulsar-Launch'],page_id:r.headers['X-Pulsar-Page'],player_id:r.headers['X-Pulsar-Player'],source_id:r.headers['X-Pulsar-Source'],generation:Number(r.headers['X-Pulsar-Generation']),time_basis:start.source_time_basis};}
   if(r.route==='/frame'){const h=rgbPacket(r).header;upload={media_us:h.media_us,observation:h.analysis};return ok({...base(),browser:{analysis_feed:feed(current),analysis_last_upload:upload,analysis_continuity:{enabled:true,prepare_due:current<3,media_preparation_request_id:'media-prepare-'+current}}});}
   if(r.route==='/media/continue'||r.route==='/media/continue-status')return ok({...readyMedia,preparation_request_id:'media-prepare-'+(current+1)});
@@ -1353,6 +1353,21 @@ test('HSP two committed analysis transfers preserve one Bind and Play without sy
 });
 
 
+test('HSP retains the first successor callback while predecessor settlement is held',async()=>{
+ const p=twoTransferHspPlayer('/analysis/transfer');await bindHspPlayer(p);
+ await flush();await p.frame(.2,2);await flush();await flush();
+ assert.equal(p.continuityState().phase,'boundary');
+ const boundary=p.analysisFrame(1.2);await flush();
+ assert.equal(p.continuityState().phase,'reserving');
+ await p.analysisFrame(1.3);
+ assert.ok(!p.sent.some(r=>r.route==='/analysis/successor-frame'));
+ p.releaseRoute();await boundary;await flush();
+ await p.analysisFrame(1.4);await flush();
+ const first=rgbPacket(p.sent.find(r=>r.route==='/analysis/successor-frame'));
+ assert.equal(first.header.media_us,1300000);
+ assert.equal(first.header.analysis.visible_media_us,200000);
+ assert.ok(first.pixels.every(v=>v===128));
+});
 test('HSP held Bind cannot block Stop or restore its stale Prefilling reply',async()=>{
  const p=hspPlayer({holdRoute:'/player/hsp-bind'});await inspectHspPlayer(p);hspAck(p,'prepare');await p.elements['hsp-prepare'].onclick();hspAck(p,'environment','online');const pending=p.elements['hsp-bind'].onclick();await flush();await p.elements['hsp-stop'].onclick();p.releaseRoute();await pending;hspAck(p,'play');await p.elements['hsp-play'].onclick();
  assert.equal(p.sent.filter(r=>r.route==='/player/hsp-stop').length,1);assert.ok(!p.sent.some(r=>r.route==='/player/hsp-play'));assert.match(p.elements['hsp-status-message'].textContent,/stopped/);

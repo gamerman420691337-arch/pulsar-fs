@@ -555,7 +555,7 @@ function continuationTimingFrame(state,now,metadata,sampledAt){
 }
 function maybePrepareContinuation(report,state){
  if(!state.selection.continuity||state.continuation||state.inputPhase!=='open'||report.browser?.analysis_continuity?.prepare_due!==true)return;
- const c={scope:playerScope,phase:'media',predecessor:epoch,prepareId:null,prepareSentAt:null,captureDeadline:null,feed:null,transferId:null,pairAck:null,pairSent:false,postPairFrame:null,committedReport:null,heldTiming:null,timer:null,timingTimer:null,probeTimer:null,expiryTimer:null,probe:null,timingBusy:false,retired:false};state.continuation=c;
+ const c={scope:playerScope,phase:'media',predecessor:epoch,prepareId:null,prepareSentAt:null,captureDeadline:null,feed:null,transferId:null,pairAck:null,pairSent:false,pairFrame:null,postPairFrame:null,committedReport:null,heldTiming:null,timer:null,timingTimer:null,probeTimer:null,expiryTimer:null,probe:null,timingBusy:false,retired:false};state.continuation=c;
  const inspect=async(first)=>{if(!currentContinuation(state,c))return;try{
   const media=await mediaPost(first?'/media/continue':'/media/continue-status',{selection_id:state.media.selection_id},false,c.scope);if(!currentContinuation(state,c))return;
   if(media.selection_id!==state.media.selection_id||!['pending','ready'].includes(media.state))throw Error('Media successor identity or state differs.');
@@ -762,11 +762,20 @@ async function analysisFrame(state,now,metadata){
   if(lead<p.minimum_lead_us||lead>p.maximum_lead_us)throw Error('Observed frame lead left the original lookahead bounds.');
   lookaheadStatus.textContent=`Observed frame lead: ${(lead/1000).toFixed(1)} ms. Requested: ${(p.target_lead_us/1000).toFixed(1)} ms; admitted range ${(p.minimum_lead_us/1000).toFixed(1)}–${(p.maximum_lead_us/1000).toFixed(1)} ms. Producer-declared timestamps; see HSP status for device control.`;
   const c=state.continuation,frame={media_us,capturedAt,analysis:{visible_media_us:presentedFrame.media_time_us,visible_presented_frames:presentedFrame.presented_frames,visible_tick_us:visibleFrameTickUs,analysis_tick_us:tick,presented_frames}};
-  if(c?.phase==='joining'&&c.pairSent&&c.scope.timing?.hspConfigured===true&&!c.postPairFrame){
+  const hsp=c?.scope.timing?.hspConfigured===true;
+  const pairBlocked=c?.phase==='pair'&&(busy||c.timingBusy||c.probe||playerScope.timing.inflight||playerScope.timing.probe);
+  if(hsp&&!c.pairSent&&(['reserving','joining'].includes(c.phase)||pairBlocked)&&!c.pairFrame){
+   c.pairFrame={...frame,rgb:copyFrameRgb(analysisVideo)};return;
+  }
+  if(hsp&&c.phase==='joining'&&c.pairSent&&!c.postPairFrame){
    c.postPairFrame={...frame,rgb:copyFrameRgb(analysisVideo)};return;
   }
-  if(busy||c&&(['reserving','joining'].includes(c.phase)||c.phase==='pair'&&(c.timingBusy||c.probe||playerScope.timing.inflight||playerScope.timing.probe)))return;
-  await offerAnalysisFrame(state,frame);
+  if(busy||c&&(['reserving','joining'].includes(c.phase)||pairBlocked))return;
+  if(c?.phase==='pair'&&c.pairFrame){
+   const retained=c.pairFrame;c.pairFrame=null;
+   c.postPairFrame={...frame,rgb:copyFrameRgb(analysisVideo)};
+   await offerAnalysisFrame(state,retained);
+  }else await offerAnalysisFrame(state,frame);
  }catch(e){failAnalysis(state,e.message);}
 }
 video.addEventListener('play',()=>{
