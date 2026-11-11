@@ -41,6 +41,8 @@ pub enum HspDispatchFailure {
     ConsentRequired,
     InvalidBudget,
     InvalidClock,
+    PlaybackClock(pulsar_protocol::ErrorCode),
+    SourcePhase(pulsar_protocol::ErrorCode),
     Credentials,
     BindingMismatch,
     RemoteMismatch,

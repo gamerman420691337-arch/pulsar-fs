@@ -407,7 +407,7 @@ impl Controller {
         let pin = selected_pin
             .map(|selected| selected.evaluate_at(sampled_at_ns))
             .transpose()
-            .map_err(dispatch)?;
+            .map_err(|error| HspDispatchFailure::PlaybackClock(error.code))?;
         let observation = timing.evaluate_at(sampled_at_ns).map_err(timing_dispatch)?;
         let snapshot = self
             .snapshot_from(
@@ -417,7 +417,7 @@ impl Controller {
                 pin.as_ref(),
                 project_tail,
             )
-            .map_err(dispatch)?;
+            .map_err(|error| HspDispatchFailure::SourcePhase(error.code))?;
         Ok(HspAuthorityEvaluation {
             sampled_at_ns,
             snapshot,
