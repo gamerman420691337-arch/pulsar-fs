@@ -4210,9 +4210,10 @@
         "EV-STERILE-DESKTOP-IMPORT",
         "EV-STERILE-DESKTOP-REOPEN",
         "EV-STERILE-DESKTOP-TIMELINE-EDIT",
-        "EV-STERILE-DESKTOP-DRAG"
+        "EV-STERILE-DESKTOP-DRAG",
+        "EV-STERILE-DESKTOP-DRAG-AXES"
       ],
-      "next_proof": "The operator confirmed motion and close visual sync in the local-video/HSP demo. Continue the separate editor/save/reopen/export workflow and broader platform coverage."
+      "next_proof": "Linux rendered evidence now covers script import, review, commit, timeline add and drag, Undo/Redo, restart/reopen, and export. Verify preview of the edited script against the same local video in one Desktop workflow, then exercise platform coverage. The operator previously confirmed motion and close visual sync in the local-video/HSP demo."
     },
     {
       "id": "UNIFIED-API",
@@ -18980,6 +18981,37 @@
             "changed_actions"
           ],
           "equals": 1
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-DESKTOP-DRAG-AXES",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/sterile-desktop-drag-axes/result.json",
+      "sha256": "df9985dda2d90838146a7d2db2c1824dda7a0ee64e9df716d8a6d235dc9653db",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Linux Desktop vertical drag preserved the original 1134 ms timestamp. After Undo, a horizontal drag preserved the original position 67. Each export retained 58 actions and changed exactly one keyframe. A repeated edit intersecting the protected range was refused.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "vertical",
+            "at"
+          ],
+          "equals": 1134
+        },
+        {
+          "pointer": [
+            "horizontal",
+            "pos"
+          ],
+          "equals": 67
         }
       ]
     }
