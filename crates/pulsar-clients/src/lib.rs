@@ -1884,6 +1884,50 @@ pub fn commit_candidate(
     }
 }
 
+/// Import a script as an uncommitted candidate at the selected revision.
+pub fn import_funscript(
+    api: &mut impl EngineApi,
+    project: ProjectId,
+    revision: RevisionId,
+    path: PathBuf,
+) -> Result<CandidateSnapshot> {
+    import_script_candidate(api, project, revision, Command::ImportFunscript { path })
+}
+
+pub(crate) fn import_funscript_for_repair(
+    api: &mut impl EngineApi,
+    project: ProjectId,
+    revision: RevisionId,
+    path: PathBuf,
+) -> Result<CandidateSnapshot> {
+    import_script_candidate(
+        api,
+        project,
+        revision,
+        Command::ImportFunscriptForRepair { path },
+    )
+}
+
+fn import_script_candidate(
+    api: &mut impl EngineApi,
+    project: ProjectId,
+    revision: RevisionId,
+    command: Command,
+) -> Result<CandidateSnapshot> {
+    match api.execute(command, Some(project.clone()), Some(revision))? {
+        ResponseBody::Candidate(candidate)
+            if candidate.project_id == project && candidate.base_revision == revision =>
+        {
+            Ok(*candidate)
+        }
+        _ => Err(ProtocolError::new(
+            ErrorCode::DependencyMismatch,
+            "script import acknowledgement differs from its project or base revision",
+        )
+        .into()),
+    }
+}
+
 /// Export a single axis at an exact committed revision.
 pub fn export_axis(
     api: &mut impl EngineApi,
@@ -2842,6 +2886,57 @@ mod tests {
             )
             .is_err());
         }
+    }
+
+    #[test]
+    fn shared_import_refuses_candidate_from_another_revision() {
+        struct ImportReply(Option<CandidateSnapshot>);
+        impl EngineApi for ImportReply {
+            fn execute(
+                &mut self,
+                command: Command,
+                project: Option<ProjectId>,
+                revision: Option<RevisionId>,
+            ) -> Result<ResponseBody> {
+                assert!(matches!(command, Command::ImportFunscript { .. }));
+                assert_eq!(project.unwrap().as_str(), "project");
+                assert_eq!(revision, Some(RevisionId::new(4)));
+                Ok(ResponseBody::Candidate(Box::new(self.0.take().unwrap())))
+            }
+        }
+        let project = ProjectId::new("project").unwrap();
+        let candidate_id = CandidateId::new("candidate").unwrap();
+        let program = MotionProgram::default();
+        let base_revision = RevisionId::new(3);
+        let mut api = ImportReply(Some(CandidateSnapshot {
+            candidate_id: candidate_id.clone(),
+            project_id: project.clone(),
+            base_revision,
+            motion: crate::motion::fixture_descriptor(
+                &program,
+                MotionBinding::Candidate {
+                    project_id: project.clone(),
+                    candidate_id,
+                    base_revision,
+                },
+            ),
+            program: program.into(),
+            project_interval: None,
+            job_id: None,
+            review: vec![],
+        }));
+        let error = import_funscript(
+            &mut api,
+            project,
+            RevisionId::new(4),
+            PathBuf::from("script.funscript"),
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.downcast_ref::<ProtocolError>().unwrap().code,
+            ErrorCode::DependencyMismatch
+        );
+        assert!(api.0.is_none());
     }
 
     #[test]

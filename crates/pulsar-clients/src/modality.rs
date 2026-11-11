@@ -363,15 +363,14 @@ pub(crate) fn import_script(
             ),
         )?),
     };
-    let response = api.execute(
-        Command::ImportFunscript {
-            path: absolute_path(path)?,
-        },
-        Some(project.project_id),
-        Some(project.revision),
+    let candidate = crate::import_funscript(
+        api,
+        project.project_id,
+        project.revision,
+        absolute_path(path)?,
     )?;
     eprintln!("Imported script is an uncommitted candidate. Review before explicit merge/commit.");
-    crate::print_response(response)
+    crate::print_response(ResponseBody::Candidate(Box::new(candidate)))
 }
 
 pub(crate) fn await_candidate(
@@ -508,14 +507,8 @@ pub(crate) fn doctor(api: &mut impl EngineApi, path: &Path, maximum: f64) -> Res
     let path = absolute_path(path)?;
     let project = create_project(api, "Script diagnostics".into())?;
     eprintln!("Diagnostic project retained: {}. Script remains an uncommitted candidate; original file is unchanged.", project.project_id);
-    let candidate = match api.execute(
-        Command::ImportFunscript { path },
-        Some(project.project_id.clone()),
-        Some(project.revision),
-    )? {
-        ResponseBody::Candidate(candidate) => candidate,
-        _ => bail!("Engine returned an unexpected script import response"),
-    };
+    let candidate =
+        crate::import_funscript(api, project.project_id.clone(), project.revision, path)?;
     review(
         api,
         project.project_id.as_str(),
