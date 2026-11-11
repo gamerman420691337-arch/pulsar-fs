@@ -130,7 +130,7 @@ impl PlayerPanel {
         if self.status.armed {
             ui.label(format!(
                 "{} · {} s left",
-                if self.status.assistant_control {
+                if self.status.assistant_grant.is_some() {
                     "Assistant Handy control"
                 } else {
                     "Handy enabled"
@@ -376,7 +376,7 @@ impl PlayerPanel {
                         && (!self.busy() || enabled),
                     egui::Checkbox::new(
                         &mut enabled,
-                        if self.status.assistant_control
+                        if self.status.assistant_grant.is_some()
                             || (!self.status.armed && consent.is_absolute())
                         {
                             "Enable Handy for assistant"
@@ -408,7 +408,7 @@ impl PlayerPanel {
             }
             let state = if self.status.playing {
                 "Playing"
-            } else if self.status.assistant_control {
+            } else if self.status.assistant_grant.is_some() {
                 "Assistant Handy control enabled"
             } else if self.status.armed {
                 "Handy enabled"

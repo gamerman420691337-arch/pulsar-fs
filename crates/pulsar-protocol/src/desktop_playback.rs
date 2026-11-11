@@ -38,6 +38,10 @@ pub enum DesktopPlaybackAction {
         max_pct: u8,
         sync_offset_ms: i16,
     },
+    AssistantPlay {
+        grant: SessionId,
+        consent: PathBuf,
+    },
     Play {
         /// Negative advances the Handy; positive delays it.
         #[serde(default, skip_serializing_if = "is_zero_offset")]
@@ -89,6 +93,7 @@ impl DesktopPlaybackAction {
                 validate_local_path(video)?;
                 validate_local_path(consent)?;
             }
+            Self::AssistantPlay { consent, .. } => validate_local_path(consent)?,
             Self::ArmAssistant {
                 consent,
                 max_speed,
@@ -156,8 +161,8 @@ pub struct DesktopMediaReview {
 pub struct DesktopPlaybackStatus {
     pub loaded: bool,
     pub armed: bool,
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub assistant_control: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assistant_grant: Option<SessionId>,
     pub playing: bool,
     pub connected: bool,
     pub busy: bool,

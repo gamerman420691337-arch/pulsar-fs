@@ -5,7 +5,7 @@ use anyhow::{ensure, Context, Result};
 use pulsar_protocol::{
     DesktopMediaReview, DesktopPlaybackAction as Action, DesktopPlaybackStatus as Status,
     EffectReview, ErrorCode, ProtocolError, RoleplayConsentDocument, RoleplayEffect,
-    RoleplayEffectApproval, RoleplayEffectScope,
+    RoleplayEffectApproval, RoleplayEffectScope, SessionId,
 };
 use serde::Deserialize;
 use std::{
@@ -99,7 +99,10 @@ impl Shared {
             .map(|pending| pending.status.clone());
         status.loaded = player.mpv.is_some();
         status.armed = player.armed_until.is_some();
-        status.assistant_control = player.assistant_consent.is_some();
+        status.assistant_grant = player
+            .assistant_grant
+            .as_ref()
+            .map(|grant| grant.id.clone());
         status.connected = player.hsp.is_some();
         status.playing = player.playing;
         status.expires_in_ms = player.armed_until.map_or(0, |t| {
@@ -144,8 +147,20 @@ impl Service {
             action,
             Action::Stop | Action::Close | Action::Arm { enabled: false, .. }
         );
+        let assistant_play = matches!(action, Action::AssistantPlay { .. });
+        if let Action::AssistantPlay { grant, .. } = action {
+            if status.assistant_grant.as_ref() != Some(grant)
+                || !status.armed
+                || status.expires_in_ms == 0
+            {
+                return Err(ProtocolError::new(
+                    ErrorCode::Forbidden,
+                    "No matching active assistant Handy grant",
+                ));
+            }
+        }
         let proposal = matches!(action, Action::PrepareMediaReview { .. });
-        if owner.is_some() && !is_owner && !emergency && !proposal {
+        if owner.is_some() && !is_owner && !emergency && !proposal && !assistant_play {
             return Err(ProtocolError::new(
                 ErrorCode::Forbidden,
                 "another Desktop owns the player; Stop or close it first",
@@ -186,10 +201,10 @@ impl Service {
             let epoch = shared.epoch.load(Ordering::SeqCst);
             queue.push_back((epoch, action.clone()));
         }
-        if owner.is_none() && !emergency && !proposal {
+        if owner.is_none() && !emergency && !proposal && !assistant_play {
             *owner = Some(session.into());
         }
-        if owner.as_deref() == Some(session) && !proposal {
+        if owner.as_deref() == Some(session) && !proposal && !assistant_play {
             *shared.heartbeat.lock().map_err(|_| internal())? = Instant::now();
         }
         recent.push_back((session.into(), request.into(), fingerprint));
@@ -298,11 +313,16 @@ impl ActiveConsent {
     }
 }
 
+struct AssistantDeviceGrant {
+    id: SessionId,
+    consent: ActiveConsent,
+}
+
 struct Player {
     mpv: Option<MpvPlayer>,
     reviewed_media: Option<tempfile::TempDir>,
     active_media_consent: Option<ActiveConsent>,
-    assistant_consent: Option<ActiveConsent>,
+    assistant_grant: Option<AssistantDeviceGrant>,
     pending_review: Option<PendingMediaReview>,
     approval: RoleplayEffectApproval,
     hsp: Option<HspClient>,
@@ -322,7 +342,7 @@ impl Default for Player {
             mpv: None,
             reviewed_media: None,
             active_media_consent: None,
-            assistant_consent: None,
+            assistant_grant: None,
             pending_review: None,
             approval: {
                 let mut nonce = [0; 32];
@@ -352,7 +372,7 @@ impl Player {
         let device = self.hsp.as_mut().map(|h| h.stop()).transpose();
         if disarm {
             self.armed_until = None;
-            self.assistant_consent = None;
+            self.assistant_grant = None;
             self.hsp = None;
         }
         video?;
@@ -389,8 +409,8 @@ impl Player {
         if let Some(consent) = &self.active_media_consent {
             consent.check()?;
         }
-        if let Some(consent) = &self.assistant_consent {
-            consent.check()?;
+        if let Some(grant) = &self.assistant_grant {
+            grant.consent.check()?;
         }
         let script_end = self.end_ms();
         let mpv = self.mpv.as_mut().context("Open a video and script first")?;
@@ -432,8 +452,8 @@ impl Player {
                 clock.rtt_ms < START_LEAD_MS,
                 "Handy network is too slow to synchronize; retry Play"
             );
-            if let Some(consent) = &self.assistant_consent {
-                consent.check()?;
+            if let Some(grant) = &self.assistant_grant {
+                grant.consent.check()?;
             }
             let start = Instant::now() + Duration::from_millis(START_LEAD_MS);
             shared.check_device_session(epoch, self.armed_until, start)?;
@@ -748,8 +768,12 @@ impl Player {
                 self.arm(shared, epoch, max_speed, min_pct, max_pct)?;
                 approval.check()?;
                 self.sync_offset_ms = sync_offset_ms;
-                self.assistant_consent = Some(approval);
+                self.assistant_grant = Some(AssistantDeviceGrant {
+                    id: SessionId::new(uuid::Uuid::new_v4().to_string())?,
+                    consent: approval,
+                });
             }
+            Action::AssistantPlay { .. } => self.play(shared, epoch)?,
             Action::Play { sync_offset_ms } => {
                 self.sync_offset_ms = sync_offset_ms;
                 self.play(shared, epoch)?;
@@ -779,12 +803,28 @@ impl Player {
         }
         Ok(())
     }
+    fn check_assistant_request(&self, action: &Action, shared: &Shared, epoch: u64) -> Result<()> {
+        if let Action::AssistantPlay { grant, consent } = action {
+            let current = self
+                .assistant_grant
+                .as_ref()
+                .context("No active assistant Handy grant")?;
+            ensure!(
+                current.id == *grant && current.consent.path == *consent,
+                "Assistant Handy grant changed"
+            );
+            ensure!(self.hsp.is_some(), "Handy is disconnected");
+            shared.check_device_session(epoch, self.armed_until, Instant::now())?;
+        }
+        Ok(())
+    }
+
     fn tick(&mut self) -> Result<(u64, u64, bool)> {
         if let Some(consent) = &self.active_media_consent {
             consent.check()?;
         }
-        if let Some(consent) = &self.assistant_consent {
-            consent.check()?;
+        if let Some(grant) = &self.assistant_grant {
+            grant.consent.check()?;
         }
         let Some(mpv) = self.mpv.as_mut() else {
             return Ok((0, 0, false));
@@ -856,6 +896,10 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
             }
             let closed = matches!(action, Action::Close);
             let proposal = matches!(action, Action::PrepareMediaReview { .. });
+            if let Err(error) = player.check_assistant_request(&action, &shared, generation) {
+                shared.publish_completion(&player, error.to_string());
+                continue;
+            }
             let result = player.apply(action, &shared, generation, &directory);
             let message = match result {
                 Ok(()) => if player.playing {
@@ -922,7 +966,10 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
         if let Ok(mut status) = shared.status.lock() {
             status.loaded = player.mpv.is_some();
             status.armed = player.armed_until.is_some();
-            status.assistant_control = player.assistant_consent.is_some();
+            status.assistant_grant = player
+                .assistant_grant
+                .as_ref()
+                .map(|grant| grant.id.clone());
             status.connected = player.hsp.is_some();
             status.expires_in_ms = player.armed_until.map_or(0, |t| {
                 t.saturating_duration_since(Instant::now()).as_millis() as u64
@@ -1180,7 +1227,7 @@ mod tests {
                 directory.path()
             )
             .is_err());
-        assert!(player.assistant_consent.is_none());
+        assert!(player.assistant_grant.is_none());
         assert!(player.hsp.is_none());
     }
 
