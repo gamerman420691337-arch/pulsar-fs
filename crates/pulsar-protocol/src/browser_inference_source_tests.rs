@@ -8,6 +8,7 @@ fn fixture() -> (AttemptId, LiveCaptureOptions, LiveInferenceManifest) {
     let report = crate::live_capture::captured_cpu_report_tests::host_capture();
     let mut options = report.options;
     stream.model.path = options.inference.as_ref().unwrap().model_path.clone();
+    stream.runtime.path = crate::test_host_path("runtime").into();
     let mut media = crate::browser_media::test_binding();
     media.project_id = stream.identity.project.clone();
     media.revision = stream.identity.revision;
