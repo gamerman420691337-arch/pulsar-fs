@@ -99,6 +99,13 @@ For a script, open **Generator**, select **Funscript candidate import**, enter i
 
 For media, enter an absolute file path in **Media path** and click **Import immutable source**. Use **Studio** or **Cinema** for preview. For generation, choose **Video motion** and an explicit admitted model/profile or selected pack; no useful default model is currently selected. Do not interpret a diagnostic graph's output as recovered source motion.
 
+For a new project in the CLI, use `pulsar generate VIDEO --model MODEL_ONNX
+--inference-profile PROFILE_JSON --stage-only` to retain a candidate without
+committing or exporting it. The result includes the project, candidate and base
+revision. Inspect it with `pulsar review PROJECT --candidate CANDIDATE` before
+using `pulsar commit-candidate PROJECT CANDIDATE --revision REVISION` and
+`pulsar export-axis PROJECT /absolute/new-script.funscript`.
+
 ### Regenerate part of an existing script
 
 1. Open the project with your committed script and choose **Video motion** in **Generator**. Select the media source and the model and profile you intend to evaluate.

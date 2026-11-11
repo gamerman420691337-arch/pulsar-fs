@@ -979,7 +979,7 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
             }
 
         }
-        Commands::Generate { video, mixed_audio, audio_source, audio_alignment, target_seed, annotated_view, raw_frame_pair, output, model, model_pack, model_class_count, inference_profile, fallback_selection, conf, fps, source_sample_stride, width, height, detrend_window,
+        Commands::Generate { video, mixed_audio, audio_source, audio_alignment, target_seed, annotated_view, raw_frame_pair, stage_only, output, model, model_pack, model_class_count, inference_profile, fallback_selection, conf, fps, source_sample_stride, width, height, detrend_window,
             norm_window, batch_size, vr, video_view, pov, no_balance_global, no_keyframe_reduction,
             cut_diff, cut_flow, multi_axis, profile, cuts } => {
             // No legacy option is silently ignored. Additional modes remain
@@ -1040,7 +1040,7 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
             settings.validate()?;
             let model_path = model.map(|path| absolute_path(&path)).transpose()?;
             let output = output.unwrap_or_else(|| video.with_extension("funscript"));
-            generate_to_file_with_pack(&mut client, FileGenerationInput { video: &video, output: &output, preset: &profile, settings, model_path, independent_audio, choice: pack_selection.and_then(|s|s.choice), fallback_selection })
+            generate_to_file_with_pack(&mut client, FileGenerationInput { video: &video, output: (!stage_only).then_some(output.as_path()), preset: &profile, settings, model_path, independent_audio, choice: pack_selection.and_then(|s|s.choice), fallback_selection })
         }
         Commands::Fix { script, output, max_speed, jitter_window, jitter_threshold } => {
             let options=ScriptRepairOptions::new(max_speed,jitter_window,jitter_threshold)?;
@@ -2096,7 +2096,7 @@ fn generate_to_file(
         api,
         FileGenerationInput {
             video,
-            output,
+            output: Some(output),
             preset,
             settings,
             model_path,
@@ -2108,7 +2108,7 @@ fn generate_to_file(
 }
 struct FileGenerationInput<'a> {
     video: &'a Path,
-    output: &'a Path,
+    output: Option<&'a Path>,
     preset: &'a str,
     settings: GenerationSettings,
     model_path: Option<PathBuf>,
@@ -2216,8 +2216,14 @@ fn generate_to_file_with_pack(
         ResponseBody::Job(job) => job,
         _ => bail!("Engine returned an unexpected generation response"),
     };
+    let job_id = job.job_id.clone();
     let candidate = modality::await_candidate(api, &project, job)?;
-    modality::commit_and_export(api, &project, candidate, output, Axis::Stroke)
+    if let Some(output) = output {
+        return modality::commit_and_export(api, &project, candidate, output, Axis::Stroke);
+    }
+    modality::verify_generated_candidate(&project, &job_id, &candidate)?;
+    modality::print_candidate_review(&candidate);
+    print_response(ResponseBody::Candidate(Box::new(candidate)))
 }
 
 pub(crate) fn absolute_path(path: &Path) -> Result<PathBuf> {
@@ -3260,7 +3266,7 @@ mod inference_fallback_generation_tests {
                 &mut NoCalls,
                 FileGenerationInput {
                     video: Path::new("source.mp4"),
-                    output: Path::new("output.funscript"),
+                    output: Some(Path::new("output.funscript")),
                     preset: "default",
                     settings: prepared,
                     model_path: model,
@@ -3392,7 +3398,7 @@ mod inference_fallback_generation_tests {
                 &mut fake,
                 FileGenerationInput {
                     video: Path::new("source.mp4"),
-                    output: &output,
+                    output: Some(&output),
                     preset: "default",
                     settings,
                     model_path: path.clone(),

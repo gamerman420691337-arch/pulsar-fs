@@ -269,7 +269,7 @@ pub(crate) fn edit_values(
     crate::print_response(ResponseBody::Candidate((candidate).into()))
 }
 
-fn print_candidate_review(candidate: &CandidateSnapshot) {
+pub(crate) fn print_candidate_review(candidate: &CandidateSnapshot) {
     for flag in candidate.review.iter().take(100) {
         eprintln!(
             "REVIEW {} {:?} {:.3}..{:.3}s {:?}",
@@ -320,18 +320,27 @@ pub(crate) fn regenerate_candidate(
     };
     let job_id = job.job_id.clone();
     let candidate = await_candidate(api, &project, job)?;
+    verify_generated_candidate(&project, &job_id, &candidate)?;
+    print_candidate_review(&candidate);
+    Ok(candidate)
+}
+
+pub(crate) fn verify_generated_candidate(
+    project: &ProjectSnapshot,
+    job_id: &JobId,
+    candidate: &CandidateSnapshot,
+) -> Result<()> {
     if candidate.project_id != project.project_id
-        || candidate.base_revision != revision
-        || candidate.job_id.as_ref() != Some(&job_id)
+        || candidate.base_revision != project.revision
+        || candidate.job_id.as_ref() != Some(job_id)
     {
         return Err(ProtocolError::new(
             ErrorCode::DependencyMismatch,
-            "regeneration candidate differs from the requested project, revision, or job",
+            "generation candidate differs from the requested project, revision, or job",
         )
         .into());
     }
-    print_candidate_review(&candidate);
-    Ok(candidate)
+    Ok(())
 }
 
 pub(crate) fn apply_regeneration(

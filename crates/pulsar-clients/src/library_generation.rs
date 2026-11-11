@@ -201,7 +201,7 @@ impl FolderGeneration {
                 crate::FileGenerationInput {
                     fallback_selection: None,
                     video: source,
-                    output,
+                    output: Some(output),
                     preset,
                     settings: self.settings.clone(),
                     model_path: self.model_path.clone(),

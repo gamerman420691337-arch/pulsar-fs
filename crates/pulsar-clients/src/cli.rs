@@ -1572,6 +1572,9 @@ pub enum Commands {
         /// Declaration for two immutable packed 64x64 RGB frames (previous, current).
         #[arg(long)]
         raw_frame_pair: Option<PathBuf>,
+        /// Retain the generated candidate for explicit review without committing or exporting.
+        #[arg(long, conflicts_with = "output")]
+        stage_only: bool,
         #[arg(short, long)]
         output: Option<PathBuf>,
         #[arg(long)]
