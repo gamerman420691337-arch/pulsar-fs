@@ -1875,6 +1875,36 @@ pub fn commit_candidate(
         Some(id) => api.execute_identified(id, command, Some(project.clone()), Some(revision)),
         None => api.execute(command, Some(project.clone()), Some(revision)),
     }?;
+    verify_candidate_revision(response, project, expected_revision, "commit")
+}
+
+pub(crate) fn merge_candidate(
+    api: &mut impl EngineApi,
+    project: ProjectId,
+    revision: RevisionId,
+    candidate_id: CandidateId,
+    axes: Vec<Axis>,
+    range: Option<TimeRange>,
+) -> Result<ProjectSnapshot> {
+    let expected_revision = revision.checked_next()?;
+    let response = api.execute(
+        Command::MergeCandidate {
+            candidate_id,
+            axes,
+            range,
+        },
+        Some(project.clone()),
+        Some(revision),
+    )?;
+    verify_candidate_revision(response, project, expected_revision, "merge")
+}
+
+fn verify_candidate_revision(
+    response: ResponseBody,
+    project: ProjectId,
+    expected_revision: RevisionId,
+    operation: &str,
+) -> Result<ProjectSnapshot> {
     match response {
         ResponseBody::Project(snapshot)
             if snapshot.project_id == project && snapshot.revision == expected_revision =>
@@ -1883,7 +1913,7 @@ pub fn commit_candidate(
         }
         _ => Err(ProtocolError::new(
             ErrorCode::DependencyMismatch,
-            "candidate commit acknowledgement differs from its project or expected revision",
+            format!("candidate {operation} acknowledgement differs from its project or expected revision"),
         )
         .into()),
     }

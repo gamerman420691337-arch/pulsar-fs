@@ -355,15 +355,15 @@ pub(crate) fn apply_regeneration(
         .map(|track| track.axis())
         .collect();
     eprintln!("Applying unqualified regeneration only to unlocked candidate axes. Quality remains unqualified; no file export follows.");
-    crate::print_response(api.execute(
-        Command::MergeCandidate {
-            candidate_id: candidate.candidate_id,
-            axes,
-            range,
-        },
-        Some(candidate.project_id),
-        Some(candidate.base_revision),
-    )?)
+    let project = crate::merge_candidate(
+        api,
+        candidate.project_id,
+        candidate.base_revision,
+        candidate.candidate_id,
+        axes,
+        range,
+    )?;
+    crate::print_response(ResponseBody::Project(Box::new(project)))
 }
 
 pub(crate) fn import_script(
@@ -579,25 +579,23 @@ pub(crate) fn merge(
         (Some(_), _) => bail!("Multi-axis merge cannot imply a single-axis export; use export-axis explicitly afterward"),
         (None, _) => None,
     };
-    let merged = api.execute(
-        Command::MergeCandidate {
-            candidate_id: CandidateId::new(candidate)?,
-            axes: selected_axes,
-            range: range(start, end)?,
-        },
-        Some(project.project_id),
-        Some(project.revision),
+    let merged = crate::merge_candidate(
+        api,
+        project.project_id,
+        project.revision,
+        CandidateId::new(candidate)?,
+        selected_axes,
+        range(start, end)?,
     )?;
-    match (merged, output) {
-        (ResponseBody::Project(project), Some(path)) => crate::print_response(crate::export_axis(
+    match output {
+        Some(path) => crate::print_response(crate::export_axis(
             api,
-            project.project_id,
-            project.revision,
+            merged.project_id,
+            merged.revision,
             absolute_path(path)?,
             export_axis.expect("export axis validated before merge"),
         )?),
-        (response, None) => crate::print_response(response),
-        _ => bail!("Engine returned an unexpected merge response"),
+        None => crate::print_response(ResponseBody::Project(Box::new(merged))),
     }
 }
 
