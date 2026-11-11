@@ -17,10 +17,10 @@
   },
   "working_tree": {
     "build_state": "unverified",
-    "evidence": "EV-STERILE-BROWSER-MOTION-001",
-    "scope": "The rendered browser produced 154 fresh estimates with a trained outline tracker. On the 146 estimates within complete supplied reference anchors, position error averaged 17.94 points and correlation was 0.745 at zero shift. Scoring now validates the complete capture and reports the initial 1.417 seconds without estimates.",
+    "evidence": "EV-TRAINED-HSP-TIMING-BREAKDOWN",
+    "scope": "A trained outline tracker reaches Play in the rendered HSP loopback with simulated Handy. The latest run captured 20 timing probes and stopped before either required continuity transfer when the terminal bracket widened to 111.748 ms.",
     "active_work": "BROWSER-DEMO",
-    "failure_summary": "The sterile browser workflow generated motion, but the tracker missed the motion screen. Physical live playback remains pending. Desktop local-file HSP playback and its zero-default offset retain their prior evidence.",
+    "failure_summary": "Rendered browser HSP continuity remains unverified. The supplied sterile reference still misses its learned-motion screen. Desktop local-file playback at zero offset retains prior operator evidence; live generated physical playback remains pending.",
     "source_stamp": [
       {
         "path": "Cargo.lock",
@@ -4558,7 +4558,8 @@
         "EV-TRAINED-HSP-LOOPBACK-EARLY-STOP",
         "EV-TRAINED-HSP-NATIVE-CANCELLATION",
         "EV-TRAINED-HSP-APPEND-UNKNOWN",
-        "EV-TRAINED-HSP-ALIGNMENT-BOUND"
+        "EV-TRAINED-HSP-ALIGNMENT-BOUND",
+        "EV-TRAINED-HSP-TIMING-BREAKDOWN"
       ]
     },
     {
@@ -20439,6 +20440,59 @@
         {
           "pointer": [
             "qualification_passed"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-TRAINED-HSP-TIMING-BREAKDOWN",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/outline-holdout-hsp-40s/browser-timing-breakdown/summary.json",
+      "sha256": "1b6623a704b18affbd8f7b9bf91f848ca5dae1c3a4261b46e7ff15d90006f5d5",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered trained-model HSP loopback reached Play. Twenty browser probe breakdowns were recorded; the terminal native bracket widened to 111.748 ms and the browser breakdown for that probe was unavailable. Both expected continuity transfers remain unverified.",
+      "assertions": [
+        {
+          "pointer": [
+            "observed_probes"
+          ],
+          "equals": 20
+        },
+        {
+          "pointer": [
+            "maximum_sampled_bracket_ns"
+          ],
+          "equals": 40580972
+        },
+        {
+          "pointer": [
+            "median_frame_wait_ms"
+          ],
+          "equals": 16.25
+        },
+        {
+          "pointer": [
+            "terminal_probe_sequence"
+          ],
+          "equals": 50
+        },
+        {
+          "pointer": [
+            "terminal_bracket_ns"
+          ],
+          "equals": 111748458
+        },
+        {
+          "pointer": [
+            "terminal_browser_breakdown_captured"
           ],
           "equals": false
         },
