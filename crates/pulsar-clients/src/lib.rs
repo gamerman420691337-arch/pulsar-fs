@@ -374,7 +374,9 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
         },
         Commands::CommitCandidate {project,candidate,revision,request_id} => {
             let mut client=SessionClient::connect(endpoint,bootstrap)?;
-            print_response(client.execute_with_id(RequestId::new(request_id.unwrap_or_else(||uuid::Uuid::new_v4().to_string()))?,Command::CommitCandidate {candidate_id:CandidateId::new(candidate)?},Some(ProjectId::new(project)?),Some(RevisionId::new(revision)))?)
+            let id = request_id.map(RequestId::new).transpose()?.unwrap_or_else(session::new_request_id);
+            let snapshot = commit_candidate(&mut client, ProjectId::new(project)?, RevisionId::new(revision), CandidateId::new(candidate)?, Some(id))?;
+            print_response(ResponseBody::Project(Box::new(snapshot)))
         },
         Commands::Undo {project,revision,request_id} => {
             let id = request_id.map(RequestId::new).transpose()?.unwrap_or_else(session::new_request_id);
@@ -1850,6 +1852,35 @@ pub fn get_snapshot(api: &mut impl EngineApi, project: &ProjectId) -> Result<Pro
     match api.execute(Command::GetSnapshot, Some(project.clone()), None)? {
         ResponseBody::Project(snapshot) => Ok(*snapshot),
         _ => bail!("Engine returned an unexpected project response"),
+    }
+}
+
+/// Commit a selected candidate at its reviewed revision. An existing request
+/// identity is passed through for callers that retain and reconcile outcomes.
+pub fn commit_candidate(
+    api: &mut impl EngineApi,
+    project: ProjectId,
+    revision: RevisionId,
+    candidate_id: CandidateId,
+    request_id: Option<RequestId>,
+) -> Result<ProjectSnapshot> {
+    let command = Command::CommitCandidate { candidate_id };
+    let response = match request_id {
+        Some(id) => api.execute_identified(id, command, Some(project.clone()), Some(revision)),
+        None => api.execute(command, Some(project.clone()), Some(revision)),
+    }?;
+    match response {
+        ResponseBody::Project(snapshot)
+            if snapshot.project_id == project
+                && snapshot.revision == revision.checked_next()? =>
+        {
+            Ok(*snapshot)
+        }
+        _ => Err(ProtocolError::new(
+            ErrorCode::DependencyMismatch,
+            "candidate commit acknowledgement differs from its project or expected revision",
+        )
+        .into()),
     }
 }
 

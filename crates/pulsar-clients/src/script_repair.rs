@@ -52,21 +52,13 @@ pub(crate) fn fix(
     }
     let repaired = repair_standard_script(&candidate.program, options)?;
     eprintln!("Numerical repair: {} interior actions removed, {} positions slope-clamped; policy={options:?}.",repaired.removed_jitters,repaired.clamped_positions);
-    let committed = match api.execute(
-        Command::CommitCandidate {
-            candidate_id: candidate.candidate_id,
-        },
-        Some(project.project_id.clone()),
-        Some(project.revision),
-    )? {
-        crate::motion::ResponseBody::Project(project) => project,
-        _ => bail!("unexpected baseline commit response"),
-    };
-    if committed.project_id != project.project_id
-        || committed.revision != project.revision.checked_next()?
-    {
-        bail!("repair baseline commit returned mismatched scope or revision");
-    }
+    let committed = crate::commit_candidate(
+        api,
+        project.project_id.clone(),
+        project.revision,
+        candidate.candidate_id,
+        None,
+    )?;
     let label = format!("neutral-script-repair-v1 {options:?}");
     let candidate = api.upload_edit(
         committed.project_id.clone(),

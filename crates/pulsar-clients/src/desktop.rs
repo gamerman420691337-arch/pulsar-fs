@@ -201,8 +201,8 @@ fn execute_work(client: &mut impl EngineApi, work: RpcWork) -> anyhow::Result<Re
                 &proposal.label,
             )?;
             let candidate_id = candidate.candidate_id;
-            client.execute(Command::CommitCandidate { candidate_id: candidate_id.clone() },
-                Some(project), Some(revision))
+            crate::commit_candidate(client, project, revision, candidate_id.clone(), None)
+                .map(|snapshot| ResponseBody::Project(Box::new(snapshot)))
                 .map_err(|error| {
                     let message = format!("Edit candidate {candidate_id} exists; commit was not confirmed. Explicit review/rebase is required before a new commit. Cause: {error}");
                     error.context(message)
@@ -5704,13 +5704,30 @@ mod edit_transport_tests {
             assert!(
                 matches!(command, Command::CommitCandidate { candidate_id } if candidate_id.as_str() == "edit-candidate")
             );
-            assert_eq!(project.unwrap().as_str(), "project");
+            let project = project.unwrap();
+            assert_eq!(project.as_str(), "project");
             assert_eq!(revision, Some(RevisionId::new(4)));
             self.calls.push("commit");
             if self.conflict {
                 Err(ProtocolError::new(ErrorCode::RevisionConflict, "stale base").into())
             } else {
-                Ok(ResponseBody::Ack)
+                let revision = RevisionId::new(5);
+                let program = MotionProgram::default();
+                Ok(ResponseBody::Project(Box::new(ProjectSnapshot {
+                    motion: fixture_descriptor(
+                        &program,
+                        MotionBinding::ProjectRevision {
+                            project_id: project.clone(),
+                            revision,
+                        },
+                    ),
+                    project_id: project,
+                    revision,
+                    program: program.into(),
+                    name: "Project".into(),
+                    sources: vec![],
+                    placements: vec![],
+                })))
             }
         }
     }
@@ -5798,7 +5815,7 @@ mod edit_transport_tests {
         };
         assert!(matches!(
             execute_work(&mut api, draft()).unwrap(),
-            ResponseBody::Ack
+            ResponseBody::Project(_)
         ));
         assert_eq!(api.calls, vec!["upload", "commit"]);
     }

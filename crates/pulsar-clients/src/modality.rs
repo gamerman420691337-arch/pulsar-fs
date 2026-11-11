@@ -140,17 +140,14 @@ fn prepare_audio_bundle(
         "Audio bundle candidate lacks six neutral tracks"
     );
     print_candidate_review(&candidate);
-    let committed = match api.execute(
-        Command::CommitCandidate {
-            candidate_id: candidate.candidate_id,
-        },
-        Some(project.project_id.clone()),
-        Some(project.revision),
-    )? {
-        ResponseBody::Project(project) => project,
-        _ => bail!("Engine returned an unexpected audio bundle commit response"),
-    };
-    Ok(*committed)
+    let committed = crate::commit_candidate(
+        api,
+        project.project_id.clone(),
+        project.revision,
+        candidate.candidate_id,
+        None,
+    )?;
+    Ok(committed)
 }
 
 pub(crate) fn synthesize_atomic_audio_bundle(
@@ -441,16 +438,13 @@ pub(crate) fn commit_and_export(
         .into());
     }
     print_candidate_review(&candidate);
-    let committed = match api.execute(
-        Command::CommitCandidate {
-            candidate_id: candidate.candidate_id,
-        },
-        Some(project.project_id.clone()),
-        Some(project.revision),
-    )? {
-        ResponseBody::Project(project) => project,
-        _ => bail!("Engine returned an unexpected candidate commit response"),
-    };
+    let committed = crate::commit_candidate(
+        api,
+        project.project_id.clone(),
+        project.revision,
+        candidate.candidate_id,
+        None,
+    )?;
     crate::print_response(api.execute(
         Command::ExportAxis {
             path: absolute_path(output)?,

@@ -2739,22 +2739,16 @@ impl Preview {
                             && candidate.job_id.is_none(),
                         "saved commit differs from authenticated original recording candidate"
                     );
-                    let ResponseBody::Project(project) = self.client.execute_identified(
-                        commit.request.clone(),
-                        Command::CommitCandidate {
-                            candidate_id: commit.pin.candidate.clone(),
-                        },
-                        Some(project_id.clone()),
-                        Some(commit.pin.revision),
-                    )?
-                    else {
-                        bail!("saved commit response differs");
-                    };
+                    let project = crate::commit_candidate(
+                        &mut self.client,
+                        project_id.clone(),
+                        commit.pin.revision,
+                        commit.pin.candidate.clone(),
+                        Some(commit.request.clone()),
+                    )?;
                     ensure!(
-                        project.project_id == project_id
-                            && project.revision == commit.pin.revision.checked_next()?
-                            && project.motion.program.sha256 == commit.pin.program_sha256,
-                        "saved commit acknowledgement scope or program differs"
+                        project.motion.program.sha256 == commit.pin.program_sha256,
+                        "saved commit acknowledgement program differs"
                     );
                     saved
                         .commit
@@ -2825,22 +2819,16 @@ impl Preview {
                             && candidate.job_id.is_none(),
                         "saved commit differs from authenticated original gap candidate"
                     );
-                    let ResponseBody::Project(project) = self.client.execute_identified(
-                        commit.request.clone(),
-                        Command::CommitCandidate {
-                            candidate_id: commit.pin.candidate.clone(),
-                        },
-                        Some(project_id.clone()),
-                        Some(commit.pin.revision),
-                    )?
-                    else {
-                        bail!("saved commit response differs");
-                    };
+                    let project = crate::commit_candidate(
+                        &mut self.client,
+                        project_id.clone(),
+                        commit.pin.revision,
+                        commit.pin.candidate.clone(),
+                        Some(commit.request.clone()),
+                    )?;
                     ensure!(
-                        project.project_id == project_id
-                            && project.revision == commit.pin.revision.checked_next()?
-                            && project.motion.program.sha256 == commit.pin.program_sha256,
-                        "saved commit acknowledgement scope or program differs"
+                        project.motion.program.sha256 == commit.pin.program_sha256,
+                        "saved commit acknowledgement program differs"
                     );
                     saved
                         .commit
