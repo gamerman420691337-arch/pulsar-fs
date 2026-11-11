@@ -4560,7 +4560,8 @@
         "EV-TRAINED-HSP-NATIVE-CANCELLATION",
         "EV-TRAINED-HSP-APPEND-UNKNOWN",
         "EV-TRAINED-HSP-ALIGNMENT-BOUND",
-        "EV-TRAINED-HSP-TIMING-BREAKDOWN"
+        "EV-TRAINED-HSP-TIMING-BREAKDOWN",
+        "EV-TRAINED-HSP-MATCHED-ADAPTIVE-PROBE"
       ]
     },
     {
@@ -20541,6 +20542,53 @@
         {
           "pointer": [
             "installed_stash_qualified"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-TRAINED-HSP-MATCHED-ADAPTIVE-PROBE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/outline-holdout-hsp-40s/adaptive-matched-frame-wait/browser-timing.json",
+      "sha256": "88ce2db34b57f71cddf4664b99b3471f88eac0d786fc61f4ca9e991c93e5bca7",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "The adaptive rendered loopback matched browser probe 27 to a 91.067 ms native bracket. The browser waited 78.3 ms for a fresh frame. The Engine rejected the source phase before observed playback; continuity and physical qualification remain open.",
+      "assertions": [
+        {
+          "pointer": [
+            "sequence"
+          ],
+          "equals": 27
+        },
+        {
+          "pointer": [
+            "probe_ms"
+          ],
+          "equals": 18.6
+        },
+        {
+          "pointer": [
+            "frame_wait_ms"
+          ],
+          "equals": 78.3
+        },
+        {
+          "pointer": [
+            "observation_request_ms"
+          ],
+          "equals": 9.9
+        },
+        {
+          "pointer": [
+            "native_bracket_ns"
+          ],
+          "equals": 91067306
+        },
+        {
+          "pointer": [
+            "physical_device"
           ],
           "equals": false
         }
