@@ -4373,7 +4373,8 @@
         "EV-STASH-WORKSPACE-CHECK-INTERRUPTED",
         "EV-STASH-WORKSPACE-RETRY-PASS",
         "EV-STASH-EXPLICIT-CAPTURE-MERGED",
-        "EV-STASH-LOOPBACK-530EE45"
+        "EV-STASH-LOOPBACK-530EE45",
+        "EV-STASH-ANNOTATED-CPU-542F2BB"
       ]
     },
     {
@@ -4855,6 +4856,55 @@
     }
   ],
   "evidence": [
+    {
+      "id": "EV-STASH-ANNOTATED-CPU-542F2BB",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/stash-annotated-cpu-542f2bb/result.json",
+      "sha256": "193281f20925903d00879dacd68be24030da26245e6c2ca6d98264648a03e98a",
+      "kind": "json",
+      "outcome": "pass",
+      "scope": "Four native annotated CPU batches against loopback Stash exercise file models and selected packs with and without explicit placement, including restart.",
+      "freshness": "pinned_checkpoint",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "cases",
+            "file",
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "cases",
+            "placed-file",
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "cases",
+            "pack",
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "cases",
+            "placed-pack",
+            "passed"
+          ],
+          "equals": true
+        }
+      ]
+    },
     {
       "id": "EV-STASH-LOOPBACK-530EE45",
       "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/stash-loopback-530ee45/result.json",
