@@ -441,8 +441,8 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
         Commands::ExportAxis { project, path, axis } => {
             let mut client = SessionClient::connect(endpoint, bootstrap)?;
             let project = get_snapshot(&mut client, &ProjectId::new(project)?)?;
-            print_response(client.execute(Command::ExportAxis { path: absolute_path(&path)?, axis: modality::parse_axis(&axis)? },
-                Some(project.project_id), Some(project.revision))?)
+            print_response(export_axis(&mut client, project.project_id, project.revision,
+                absolute_path(&path)?, modality::parse_axis(&axis)?)?)
         }
         Commands::ExportBundle { project, destination, revision, axes } => {
             let selected=if axes.is_empty() {Axis::ALL.to_vec()} else {axes.iter().map(|axis|modality::parse_axis(axis)).collect::<Result<Vec<_>>>()?};
@@ -1884,6 +1884,43 @@ pub fn commit_candidate(
     }
 }
 
+/// Export a single axis at an exact committed revision.
+pub fn export_axis(
+    api: &mut impl EngineApi,
+    project: ProjectId,
+    revision: RevisionId,
+    path: PathBuf,
+    axis: Axis,
+) -> Result<ResponseBody> {
+    let reply = api.execute(
+        Command::ExportAxis {
+            path: path.clone(),
+            axis,
+        },
+        Some(project),
+        Some(revision),
+    )?;
+    check_axis_export(reply, &path, revision, axis)
+}
+
+pub(crate) fn check_axis_export(
+    reply: ResponseBody,
+    path: &Path,
+    revision: RevisionId,
+    axis: Axis,
+) -> Result<ResponseBody> {
+    if matches!(&reply, ResponseBody::AxisExported { path: actual_path, revision: actual_revision, axis: actual_axis }
+        if actual_path == path && *actual_revision == revision && *actual_axis == axis)
+    {
+        return Ok(reply);
+    }
+    Err(ProtocolError::new(
+        ErrorCode::DependencyMismatch,
+        "axis export acknowledgement differs from its path, revision, or axis",
+    )
+    .into())
+}
+
 /// The policy is nonsecret intent. Reading it grants no evidence acceptance or
 /// execution permission; the Engine checks all selected records and current scope.
 fn read_fallback_selection(path: &Path) -> Result<InferenceFallbackSelection> {
@@ -2804,6 +2841,33 @@ mod tests {
                 None
             )
             .is_err());
+        }
+    }
+
+    #[test]
+    fn shared_axis_export_rejects_wrong_path_revision_or_axis() {
+        let path = PathBuf::from("selected.funscript");
+        let revision = RevisionId::new(4);
+        for (actual_path, actual_revision, actual_axis) in [
+            (PathBuf::from("other.funscript"), revision, Axis::Stroke),
+            (path.clone(), RevisionId::new(5), Axis::Stroke),
+            (path.clone(), revision, Axis::Sway),
+        ] {
+            let error = check_axis_export(
+                ResponseBody::AxisExported {
+                    path: actual_path,
+                    revision: actual_revision,
+                    axis: actual_axis,
+                },
+                &path,
+                revision,
+                Axis::Stroke,
+            )
+            .unwrap_err();
+            assert_eq!(
+                error.downcast_ref::<ProtocolError>().unwrap().code,
+                ErrorCode::DependencyMismatch
+            );
         }
     }
 

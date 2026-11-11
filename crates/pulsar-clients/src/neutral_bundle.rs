@@ -282,7 +282,7 @@ pub fn resume_neutral_bundle(
 mod local {
     use super::*;
     use crate::project_package::PackagePublicationOutcome;
-    use crate::{get_snapshot, session::new_request_id, EngineApi, ResponseBody};
+    use crate::{get_snapshot, session::new_request_id, EngineApi};
     use anyhow::{ensure, Context};
     use rustix::fs::{open, openat, statat, AtFlags, Mode, OFlags};
     use std::{
@@ -851,10 +851,8 @@ mod local {
                     Some(stage.intent.project.clone()),
                     Some(stage.intent.revision),
                 )?;
-                ensure!(
-                    matches!(response,ResponseBody::AxisExported {path:actual,revision,axis:actual_axis} if actual==path && revision==stage.intent.revision && actual_axis==axis),
-                    "Bundle export acknowledgement differs from durable intent"
-                );
+                crate::check_axis_export(response, &path, stage.intent.revision, axis)
+                    .context("Bundle export acknowledgement differs from durable intent")?;
             }
             control.check()?;
             stage.check()?;

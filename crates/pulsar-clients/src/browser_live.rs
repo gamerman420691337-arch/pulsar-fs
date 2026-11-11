@@ -1974,11 +1974,7 @@ impl Preview {
                     .context("inspect and prepare export first")?;
                 saved.validate(&project, &binding, &root)?;
                 let i = &saved.intent;
-                let ResponseBody::AxisExported {
-                    path,
-                    revision,
-                    axis,
-                } = self.client.execute_identified(
+                let reply = self.client.execute_identified(
                     i.request.clone(),
                     Command::ExportAxisPinned {
                         path: i.path.clone(),
@@ -1987,15 +1983,9 @@ impl Preview {
                     },
                     Some(project.clone()),
                     Some(i.revision),
-                )?
-                else {
-                    bail!("Engine export acknowledgement differs");
-                };
-                ensure!(
-                    path == i.path && revision == i.revision && axis == Axis::Stroke,
-                    "Engine export scope differs"
-                );
-                saved.acknowledged_revision = Some(revision);
+                )?;
+                crate::check_axis_export(reply, &i.path, i.revision, Axis::Stroke)?;
+                saved.acknowledged_revision = Some(i.revision);
                 journal.active = Some(saved.clone());
                 checkpoint(journal)?;
                 // Open the pinned parent again after acknowledgement; use descriptor-relative reads.
@@ -2137,11 +2127,7 @@ impl Preview {
                     script == original.intent.expected,
                     "retained script differs from original projection"
                 );
-                let ResponseBody::AxisExported {
-                    path,
-                    revision,
-                    axis,
-                } = self.client.execute_identified(
+                let reply = self.client.execute_identified(
                     entry.request.clone(),
                     Command::ExportAxisPinned {
                         path: entry.path.clone(),
@@ -2150,14 +2136,8 @@ impl Preview {
                     },
                     Some(project.clone()),
                     Some(entry.revision),
-                )?
-                else {
-                    bail!("retained export Engine acknowledgement differs");
-                };
-                ensure!(
-                    path == entry.path && revision == entry.revision && axis == Axis::Stroke,
-                    "retained export Engine scope differs"
-                );
+                )?;
+                crate::check_axis_export(reply, &entry.path, entry.revision, Axis::Stroke)?;
                 Ok(
                     serde_json::json!({"request_id":entry.request,"revision":entry.revision,"qualified":false,"script":script}),
                 )

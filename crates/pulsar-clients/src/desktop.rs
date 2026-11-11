@@ -165,6 +165,15 @@ fn execute_work(client: &mut impl EngineApi, work: RpcWork) -> anyhow::Result<Re
         RpcCommand::Identified(id, command) => {
             client.execute_identified(id, command, work.project, work.revision)
         }
+        RpcCommand::Wire(Command::ExportAxis { path, axis }) => crate::export_axis(
+            client,
+            work.project
+                .ok_or_else(|| anyhow::anyhow!("Axis export lacks project identity"))?,
+            work.revision
+                .ok_or_else(|| anyhow::anyhow!("Axis export lacks committed revision"))?,
+            path,
+            axis,
+        ),
         RpcCommand::Wire(command) => client.execute(command, work.project, work.revision),
         RpcCommand::HandyInspect(_) | RpcCommand::HandyRegistration(_) => {
             anyhow::bail!("Handy inspection requires the trusted session-bound owner directory")

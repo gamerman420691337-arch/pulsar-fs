@@ -95,9 +95,8 @@ pub(crate) fn synthesize_audio_bundle(
                 .context("Invalid neutral axis name")?
         );
         let path = output.join(filename);
-        match api.execute(Command::ExportAxis { path: path.clone(), axis }, Some(committed.project_id.clone()), Some(committed.revision)) {
-            Ok(ResponseBody::AxisExported { path: actual_path, revision, axis: actual_axis }) if actual_path == path && revision == committed.revision && actual_axis == axis => exported.push(path),
-            Ok(_) => bail!("Unexpected audio bundle export response; retained project {}, revision {}, completed files {:?}", committed.project_id, committed.revision, exported),
+        match crate::export_axis(api, committed.project_id.clone(), committed.revision, path.clone(), axis) {
+            Ok(_) => exported.push(path),
             Err(error) => bail!("Audio bundle publication incomplete; retained project {}, revision {}, completed files {:?}: {error}", committed.project_id, committed.revision, exported),
         }
     }
@@ -445,13 +444,12 @@ pub(crate) fn commit_and_export(
         candidate.candidate_id,
         None,
     )?;
-    crate::print_response(api.execute(
-        Command::ExportAxis {
-            path: absolute_path(output)?,
-            axis,
-        },
-        Some(committed.project_id),
-        Some(committed.revision),
+    crate::print_response(crate::export_axis(
+        api,
+        committed.project_id,
+        committed.revision,
+        absolute_path(output)?,
+        axis,
     )?)
 }
 
@@ -571,13 +569,12 @@ pub(crate) fn merge(
         Some(project.revision),
     )?;
     match (merged, output) {
-        (ResponseBody::Project(project), Some(path)) => crate::print_response(api.execute(
-            Command::ExportAxis {
-                path: absolute_path(path)?,
-                axis: export_axis.expect("export axis validated before merge"),
-            },
-            Some(project.project_id),
-            Some(project.revision),
+        (ResponseBody::Project(project), Some(path)) => crate::print_response(crate::export_axis(
+            api,
+            project.project_id,
+            project.revision,
+            absolute_path(path)?,
+            export_axis.expect("export axis validated before merge"),
         )?),
         (response, None) => crate::print_response(response),
         _ => bail!("Engine returned an unexpected merge response"),
