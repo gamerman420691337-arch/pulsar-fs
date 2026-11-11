@@ -953,6 +953,9 @@ impl Controller {
             // No caller may restore the predecessor cursor or remint a token.
             staged.media.commit()?;
             timing.commit(now()?)?;
+            next_source
+                .timing
+                .bind_hsp_refresh_policy(&next_source.source.subject().timing)?;
             if self.retired.load(Ordering::Acquire) || self.shutdown.load(Ordering::Acquire) {
                 return Err(unavailable());
             }

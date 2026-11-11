@@ -3,7 +3,7 @@ use super::*;
 use crate::authority::browser_media::{NativeBrowserMediaSuccessor, SourceMediaPin};
 use arc_swap::ArcSwapOption;
 use std::{
-    sync::{atomic::AtomicU64, Weak},
+    sync::{atomic::AtomicU64, OnceLock, Weak},
     time::{Duration, Instant},
 };
 
@@ -85,6 +85,7 @@ struct Lifetime {
     alive: AtomicBool,
     deadline_ns: AtomicU64,
     publication: ArcSwapOption<NativePublication>,
+    hsp_refresh_policy: OnceLock<HandyBrowserStartTiming>,
     successor: Option<Arc<TimingSuccessorLineage>>,
     child_committed: AtomicBool,
 }
@@ -174,6 +175,18 @@ impl BrowserTimingRead {
     }
 }
 impl BrowserTimingPin {
+    pub(super) fn bind_hsp_refresh_policy(&self, policy: &HandyBrowserStartTiming) -> PResult<()> {
+        if self
+            .lifetime
+            .hsp_refresh_policy
+            .get_or_init(|| policy.clone())
+            != policy
+        {
+            return Err(mismatch());
+        }
+        Ok(())
+    }
+
     pub(super) fn same_owner(&self, other: &Self) -> bool {
         self.binding == other.binding
             && Arc::ptr_eq(&self.registry, &other.registry)
@@ -960,6 +973,7 @@ impl Engine {
                     source: source.clone(),
                     observation: None,
                 }))),
+                hsp_refresh_policy: OnceLock::new(),
                 successor,
                 child_committed: AtomicBool::new(false),
             });
@@ -1136,6 +1150,32 @@ impl Engine {
                     )?,
                 };
                 observation.validate()?;
+                if let (Some(policy), Some(prior)) =
+                    (entry.lifetime.hsp_refresh_policy.get(), &entry.observation)
+                {
+                    // Zero device uncertainty makes this only a lower-bound
+                    // screen. Native HSP still checks actual clock and phase.
+                    let phase = |value: &BrowserTimingObservation| {
+                        policy
+                            .phase_request(value, now, 500_000, 0, value.expires_at_boottime_ns)
+                            .ok()
+                            .map(|request| request.calculate())
+                    };
+                    let over_budget = matches!(
+                        phase(&observation),
+                        Some(Err(pulsar_core::CoreError::InvalidTransition(message)))
+                            if message == "browser start: combined alignment error exceeds accepted budget"
+                                || message == "browser clock: mapped interval exceeds uncertainty or age horizon"
+                    );
+                    if over_budget
+                        && prior.current(now)
+                        && phase(&prior.value).is_some_and(|value| value.is_ok())
+                    {
+                        let mut retained = entry.report();
+                        retained.discarded_probe_sequence = Some(probe.sequence);
+                        return response(retained);
+                    }
+                }
                 let mut next_report = entry.report();
                 next_report.observation = Some(observation.clone());
                 let reply = response(next_report)?;

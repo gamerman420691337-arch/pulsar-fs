@@ -1433,6 +1433,7 @@ impl Engine {
             producer_read_test: Mutex::new(None),
         });
         let sink = Arc::new(EpochSink::new(&controller, selection.clone()));
+        timing.bind_hsp_refresh_policy(&subject.timing)?;
         let subscription = captures.register_native_delivery(selection.clone(), sink.clone())?;
         controller.active.store(Some(Arc::new(SourceBundle {
             generation: 1,
