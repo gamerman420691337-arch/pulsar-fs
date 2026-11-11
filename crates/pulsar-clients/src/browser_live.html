@@ -114,10 +114,16 @@ function timingFrame(scope,now,metadata,sampledAt){
   t.probe=null;t.inflight=true;if(t.deadline!==null)clearTimeout(t.deadline);t.deadline=null;
   void (async()=>{
    try{
+    const observeSentAt=performance.now();
     const report=await timingPost('/player/timing-observe',new TextEncoder().encode(JSON.stringify({sequence:probe.sequence,probe_id:probe.probe_id,frame})),scope);
     if(!currentPlayer(scope)||t.stopped)return;
     if(report.observation?.sequence!==probe.sequence)throw Error('Timing observation sequence differs.');
-    showTiming(report);if(!report.current){stopTiming(scope);if(analysisReader)failAnalysis(analysisReader,'Visible-player timing retired.');return;}t.observationCurrent=true;
+    showTiming(report);
+    if(report.current){
+     const probeMs=probe.received_tick_us/1000-probe.sentAt,frameMs=(browser_tick_us-probe.received_tick_us)/1000;
+     timingStatus.textContent+=` Probe ${probe.sequence}: request ${probeMs.toFixed(1)} ms, fresh frame ${frameMs.toFixed(1)} ms, observation request ${(performance.now()-observeSentAt).toFixed(1)} ms.`;
+    }
+    if(!report.current){stopTiming(scope);if(analysisReader)failAnalysis(analysisReader,'Visible-player timing retired.');return;}t.observationCurrent=true;
     if(t.expiry!==null)clearTimeout(t.expiry);
     t.expiry=setTimeout(()=>{t.expiry=null;t.observationCurrent=false;if(currentPlayer(scope)&&!t.stopped){timingStatus.textContent='Browser timing observation expired locally; waiting for a new native observation. Unqualified.';if(analysisReader)failAnalysis(analysisReader,'Original visible-player observation expired.');}},Math.max(0,probe.sentAt+probe.observationTimeoutMs-performance.now()));
     t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},timingRefreshDelay(presentedFrame,performance.now()));
