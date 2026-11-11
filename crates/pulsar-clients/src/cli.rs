@@ -1504,6 +1504,11 @@ pub enum Commands {
         #[arg(long)]
         max_speed: Option<f64>,
     },
+    /// Inspect a retained candidate in its owning project without changing the revision.
+    InspectCandidate {
+        project: String,
+        candidate: String,
+    },
     /// Read retained warning identities and revision-bound decisions.
     ReviewStatus {
         project: String,
