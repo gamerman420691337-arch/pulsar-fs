@@ -1322,6 +1322,11 @@ mod rendered_browser_continuity_fixture {
                 })
             {
                 let first_stop = rendered_browser_first_stop(f, &output, &bind_id);
+                record(
+                    &output,
+                    "stop-before-play-native.json",
+                    &json!({"live":stream,"first_stop":first_stop,"qualified":false}),
+                );
                 panic!("native HSP stopped before the fixture observed Play: {first_stop}");
             }
             assert_eq!(stream.origin.as_ref(), Some(&origin));
