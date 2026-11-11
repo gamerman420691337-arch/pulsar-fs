@@ -289,6 +289,25 @@ mod hsp_preparation_tests {
                 },
             )
         }
+        fn retired_with_original_retry(
+            &self,
+            original: &Request,
+            io: &Arc<AuthoredIo>,
+        ) -> HandyHspPreparationStatus {
+            self.wait(&original.request_id, "original replay must settle metadata", |status| {
+                let native = status.native.as_ref().unwrap();
+                if native.phase != HandyHspPreparationPhase::Retired || native.worker_active {
+                    return false;
+                }
+                if native.metadata_pending {
+                    // A status read can contend with the worker's final nonblocking
+                    // write. Only an exact replay can request a metadata retry here.
+                    self.call(original, io.clone()).unwrap();
+                    return false;
+                }
+                true
+            })
+        }
         fn retired_with_cancel_retry(
             &self,
             original: &RequestId,
@@ -1042,19 +1061,7 @@ mod hsp_preparation_tests {
             .store(before.deadline_boottime_ns, Ordering::Release);
         drop(journal);
         io.metadata_contention.release();
-        let retired = x.wait(&original.request_id, "original replay must settle metadata", |status| {
-            let native = status.native.as_ref().unwrap();
-            if native.phase != HandyHspPreparationPhase::Retired || native.worker_active {
-                return false;
-            }
-            if native.metadata_pending {
-                // A status read can contend with the worker's final nonblocking
-                // write. Only an exact replay can request a metadata retry here.
-                x.call(&original, io.clone()).unwrap();
-                return false;
-            }
-            true
-        });
+        let retired = x.retired_with_original_retry(&original, &io);
         let history = retired.history.unwrap();
         assert_eq!(history.record_id, before.record_id);
         assert_eq!(history.deadline_boottime_ns, before.deadline_boottime_ns);
@@ -1518,7 +1525,7 @@ mod hsp_preparation_tests {
         );
         assert_eq!(io.syncs.load(Ordering::Acquire), 0);
         io.before_claim.release();
-        let settled = x.retired(&original.request_id);
+        let settled = x.retired_with_original_retry(&original, &io);
         let history = settled.history.as_ref().unwrap();
         assert_eq!(history.record_id, public.record_id);
         assert_eq!(history.state, HandyClockSyncState::Unknown);

@@ -839,8 +839,10 @@ impl Entry {
     }
     fn finish_failure(&self, error: ProtocolError) {
         if let Ok(mut state) = self.state.lock() {
+            if state.phase != HandyHspPreparationPhase::Retired || state.error.is_none() {
+                state.error = Some(error);
+            }
             state.phase = HandyHspPreparationPhase::Retired;
-            state.error = Some(error);
             state.ready = None;
             if state.pending.is_none() && state.candidate.is_none() && state.completion.is_none() {
                 state.pending = if let Some(claim) = &state.claimed {
@@ -876,7 +878,12 @@ impl Entry {
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     if metadata_only {
                         captured.persist()?;
-                        if captured.state.lock().map_err(internal)?.candidate.is_some() {
+                        let can_install = {
+                            let state = captured.state.lock().map_err(internal)?;
+                            state.phase != HandyHspPreparationPhase::Retired
+                                && state.candidate.is_some()
+                        };
+                        if can_install {
                             captured.install_candidate()?;
                         }
                         Ok(())
