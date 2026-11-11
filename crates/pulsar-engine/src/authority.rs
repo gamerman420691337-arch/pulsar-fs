@@ -1568,6 +1568,7 @@ impl Engine {
             model_path,
             model_input,
             inference_profile,
+            ..
         } = &request.command
         {
             return self.preview(
@@ -1628,6 +1629,7 @@ impl Engine {
             time,
             video_view,
             choice,
+            ..
         } = &request.command
         {
             let (source_time, time_basis, placed) = match time {
@@ -3861,6 +3863,7 @@ impl Engine {
                 "rebase_candidate",
                 "get_snapshot",
                 "preview_frame",
+                "preview_source_end",
                 "export",
                 "export_axis",
                 "grant",
@@ -5635,7 +5638,7 @@ impl Engine {
             }
         }
         match output {
-            WorkerOutput::Preview(preview)
+            WorkerOutput::Preview(mut preview)
                 if if let Some(placed) = &placement_seek {
                     preview.matches_placed_seek_request(context, placed)
                 } else {
@@ -5743,6 +5746,18 @@ impl Engine {
                         &preview,
                         image_cleanup.as_mut().expect("assistant image custody"),
                     );
+                }
+                if !matches!(
+                    request.command,
+                    Command::PreviewFrame {
+                        include_source_end: true,
+                        ..
+                    } | Command::PreviewModelPackFrame {
+                        include_source_end: true,
+                        ..
+                    }
+                ) {
+                    preview.last_source_elapsed_time = None;
                 }
                 if let Some(choice) = model_pack {
                     let report = ModelPackPreviewResult {
@@ -11463,6 +11478,7 @@ pub(crate) mod tests {
                 Some(&f.project),
                 None,
                 Command::PreviewModelPackFrame {
+                    include_source_end: false,
                     context,
                     time: ModelPackPreviewTime::Source {
                         source_time: SourceTimestamp::new(0, 1).unwrap(),

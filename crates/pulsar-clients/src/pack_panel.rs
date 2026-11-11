@@ -894,6 +894,7 @@ mod tests {
             annotated: None,
             time_basis: PreviewTimeBasis::SourcePts,
             elapsed_source_time: None,
+            last_source_elapsed_time: None,
             source_origin: None,
             placed: None,
             coordinate_map: None,

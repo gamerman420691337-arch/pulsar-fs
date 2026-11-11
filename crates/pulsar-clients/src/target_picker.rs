@@ -241,6 +241,7 @@ mod tests {
             placed: None,
             time_basis: PreviewTimeBasis::SourcePts,
             elapsed_source_time: None,
+            last_source_elapsed_time: None,
             source_origin: None,
             coordinate_map: None,
             context: context.clone(),

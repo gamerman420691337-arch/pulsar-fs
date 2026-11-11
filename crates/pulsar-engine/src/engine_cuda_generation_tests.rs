@@ -2038,6 +2038,7 @@ mod native_cuda_generation {
             request_generation: 3,
         };
         let command = Command::PreviewFrame {
+            include_source_end: false,
             time_basis: PreviewTimeBasis::SourcePts,
             video_view: None,
             context: context.clone(),

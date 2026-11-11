@@ -335,6 +335,7 @@ pub struct PulsarDesktop {
     seek_generation: u64,
     playhead_seconds: f64,
     preview_playing: bool,
+    preview_source_end: Option<(SourceVersionId, f64)>,
     last_tick: Instant,
     last_preview: Instant,
     last_job_poll: Instant,
@@ -696,6 +697,7 @@ impl PulsarDesktop {
             seek_generation: 0,
             playhead_seconds: 0.0,
             preview_playing: false,
+            preview_source_end: None,
             last_tick: Instant::now(),
             last_preview: Instant::now(),
             last_job_poll: Instant::now(),
@@ -1414,6 +1416,21 @@ impl PulsarDesktop {
         if !self.preview.accept(result) {
             return;
         }
+        if let Some(result) = self.preview.displayed() {
+            if let Some(end) = result.last_source_elapsed_time {
+                let seconds = end.numerator() as f64 / f64::from(end.denominator());
+                self.preview_source_end = Some((result.context.source_version.clone(), seconds));
+                if self.preview_playing
+                    && self.selected_placement.is_none()
+                    && result.elapsed_source_time == Some(end)
+                {
+                    self.preview_playing = false;
+                    self.preview_pending = false;
+                    self.playhead_seconds = seconds;
+                    self.status = "Preview reached the last source frame.".into();
+                }
+            }
+        }
         let pixels = (|| -> anyhow::Result<_> {
             let previous_required = self
                 .preview
@@ -1450,6 +1467,16 @@ impl PulsarDesktop {
                 self.status = error.to_string();
             }
         }
+    }
+
+    fn preview_placement(&self) -> Option<&SourcePlacementSpec> {
+        let selected = self.selected_placement.as_ref()?;
+        self.project
+            .as_ref()?
+            .placements
+            .iter()
+            .find(|p| &p.placement_id == selected)
+            .map(|p| &p.spec)
     }
 
     fn seek(&mut self, seconds: f64) {
@@ -1784,6 +1811,7 @@ impl PulsarDesktop {
             self.last_preview = Instant::now();
             let command = if let Some(choice) = pack_choice {
                 Command::PreviewModelPackFrame {
+                    include_source_end: false,
                     context,
                     time: ModelPackPreviewTime::Placement {
                         placement_id: request.placement.placement_id,
@@ -1813,9 +1841,16 @@ impl PulsarDesktop {
         );
         self.preview_pending = false;
         self.last_preview = Instant::now();
+        let include_source_end = self.capabilities.as_ref().is_some_and(|capabilities| {
+            capabilities
+                .operations
+                .iter()
+                .any(|op| op == "preview_source_end")
+        });
         self.send(
             if let Some(choice) = pack_choice {
                 Command::PreviewModelPackFrame {
+                    include_source_end,
                     context,
                     time: ModelPackPreviewTime::Source {
                         source_time,
@@ -1826,6 +1861,7 @@ impl PulsarDesktop {
                 }
             } else {
                 Command::PreviewFrame {
+                    include_source_end,
                     time_basis: PreviewTimeBasis::ElapsedFromFirstFrame,
                     video_view: self.video_view.clone(),
                     context,
@@ -3677,6 +3713,18 @@ impl PulsarDesktop {
                 self.preview_playing = !self.preview_playing;
                 self.last_tick = Instant::now();
             }
+            if ui
+                .add_enabled(
+                    !self.author_target_mode && !self.pick_target_mode,
+                    egui::Button::new("Stop preview"),
+                )
+                .clicked()
+            {
+                self.preview_playing = false;
+                let start = self.preview_placement()
+                    .map_or(0.0, |placement| placement.project_anchor.as_nanos() as f64 / 1e9);
+                self.seek(start);
+            }
             let response = ui.add(
                 egui::DragValue::new(&mut self.playhead_seconds)
                     .speed(0.04)
@@ -5015,12 +5063,34 @@ impl eframe::App for PulsarDesktop {
         let now = Instant::now();
         if self.preview_playing {
             let seconds = self.playhead_seconds + now.duration_since(self.last_tick).as_secs_f64();
-            if now.duration_since(self.last_preview) >= Duration::from_millis(150) {
-                self.seek(seconds);
+            let seconds = match &self.preview_source_end {
+                Some((source, end))
+                    if self.selected_placement.is_none()
+                        && self.source.as_ref() == Some(source) =>
+                {
+                    // Requests use integer nanoseconds. Round the cap up so
+                    // fractional final PTS values still select the final frame.
+                    seconds.min((end * 1e9).ceil() / 1e9)
+                }
+                _ => seconds,
+            };
+            if self.preview_placement().is_some_and(|placement| {
+                placement
+                    .source_at_project(ProjectTime::from_nanos((seconds * 1e9).round() as i64))
+                    .is_err()
+            }) {
+                self.preview_playing = false;
+                self.status = "Preview reached the source placement boundary.".into();
             } else {
-                self.playhead_seconds = seconds;
+                // A playback tick must not invalidate a frame still decoding.
+                if !self.busy && now.duration_since(self.last_preview) >= Duration::from_millis(150)
+                {
+                    self.seek(seconds);
+                } else {
+                    self.playhead_seconds = seconds;
+                }
+                context.request_repaint_after(Duration::from_millis(30));
             }
-            context.request_repaint_after(Duration::from_millis(30));
         }
         self.last_tick = now;
         egui::TopBottomPanel::top("pulsar-header").show(context, |ui| {

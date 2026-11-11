@@ -539,6 +539,8 @@ pub(crate) fn validate_annotated_preview_pair(preview: &PreviewResult) -> Result
 }
 
 #[allow(clippy::too_many_arguments)]
+pub(crate) const PREVIEW_SOURCE_END_ENV: &str = "PULSAR_WORKER_PREVIEW_SOURCE_END";
+
 fn preview(
     request: &WorkerRequest,
     index: &media::MediaIndex,
@@ -701,6 +703,17 @@ fn preview(
             placed,
             time_basis,
             elapsed_source_time: Some(selected.elapsed_time),
+            last_source_elapsed_time: if std::env::var_os(PREVIEW_SOURCE_END_ENV)
+                .is_some_and(|value| value == "1")
+            {
+                index.pts.last().and_then(|last| {
+                    let ticks = (i128::from(*last) - i128::from(index.pts[0]))
+                        * i128::from(index.time_base_num);
+                    SourceTimestamp::new(i64::try_from(ticks).ok()?, index.time_base_den).ok()
+                })
+            } else {
+                None
+            },
             source_origin: Some(selected.source_origin),
             coordinate_map: video_view
                 .map(|view| {

@@ -354,6 +354,7 @@ mod preview_tests {
             source_time: SourceTimestamp::new(1, 8).unwrap(),
             source_frame_index: 1,
             elapsed_source_time: Some(SourceTimestamp::new(1, 8).unwrap()),
+            last_source_elapsed_time: None,
             source_origin: Some(SourceTimestamp::new(0, 1).unwrap()),
             coordinate_map: None,
             placed: None,

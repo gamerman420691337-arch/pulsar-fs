@@ -126,6 +126,7 @@ fn preview_adopts_actual_frame_but_rejects_stale_seek_or_transform() {
         annotated: None,
         time_basis: PreviewTimeBasis::SourcePts,
         elapsed_source_time: None,
+        last_source_elapsed_time: None,
         source_origin: None,
         placed: None,
         coordinate_map: None,
@@ -142,6 +143,23 @@ fn preview_adopts_actual_frame_but_rejects_stale_seek_or_transform() {
             reason: "model absent".into(),
         },
     };
+    let legacy = serde_json::to_value(&result).unwrap();
+    assert!(legacy.get("last_source_elapsed_time").is_none());
+    assert!(serde_json::from_value::<PreviewResult>(legacy)
+        .unwrap()
+        .last_source_elapsed_time
+        .is_none());
+    let end = SourceTimestamp::new(337, 100).unwrap();
+    let final_frame = PreviewResult {
+        last_source_elapsed_time: Some(end),
+        ..result.clone()
+    };
+    assert_eq!(
+        serde_json::from_value::<PreviewResult>(serde_json::to_value(final_frame).unwrap())
+            .unwrap()
+            .last_source_elapsed_time,
+        Some(end)
+    );
     assert!(!result.matches_request(&requested));
     assert!(result.matches_request(&result.context));
     assert!(result.matches_seek_request(&requested, &SourceTimestamp::new(338, 100).unwrap()));
@@ -270,6 +288,7 @@ fn preview_clock_defaults_preserve_legacy_wire_and_negative_elapsed_time_refuses
         request_generation: 0,
     };
     let command = Command::PreviewFrame {
+        include_source_end: false,
         time_basis: PreviewTimeBasis::SourcePts,
         video_view: None,
         context,
@@ -280,11 +299,13 @@ fn preview_clock_defaults_preserve_legacy_wire_and_negative_elapsed_time_refuses
     };
     let mut wire = serde_json::to_value(command).unwrap();
     assert!(wire["arguments"].get("time_basis").is_none());
+    assert!(wire["arguments"].get("include_source_end").is_none());
     let legacy: Command = serde_json::from_value(wire.clone()).unwrap();
     assert!(matches!(
         legacy,
         Command::PreviewFrame {
             time_basis: PreviewTimeBasis::SourcePts,
+            include_source_end: false,
             ..
         }
     ));

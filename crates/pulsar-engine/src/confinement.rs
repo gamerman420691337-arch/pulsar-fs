@@ -255,6 +255,10 @@ fn command_inner(
         "--new-session",
         "--clearenv",
     ]);
+    // A worker launched by a previous Engine keeps its legacy reply shape.
+    if matches!(role, "worker" | "closed-cpu-worker" | "cuda-worker") {
+        command.args(["--setenv", crate::worker::PREVIEW_SOURCE_END_ENV, "1"]);
+    }
     let closed_runtime = cpu_image.is_some()
         || (cuda_mounts.is_some() && !matches!(role, "cuda-mount-check" | "cuda-live-mount-check"));
     append_host_runtime_bindings(&mut command, closed_runtime);

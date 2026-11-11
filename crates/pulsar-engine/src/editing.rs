@@ -2241,6 +2241,7 @@ mod tests {
         let source = project.sources[0].source_version.clone();
         let result = f.call(
             Command::PreviewFrame {
+                include_source_end: false,
                 time_basis: PreviewTimeBasis::SourcePts,
                 video_view: None,
                 context: FrameContext {
