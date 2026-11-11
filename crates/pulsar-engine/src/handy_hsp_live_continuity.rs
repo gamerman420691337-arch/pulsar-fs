@@ -555,6 +555,7 @@ impl Controller {
         let sink = Arc::new(EpochSink::successor(&controller, reservation.clone()));
         let subscription =
             registry.register_native_successor_delivery(&reservation, sink.clone())?;
+        timing.bind_hsp_refresh_policy(&accepted.subject().timing)?;
         let generation = source.generation.checked_add(1).ok_or_else(unavailable)?;
         let bundle = Arc::new(SourceBundle {
             generation,
@@ -963,9 +964,6 @@ impl Controller {
             // No caller may restore the predecessor cursor or remint a token.
             staged.media.commit()?;
             timing.commit(now()?)?;
-            next_source
-                .timing
-                .bind_hsp_refresh_policy(&next_source.source.subject().timing)?;
             if self.retired.load(Ordering::Acquire) || self.shutdown.load(Ordering::Acquire) {
                 return Err(unavailable());
             }

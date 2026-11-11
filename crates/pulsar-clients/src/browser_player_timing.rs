@@ -495,8 +495,7 @@ fn accept_reply(shared: &Shared, job: &Job, reply: pulsar_protocol::ResponseBody
             let submitted = observation.sequence()?;
             if let Some(discarded) = report.discarded_probe_sequence {
                 ensure!(
-                    record.active
-                        && discarded == submitted
+                    discarded == submitted
                         && discarded == probe.sequence
                         && record
                             .report

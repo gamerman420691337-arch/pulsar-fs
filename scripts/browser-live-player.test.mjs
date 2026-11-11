@@ -1317,7 +1317,7 @@ test('HSP natural analysis tail keeps visible player; pause and seek still retir
 
 // These authored observations drive the real client callback/transfer state machine.
 // They are ordering tests, not evidence of native promotion or physical playback.
-function twoTransferHspPlayer(holdRoute=null){
+function twoTransferHspPlayer(holdRoute=null,discardSecondTiming=false){
  let selectedPlayer,policy,current=1,upload=null,nextUpload=null,successor=null,sequence=0;
  const ok=data=>({ok:true,json:async()=>data});
  const epoch=n=>n===1?'epoch-one':n===2?'epoch-two':'epoch-three';
@@ -1331,7 +1331,11 @@ function twoTransferHspPlayer(holdRoute=null){
   if(r.route==='/media/continue'||r.route==='/media/continue-status')return ok({...readyMedia,preparation_request_id:'media-prepare-'+(current+1)});
   if(r.route==='/player/timing-next-open')return ok({pending:true});
   if(r.route==='/player/timing-next-probe')return ok({sequence:String(++sequence),probe_id:'next-probe-'+sequence,probe_timeout_ms:1000,observation_timeout_ms:3000});
-  if(r.route==='/player/timing-next-observe')return ok({current:true,qualified:false,observation:{sequence:jsonBody(r).sequence}});
+  if(r.route==='/player/timing-next-observe'){
+   const sequence=jsonBody(r).sequence;
+   if(discardSecondTiming&&sequence==='2')return ok({current:true,qualified:false,discarded_probe_sequence:sequence,observation:{sequence:'1'}});
+   return ok({current:true,qualified:false,observation:{sequence}});
+  }
   if(r.route==='/analysis/prepare'){successor=feed(current+1);nextUpload=null;return ok(pending());}
   if(r.route==='/analysis/transfer')return ok(pending('awaiting_successor_pair'));
   if(r.route==='/analysis/successor-frame'){const h=rgbPacket(r).header;nextUpload={media_us:h.media_us,observation:h.analysis};return ok(pending('ready_for_transfer'));}
@@ -1353,6 +1357,16 @@ test('HSP two committed analysis transfers preserve one Bind and Play without sy
 });
 
 
+test('HSP staged successor tolerates a discard without restarting preparation',async()=>{
+ const p=twoTransferHspPlayer(null,true);await bindHspPlayer(p);
+ await flush();await p.frame(.2,2);await flush();await flush();
+ assert.equal(p.continuityState().phase,'boundary');
+ p.advance(125);await flush();await p.frame(.3,3);await flush();
+ assert.equal(p.sent.filter(r=>r.route==='/player/timing-next-observe').length,2);
+ assert.equal(p.sent.filter(r=>r.route==='/analysis/prepare').length,1);
+ assert.equal(p.continuityState().phase,'boundary');
+ assert.equal(p.elements.video.paused,false);
+});
 test('HSP retains the first successor callback while predecessor settlement is held',async()=>{
  const p=twoTransferHspPlayer('/analysis/transfer');await bindHspPlayer(p);
  await flush();await p.frame(.2,2);await flush();await flush();
