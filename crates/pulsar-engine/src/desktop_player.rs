@@ -23,6 +23,7 @@ const MAX_REVIEWED_VIDEO_BYTES: u64 = 512 * 1024 * 1024;
 const AHEAD_MS: u64 = 5_000;
 const SESSION_LIFETIME: Duration = Duration::from_secs(20 * 60);
 const HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(3);
+const DEVICE_CHECK_INTERVAL: Duration = Duration::from_secs(1);
 const START_LEAD_MS: u64 = 1_500;
 
 // Higher-priority interrupts subsume lower-priority ones.
@@ -330,6 +331,7 @@ struct Player {
     raw: Vec<(i64, i32)>,
     points: Arc<Vec<(u32, u8)>>,
     armed_until: Option<Instant>,
+    last_device_check: Instant,
     playing: bool,
     max_speed: u16,
     min_pct: u8,
@@ -355,6 +357,7 @@ impl Default for Player {
             raw: Vec::new(),
             points: Arc::new(Vec::new()),
             armed_until: None,
+            last_device_check: Instant::now(),
             playing: false,
             max_speed: 150,
             min_pct: 35,
@@ -427,6 +430,9 @@ impl Player {
         let position = mpv.state()?.position_ms;
         ensure!(position < end, "seek before the end of playback");
         if let Some(hsp) = self.hsp.as_mut() {
+            shared.check_device_session(epoch, self.armed_until, Instant::now())?;
+            ensure!(hsp.connected()?, "Handy disconnected; enable again");
+            self.last_device_check = Instant::now();
             shared.check_device_session(epoch, self.armed_until, Instant::now())?;
             hsp.stop()?;
             hsp.ensure_hsp_mode()?;
@@ -648,7 +654,8 @@ impl Player {
         self.max_pct = max_pct;
         self.points();
         self.hsp = Some(hsp);
-        self.armed_until = Some(Instant::now() + SESSION_LIFETIME);
+        self.last_device_check = Instant::now();
+        self.armed_until = Some(self.last_device_check + SESSION_LIFETIME);
         Ok(())
     }
 
@@ -825,6 +832,12 @@ impl Player {
         }
         if let Some(grant) = &self.assistant_grant {
             grant.consent.check()?;
+        }
+        if self.last_device_check.elapsed() >= DEVICE_CHECK_INTERVAL {
+            if let Some(hsp) = self.hsp.as_mut() {
+                ensure!(hsp.connected()?, "Handy disconnected; enable again");
+                self.last_device_check = Instant::now();
+            }
         }
         let Some(mpv) = self.mpv.as_mut() else {
             return Ok((0, 0, false));
@@ -1045,6 +1058,7 @@ mod tests {
                     "GET /auth/token/issue?",
                     json!({"result":{"token":"fixture"}}),
                 ),
+                ("GET /connected ", json!({"result":{"connected":true}})),
                 ("PUT /hsp/stop ", json!({})),
                 ("GET /mode ", json!({"result":{"mode":4}})),
                 ("PUT /hsp/setup ", json!({})),
