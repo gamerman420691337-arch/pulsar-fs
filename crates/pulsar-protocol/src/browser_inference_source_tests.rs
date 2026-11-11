@@ -5,11 +5,9 @@ fn fixture() -> (AttemptId, LiveCaptureOptions, LiveInferenceManifest) {
     // native media/timing ownership, accepted equivalence or worker authority.
     let mut stream: LiveInferenceManifest =
         serde_json::from_str(include_str!("../tests/fixtures/live-cpu-manifest.json")).unwrap();
-    let report: LiveCaptureReport = serde_json::from_str(include_str!(
-        "../tests/fixtures/live-cpu-capture-report.json"
-    ))
-    .unwrap();
+    let report = crate::live_capture::captured_cpu_report_tests::host_capture();
     let mut options = report.options;
+    stream.model.path = options.inference.as_ref().unwrap().model_path.clone();
     let mut media = crate::browser_media::test_binding();
     media.project_id = stream.identity.project.clone();
     media.revision = stream.identity.revision;
@@ -465,10 +463,7 @@ fn browser_fallback_intent_is_omitted_when_absent_and_exact_view_has_no_self_ref
 fn browser_fallback_admission_report_binds_intent_runtime_and_original_semantics() {
     let (epoch, mut options, mut stream) = fixture();
     options.inference_fallback = Some(fallback_selection());
-    let mut capture: LiveCaptureReport = serde_json::from_str(include_str!(
-        "../tests/fixtures/live-cpu-capture-report.json"
-    ))
-    .unwrap();
+    let mut capture = crate::live_capture::captured_cpu_report_tests::host_capture();
     capture.engine_epoch = epoch;
     capture.identity = stream.identity.clone();
     capture.clock = options.clock(stream.identity.epoch.clone());

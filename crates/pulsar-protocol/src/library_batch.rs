@@ -455,7 +455,7 @@ mod tests {
         let mut request = Request::new(
             RequestId::new("pinned-export").unwrap(),
             Command::ExportAxisPinned {
-                path: std::path::PathBuf::from("/fixture/roll.funscript"),
+                path: crate::test_host_path("roll.funscript").into(),
                 axis: Axis::Roll,
                 directory_identity: PublicationDirectoryIdentity {
                     device: 1,
