@@ -985,6 +985,162 @@ mod tests {
     use super::*;
 
     #[cfg(unix)]
+    fn silent_wav() -> Vec<u8> {
+        // One second of mono PCM, with no external encoder or data source.
+        let samples = [0u8; 16_000];
+        let mut wav = Vec::new();
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&(36 + samples.len() as u32).to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&[16, 0, 0, 0, 1, 0, 1, 0]);
+        wav.extend_from_slice(&8000u32.to_le_bytes());
+        wav.extend_from_slice(&16000u32.to_le_bytes());
+        wav.extend_from_slice(&[2, 0, 16, 0]);
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&(samples.len() as u32).to_le_bytes());
+        wav.extend_from_slice(&samples);
+        wav
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[ignore = "requires mpv and PULSAR_PLAYER_HEADLESS=1"]
+    fn assistant_grant_plays_capped_points_over_loopback_hsp_and_stops() {
+        use pulsar_protocol::{ContentClass, ParticipantRef};
+        use serde_json::{json, Value};
+        use std::{
+            io::{BufRead, BufReader, Read, Write},
+            net::TcpListener,
+        };
+
+        assert_eq!(std::env::var("PULSAR_PLAYER_HEADLESS").as_deref(), Ok("1"));
+        let directory = tempfile::tempdir().unwrap();
+        let video = directory.path().join("fixture.wav");
+        std::fs::write(&video, silent_wav()).unwrap();
+        let mut consent = tempfile::NamedTempFile::new_in(directory.path()).unwrap();
+        let now = review_now_ns().unwrap();
+        let mut document = RoleplayConsentDocument::least_permissive();
+        document.attest(now);
+        document
+            .session
+            .grant(
+                ParticipantRef::new("operator").unwrap(),
+                ContentClass::General,
+                now,
+            )
+            .unwrap();
+        consent
+            .write_all(&serde_json::to_vec(&document).unwrap())
+            .unwrap();
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let server = thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(10);
+            let mut uploaded = Value::Null;
+            let mut scheduled = Value::Null;
+            for (prefix, response) in [
+                (
+                    "GET /auth/token/issue?",
+                    json!({"result":{"token":"fixture"}}),
+                ),
+                ("PUT /hsp/stop ", json!({})),
+                ("GET /mode ", json!({"result":{"mode":4}})),
+                ("PUT /hsp/setup ", json!({})),
+                ("PUT /hsp/add ", json!({})),
+                ("GET /hsp/state ", json!({"result":{"points":2}})),
+                ("GET /servertime ", json!({"server_time":123456})),
+                ("GET /servertime ", json!({"server_time":123456})),
+                ("GET /servertime ", json!({"server_time":123456})),
+                ("PUT /hsp/play ", json!({})),
+                ("PUT /hsp/stop ", json!({})),
+            ] {
+                let mut stream = loop {
+                    match listener.accept() {
+                        Ok((stream, _)) => break stream,
+                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                            assert!(Instant::now() < deadline, "waiting for {prefix}");
+                            thread::sleep(Duration::from_millis(5));
+                        }
+                        Err(error) => panic!("{error}"),
+                    }
+                };
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
+                let mut request = BufReader::new(&mut stream);
+                let mut line = String::new();
+                request.read_line(&mut line).unwrap();
+                assert!(line.starts_with(prefix), "{line}");
+                let mut length = 0;
+                loop {
+                    line.clear();
+                    assert!(request.read_line(&mut line).unwrap() > 0);
+                    if line == "\r\n" {
+                        break;
+                    }
+                    if let Some(value) = line.to_ascii_lowercase().strip_prefix("content-length:") {
+                        length = value.trim().parse::<usize>().unwrap();
+                    }
+                }
+                assert!(length <= 8192);
+                let mut body = vec![0; length];
+                request.read_exact(&mut body).unwrap();
+                if prefix == "PUT /hsp/add " {
+                    uploaded = serde_json::from_slice(&body).unwrap();
+                }
+                if prefix == "PUT /hsp/play " {
+                    scheduled = serde_json::from_slice(&body).unwrap();
+                }
+                let response = response.to_string();
+                write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{response}",
+                    response.len()
+                )
+                .unwrap();
+            }
+            (uploaded, scheduled)
+        });
+
+        let shared = Shared::new();
+        let mut player = Player::default();
+        player.mpv = Some(MpvPlayer::open(&video, directory.path()).unwrap());
+        player.raw = vec![(0, 0), (700, 100)];
+        player.points();
+        player.hsp = Some(HspClient::test_client(&base));
+        player.armed_until = Some(Instant::now() + SESSION_LIFETIME);
+        let grant = SessionId::new("fixture-grant").unwrap();
+        player.assistant_grant = Some(AssistantDeviceGrant {
+            id: grant.clone(),
+            consent: ActiveConsent {
+                path: consent.path().into(),
+                document,
+            },
+        });
+        let action = Action::AssistantPlay {
+            grant,
+            consent: consent.path().into(),
+        };
+        *shared.heartbeat.lock().unwrap() = Instant::now();
+        player.check_assistant_request(&action, &shared, 0).unwrap();
+        player
+            .apply(action.clone(), &shared, 0, directory.path())
+            .unwrap();
+        assert!(player.playing);
+        player
+            .apply(Action::Stop, &shared, 0, directory.path())
+            .unwrap();
+        assert!(!player.playing);
+        assert!(player.check_assistant_request(&action, &shared, 0).is_err());
+        let (uploaded, scheduled) = server.join().unwrap();
+        assert_eq!(uploaded["points"], json!([{"t":0,"x":35},{"t":700,"x":65}]));
+        assert_eq!(scheduled["playback_rate"], 1.0);
+        assert_eq!(scheduled["start_time"], 0);
+    }
+
+    #[cfg(unix)]
     #[test]
     #[ignore = "requires mpv, ffmpeg and PULSAR_PLAYER_HEADLESS=1"]
     fn video_only_service_plays_and_stops_without_arming() {
@@ -1071,19 +1227,7 @@ mod tests {
         assert_eq!(std::env::var("PULSAR_PLAYER_HEADLESS").as_deref(), Ok("1"));
         let directory = tempfile::tempdir().unwrap();
         let video = directory.path().join("fixture.wav");
-        // One second of mono PCM, with no external encoder or data source.
-        let samples = [0u8; 16_000];
-        let mut wav = Vec::new();
-        wav.extend_from_slice(b"RIFF");
-        wav.extend_from_slice(&(36 + samples.len() as u32).to_le_bytes());
-        wav.extend_from_slice(b"WAVEfmt ");
-        wav.extend_from_slice(&[16, 0, 0, 0, 1, 0, 1, 0]);
-        wav.extend_from_slice(&8000u32.to_le_bytes());
-        wav.extend_from_slice(&16000u32.to_le_bytes());
-        wav.extend_from_slice(&[2, 0, 16, 0]);
-        wav.extend_from_slice(b"data");
-        wav.extend_from_slice(&(samples.len() as u32).to_le_bytes());
-        wav.extend_from_slice(&samples);
+        let wav = silent_wav();
         std::fs::write(&video, &wav).unwrap();
 
         let shared = Shared::new();
