@@ -82,6 +82,13 @@ function beginTiming(scope,configuration){
  if(configuration.error){timingStatus.textContent='Browser timing unavailable: '+configuration.error;return;}
  scope.timing={stopped:false,observationCurrent:false,inflight:false,probe:null,timer:null,deadline:null,expiry:null,handoffHeld:false};void timingProbe(scope);
 }
+// Scheduling only: the native probe still requires a later observed frame.
+function timingRefreshDelay(frame,at){
+ if(!frame||!Number.isFinite(frame.cadence_ms)||frame.cadence_ms<20||frame.cadence_ms>125)return 250;
+ const earliest=at+125,phase=frame.callback_ms-12;
+ const predicted=phase+Math.ceil((earliest-phase)/frame.cadence_ms)*frame.cadence_ms;
+ return Math.min(250,Math.max(125,predicted-at));
+}
 async function timingProbe(scope){
  const t=scope.timing;if(!currentPlayer(scope)||!t||t.stopped||t.inflight||t.probe)return;
  if(t.inspecting||t.handoffHeld){t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},100);return;}
@@ -111,7 +118,7 @@ function timingFrame(scope,now,metadata,sampledAt){
     showTiming(report);if(!report.current){stopTiming(scope);if(analysisReader)failAnalysis(analysisReader,'Visible-player timing retired.');return;}t.observationCurrent=true;
     if(t.expiry!==null)clearTimeout(t.expiry);
     t.expiry=setTimeout(()=>{t.expiry=null;t.observationCurrent=false;if(currentPlayer(scope)&&!t.stopped){timingStatus.textContent='Browser timing observation expired locally; waiting for a new native observation. Unqualified.';if(analysisReader)failAnalysis(analysisReader,'Original visible-player observation expired.');}},Math.max(0,probe.sentAt+probe.observationTimeoutMs-performance.now()));
-    t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},250);
+    t.timer=setTimeout(()=>{t.timer=null;void timingProbe(scope);},timingRefreshDelay(presentedFrame,performance.now()));
    }catch(e){if(!t.stopped&&scope.timing===t)timingUnavailable(scope,e.message);}finally{t.inflight=false;}
   })();
  }catch(e){timingUnavailable(scope,e.message);}
@@ -767,7 +774,8 @@ async function frame(now,metadata){
  video.requestVideoFrameCallback(frame);if(!armed||video.paused||video.seeking)return;
  const capturedAt=performance.now(),media_us=Math.round(metadata.mediaTime*1e6),presented_frames=metadata.presentedFrames;
  if(!Number.isSafeInteger(media_us)||media_us<0||!Number.isSafeInteger(presented_frames)||presented_frames<0){pauseVideo();clear('Invalid video frame timestamp or counter.');return;}
- presentedFrame={media_time_us:media_us,presented_frames};visibleFrameTickUs=browserMicros(capturedAt);presentationUs=media_us;expireMotion();promoteFutureEstimate();
+ const cadence_ms=presentedFrame&&presented_frames===presentedFrame.presented_frames+1?(media_us-presentedFrame.media_time_us)/1000:null;
+ presentedFrame={media_time_us:media_us,presented_frames,cadence_ms,callback_ms:now};visibleFrameTickUs=browserMicros(capturedAt);presentationUs=media_us;expireMotion();promoteFutureEstimate();
  if(preparedMedia){if(media_us<preparedMedia.trim_start_us){status.textContent='Waiting for the declared placement trim to begin.';return;}if(media_us>=preparedMedia.trim_end_us){pauseVideo();clear('Declared placement trim ended. Seek within its range, then use Resume analysis after seek.');return;}}
  timingFrame(playerScope,now,metadata,capturedAt);continuationTimingFrame(analysisReader,now,metadata,capturedAt);
  if(analysisReader){const state=analysisReader;if(state.inputPhase==='open'&&state.lastTime!==null&&state.ready){const lead=state.lastTime-media_us,p=state.selection.policy;if(lead<p.minimum_lead_us||lead>p.maximum_lead_us){failAnalysis(state,'Visible playback left the original observed analysis lead bounds.');return;}}return;}
