@@ -37,6 +37,7 @@ pub(crate) struct PlayerPanel {
     max_pct: u8,
     sync_offset_ms: i16,
     seek_ms: u64,
+    seek_edited: bool,
     status: DesktopPlaybackStatus,
     error: Option<String>,
     normal: SyncSender<Job>,
@@ -85,6 +86,7 @@ impl PlayerPanel {
             max_pct: 65,
             sync_offset_ms: 0,
             seek_ms: 0,
+            seek_edited: false,
             status: DesktopPlaybackStatus::default(),
             error,
             normal,
@@ -154,6 +156,9 @@ impl PlayerPanel {
                         Ok(status) => {
                             if !reply.query {
                                 self.error = None;
+                                self.seek_edited = false;
+                            }
+                            if !self.seek_edited {
                                 self.seek_ms = status.position_ms;
                             }
                             self.status = status;
@@ -366,7 +371,12 @@ impl PlayerPanel {
         ui.add_enabled_ui(self.status.loaded, |ui| {
             let end = self.status.duration_ms.max(1);
             self.seek_ms = self.seek_ms.min(end);
-            ui.add(egui::Slider::new(&mut self.seek_ms, 0..=end).text("Seek (ms)"));
+            if ui
+                .add(egui::Slider::new(&mut self.seek_ms, 0..=end).text("Seek (ms)"))
+                .changed()
+            {
+                self.seek_edited = true;
+            }
             if ui
                 .add_enabled(!self.busy(), egui::Button::new("Apply seek"))
                 .clicked()
