@@ -452,10 +452,7 @@ mod tests {
     }
     #[test]
     fn browser_media_capture_requires_exact_declared_anchor_and_preserves_legacy_omission() {
-        let capture: LiveCaptureReport = serde_json::from_str(include_str!(
-            "../tests/fixtures/live-cpu-capture-report.json"
-        ))
-        .unwrap();
+        let capture = crate::live_capture::captured_cpu_report_tests::host_capture();
         let mut options = capture.options;
         options.validate().unwrap();
         assert!(serde_json::to_value(&options)
@@ -508,10 +505,7 @@ mod tests {
     }
     #[test]
     fn browser_media_capture_report_and_continuation_keep_the_imported_subject_and_exact_anchor() {
-        let mut r: LiveCaptureReport = serde_json::from_str(include_str!(
-            "../tests/fixtures/live-cpu-capture-report.json"
-        ))
-        .unwrap();
+        let mut r = crate::live_capture::captured_cpu_report_tests::host_capture();
         let mut b = test_binding();
         b.engine_epoch = r.engine_epoch.clone();
         b.revision = r.identity.revision;

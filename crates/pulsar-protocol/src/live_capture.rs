@@ -1635,11 +1635,17 @@ pub(crate) mod captured_cpu_report_tests {
             pair_analysis_elapsed_ns,
         };
     }
-    pub(crate) fn capture() -> LiveCaptureReport {
+    pub(crate) fn host_capture() -> LiveCaptureReport {
         let mut capture: LiveCaptureReport = serde_json::from_str(include_str!(
             "../tests/fixtures/live-cpu-capture-report.json"
         ))
         .unwrap();
+        capture.options.inference.as_mut().unwrap().model_path =
+            crate::test_host_path("model.onnx").into();
+        capture
+    }
+    pub(crate) fn capture() -> LiveCaptureReport {
+        let mut capture = host_capture();
         let report = capture.inference.as_mut().unwrap();
         let manifest = manifest(
             &report.attempt_id,
@@ -1790,8 +1796,7 @@ pub(crate) mod captured_cpu_report_tests {
     }
     #[test]
     fn legacy_host_report_omits_the_field_and_retains_its_wire_value() {
-        let raw = include_str!("../tests/fixtures/live-cpu-capture-report.json");
-        let capture: LiveCaptureReport = serde_json::from_str(raw).unwrap();
+        let capture = host_capture();
         capture.validate().unwrap();
         assert!(capture.inference.as_ref().unwrap().cpu_manifest.is_none());
         let before = serde_json::to_value(&capture).unwrap();
