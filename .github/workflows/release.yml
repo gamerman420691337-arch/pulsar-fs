@@ -21,16 +21,19 @@ jobs:
             artifact_name: pulsar-linux-x86_64.tar.gz
             binary: pulsar
             worker: pulsar-worker
+            mcp: pulsar-mcp
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: pulsar-windows-x86_64.zip
             binary: pulsar.exe
             worker: pulsar-worker.exe
+            mcp: pulsar-mcp.exe
           - os: macos-latest
             target: aarch64-apple-darwin
             artifact_name: pulsar-macos-arm64.tar.gz
             binary: pulsar
             worker: pulsar-worker
+            mcp: pulsar-mcp
 
     steps:
       - name: Checkout repository
@@ -54,14 +57,14 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           cd target/${{ matrix.target }}/release
-          tar -czvf ../../../${{ matrix.artifact_name }} ${{ matrix.binary }} ${{ matrix.worker }}
+          tar -czvf ../../../${{ matrix.artifact_name }} ${{ matrix.binary }} ${{ matrix.worker }} ${{ matrix.mcp }}
           cd ../../..
 
       - name: Package Binary (Windows)
         if: runner.os == 'Windows'
         run: |
           cd target/${{ matrix.target }}/release
-          Compress-Archive -Path ${{ matrix.binary }},${{ matrix.worker }} -DestinationPath ../../../${{ matrix.artifact_name }}
+          Compress-Archive -Path ${{ matrix.binary }},${{ matrix.worker }},${{ matrix.mcp }} -DestinationPath ../../../${{ matrix.artifact_name }}
           cd ../../..
 
       - name: Publish Release Assets
