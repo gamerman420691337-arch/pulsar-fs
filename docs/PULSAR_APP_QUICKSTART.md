@@ -105,7 +105,7 @@ For media, enter an absolute file path in **Media path** and click **Import immu
 2. Enable **Reanalyse a project-time interval**. Enter the inclusive start and exclusive end in nanoseconds. For example, 4.000–5.500 seconds is `4000000000` through `5500000000`.
 3. Click **Generate stroke candidate**. Use **Refresh job** to check progress, then **Review candidate** when the job has produced one. The master stays at its current revision during generation and review.
 4. Click **Inspect candidate and protected regions**. Check the review flags and their time ranges. Manual commits protect the interpolation spans they changed.
-5. Click **Apply all candidate axes / preserve protected edits** to apply within the candidate's retained interval. To limit the change to specific axes, use **Merge selected axes / preserve protection**. If the project revision changed while you were reviewing, explicitly rebase and inspect the new candidate before applying.
+5. Click **Apply all candidate axes / preserve protected edits** to apply within the candidate's retained interval. To limit the change to specific axes, select them from the candidate’s available axes and use **Merge selected axes / preserve protection**. If the project revision changed while you were reviewing, explicitly rebase and inspect the new candidate before applying.
 6. Select Stroke on the timeline, enter a new absolute path in **Export Stroke .funscript path**, and click **Export committed revision**.
 
 The CLI equivalent stages a candidate and applies it in a separate command. In
