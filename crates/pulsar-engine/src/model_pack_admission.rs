@@ -24,7 +24,12 @@ impl Engine {
             .map_err(unavailable)?
             .onnx_runtime
             .as_ref()
-            .ok_or_else(|| ProtocolError::unsupported("pinned inference runtime is unavailable"))?;
+            .ok_or_else(|| {
+                ProtocolError::new(
+                    ErrorCode::Unsupported,
+                    "pinned inference runtime is unavailable. Configure PULSAR_ORT_DYLIB with the profile's ONNX Runtime file before starting the Engine.",
+                )
+            })?;
         if profile.runtime != runtime.identity {
             return Err(ProtocolError::new(
                 ErrorCode::DependencyMismatch,
