@@ -530,6 +530,57 @@ mod tests {
     use super::*;
 
     #[test]
+    fn saturated_urgent_queue_does_not_block_stop() {
+        let (normal, _normal_rx) = mpsc::sync_channel(0);
+        let (urgent, _urgent_rx) = mpsc::sync_channel(0);
+        let (stop, stop_rx) = mpsc::sync_channel(1);
+        let (reply_tx, replies) = mpsc::channel();
+        let mut panel = PlayerPanel {
+            video: String::new(),
+            script: String::new(),
+            auto_script: false,
+            max_speed: 150,
+            min_pct: 35,
+            max_pct: 65,
+            sync_offset_ms: 0,
+            seek_ms: 0,
+            seek_edited: false,
+            status: DesktopPlaybackStatus::default(),
+            error: None,
+            normal,
+            urgent,
+            stop,
+            replies,
+            normal_pending: 0,
+            urgent_pending: 0,
+            stop_pending: false,
+            next_id: 1,
+            applied_id: 0,
+            last_poll: Instant::now(),
+        };
+
+        panel.send(DesktopPlaybackAction::Pause, Lane::Urgent);
+        assert!(panel.error.is_some());
+        panel.send(DesktopPlaybackAction::Stop, Lane::Stop);
+        panel.send(DesktopPlaybackAction::Stop, Lane::Stop);
+        let job = stop_rx.try_recv().unwrap();
+        assert!(matches!(job.action, DesktopPlaybackAction::Stop));
+        assert!(stop_rx.try_recv().is_err());
+        assert!(panel.stop_pending);
+
+        reply_tx
+            .send(Reply {
+                id: job.id,
+                query: false,
+                lane: Lane::Stop,
+                result: Ok(DesktopPlaybackStatus::default()),
+            })
+            .unwrap();
+        panel.poll();
+        assert!(!panel.stop_pending);
+    }
+
+    #[test]
     fn adjacent_script_keeps_the_selected_local_directory() {
         assert_eq!(adjacent_script("/media/clip.mp4"), "/media/clip.funscript");
         assert_eq!(
