@@ -1,11 +1,14 @@
 //! One ephemeral Desktop playback owner, with bounded HSP buffering and player custody.
 use crate::desktop_hsp::{build_points, offset_points, HspClient, HspStream};
 use crate::desktop_mpv::MpvPlayer;
+use crate::device_control_session::{
+    DeviceControlSession, DeviceMotionCaps, SessionAuthority, DEFAULT_DEVICE_SESSION_LIFETIME_NS,
+};
 use anyhow::{ensure, Context, Result};
 use pulsar_protocol::{
     DesktopMediaReview, DesktopPlaybackAction as Action, DesktopPlaybackStatus as Status,
     EffectReview, ErrorCode, ProtocolError, RoleplayConsentDocument, RoleplayEffect,
-    RoleplayEffectApproval, RoleplayEffectScope,
+    RoleplayEffectApproval, RoleplayEffectScope, SessionId,
 };
 use serde::Deserialize;
 use std::{
@@ -21,8 +24,10 @@ use std::{
 
 const MAX_REVIEWED_VIDEO_BYTES: u64 = 512 * 1024 * 1024;
 const AHEAD_MS: u64 = 5_000;
-const SESSION_LIFETIME: Duration = Duration::from_secs(20 * 60);
+const SESSION_LIFETIME: Duration = Duration::from_nanos(DEFAULT_DEVICE_SESSION_LIFETIME_NS);
+const DESKTOP_HANDY: &str = "desktop-handy";
 const HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(3);
+const DEVICE_CHECK_INTERVAL: Duration = Duration::from_secs(1);
 const START_LEAD_MS: u64 = 1_500;
 
 // Higher-priority interrupts subsume lower-priority ones.
@@ -59,6 +64,31 @@ impl Shared {
         }
     }
 
+    fn check_device_session(
+        &self,
+        epoch: u64,
+        armed_until: Option<Instant>,
+        start: Instant,
+    ) -> Result<()> {
+        ensure!(
+            self.epoch.load(Ordering::SeqCst) == epoch,
+            "Handy control cancelled"
+        );
+        ensure!(
+            armed_until.is_some_and(|until| until > start),
+            "Handy session expired; enable again"
+        );
+        let heartbeat = self
+            .heartbeat
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Handy controller unavailable"))?;
+        ensure!(
+            heartbeat.elapsed() < HEARTBEAT_TIMEOUT,
+            "Handy controller lost; enable again"
+        );
+        Ok(())
+    }
+
     fn publish_completion(&self, player: &Player, message: String) {
         // Serialize with enqueue, so completion cannot acknowledge a later Stop.
         let (Ok(queue), Ok(mut status)) = (self.queue.lock(), self.status.lock()) else {
@@ -74,6 +104,10 @@ impl Shared {
             .map(|pending| pending.status.clone());
         status.loaded = player.mpv.is_some();
         status.armed = player.armed_until.is_some();
+        status.assistant_grant = player
+            .assistant_grant
+            .as_ref()
+            .map(|grant| grant.id.clone());
         status.connected = player.hsp.is_some();
         status.playing = player.playing;
         status.expires_in_ms = player.armed_until.map_or(0, |t| {
@@ -118,8 +152,20 @@ impl Service {
             action,
             Action::Stop | Action::Close | Action::Arm { enabled: false, .. }
         );
+        let assistant_play = matches!(action, Action::AssistantPlay { .. });
+        if let Action::AssistantPlay { grant, .. } = action {
+            if status.assistant_grant.as_ref() != Some(grant)
+                || !status.armed
+                || status.expires_in_ms == 0
+            {
+                return Err(ProtocolError::new(
+                    ErrorCode::Forbidden,
+                    "No matching active assistant Handy grant",
+                ));
+            }
+        }
         let proposal = matches!(action, Action::PrepareMediaReview { .. });
-        if owner.is_some() && !is_owner && !emergency && !proposal {
+        if owner.is_some() && !is_owner && !emergency && !proposal && !assistant_play {
             return Err(ProtocolError::new(
                 ErrorCode::Forbidden,
                 "another Desktop owns the player; Stop or close it first",
@@ -160,10 +206,10 @@ impl Service {
             let epoch = shared.epoch.load(Ordering::SeqCst);
             queue.push_back((epoch, action.clone()));
         }
-        if owner.is_none() && !emergency && !proposal {
+        if owner.is_none() && !emergency && !proposal && !assistant_play {
             *owner = Some(session.into());
         }
-        if owner.as_deref() == Some(session) && !proposal {
+        if owner.as_deref() == Some(session) && !proposal && !assistant_play {
             *shared.heartbeat.lock().map_err(|_| internal())? = Instant::now();
         }
         recent.push_back((session.into(), request.into(), fingerprint));
@@ -256,26 +302,33 @@ fn read_review_consent(path: &std::path::Path) -> Result<RoleplayConsentDocument
     }
 }
 
-struct ActiveMediaConsent {
+struct ActiveConsent {
     path: PathBuf,
     document: RoleplayConsentDocument,
 }
 
-impl ActiveMediaConsent {
+impl ActiveConsent {
     fn check(&self) -> Result<()> {
         let current = read_review_consent(&self.path)
-            .map_err(|_| anyhow::anyhow!("Reviewed media consent is unavailable"))?;
-        ensure!(current == self.document, "Reviewed media consent changed");
+            .map_err(|_| anyhow::anyhow!("Session consent is unavailable"))?;
+        ensure!(current == self.document, "Session consent changed");
         current
             .admit_effect(review_now_ns()?)
-            .map_err(|reason| anyhow::anyhow!("Reviewed media consent refused: {}", reason.label()))
+            .map_err(|reason| anyhow::anyhow!("Session consent refused: {}", reason.label()))
     }
+}
+
+struct AssistantDeviceGrant {
+    id: SessionId,
+    consent: ActiveConsent,
+    session: DeviceControlSession,
 }
 
 struct Player {
     mpv: Option<MpvPlayer>,
     reviewed_media: Option<tempfile::TempDir>,
-    active_media_consent: Option<ActiveMediaConsent>,
+    active_media_consent: Option<ActiveConsent>,
+    assistant_grant: Option<AssistantDeviceGrant>,
     pending_review: Option<PendingMediaReview>,
     approval: RoleplayEffectApproval,
     hsp: Option<HspClient>,
@@ -283,6 +336,7 @@ struct Player {
     raw: Vec<(i64, i32)>,
     points: Arc<Vec<(u32, u8)>>,
     armed_until: Option<Instant>,
+    last_device_check: Instant,
     playing: bool,
     max_speed: u16,
     min_pct: u8,
@@ -295,6 +349,7 @@ impl Default for Player {
             mpv: None,
             reviewed_media: None,
             active_media_consent: None,
+            assistant_grant: None,
             pending_review: None,
             approval: {
                 let mut nonce = [0; 32];
@@ -307,6 +362,7 @@ impl Default for Player {
             raw: Vec::new(),
             points: Arc::new(Vec::new()),
             armed_until: None,
+            last_device_check: Instant::now(),
             playing: false,
             max_speed: 150,
             min_pct: 35,
@@ -324,6 +380,9 @@ impl Player {
         let device = self.hsp.as_mut().map(|h| h.stop()).transpose();
         if disarm {
             self.armed_until = None;
+            if let Some(mut grant) = self.assistant_grant.take() {
+                grant.session.stop();
+            }
             self.hsp = None;
         }
         video?;
@@ -360,6 +419,9 @@ impl Player {
         if let Some(consent) = &self.active_media_consent {
             consent.check()?;
         }
+        if let Some(grant) = &self.assistant_grant {
+            grant.consent.check()?;
+        }
         let script_end = self.end_ms();
         let mpv = self.mpv.as_mut().context("Open a video and script first")?;
         let state = mpv.state()?;
@@ -375,12 +437,13 @@ impl Player {
         let position = mpv.state()?.position_ms;
         ensure!(position < end, "seek before the end of playback");
         if let Some(hsp) = self.hsp.as_mut() {
-            ensure!(
-                self.armed_until.is_some_and(|t| t > Instant::now()),
-                "Enable Handy for this session first"
-            );
+            shared.check_device_session(epoch, self.armed_until, Instant::now())?;
+            ensure!(hsp.connected()?, "Handy disconnected; enable again");
+            self.last_device_check = Instant::now();
+            shared.check_device_session(epoch, self.armed_until, Instant::now())?;
             hsp.stop()?;
             hsp.ensure_hsp_mode()?;
+            shared.check_device_session(epoch, self.armed_until, Instant::now())?;
             let points = if self.sync_offset_ms == 0 {
                 self.points.clone()
             } else {
@@ -388,12 +451,10 @@ impl Player {
             };
             let mut stream = HspStream::begin(hsp, points, position as i64)?;
             while !stream.loaded_until(position + AHEAD_MS) {
-                ensure!(
-                    shared.epoch.load(Ordering::SeqCst) == epoch,
-                    "play cancelled"
-                );
+                shared.check_device_session(epoch, self.armed_until, Instant::now())?;
                 stream.load_until(hsp, position + AHEAD_MS)?;
             }
+            shared.check_device_session(epoch, self.armed_until, Instant::now())?;
             let observed = hsp.state()?;
             ensure!(
                 observed["points"].as_u64() == Some(stream.sent() as u64),
@@ -404,23 +465,21 @@ impl Player {
                 clock.rtt_ms < START_LEAD_MS,
                 "Handy network is too slow to synchronize; retry Play"
             );
-            ensure!(
-                shared.epoch.load(Ordering::SeqCst) == epoch,
-                "play cancelled"
-            );
+            if let Some(grant) = &self.assistant_grant {
+                grant.consent.check()?;
+            }
             let start = Instant::now() + Duration::from_millis(START_LEAD_MS);
+            shared.check_device_session(epoch, self.armed_until, start)?;
             hsp.play(position as i32, 1.0, &clock.advanced(START_LEAD_MS))?;
             while Instant::now() < start {
-                ensure!(
-                    shared.epoch.load(Ordering::SeqCst) == epoch,
-                    "play cancelled"
-                );
+                shared.check_device_session(epoch, self.armed_until, start)?;
                 thread::sleep(Duration::from_millis(5));
             }
             ensure!(
                 Instant::now().duration_since(start) < Duration::from_millis(150),
                 "Handy start deadline missed; press Play to retry"
             );
+            shared.check_device_session(epoch, self.armed_until, Instant::now())?;
             self.stream = Some(stream);
         }
         ensure!(
@@ -536,7 +595,7 @@ impl Player {
         );
         self.open_media(&pending.snapshot, &pending.video, shared, directory)?;
         self.reviewed_media = Some(pending.custody);
-        self.active_media_consent = Some(ActiveMediaConsent {
+        self.active_media_consent = Some(ActiveConsent {
             path: pending.status.consent_path,
             document: current,
         });
@@ -562,6 +621,48 @@ impl Player {
             .to_string_lossy()
             .into();
         status.script_name.clear();
+        Ok(())
+    }
+
+    fn arm(
+        &mut self,
+        shared: &Shared,
+        epoch: u64,
+        max_speed: u16,
+        min_pct: u8,
+        max_pct: u8,
+    ) -> Result<()> {
+        ensure!(
+            self.mpv.is_some() && self.points.len() >= 2,
+            "Open a video and script first"
+        );
+        let api = std::env::var("HANDY_API_KEY")
+            .context("Start Pulsar with secrets run: HANDY_API_KEY missing")?;
+        let connection = std::env::var("HANDY_CONNECTION_KEY")
+            .context("Start Pulsar with secrets run: HANDY_CONNECTION_KEY missing")?;
+        ensure!(
+            !api.trim().is_empty() && !connection.trim().is_empty(),
+            "Handy credential references are empty"
+        );
+        let mut hsp = HspClient::new(&api, &connection);
+        ensure!(
+            hsp.connected()?,
+            "Handy is offline; connect it and enable again"
+        );
+        hsp.ensure_hsp_mode()?;
+        hsp.stop()?;
+        let _ = hsp.user_offset_ms();
+        ensure!(
+            shared.epoch.load(Ordering::SeqCst) == epoch,
+            "enable cancelled"
+        );
+        self.max_speed = max_speed;
+        self.min_pct = min_pct;
+        self.max_pct = max_pct;
+        self.points();
+        self.hsp = Some(hsp);
+        self.last_device_check = Instant::now();
+        self.armed_until = Some(self.last_device_check + SESSION_LIFETIME);
         Ok(())
     }
 
@@ -661,38 +762,53 @@ impl Player {
             } => {
                 self.stop(true)?;
                 if enabled {
-                    ensure!(
-                        self.mpv.is_some() && self.points.len() >= 2,
-                        "Open a video and script first"
-                    );
-                    let api = std::env::var("HANDY_API_KEY")
-                        .context("Start Pulsar with secrets run: HANDY_API_KEY missing")?;
-                    let connection = std::env::var("HANDY_CONNECTION_KEY")
-                        .context("Start Pulsar with secrets run: HANDY_CONNECTION_KEY missing")?;
-                    ensure!(
-                        !api.trim().is_empty() && !connection.trim().is_empty(),
-                        "Handy credential references are empty"
-                    );
-                    let mut hsp = HspClient::new(&api, &connection);
-                    ensure!(
-                        hsp.connected()?,
-                        "Handy is offline; connect it and enable again"
-                    );
-                    hsp.ensure_hsp_mode()?;
-                    hsp.stop()?;
-                    let _ = hsp.user_offset_ms();
-                    ensure!(
-                        shared.epoch.load(Ordering::SeqCst) == epoch,
-                        "enable cancelled"
-                    );
-                    self.max_speed = max_speed;
-                    self.min_pct = min_pct;
-                    self.max_pct = max_pct;
-                    self.points();
-                    self.hsp = Some(hsp);
-                    self.armed_until = Some(Instant::now() + SESSION_LIFETIME);
+                    self.arm(shared, epoch, max_speed, min_pct, max_pct)?;
                 }
             }
+            Action::ArmAssistant {
+                project,
+                consent,
+                max_speed,
+                min_pct,
+                max_pct,
+                sync_offset_ms,
+            } => {
+                self.stop(true)?;
+                let document = read_review_consent(&consent)?;
+                let approval = ActiveConsent {
+                    path: consent,
+                    document,
+                };
+                approval.check()?;
+                let caps = DeviceMotionCaps::new(max_pct - min_pct, min_pct, max_pct, max_speed)?;
+                self.arm(
+                    shared,
+                    epoch,
+                    caps.max_rate_per_second,
+                    caps.min_position,
+                    caps.max_position,
+                )?;
+                approval.check()?;
+                let id = SessionId::new(uuid::Uuid::new_v4().to_string())?;
+                let session = DeviceControlSession::open(
+                    SessionAuthority::UserSurface,
+                    id.as_str(),
+                    project,
+                    DESKTOP_HANDY,
+                    approval.document.session.declared_class,
+                    caps,
+                    DEFAULT_DEVICE_SESSION_LIFETIME_NS,
+                    review_now_ns()?,
+                )
+                .map_err(|refusal| refusal.error())?;
+                self.sync_offset_ms = sync_offset_ms;
+                self.assistant_grant = Some(AssistantDeviceGrant {
+                    id,
+                    consent: approval,
+                    session,
+                });
+            }
+            Action::AssistantPlay { .. } => self.play(shared, epoch)?,
             Action::Play { sync_offset_ms } => {
                 self.sync_offset_ms = sync_offset_ms;
                 self.play(shared, epoch)?;
@@ -722,9 +838,57 @@ impl Player {
         }
         Ok(())
     }
+    fn check_assistant_request(&self, action: &Action, shared: &Shared, epoch: u64) -> Result<()> {
+        if let Action::AssistantPlay {
+            grant,
+            project,
+            consent,
+        } = action
+        {
+            let current = self
+                .assistant_grant
+                .as_ref()
+                .context("No active assistant Handy grant")?;
+            ensure!(
+                current.id == *grant && current.consent.path == *consent,
+                "Assistant Handy grant changed"
+            );
+            current
+                .session
+                .check_scope(
+                    grant.as_str(),
+                    project,
+                    DESKTOP_HANDY,
+                    current.consent.document.session.declared_class,
+                    review_now_ns()?,
+                )
+                .map_err(|refusal| refusal.error())?;
+            ensure!(self.hsp.is_some(), "Handy is disconnected");
+            shared.check_device_session(epoch, self.armed_until, Instant::now())?;
+        }
+        Ok(())
+    }
+
     fn tick(&mut self) -> Result<(u64, u64, bool)> {
+        let result = self.tick_inner();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+
+    fn tick_inner(&mut self) -> Result<(u64, u64, bool)> {
         if let Some(consent) = &self.active_media_consent {
             consent.check()?;
+        }
+        if let Some(grant) = &self.assistant_grant {
+            grant.consent.check()?;
+        }
+        if self.last_device_check.elapsed() >= DEVICE_CHECK_INTERVAL {
+            if let Some(hsp) = self.hsp.as_mut() {
+                ensure!(hsp.connected()?, "Handy disconnected; enable again");
+                self.last_device_check = Instant::now();
+            }
         }
         let Some(mpv) = self.mpv.as_mut() else {
             return Ok((0, 0, false));
@@ -796,6 +960,10 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
             }
             let closed = matches!(action, Action::Close);
             let proposal = matches!(action, Action::PrepareMediaReview { .. });
+            if let Err(error) = player.check_assistant_request(&action, &shared, generation) {
+                shared.publish_completion(&player, error.to_string());
+                continue;
+            }
             let result = player.apply(action, &shared, generation, &directory);
             let message = match result {
                 Ok(()) => if player.playing {
@@ -830,9 +998,6 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
             let was_playing = player.playing;
             let reviewing_media = player.active_media_consent.is_some();
             let result = player.tick();
-            if result.is_err() {
-                player.close();
-            }
             if let Ok(mut status) = shared.status.lock() {
                 match result {
                     Ok((position, duration, playing)) => {
@@ -845,6 +1010,7 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
                         }
                     }
                     Err(error) => {
+                        status.media_review = None;
                         status.message = if reviewing_media {
                             format!("Reviewed media closed: {error}")
                                 .chars()
@@ -862,6 +1028,10 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
         if let Ok(mut status) = shared.status.lock() {
             status.loaded = player.mpv.is_some();
             status.armed = player.armed_until.is_some();
+            status.assistant_grant = player
+                .assistant_grant
+                .as_ref()
+                .map(|grant| grant.id.clone());
             status.connected = player.hsp.is_some();
             status.expires_in_ms = player.armed_until.map_or(0, |t| {
                 t.saturating_duration_since(Instant::now()).as_millis() as u64
@@ -875,6 +1045,211 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    fn silent_wav() -> Vec<u8> {
+        // One second of mono PCM, with no external encoder or data source.
+        let samples = [0u8; 16_000];
+        let mut wav = Vec::new();
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&(36 + samples.len() as u32).to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&[16, 0, 0, 0, 1, 0, 1, 0]);
+        wav.extend_from_slice(&8000u32.to_le_bytes());
+        wav.extend_from_slice(&16000u32.to_le_bytes());
+        wav.extend_from_slice(&[2, 0, 16, 0]);
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&(samples.len() as u32).to_le_bytes());
+        wav.extend_from_slice(&samples);
+        wav
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[ignore = "requires mpv and PULSAR_PLAYER_HEADLESS=1"]
+    fn assistant_grant_plays_capped_points_over_loopback_hsp_and_stops() {
+        run_assistant_hsp_fixture(false);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[ignore = "requires mpv and PULSAR_PLAYER_HEADLESS=1"]
+    fn assistant_grant_is_retired_when_loopback_hsp_disconnects() {
+        run_assistant_hsp_fixture(true);
+    }
+
+    #[cfg(unix)]
+    fn run_assistant_hsp_fixture(disconnect: bool) {
+        use pulsar_protocol::{ContentClass, ParticipantRef};
+        use serde_json::{json, Value};
+        use std::{
+            io::{BufRead, BufReader, Read, Write},
+            net::TcpListener,
+        };
+
+        assert_eq!(std::env::var("PULSAR_PLAYER_HEADLESS").as_deref(), Ok("1"));
+        let directory = tempfile::tempdir().unwrap();
+        let video = directory.path().join("fixture.wav");
+        std::fs::write(&video, silent_wav()).unwrap();
+        let mut consent = tempfile::NamedTempFile::new_in(directory.path()).unwrap();
+        let now = review_now_ns().unwrap();
+        let mut document = RoleplayConsentDocument::least_permissive();
+        document.attest(now);
+        document
+            .session
+            .grant(
+                ParticipantRef::new("operator").unwrap(),
+                ContentClass::General,
+                now,
+            )
+            .unwrap();
+        consent
+            .write_all(&serde_json::to_vec(&document).unwrap())
+            .unwrap();
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let server = thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(10);
+            let mut uploaded = Value::Null;
+            let mut scheduled = Value::Null;
+            let mut exchanges = vec![
+                (
+                    "GET /auth/token/issue?",
+                    json!({"result":{"token":"fixture"}}),
+                ),
+                ("GET /connected ", json!({"result":{"connected":true}})),
+                ("PUT /hsp/stop ", json!({})),
+                ("GET /mode ", json!({"result":{"mode":4}})),
+                ("PUT /hsp/setup ", json!({})),
+                ("PUT /hsp/add ", json!({})),
+                ("GET /hsp/state ", json!({"result":{"points":2}})),
+                ("GET /servertime ", json!({"server_time":123456})),
+                ("GET /servertime ", json!({"server_time":123456})),
+                ("GET /servertime ", json!({"server_time":123456})),
+                ("PUT /hsp/play ", json!({})),
+            ];
+            if disconnect {
+                exchanges.push(("GET /connected ", json!({"result":{"connected":false}})));
+            }
+            exchanges.push(("PUT /hsp/stop ", json!({})));
+            for (prefix, response) in exchanges {
+                let mut stream = loop {
+                    match listener.accept() {
+                        Ok((stream, _)) => break stream,
+                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                            assert!(Instant::now() < deadline, "waiting for {prefix}");
+                            thread::sleep(Duration::from_millis(5));
+                        }
+                        Err(error) => panic!("{error}"),
+                    }
+                };
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
+                let mut request = BufReader::new(&mut stream);
+                let mut line = String::new();
+                request.read_line(&mut line).unwrap();
+                assert!(line.starts_with(prefix), "{line}");
+                let mut length = 0;
+                loop {
+                    line.clear();
+                    assert!(request.read_line(&mut line).unwrap() > 0);
+                    if line == "\r\n" {
+                        break;
+                    }
+                    if let Some(value) = line.to_ascii_lowercase().strip_prefix("content-length:") {
+                        length = value.trim().parse::<usize>().unwrap();
+                    }
+                }
+                assert!(length <= 8192);
+                let mut body = vec![0; length];
+                request.read_exact(&mut body).unwrap();
+                if prefix == "PUT /hsp/add " {
+                    uploaded = serde_json::from_slice(&body).unwrap();
+                }
+                if prefix == "PUT /hsp/play " {
+                    scheduled = serde_json::from_slice(&body).unwrap();
+                }
+                let response = response.to_string();
+                write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{response}",
+                    response.len()
+                )
+                .unwrap();
+            }
+            (uploaded, scheduled)
+        });
+
+        let shared = Shared::new();
+        let mut player = Player::default();
+        player.mpv = Some(MpvPlayer::open(&video, directory.path()).unwrap());
+        player.raw = vec![(0, 0), (700, 100)];
+        player.points();
+        player.hsp = Some(HspClient::test_client(&base));
+        player.armed_until = Some(Instant::now() + SESSION_LIFETIME);
+        let grant = SessionId::new("fixture-grant").unwrap();
+        let project = pulsar_protocol::ProjectId::new("fixture-project").unwrap();
+        let session = DeviceControlSession::open(
+            SessionAuthority::UserSurface,
+            grant.as_str(),
+            project.clone(),
+            DESKTOP_HANDY,
+            ContentClass::General,
+            DeviceMotionCaps::new(30, 35, 65, 150).unwrap(),
+            DEFAULT_DEVICE_SESSION_LIFETIME_NS,
+            review_now_ns().unwrap(),
+        )
+        .unwrap();
+        player.assistant_grant = Some(AssistantDeviceGrant {
+            id: grant.clone(),
+            session,
+            consent: ActiveConsent {
+                path: consent.path().into(),
+                document,
+            },
+        });
+        let action = Action::AssistantPlay {
+            grant,
+            project,
+            consent: consent.path().into(),
+        };
+        *shared.heartbeat.lock().unwrap() = Instant::now();
+        let mut foreign = action.clone();
+        if let Action::AssistantPlay { project, .. } = &mut foreign {
+            *project = pulsar_protocol::ProjectId::new("another-project").unwrap();
+        }
+        assert!(player
+            .check_assistant_request(&foreign, &shared, 0)
+            .is_err());
+        player.check_assistant_request(&action, &shared, 0).unwrap();
+        player
+            .apply(action.clone(), &shared, 0, directory.path())
+            .unwrap();
+        assert!(player.playing);
+        if disconnect {
+            player.last_device_check = Instant::now() - DEVICE_CHECK_INTERVAL;
+            assert_eq!(
+                player.tick().unwrap_err().to_string(),
+                "Handy disconnected; enable again"
+            );
+            assert!(player.mpv.is_none());
+        } else {
+            player
+                .apply(Action::Stop, &shared, 0, directory.path())
+                .unwrap();
+        }
+        assert!(!player.playing);
+        assert!(player.armed_until.is_none());
+        assert!(player.assistant_grant.is_none());
+        assert!(player.check_assistant_request(&action, &shared, 0).is_err());
+        let (uploaded, scheduled) = server.join().unwrap();
+        assert_eq!(uploaded["points"], json!([{"t":0,"x":35},{"t":700,"x":65}]));
+        assert_eq!(scheduled["playback_rate"], 1.0);
+        assert_eq!(scheduled["start_time"], 0);
+    }
 
     #[cfg(unix)]
     #[test]
@@ -963,19 +1338,7 @@ mod tests {
         assert_eq!(std::env::var("PULSAR_PLAYER_HEADLESS").as_deref(), Ok("1"));
         let directory = tempfile::tempdir().unwrap();
         let video = directory.path().join("fixture.wav");
-        // One second of mono PCM, with no external encoder or data source.
-        let samples = [0u8; 16_000];
-        let mut wav = Vec::new();
-        wav.extend_from_slice(b"RIFF");
-        wav.extend_from_slice(&(36 + samples.len() as u32).to_le_bytes());
-        wav.extend_from_slice(b"WAVEfmt ");
-        wav.extend_from_slice(&[16, 0, 0, 0, 1, 0, 1, 0]);
-        wav.extend_from_slice(&8000u32.to_le_bytes());
-        wav.extend_from_slice(&16000u32.to_le_bytes());
-        wav.extend_from_slice(&[2, 0, 16, 0]);
-        wav.extend_from_slice(b"data");
-        wav.extend_from_slice(&(samples.len() as u32).to_le_bytes());
-        wav.extend_from_slice(&samples);
+        let wav = silent_wav();
         std::fs::write(&video, &wav).unwrap();
 
         let shared = Shared::new();
@@ -1047,23 +1410,23 @@ mod tests {
             .prepare_media_review(video, consent.path().into(), &shared, 0, runtime)
             .unwrap();
         let review = player.pending_review.as_ref().unwrap().status.review;
-        let active = ActiveMediaConsent {
+        let active = ActiveConsent {
             path: consent.path().into(),
             document: document.clone(),
         };
         active.check().unwrap();
         document.withdraw_attestation(review_now_ns().unwrap());
         std::fs::write(consent.path(), serde_json::to_vec(&document).unwrap()).unwrap();
-        player.active_media_consent = Some(active);
-        assert_eq!(
-            player.tick().unwrap_err().to_string(),
-            "Reviewed media consent changed"
-        );
-        player.active_media_consent = None;
         let error = player
             .confirm_media_review(review, &shared, 0, runtime)
             .unwrap_err();
         assert!(error.to_string().contains("AdultAttestationWithdrawn"));
+        player.active_media_consent = Some(active);
+        assert_eq!(
+            player.tick().unwrap_err().to_string(),
+            "Session consent changed"
+        );
+        assert!(player.active_media_consent.is_none());
         assert!(player.mpv.is_none());
     }
 
@@ -1099,6 +1462,29 @@ mod tests {
             .apply(Action::Stop, &shared, 0, std::path::Path::new("unused"))
             .unwrap();
         assert!(player.armed_until.is_none());
+    }
+
+    #[test]
+    fn assistant_arming_refuses_missing_consent_before_device_contact() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut player = Player::default();
+        assert!(player
+            .apply(
+                Action::ArmAssistant {
+                    project: pulsar_protocol::ProjectId::new("fixture-project").unwrap(),
+                    consent: directory.path().join("missing.json"),
+                    max_speed: 150,
+                    min_pct: 35,
+                    max_pct: 65,
+                    sync_offset_ms: 0,
+                },
+                &Shared::new(),
+                0,
+                directory.path()
+            )
+            .is_err());
+        assert!(player.assistant_grant.is_none());
+        assert!(player.hsp.is_none());
     }
 
     #[test]
@@ -1168,6 +1554,23 @@ mod tests {
                 interrupt_priority(&expected)
             );
         }
+    }
+
+    #[test]
+    fn scheduled_device_start_refuses_expiry_disconnect_and_stop() {
+        let shared = Shared::new();
+        let now = Instant::now();
+        let deadline = now + Duration::from_secs(2);
+        shared.check_device_session(0, Some(deadline), now).unwrap();
+        assert!(shared
+            .check_device_session(0, Some(deadline), deadline)
+            .is_err());
+
+        *shared.heartbeat.lock().unwrap() = now - HEARTBEAT_TIMEOUT;
+        assert!(shared.check_device_session(0, Some(deadline), now).is_err());
+        *shared.heartbeat.lock().unwrap() = Instant::now();
+        shared.epoch.fetch_add(1, Ordering::SeqCst);
+        assert!(shared.check_device_session(0, Some(deadline), now).is_err());
     }
 
     #[test]

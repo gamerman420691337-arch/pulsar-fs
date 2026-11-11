@@ -2,7 +2,7 @@
 use crate::{motion::ResponseBody, EngineApi, SessionClient};
 use eframe::egui;
 use pulsar_protocol::{
-    Command, DesktopPlaybackAction, DesktopPlaybackStatus, DESKTOP_SYNC_OFFSET_LIMIT_MS,
+    Command, DesktopPlaybackAction, DesktopPlaybackStatus, ProjectId, DESKTOP_SYNC_OFFSET_LIMIT_MS,
 };
 use std::{
     path::{Path, PathBuf},
@@ -129,7 +129,12 @@ impl PlayerPanel {
         }
         if self.status.armed {
             ui.label(format!(
-                "Handy enabled · {} s left",
+                "{} · {} s left",
+                if self.status.assistant_grant.is_some() {
+                    "Assistant Handy control"
+                } else {
+                    "Handy enabled"
+                },
                 self.status.expires_in_ms.div_ceil(1000)
             ));
         }
@@ -276,7 +281,7 @@ impl PlayerPanel {
         }
     }
 
-    pub(crate) fn ui(&mut self, ui: &mut egui::Ui, consent: &Path) {
+    pub(crate) fn ui(&mut self, ui: &mut egui::Ui, consent: &Path, project: Option<&ProjectId>) {
         ui.heading("Video + Handy player");
         ui.label("Pulsar controls the video, audio and script. Video opens in an mpv window.");
         ui.small("Drop local files here, or paste their absolute paths. No model is needed.");
@@ -362,6 +367,7 @@ impl PlayerPanel {
             self.media_review_ui(ui, consent);
         }
         ui.separator();
+        let assistant_project = project.filter(|_| consent.is_absolute());
         ui.horizontal(|ui| {
             let mut enabled = self.status.armed;
             if ui
@@ -369,23 +375,43 @@ impl PlayerPanel {
                     self.status.loaded
                         && !self.status.script_name.is_empty()
                         && (!self.busy() || enabled),
-                    egui::Checkbox::new(&mut enabled, "Enable Handy"),
+                    egui::Checkbox::new(
+                        &mut enabled,
+                        if self.status.assistant_grant.is_some()
+                            || (!self.status.armed && assistant_project.is_some())
+                        {
+                            "Enable Handy for assistant"
+                        } else {
+                            "Enable Handy"
+                        },
+                    ),
                 )
                 .changed()
             {
                 let lane = if enabled { Lane::Normal } else { Lane::Urgent };
-                self.send(
+                let action = if let Some(project) = assistant_project.filter(|_| enabled) {
+                    DesktopPlaybackAction::ArmAssistant {
+                        project: project.clone(),
+                        consent: consent.to_path_buf(),
+                        max_speed: self.max_speed,
+                        min_pct: self.min_pct,
+                        max_pct: self.max_pct,
+                        sync_offset_ms: self.sync_offset_ms,
+                    }
+                } else {
                     DesktopPlaybackAction::Arm {
                         enabled,
                         max_speed: self.max_speed,
                         min_pct: self.min_pct,
                         max_pct: self.max_pct,
-                    },
-                    lane,
-                );
+                    }
+                };
+                self.send(action, lane);
             }
             let state = if self.status.playing {
                 "Playing"
+            } else if self.status.assistant_grant.is_some() {
+                "Assistant Handy control enabled"
             } else if self.status.armed {
                 "Handy enabled"
             } else if self.status.loaded {

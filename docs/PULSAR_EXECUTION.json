@@ -3698,17 +3698,22 @@
       "milestone": "M3",
       "criterion": "RPA-01 through RPA-12: multi-turn roleplay, local by default and remote only under a consented scope, over a deny-by-default tool allowlist with effect-class single-use approvals gated on a current 18+ attestation and every present participant's consent, unconditional stop, and preserved timing, disarm and memory boundaries.",
       "previous_boundary": "In-product roleplay is not implemented. Its execution prerequisite exists: three hardware tiers (constrained 8 GiB model / 12 GiB worker / 32,768 context, standard 16/24/65,536, workstation 32/48/131,072) narrow one protocol envelope, an undeclared policy defaults to constrained, and a declaration beyond the selected tier refuses naming the tier. A profile may declare context, output, GPU layer offload and a sampler; absent a declaration the historical pinned behaviour is preserved byte for byte. Model provenance is typed: only a Redistributable artifact may be packaged, and a UserInitiated manifest is never packaged, pinned by revision/hash/length with HTTPS-only, credential-free, traversal-refusing validation. The runtime build now uses GGML_CPU_ALL_VARIANTS with GGML_BACKEND_DL. No tool broker, conversation state, effect approval, setup UI action, downloader, hardware detection or measured model latency exists; no receipt recorded.",
-      "implementation": "not_implemented",
-      "verification": "not_requalified",
+      "implementation": "partial",
+      "verification": "checkpoint_partial",
       "acceptance": "open",
       "next_proof": "Implement and verify the tool broker, class split, digest-bound single-use approvals, unconditional stop, budgets and transcript exclusion through actual CLI/desktop consumers; retain refusal cases for every denied capability and for missing attestation or absent participant consent.",
-      "evidence": [],
+      "evidence": [
+        "EV-MCP-MEDIA-PROPOSAL",
+        "EV-MCP-MEDIA-CANCEL"
+      ],
       "source_refs": [
         "docs/adr/0012-in-product-roleplay-assistant.md",
         "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
         "crates/pulsar-engine/src/authority.rs",
         "crates/pulsar-protocol/src/lib.rs",
-        "crates/pulsar-clients/src/assistant_client.rs"
+        "crates/pulsar-clients/src/assistant_client.rs",
+        "crates/pulsar-clients/src/mcp_stdio.rs",
+        "crates/pulsar-engine/src/desktop_player.rs"
       ]
     },
     {
@@ -3733,10 +3738,13 @@
       "criterion": "MDP-01, PIPE-01/PIPE-02, DCS-01..09 and RPA-07: a single user-visible device-control toggle creates a bounded session with fixed caps, expiry and an always-available ungated stop; presentation and playback keep separate timing admissions; a model cannot create, renew or extend a session, and a model cannot substitute script bytes between approval and dispatch.",
       "previous_boundary": "The session gate exists as a pure pulsar-engine module with 14 tests: open requires SessionAuthority::UserSurface, lifetime is bounded by a hard one-hour ceiling and refused otherwise, expiry is evaluated per submission, renewal is user-only and can never revive a stopped or expired session or pull expiry inward, stop is unconditional and idempotent, motion is reduced by amplitude cap, usable-travel confinement and optional rate limiting with a visible limited flag, out-of-range positions refuse, and owner/project/device/content-class scope is checked. NOT YET WIRED: no device command consults the gate, so playback is not currently gated end-to-end. No desktop toggle, no MCP surface, no device actuation, and no retained receipt for this source.",
       "implementation": "partial",
-      "verification": "not_requalified",
+      "verification": "checkpoint_partial",
       "acceptance": "open",
       "next_proof": "Implement the session gate and verify through actual CLI/desktop consumers: toggle creation and expiry, capped motion, stop mid-stream, disarm on device/Engine loss, refusal with no session active, and that no tool can create or renew one.",
-      "evidence": [],
+      "evidence": [
+        "EV-MCP-MEDIA-PROPOSAL",
+        "EV-MCP-MEDIA-CANCEL"
+      ],
       "source_refs": [
         "docs/adr/0012-in-product-roleplay-assistant.md",
         "docs/PULSAR_SOFTWARE_SPECIFICATION.md",
@@ -3744,7 +3752,9 @@
         "crates/pulsar-engine/src/live_captures.rs",
         "crates/pulsar-clients/src/browser_live.rs",
         "docs/PULSAR_ASSISTANT_TOOL_SURFACE.md",
-        "crates/pulsar-engine/src/device_control_session.rs"
+        "crates/pulsar-engine/src/device_control_session.rs",
+        "crates/pulsar-clients/src/mcp_stdio.rs",
+        "crates/pulsar-engine/src/desktop_player.rs"
       ]
     },
     {
@@ -4715,14 +4725,17 @@
       "parents": [
         "M3-ROLEPLAY"
       ],
-      "state": "planned",
+      "state": "in_progress",
       "owner": "Codex",
       "depends_on": [
         "CPU-BUILD",
         "CONSENT-AUTHORITY"
       ],
       "exit": "Implement the typed tool broker with read/author/effect/stop classes, digest-bound single-use approval for media presentation with the concrete consequence disclosed, user-only bounded device-control sessions under DCS-01..09, current attestation and every participant's consent for effects, unconditional stop, per-turn and per-session budgets, local bounded conversation state excluded from evidence and logs, and explicit refusal for every denied capability. Verify through actual CLI and desktop consumers, not authored callbacks alone.",
-      "evidence": []
+      "evidence": [
+        "EV-MCP-MEDIA-PROPOSAL",
+        "EV-MCP-MEDIA-CANCEL"
+      ]
     },
     {
       "id": "BOUNDED-MEDIA",
@@ -4730,13 +4743,16 @@
       "parents": [
         "M5-CONDUCT"
       ],
-      "state": "planned",
+      "state": "in_progress",
       "owner": "Codex + rendered-workflow operator",
       "depends_on": [
         "BROWSER-DEMO"
       ],
       "exit": "Add media.present/media.pause over an application-owned local-file player and script.play over existing preparation, timing admission, controller lease and stop guard. Verify that media approval and the user-only device session never mint or extend timing admission, that stop works while an effect is in flight, that disconnect leaves playback disarmed until explicit user resumption, and that presentation and playback keep separate admissions.",
-      "evidence": []
+      "evidence": [
+        "EV-MCP-MEDIA-PROPOSAL",
+        "EV-MCP-MEDIA-CANCEL"
+      ]
     },
     {
       "id": "MCP-TOOL-SURFACE",
@@ -4745,13 +4761,16 @@
         "M3-ROLEPLAY",
         "M5-CONDUCT"
       ],
-      "state": "planned",
+      "state": "in_progress",
       "owner": "Codex",
       "depends_on": [
         "ROLEPLAY-BROKER"
       ],
-      "exit": "Build pulsar-mcp as a stdio MCP server over the existing SessionClient: read tools pass through, author tools return candidates, effect tools return a single-use digest-bound approval that only the desktop can confirm, and stop is never gated. Verify refusals, expiry, replay and stop-during-pending natively; no device actuation is claimed.",
-      "evidence": []
+      "exit": "Expose read and candidate authoring, media proposal with digest-bound Desktop confirmation, prepared script playback under a user-only bounded device session, and ungated Stop through pulsar-mcp. Verify refusals, expiry, replay, stop while pending, and session boundaries through actual consumers. Retain separate physical-device evidence.",
+      "evidence": [
+        "EV-MCP-MEDIA-PROPOSAL",
+        "EV-MCP-MEDIA-CANCEL"
+      ]
     },
     {
       "id": "IMAGE-OUTPUT",
@@ -19974,6 +19993,60 @@
             "revision_after_merge"
           ],
           "equals": 2
+        }
+      ]
+    },
+    {
+      "id": "EV-MCP-MEDIA-PROPOSAL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/mcp-media-proposal-528a22e/propose.json",
+      "sha256": "b013ee32df98c2c26d70bb4e1bf74c114e4a8a4624d5d71f0d3f68454e1132ad",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Standalone MCP queues only the configured clip for review and refuses model-selected paths and confirmation. Rendered Desktop showed a pending review before operator-confirmed device-off playback.",
+      "assertions": [
+        {
+          "pointer": [
+            "3",
+            "result",
+            "isError"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "4",
+            "error",
+            "code"
+          ],
+          "equals": -32602
+        },
+        {
+          "pointer": [
+            "5",
+            "result",
+            "isError"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-MCP-MEDIA-CANCEL",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/mcp-media-proposal-528a22e/stop.json",
+      "sha256": "234b0cf50974f767861ab9f6cc3400c99d32879166d2309422e3141bd8379338",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Standalone MCP Stop retired the pending review in a private Linux Engine. Rendered Desktop showed no pending review or playback afterward.",
+      "assertions": [
+        {
+          "pointer": [
+            "6",
+            "result",
+            "isError"
+          ],
+          "equals": false
         }
       ]
     }

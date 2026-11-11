@@ -1331,6 +1331,7 @@ fn standalone_mcp_stages_a_candidate_and_stops_without_approving_effects() -> Re
             "arguments":{"revision":0,"pattern":"pattern=triangle axis=stroke duration=2s frequency=1hz amplitude=0.1 offset=0.5 sample_hz=8"}}}),
         json!({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"play_playback"}}),
         json!({"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"stop_playback"}}),
+        json!({"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"play_prepared_script"}}),
     ] {
         writeln!(input, "{message}")?;
     }
@@ -1353,9 +1354,9 @@ fn standalone_mcp_stages_a_candidate_and_stops_without_approving_effects() -> Re
         .collect::<std::result::Result<Vec<_>, _>>()?;
     assert_eq!(
         replies.iter().map(|r| r["id"].as_u64()).collect::<Vec<_>>(),
-        [Some(1), Some(2), Some(3), Some(4), Some(5)]
+        [Some(1), Some(2), Some(3), Some(4), Some(5), Some(6)]
     );
-    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 3);
+    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 4);
     let tool_value = |i: usize| {
         serde_json::from_str::<Value>(replies[i]["result"]["content"][0]["text"].as_str().unwrap())
     };
@@ -1367,6 +1368,7 @@ fn standalone_mcp_stages_a_candidate_and_stops_without_approving_effects() -> Re
         tool_value(4)?,
         json!({"playback_stopped":true,"physical_stop_verified":false})
     );
+    assert_eq!(replies[5]["result"]["isError"], true);
     let current = client.execute(
         Command::OpenProject {
             project_id: project.project_id,

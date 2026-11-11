@@ -46,6 +46,11 @@ fn tools(media_configured: bool) -> Value {
             "description": "Stop the local Engine-owned Desktop player.",
             "inputSchema": {"type":"object","additionalProperties":false}
         }),
+        json!({
+            "name": "play_prepared_script",
+            "description": "Request playback of the loaded script under the active user-enabled Handy grant.",
+            "inputSchema": {"type":"object","additionalProperties":false}
+        }),
     ];
     if media_configured {
         entries.push(json!({
@@ -95,6 +100,40 @@ impl Server<'_> {
         let mut client = SessionClient::connect(self.endpoint, self.bootstrap)?;
         client.set_operation_deadline(Some(Instant::now() + Duration::from_secs(5)));
         match name {
+            "play_prepared_script" => {
+                let _: NoArguments = serde_json::from_value(arguments)?;
+                let proof = self.owner_proof()?;
+                let response = client.execute(
+                    Command::DesktopPlayback {
+                        action: DesktopPlaybackAction::Status,
+                        owner_proof: proof.clone(),
+                    },
+                    None,
+                    None,
+                )?;
+                let ResponseBody::DesktopPlayback(status) = response else {
+                    anyhow::bail!("Engine returned an unexpected player response");
+                };
+                let grant = status
+                    .assistant_grant
+                    .context("No active assistant Handy grant")?;
+                let response = client.execute(
+                    Command::DesktopPlayback {
+                        action: DesktopPlaybackAction::AssistantPlay {
+                            grant,
+                            project: self.project.clone(),
+                            consent: self.consent.to_path_buf(),
+                        },
+                        owner_proof: proof,
+                    },
+                    None,
+                    None,
+                )?;
+                let ResponseBody::DesktopPlayback(_) = response else {
+                    anyhow::bail!("Engine returned an unexpected player response");
+                };
+                Ok(json!({"playback_queued":true,"physical_playback_verified":false}))
+            }
             "propose_media" => {
                 let _: NoArguments = serde_json::from_value(arguments)?;
                 let video = self.media.context("No media is configured")?;
@@ -195,7 +234,11 @@ fn handle(server: &mut Server<'_>, state: &mut Lifecycle, request: Value) -> Opt
         "tools/list" => tools(server.media.is_some()),
         "tools/call" => {
             let Some(
-                name @ ("read_candidate" | "propose_pattern" | "stop_playback" | "propose_media"),
+                name @ ("read_candidate"
+                | "propose_pattern"
+                | "stop_playback"
+                | "propose_media"
+                | "play_prepared_script"),
             ) = params["name"].as_str()
             else {
                 return Some(error(id, -32602, "Unknown tool"));
@@ -271,9 +314,9 @@ mod tests {
     #[test]
     fn media_proposal_is_optional_and_accepts_no_model_path() {
         let listed = tools(true);
-        assert_eq!(listed["tools"][3]["name"], "propose_media");
+        assert_eq!(listed["tools"][4]["name"], "propose_media");
         assert_eq!(
-            listed["tools"][3]["inputSchema"]["additionalProperties"],
+            listed["tools"][4]["inputSchema"]["additionalProperties"],
             false
         );
         assert!(serde_json::from_value::<NoArguments>(json!({"video":"/untrusted.mp4"})).is_err());
@@ -312,7 +355,12 @@ mod tests {
             .collect();
         assert_eq!(
             names,
-            ["read_candidate", "propose_pattern", "stop_playback"]
+            [
+                "read_candidate",
+                "propose_pattern",
+                "stop_playback",
+                "play_prepared_script"
+            ]
         );
         let denied = request(json!({"jsonrpc":"2.0","id":3,"method":"tools/call",
             "params":{"name":"play_playback","arguments":{}}}))
