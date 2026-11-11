@@ -99,9 +99,7 @@ def read_recording(path, model_hash, source_hash):
         or np.any((positions < 0) | (positions > 100))
     ):
         raise ValueError("Expected ordered samples with bounded finite positions")
-    first_pair = first["samples"][0]["result"]["payload"]["input"]["pair"]
-    anchor = first_pair["presentation_clock"]["source_anchor"]
-    return times, positions, anchor["numerator"] / anchor["denominator"]
+    return times, positions, first["samples"][0]
 
 
 def main():
@@ -119,7 +117,11 @@ def main():
     clip = args.sterile_reference / "handonly_sync_animation.mp4"
     funscript = args.sterile_reference / "353079142771.funscript"
     model_hash, source_hash = digest(args.model), digest(clip)
-    times, positions, source_anchor = read_recording(args.recording, model_hash, source_hash)
+    times, positions, first_sample = read_recording(args.recording, model_hash, source_hash)
+    payload = first_sample["result"]["payload"]
+    first_pair = payload["input"]["pair"]
+    anchor = first_pair["presentation_clock"]["source_anchor"]
+    source_anchor = anchor["numerator"] / anchor["denominator"]
     last_reference_ms = reference[-1]["at"]
     scored = (times * 1000 >= reference[0]["at"]) & (times * 1000 <= last_reference_ms)
     if np.count_nonzero(scored) < 2:
@@ -148,6 +150,8 @@ def main():
         "scored_estimates": len(expected),
         "first_sample_s": float(times[0]),
         "capture_source_anchor_s": source_anchor,
+        "first_estimate_frame_index": first_pair["current_frame"],
+        "first_pair_analysis_ms": payload["pair_analysis_elapsed_ns"] / 1_000_000,
         "source_seconds_from_capture_anchor_to_first_estimate": float(times[0] - source_anchor),
         "last_sample_s": float(times[-1]),
         "reference_end_ms": last_reference_ms,

@@ -4399,6 +4399,7 @@
         "EV-STERILE-BROWSER-MOTION-001",
         "EV-STERILE-BROWSER-COVERAGE",
         "EV-STERILE-BROWSER-STARTUP-RERUN",
+        "EV-STERILE-BROWSER-ACK-DEADLINE",
         "EV-RENDERED-200MS-RECORDING",
         "EV-RENDERED-200MS-RECORDING-EXPORT",
         "EV-RENDERED-SEEK-200MS",
@@ -18570,6 +18571,35 @@
             "accepted_fresh_estimates"
           ],
           "equals": 143
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-ACK-DEADLINE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-ack-deadline-rendered/result.json",
+      "sha256": "c9f676b55c082643d2e88944e8e9bad9276e8ac1a79797ef839d0ecbf583764c",
+      "kind": "json",
+      "outcome": "fail",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Chromium playback on 2c9b664 passed the startup deadline and retained 138 fresh estimates through 14.167 seconds. The first estimate was at 2.75 seconds and the motion screen still failed.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_MOTION_SCREEN"
+        },
+        {
+          "pointer": [
+            "first_sample_s"
+          ],
+          "equals": 2.75
+        },
+        {
+          "pointer": [
+            "accepted_fresh_estimates"
+          ],
+          "equals": 138
         }
       ]
     }
