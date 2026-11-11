@@ -41,7 +41,7 @@ function samplePlayer(){
  if(!presentedFrame)return null;
  const browser_tick_us=Math.round(performance.now()*1000),playback_rate_milli=Math.round(video.playbackRate*1000);
  if(!Number.isSafeInteger(browser_tick_us)||browser_tick_us<0||!Number.isInteger(playback_rate_milli)||playback_rate_milli<0||playback_rate_milli>16000)throw Error('Invalid player observation.');
- return {browser_tick_us,...presentedFrame,playing:!video.paused,seeking:video.seeking,ended:video.ended,visible:document.visibilityState==='visible',playback_rate_milli};
+ return {browser_tick_us,media_time_us:presentedFrame.media_time_us,presented_frames:presentedFrame.presented_frames,playing:!video.paused,seeking:video.seeking,ended:video.ended,visible:document.visibilityState==='visible',playback_rate_milli};
 }
 async function heartbeat(scope){
  if(!currentPlayer(scope))return;
