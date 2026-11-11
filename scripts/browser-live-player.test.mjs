@@ -727,6 +727,13 @@ test('native timing uses one fresh callback atom and displays only an unqualifie
  assert.match(p.elements['timing-exchange'].textContent,/Probe 1: request .* ms, fresh frame .* ms\. Observation request .* ms\./);
  assert.ok(!p.sent.some(r=>Buffer.from(r.body).toString().includes('boottime')));
 });
+test('browser keeps the submitted probe measurement when observation is refused',async()=>{
+ const p=mediaPlayer({timing:true,replyOverride:r=>r.route==='/player/timing-observe'?{ok:false,json:async()=>({error:'observation refused'})}:null});
+ await prepareMedia(p);p.play();await flush();p.advance(15);await p.frame(.1,1);await flush();
+ assert.match(p.elements['timing-status'].textContent,/observation refused/);
+ assert.match(p.elements['timing-exchange'].textContent,/^Probe 1: request .* ms, fresh frame 15\.0 ms\.$/);
+ assert.equal(p.sent.filter(r=>r.route==='/player/timing-observe').length,1);
+});
 test('timing ignores cached or repeated frame counters after a delayed nonce reply',async()=>{
  const p=mediaPlayer({timing:true,holdRoute:'/player/timing-probe'});await prepareMedia(p);p.play();await p.frame(.1,1);await flush();
  assert.equal(p.sent.filter(r=>r.route==='/player/timing-observe').length,0);
