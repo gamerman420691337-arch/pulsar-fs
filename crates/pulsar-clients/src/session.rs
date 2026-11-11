@@ -1365,21 +1365,19 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn browser_transport_write_failure_remains_poisoned_and_ambiguous() {
-        use std::net::Shutdown;
         use std::os::unix::net::UnixListener;
 
         let root = tempfile::tempdir().unwrap();
         let endpoint = root.path().join("engine.sock");
         let listener = UnixListener::bind(&endpoint).unwrap();
-        let (ready, wait) = std::sync::mpsc::channel();
         let server = std::thread::spawn(move || {
             let (stream, _) = listener.accept().unwrap();
-            stream.shutdown(Shutdown::Read).unwrap();
-            ready.send(()).unwrap();
-            std::thread::sleep(Duration::from_millis(150));
+            // Close the peer before the client writes. A read half-close can
+            // still allow the client's write to succeed on Darwin.
+            drop(stream);
         });
         let mut client = LocalClient::connect(&endpoint, Duration::from_secs(1)).unwrap();
-        wait.recv_timeout(Duration::from_secs(1)).unwrap();
+        server.join().unwrap();
         let request = Request::new(new_request_id(), Command::Capabilities);
         let (phase, _) = client.call_with_phase(&request).unwrap_err();
         assert_eq!(phase, pulsar_protocol::LocalCallPhase::RequestWrite);
@@ -1389,7 +1387,6 @@ mod tests {
             error,
             pulsar_protocol::TransportError::ConnectionPoisoned
         ));
-        server.join().unwrap();
     }
 
     #[cfg(unix)]
