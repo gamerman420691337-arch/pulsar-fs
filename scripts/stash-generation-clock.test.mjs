@@ -9,7 +9,7 @@ import net from 'node:net';
 import {spawn} from 'node:child_process';
 import {setTimeout as delay} from 'node:timers/promises';
 
-test('live Stash publication preserves equal generation clocks and refuses mixed placements',
+test('Stash publication checks native and archived action clocks and refuses collisions',
  {skip:!process.env.PULSAR_STASH_TEST_BINARY,timeout:90000},async t=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'pulsar-generation-clock-'));fs.chmodSync(root,0o700);
  t.diagnostic(`retained authored generation-clock evidence: ${root}`);
@@ -71,8 +71,22 @@ test('live Stash publication preserves equal generation clocks and refuses mixed
    fs.writeFileSync(path.join(root,`publication-${rate}.json`),JSON.stringify({rate,original,contributed,revision:merged.revision,result,queriesBefore,queriesAfter:queryCount},null,2));
    if(result.status===0){const receipt=JSON.parse(result.stdout).value;fs.copyFileSync(receipt.path,path.join(root,`recorded-script-${rate}.funscript`));if(receipt.timing_proof)fs.copyFileSync(receipt.timing_proof.path,path.join(root,`recorded-proof-${rate}.json`));}
    if(rate===0||rate===1){assert.equal(result.status,0,result.stderr);assert.ok(fs.existsSync(path.join(media,'fixture.funscript')));}
-   else{assert.notEqual(result.status,0,'different generation/sample clocks must not publish under the selected anchor');assert.match(result.stderr,rate===3?/action-derived clocks|multi-carrier proof/:/different generation clocks|correspondence proof/);assert.equal(fs.existsSync(path.join(media,'fixture.funscript')),false);}
+   else if(rate===2){assert.notEqual(result.status,0,'colliding source times must not publish');assert.match(result.stderr,/selected source-clock action quantization collides/);assert.equal(fs.existsSync(path.join(media,'fixture.funscript')),false);}
    if(rate===3){
+    assert.equal(result.status,0,result.stderr);
+    const native=JSON.parse(result.stdout).value;
+    const proof=JSON.parse(fs.readFileSync(native.timing_proof.path));
+    assert.equal(proof.schema_version,6);
+    assert.equal(proof.release_qualified,false);
+    const {carriers,selections}=proof.context.action_ancestry;
+    assert.deepEqual(carriers.map(c=>c.original_candidate),[original.candidate,contributed.candidate]);
+    assert.deepEqual(selections.map(s=>s.carrier),[0,0,1,1,0]);
+    // At 8 fps the original stride-three carrier supplies frames 0, 3 and 6.
+    // The stride-one contributor supplies frames 4 and 5.
+    const frames=[0,3,4,5,6];
+    assert.deepEqual(proof.mappings.map(m=>m.original_source_frame),frames);
+    assert.deepEqual(JSON.parse(fs.readFileSync(native.path)).actions.map(a=>a.at),frames.map(f=>125*f));
+    fs.unlinkSync(native.path);
     const allowed=await cli(['allow-packaging',project,'--acknowledge-unencrypted-private-data']);assert.equal(allowed.status,0,allowed.stderr);
     const archive=path.join(root,'mixed-sampling.pulsar');const exported=await cli(['package-export',project,archive,'--acknowledge-unencrypted-private-data']);assert.equal(exported.status,0,exported.stderr);
     const imported=await cli(['package-import',archive]);assert.equal(imported.status,0,imported.stderr);const clone=JSON.parse(imported.stdout).receipt.project_id;
@@ -81,9 +95,17 @@ test('live Stash publication preserves equal generation clocks and refuses mixed
     const report=await ok(['project','archived-generation-status',clone,alias]);const origin=report.origins[0];assert.ok(origin.clock);
     const reference=path.join(root,'mixed-sampling-origin.json');fs.writeFileSync(reference,JSON.stringify(origin.origin_manifest));
     const cloneHead=await ok(['project','open',clone]);await ok(['stash','capture-source',clone,'scene','file','--url',`http://127.0.0.1:${server.address().port}/graphql`,'--mappings',mappings,'--expected-source-version',capture.source_version,'--revision',String(cloneHead.revision)]);
-    const refused=await cli(['stash','publish-script',clone,'scene','file','--url',`http://127.0.0.1:${server.address().port}/graphql`,'--source-version',capture.source_version,'--candidate',alias,'--job',origin.job_id,'--revision',String(cloneHead.revision),'--source-time','--archived-origin',reference,'--request-id','archived-mixed-sampling']);
-    fs.writeFileSync(path.join(root,'archived-mixed-sampling.json'),JSON.stringify({clone,alias,report,cloneHead,refused},null,2));
-    assert.notEqual(refused.status,0,'a clone must not bypass the mixed-sampling proof requirement');assert.match(refused.stderr,/DependencyMismatch/);assert.equal(fs.existsSync(path.join(media,'fixture.funscript')),false);
+    const archived=await cli(['stash','publish-script',clone,'scene','file','--url',`http://127.0.0.1:${server.address().port}/graphql`,'--source-version',capture.source_version,'--candidate',alias,'--job',origin.job_id,'--revision',String(cloneHead.revision),'--source-time','--archived-origin',reference,'--request-id','archived-mixed-sampling']);
+    fs.writeFileSync(path.join(root,'archived-mixed-sampling.json'),JSON.stringify({clone,alias,report,cloneHead,archived},null,2));
+    assert.equal(archived.status,0,archived.stderr);
+    const published=JSON.parse(archived.stdout).value;
+    const archivedProof=JSON.parse(fs.readFileSync(published.timing_proof.path));
+    assert.equal(archivedProof.schema_version,7);
+    assert.equal(archivedProof.release_qualified,false);
+    assert.deepEqual(archivedProof.mappings,proof.mappings);
+    assert.deepEqual(archivedProof.context.action_ancestry.selections,selections);
+    assert.deepEqual(archivedProof.context.action_ancestry.carriers.map(c=>c.original_candidate),[original.candidate,contributed.candidate]);
+    assert.deepEqual(fs.readFileSync(published.path),fs.readFileSync(path.join(root,'recorded-script-3.funscript')));
    }
    assert.deepEqual(await ok(['project','open',project]),before);
    if(rate===0||rate===1){
