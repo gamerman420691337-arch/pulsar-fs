@@ -4405,6 +4405,7 @@
         "EV-STERILE-BROWSER-SINGLE-SYNC",
         "EV-STERILE-BROWSER-CPU-ASSET-STAGES",
         "EV-STERILE-BROWSER-BATCH-SYNC",
+        "EV-STERILE-BROWSER-OPTIMIZED-SHA",
         "EV-RENDERED-200MS-RECORDING",
         "EV-RENDERED-200MS-RECORDING-EXPORT",
         "EV-RENDERED-SEEK-200MS",
@@ -18750,6 +18751,36 @@
             "first_sample_s"
           ],
           "equals": 2.333333
+        },
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_MOTION_SCREEN"
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-OPTIMIZED-SHA",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-optimized-sha-render/result.json",
+      "sha256": "c8b989a0dd6b53798234c8569dc0a45e885d85962f446eceebbb59ffb308093a",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Chromium on the development profile with optimized SHA-256 measured staging at 76 ms, launch to Ready at 119 ms, and first estimate at 0.833 seconds. It retained 161 fresh estimates. Motion still failed its screen.",
+      "assertions": [
+        {
+          "pointer": [
+            "cpu_launch_stages_ms",
+            "host_staging_and_custody"
+          ],
+          "equals": 76
+        },
+        {
+          "pointer": [
+            "first_estimate_frame_index"
+          ],
+          "equals": 1
         },
         {
           "pointer": [
