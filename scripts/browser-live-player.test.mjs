@@ -1362,8 +1362,8 @@ test('HSP retains the first successor callback while predecessor settlement is h
  await p.analysisFrame(1.3);
  assert.ok(!p.sent.some(r=>r.route==='/analysis/successor-frame'));
  p.releaseRoute();await boundary;await flush();
- await p.analysisFrame(1.4);await flush();
  const first=rgbPacket(p.sent.find(r=>r.route==='/analysis/successor-frame'));
+ await p.analysisFrame(1.4);await flush();
  assert.equal(first.header.media_us,1300000);
  assert.equal(first.header.analysis.visible_media_us,200000);
  assert.ok(first.pixels.every(v=>v===128));

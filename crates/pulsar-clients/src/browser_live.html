@@ -571,6 +571,15 @@ function maybePrepareContinuation(report,state){
   }else continuationLater(state,c,()=>inspect(false));
  }catch(e){failAnalysis(state,'Media continuation unavailable: '+e.message);}};void inspect(true);
 }
+function successorPairBlocked(c){
+ const t=c.scope.timing;
+ return busy||c.timingBusy||c.probe||t?.inflight||t?.probe;
+}
+function offerRetainedSuccessorPair(state,c){
+ if(!currentContinuation(state,c)||c.phase!=='pair'||c.pairSent||!c.pairFrame||successorPairBlocked(c))return;
+ const retained=c.pairFrame;c.pairFrame=null;
+ void offerAnalysisFrame(state,retained);
+}
 function receiveContinuation(report,state,c){
  if(!currentContinuation(state,c))return;
  const transfer=report.browser?.analysis_successor?.transfer??report.browser?.analysis_transfer_completed;
@@ -592,7 +601,7 @@ function receiveContinuation(report,state,c){
   return true;
  }
  if(!['boundary_reserved','joining_predecessor','awaiting_successor_pair','ready_for_transfer'].includes(transfer.phase))throw Error('Invalid native transfer phase.');
- if(!c.pairSent){if(transfer.predecessor_worker_joined!==true||transfer.predecessor_delivery_settled!==true){c.phase='joining';return false;}c.phase='pair';if(playerScope.timing){c.heldTiming=playerScope.timing;c.heldTiming.handoffHeld=true;}}else c.phase='joining';return false;
+ if(!c.pairSent){if(transfer.predecessor_worker_joined!==true||transfer.predecessor_delivery_settled!==true){c.phase='joining';return false;}c.phase='pair';if(playerScope.timing){c.heldTiming=playerScope.timing;c.heldTiming.handoffHeld=true;}offerRetainedSuccessorPair(state,c);}else c.phase='joining';return false;
 }
 async function inspectContinuation(state,c){
  if(!currentContinuation(state,c))return;
@@ -751,7 +760,10 @@ async function submitAnalysisFrame(reader,media_us,capturedAt,state,analysis,ret
   const sent=performance.now(),report=await post(next?'/analysis/successor-frame':'/frame',body,scope);if(observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;
   if(next){const successor=checkSuccessor(report,state,c);if(!sameAnalysisSubmission(successor.last_upload,submission.submitted))throw Error('Successor G acknowledgment differs from original callback.');c.pairAck=submission;if(c.committedReport)receiveContinuation(c.committedReport,state,c);else if(currentContinuation(state,c)&&c.timer===null)continuationLater(state,c,()=>inspectContinuation(state,c));}
   else if(state){if(receiveAnalysisFallback(report,state,scope))return;checkAnalysisFeed(report,state,scope);if(!sameAnalysisSubmission(report.browser?.analysis_last_upload,submission.submitted))throw Error('Native frame acknowledgement differs from its original browser observation.');state.lastAck=submission;if(state.timer!==null){clearTimeout(state.timer);state.timer=null;}showAnalysis(report,performance.now()-sent,media_us,capturedAt,state);if(c?.phase==='boundary')await reserveContinuationBoundary(state,c);else maybePrepareContinuation(report,state);}else show(report,performance.now()-sent,media_us,capturedAt);
- }catch(e){if(observed===generation){pauseVideo();clear('Analysis stopped: '+e.message);}}finally{busy=false;}
+ }catch(e){if(observed===generation){pauseVideo();clear('Analysis stopped: '+e.message);}}finally{
+  busy=false;
+  if(state?.continuation)offerRetainedSuccessorPair(state,state.continuation);
+ }
 }
 function scheduleAnalysis(state){if(currentAnalysis(state))state.callback=analysisVideo.requestVideoFrameCallback((now,metadata)=>{state.callback=null;return analysisFrame(state,now,metadata);});}
 async function analysisFrame(state,now,metadata){
@@ -769,7 +781,7 @@ async function analysisFrame(state,now,metadata){
   lookaheadStatus.textContent=`Observed frame lead: ${(lead/1000).toFixed(1)} ms. Requested: ${(p.target_lead_us/1000).toFixed(1)} ms; admitted range ${(p.minimum_lead_us/1000).toFixed(1)}–${(p.maximum_lead_us/1000).toFixed(1)} ms. Producer-declared timestamps; see HSP status for device control.`;
   const c=state.continuation,frame={media_us,capturedAt,analysis:{visible_media_us:presentedFrame.media_time_us,visible_presented_frames:presentedFrame.presented_frames,visible_tick_us:visibleFrameTickUs,analysis_tick_us:tick,presented_frames}};
   const hsp=c?.scope.timing?.hspConfigured===true;
-  const pairBlocked=c?.phase==='pair'&&(busy||c.timingBusy||c.probe||playerScope.timing.inflight||playerScope.timing.probe);
+  const pairBlocked=c?.phase==='pair'&&successorPairBlocked(c);
   if(hsp&&!c.pairSent&&(['reserving','joining'].includes(c.phase)||pairBlocked)&&!c.pairFrame){
    c.pairFrame={...frame,rgb:copyFrameRgb(analysisVideo)};return;
   }
