@@ -4390,7 +4390,8 @@
         "EV-STASH-WORKSPACE-RETRY-PASS",
         "EV-STASH-EXPLICIT-CAPTURE-MERGED",
         "EV-STASH-LOOPBACK-530EE45",
-        "EV-STASH-ANNOTATED-CPU-542F2BB"
+        "EV-STASH-ANNOTATED-CPU-542F2BB",
+        "EV-STASH-SELECTED-PACK-SHUTDOWN-C3ACFBC"
       ]
     },
     {
@@ -20499,6 +20500,47 @@
         {
           "pointer": [
             "physical_device"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "id": "EV-STASH-SELECTED-PACK-SHUTDOWN-C3ACFBC",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/stash-selected-pack-shutdown-c3acfbc/result.json",
+      "sha256": "14823e526081b08901a25f334c1552f153fe1357763d294a201fc98dc9e9cd39",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "The native shutdown regression preserved the original pending generation ledger byte for byte. Two authored selected-pack batches passed across restart on loopback Stash, including explicit placement. Installed Stash remains unqualified.",
+      "assertions": [
+        {
+          "pointer": [
+            "stash_engine_tests_passed"
+          ],
+          "equals": 70
+        },
+        {
+          "pointer": [
+            "selected_pack_cases_passed"
+          ],
+          "equals": 2
+        },
+        {
+          "pointer": [
+            "shutdown_regression_passed"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "mock_stash"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "installed_stash_qualified"
           ],
           "equals": false
         }
