@@ -4337,7 +4337,8 @@
         "EV-RECORDING-BOUNDARY-PORTABLE",
         "EV-DELEGATED-HOST-NATIVE-ASSISTANT",
         "EV-HOSTED-FULL-542F2BB",
-        "EV-HOSTED-FULL-32DAFF4"
+        "EV-HOSTED-FULL-32DAFF4",
+        "EV-HOSTED-FULL-50889F3"
       ]
     },
     {
@@ -4866,6 +4867,42 @@
     }
   ],
   "evidence": [
+    {
+      "id": "EV-HOSTED-FULL-50889F3",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/hosted-full-ci-50889f3.json",
+      "sha256": "78d0c967dc479e27628ed56de2b77ac40ef011a011bcbafff4ed40be9688c883",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Full hosted Linux, macOS and Windows suites passed on 50889f3, including 1,997 delegated Linux Engine tests. This revision precedes the Desktop consent changes.",
+      "assertions": [
+        {
+          "pointer": [
+            "headSha"
+          ],
+          "equals": "50889f334213146b4cca26cb3bc7e01e79005e60"
+        },
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "completed"
+        },
+        {
+          "pointer": [
+            "conclusion"
+          ],
+          "equals": "success"
+        },
+        {
+          "pointer": [
+            "linux_engine",
+            "failed"
+          ],
+          "equals": 0
+        }
+      ]
+    },
     {
       "id": "EV-DESKTOP-CONSENT-2439FBA",
       "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/desktop-consent-fixture/result.json",
