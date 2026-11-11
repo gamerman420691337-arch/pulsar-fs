@@ -827,6 +827,14 @@ impl Player {
     }
 
     fn tick(&mut self) -> Result<(u64, u64, bool)> {
+        let result = self.tick_inner();
+        if result.is_err() {
+            self.close();
+        }
+        result
+    }
+
+    fn tick_inner(&mut self) -> Result<(u64, u64, bool)> {
         if let Some(consent) = &self.active_media_consent {
             consent.check()?;
         }
@@ -947,9 +955,6 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
             let was_playing = player.playing;
             let reviewing_media = player.active_media_consent.is_some();
             let result = player.tick();
-            if result.is_err() {
-                player.close();
-            }
             if let Ok(mut status) = shared.status.lock() {
                 match result {
                     Ok((position, duration, playing)) => {
@@ -962,6 +967,7 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
                         }
                     }
                     Err(error) => {
+                        status.media_review = None;
                         status.message = if reviewing_media {
                             format!("Reviewed media closed: {error}")
                                 .chars()
@@ -1019,6 +1025,18 @@ mod tests {
     #[test]
     #[ignore = "requires mpv and PULSAR_PLAYER_HEADLESS=1"]
     fn assistant_grant_plays_capped_points_over_loopback_hsp_and_stops() {
+        run_assistant_hsp_fixture(false);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    #[ignore = "requires mpv and PULSAR_PLAYER_HEADLESS=1"]
+    fn assistant_grant_is_retired_when_loopback_hsp_disconnects() {
+        run_assistant_hsp_fixture(true);
+    }
+
+    #[cfg(unix)]
+    fn run_assistant_hsp_fixture(disconnect: bool) {
         use pulsar_protocol::{ContentClass, ParticipantRef};
         use serde_json::{json, Value};
         use std::{
@@ -1053,7 +1071,7 @@ mod tests {
             let deadline = Instant::now() + Duration::from_secs(10);
             let mut uploaded = Value::Null;
             let mut scheduled = Value::Null;
-            for (prefix, response) in [
+            let mut exchanges = vec![
                 (
                     "GET /auth/token/issue?",
                     json!({"result":{"token":"fixture"}}),
@@ -1068,8 +1086,12 @@ mod tests {
                 ("GET /servertime ", json!({"server_time":123456})),
                 ("GET /servertime ", json!({"server_time":123456})),
                 ("PUT /hsp/play ", json!({})),
-                ("PUT /hsp/stop ", json!({})),
-            ] {
+            ];
+            if disconnect {
+                exchanges.push(("GET /connected ", json!({"result":{"connected":false}})));
+            }
+            exchanges.push(("PUT /hsp/stop ", json!({})));
+            for (prefix, response) in exchanges {
                 let mut stream = loop {
                     match listener.accept() {
                         Ok((stream, _)) => break stream,
@@ -1143,10 +1165,21 @@ mod tests {
             .apply(action.clone(), &shared, 0, directory.path())
             .unwrap();
         assert!(player.playing);
-        player
-            .apply(Action::Stop, &shared, 0, directory.path())
-            .unwrap();
+        if disconnect {
+            player.last_device_check = Instant::now() - DEVICE_CHECK_INTERVAL;
+            assert_eq!(
+                player.tick().unwrap_err().to_string(),
+                "Handy disconnected; enable again"
+            );
+            assert!(player.mpv.is_none());
+        } else {
+            player
+                .apply(Action::Stop, &shared, 0, directory.path())
+                .unwrap();
+        }
         assert!(!player.playing);
+        assert!(player.armed_until.is_none());
+        assert!(player.assistant_grant.is_none());
         assert!(player.check_assistant_request(&action, &shared, 0).is_err());
         let (uploaded, scheduled) = server.join().unwrap();
         assert_eq!(uploaded["points"], json!([{"t":0,"x":35},{"t":700,"x":65}]));
@@ -1320,16 +1353,16 @@ mod tests {
         active.check().unwrap();
         document.withdraw_attestation(review_now_ns().unwrap());
         std::fs::write(consent.path(), serde_json::to_vec(&document).unwrap()).unwrap();
+        let error = player
+            .confirm_media_review(review, &shared, 0, runtime)
+            .unwrap_err();
+        assert!(error.to_string().contains("AdultAttestationWithdrawn"));
         player.active_media_consent = Some(active);
         assert_eq!(
             player.tick().unwrap_err().to_string(),
             "Session consent changed"
         );
-        player.active_media_consent = None;
-        let error = player
-            .confirm_media_review(review, &shared, 0, runtime)
-            .unwrap_err();
-        assert!(error.to_string().contains("AdultAttestationWithdrawn"));
+        assert!(player.active_media_consent.is_none());
         assert!(player.mpv.is_none());
     }
 
