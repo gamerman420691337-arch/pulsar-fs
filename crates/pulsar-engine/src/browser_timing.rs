@@ -560,6 +560,7 @@ struct Entry {
     source: Option<Arc<SourceMediaPin>>,
     lifetime: Arc<Lifetime>,
     pending: Option<BrowserTimingProbe>,
+    last_consumed_sequence: u64,
     observation: Option<Arc<NativeObservation>>,
     deadline_ns: u64,
     retired: bool,
@@ -600,9 +601,7 @@ impl Entry {
         }
     }
     fn next_sequence(&self) -> PResult<u64> {
-        self.observation
-            .as_ref()
-            .map_or(0, |o| o.value.sequence)
+        self.last_consumed_sequence
             .checked_add(1)
             .ok_or_else(unavailable)
     }
@@ -976,6 +975,7 @@ impl Engine {
                     lifetime,
                     source: Some(source),
                     pending: None,
+                    last_consumed_sequence: 0,
                     observation: None,
                     deadline_ns,
                     retired: false,
@@ -1080,6 +1080,7 @@ impl Engine {
             }
             Command::ObserveBrowserTiming { frame, .. } => {
                 let probe = entry.pending.take().ok_or_else(mismatch)?;
+                entry.last_consumed_sequence = probe.sequence;
                 let phase = i64::try_from(frame.sample.media_time_us)
                     .ok()
                     .and_then(|us| SourceTimestamp::new(us, 1_000_000).ok())
