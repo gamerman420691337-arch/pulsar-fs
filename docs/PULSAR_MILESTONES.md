@@ -181,6 +181,7 @@ Local retained artifacts may be unavailable on another machine. Outcome and scop
 
 | ID / outcome | Recorded scope | SHA-256 |
 | --- | --- | --- |
+| [EV-HOSTED-FULL-50889F3](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/hosted-full-ci-50889f3.json) / pass | Full hosted Linux, macOS and Windows suites passed on 50889f3, including 1,997 delegated Linux Engine tests. This revision precedes the Desktop consent changes. | `78d0c967dc479e27…` |
 | [EV-DESKTOP-CONSENT-2439FBA](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/desktop-consent-fixture/result.json) / pass | Rendered Linux Desktop inspected and withdrew consent in a disposable general-class document. CLI verified refusal after revocation and attestation withdrawal. No real consent or tool effect was exercised. | `441414e44ea83f9e…` |
 | [EV-HOSTED-FULL-32DAFF4](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/hosted-full-ci-32daff4.json) / pass | Full hosted Linux, macOS and Windows suites passed on 32daff4, including 1,997 delegated Linux Engine tests and the worker-fence startup change. | `7e7ea880dd848767…` |
 | [EV-BROWSER-DESKTOP-HANDOFF-66C3DE6](/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/browser-desktop-handoff/result.json) / pass | The rendered Browser Live player staged a sterile CPU candidate. Desktop opened the same candidate in the same project, displayed two coverage gaps, and left revision 1 unchanged. | `81e30e0e8f2089f4…` |
