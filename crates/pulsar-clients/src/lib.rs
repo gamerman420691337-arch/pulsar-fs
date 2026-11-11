@@ -409,10 +409,15 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
             let mut client=SessionClient::connect(endpoint,bootstrap)?;
             print_response(client.execute_with_id(RequestId::new(request_id.unwrap_or_else(||uuid::Uuid::new_v4().to_string()))?,Command::SetProtectedRegions {regions},Some(ProjectId::new(project)?),Some(RevisionId::new(revision)))?)
         },
-        Commands::Regenerate {project,source_version,revision,settings,model,preset} => {
+        Commands::Regenerate {project,source_version,revision,settings,model,preset,stage_only} => {
             let settings=settings.as_deref().map(|path|->anyhow::Result<GenerationSettings>{Ok(serde_json::from_slice(&inference::read_bounded_profile(path)?)?)}).transpose()?.unwrap_or_default();settings.validate()?;
             let mut client=SessionClient::connect(endpoint,bootstrap)?;
-            modality::regenerate(&mut client,&project,&source_version,RevisionId::new(revision),settings,model.as_deref(),&preset)
+            let candidate = modality::regenerate_candidate(&mut client,&project,&source_version,RevisionId::new(revision),settings,model.as_deref(),&preset)?;
+            if stage_only {
+                print_response(ResponseBody::Candidate(Box::new(candidate)))
+            } else {
+                modality::apply_regeneration(&mut client, candidate)
+            }
         },
         Commands::ImportScript { script, project } => {
             let mut client = SessionClient::connect(endpoint, bootstrap)?;
