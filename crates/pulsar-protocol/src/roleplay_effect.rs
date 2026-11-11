@@ -1,6 +1,6 @@
 //! In-memory approval lifecycle for one owner-controlled roleplay session.
 use crate::{ConsentRefusal, ContentClass, ParticipantRef, ProviderScope, RoleplayConsentDocument};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 const APPROVAL_WINDOW_NS: u64 = 30_000_000_000;
@@ -21,7 +21,8 @@ pub struct RoleplayEffectScope {
 }
 
 /// Echo the entire review identity from the owner UI when confirming.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct EffectReview {
     pub sequence: u64,
     pub digest: [u8; 32],
