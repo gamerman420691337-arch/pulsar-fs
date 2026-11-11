@@ -2955,15 +2955,14 @@ impl PulsarDesktop {
                 );
             }
         }
+        let candidate_axes: Vec<_> = candidate
+            .program
+            .tracks()
+            .iter()
+            .map(|track| track.axis())
+            .collect();
         ui.horizontal_wrapped(|ui| {
-            for axis in [
-                Axis::Stroke,
-                Axis::Sway,
-                Axis::Surge,
-                Axis::Roll,
-                Axis::Pitch,
-                Axis::Yaw,
-            ] {
+            for &axis in &candidate_axes {
                 let mut selected = self.merge_axes.contains(&axis);
                 if ui.checkbox(&mut selected, format!("{axis:?}")).changed() {
                     if selected {
@@ -2974,6 +2973,11 @@ impl PulsarDesktop {
                 }
             }
         });
+        let selected_axes: Vec<_> = candidate_axes
+            .iter()
+            .copied()
+            .filter(|axis| self.merge_axes.contains(axis))
+            .collect();
         ui.checkbox(
             &mut self.merge_range_enabled,
             "Merge only a project-time range",
@@ -2996,7 +3000,7 @@ impl PulsarDesktop {
         }
         if ui
             .add_enabled(
-                !self.busy && !stale && !self.merge_axes.is_empty(),
+                !self.busy && !stale && !selected_axes.is_empty(),
                 egui::Button::new("Merge selected axes / preserve protection"),
             )
             .clicked()
@@ -3011,7 +3015,7 @@ impl PulsarDesktop {
                     self.project_command(
                         Command::MergeCandidate {
                             candidate_id: candidate.candidate_id.clone(),
-                            axes: self.merge_axes.clone(),
+                            axes: selected_axes,
                             range,
                         },
                         true,
@@ -3022,21 +3026,15 @@ impl PulsarDesktop {
         }
         if ui
             .add_enabled(
-                !self.busy && !stale,
+                !self.busy && !stale && !candidate_axes.is_empty(),
                 egui::Button::new("Apply all candidate axes / preserve protected edits"),
             )
             .clicked()
         {
-            let axes = candidate
-                .program
-                .tracks()
-                .iter()
-                .map(|track| track.axis())
-                .collect();
             self.project_command(
                 Command::MergeCandidate {
                     candidate_id: candidate.candidate_id.clone(),
-                    axes,
+                    axes: candidate_axes,
                     range: candidate.project_interval,
                 },
                 true,
