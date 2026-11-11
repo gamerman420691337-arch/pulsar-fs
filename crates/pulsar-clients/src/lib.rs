@@ -374,7 +374,9 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
         },
         Commands::CommitCandidate {project,candidate,revision,request_id} => {
             let mut client=SessionClient::connect(endpoint,bootstrap)?;
-            print_response(client.execute_with_id(RequestId::new(request_id.unwrap_or_else(||uuid::Uuid::new_v4().to_string()))?,Command::CommitCandidate {candidate_id:CandidateId::new(candidate)?},Some(ProjectId::new(project)?),Some(RevisionId::new(revision)))?)
+            let id = request_id.map(RequestId::new).transpose()?.unwrap_or_else(session::new_request_id);
+            let snapshot = commit_candidate(&mut client, ProjectId::new(project)?, RevisionId::new(revision), CandidateId::new(candidate)?, Some(id))?;
+            print_response(ResponseBody::Project(Box::new(snapshot)))
         },
         Commands::Undo {project,revision,request_id} => {
             let id = request_id.map(RequestId::new).transpose()?.unwrap_or_else(session::new_request_id);
@@ -1853,6 +1855,35 @@ pub fn get_snapshot(api: &mut impl EngineApi, project: &ProjectId) -> Result<Pro
     }
 }
 
+/// Commit a selected candidate at its reviewed revision. An existing request
+/// identity is passed through for callers that retain and reconcile outcomes.
+pub fn commit_candidate(
+    api: &mut impl EngineApi,
+    project: ProjectId,
+    revision: RevisionId,
+    candidate_id: CandidateId,
+    request_id: Option<RequestId>,
+) -> Result<ProjectSnapshot> {
+    let expected_revision = revision.checked_next()?;
+    let command = Command::CommitCandidate { candidate_id };
+    let response = match request_id {
+        Some(id) => api.execute_identified(id, command, Some(project.clone()), Some(revision)),
+        None => api.execute(command, Some(project.clone()), Some(revision)),
+    }?;
+    match response {
+        ResponseBody::Project(snapshot)
+            if snapshot.project_id == project && snapshot.revision == expected_revision =>
+        {
+            Ok(*snapshot)
+        }
+        _ => Err(ProtocolError::new(
+            ErrorCode::DependencyMismatch,
+            "candidate commit acknowledgement differs from its project or expected revision",
+        )
+        .into()),
+    }
+}
+
 /// The policy is nonsecret intent. Reading it grants no evidence acceptance or
 /// execution permission; the Engine checks all selected records and current scope.
 fn read_fallback_selection(path: &Path) -> Result<InferenceFallbackSelection> {
@@ -2774,6 +2805,67 @@ mod tests {
             )
             .is_err());
         }
+    }
+
+    #[test]
+    fn shared_commit_preserves_request_identity_and_rejects_wrong_revision() {
+        struct Reply(Option<ProjectSnapshot>);
+        impl EngineApi for Reply {
+            fn execute(
+                &mut self,
+                _: Command,
+                _: Option<ProjectId>,
+                _: Option<RevisionId>,
+            ) -> Result<ResponseBody> {
+                panic!("identified commit fell back to an anonymous request");
+            }
+            fn execute_identified(
+                &mut self,
+                id: RequestId,
+                command: Command,
+                project: Option<ProjectId>,
+                revision: Option<RevisionId>,
+            ) -> Result<ResponseBody> {
+                assert_eq!(id.as_str(), "retained-request");
+                assert_eq!(project.unwrap().as_str(), "project");
+                assert_eq!(revision, Some(RevisionId::new(4)));
+                assert!(
+                    matches!(command, Command::CommitCandidate { candidate_id } if candidate_id.as_str() == "candidate")
+                );
+                Ok(ResponseBody::Project(Box::new(self.0.take().unwrap())))
+            }
+        }
+        let project = ProjectId::new("project").unwrap();
+        let program = MotionProgram::default();
+        let wrong_revision = RevisionId::new(6);
+        let mut api = Reply(Some(ProjectSnapshot {
+            project_id: project.clone(),
+            revision: wrong_revision,
+            name: "Fixture".into(),
+            motion: crate::motion::fixture_descriptor(
+                &program,
+                MotionBinding::ProjectRevision {
+                    project_id: project.clone(),
+                    revision: wrong_revision,
+                },
+            ),
+            program: program.into(),
+            sources: vec![],
+            placements: vec![],
+        }));
+        let error = commit_candidate(
+            &mut api,
+            project,
+            RevisionId::new(4),
+            CandidateId::new("candidate").unwrap(),
+            Some(RequestId::new("retained-request").unwrap()),
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.downcast_ref::<ProtocolError>().unwrap().code,
+            ErrorCode::DependencyMismatch
+        );
+        assert!(api.0.is_none());
     }
 
     #[test]
