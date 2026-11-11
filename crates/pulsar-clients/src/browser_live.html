@@ -85,7 +85,9 @@ function beginTiming(scope,configuration){
 // Scheduling only: the native probe still requires a later observed frame.
 function timingRefreshDelay(frame,at){
  if(!frame||!Number.isFinite(frame.cadence_ms)||frame.cadence_ms<20||frame.cadence_ms>125)return 250;
- const earliest=at+125,phase=frame.callback_ms-12;
+ // Leave time for the probe response before the predicted callback.
+ const probeLeadMs=Math.min(25,frame.cadence_ms/3);
+ const earliest=at+125,phase=frame.callback_ms-probeLeadMs;
  const predicted=phase+Math.ceil((earliest-phase)/frame.cadence_ms)*frame.cadence_ms;
  return Math.min(250,Math.max(125,predicted-at));
 }
