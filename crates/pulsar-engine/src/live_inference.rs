@@ -278,6 +278,18 @@ pub struct LiveInferenceWorker {
 }
 #[cfg(not(target_os = "linux"))]
 pub struct LiveInferenceWorker;
+#[cfg(target_os = "linux")]
+fn trace_cpu_launch(stage: &str, started: Instant) {
+    if std::env::var_os("PULSAR_TRACE_CPU_STARTUP").is_some_and(|value| value == "1") {
+        use std::io::Write;
+        let _ = writeln!(
+            std::io::stderr().lock(),
+            "pulsar_cpu_launch stage={stage} elapsed_ms={}",
+            started.elapsed().as_millis(),
+        );
+    }
+}
+
 #[cfg(not(target_os = "linux"))]
 impl LiveInferenceWorker {
     pub fn start(
@@ -427,6 +439,7 @@ impl LiveInferenceWorker {
             manifest.model.clone(),
             manifest.runtime.clone(),
         ];
+        let staging_started = Instant::now();
         let prepared = crate::live_staging::prepare_tracked(
             config,
             pool,
@@ -476,6 +489,7 @@ impl LiveInferenceWorker {
             "live-worker",
         )
         .map_err(error)?;
+        trace_cpu_launch("host_staging_and_custody", staging_started);
         let guest = manifest.clone();
         Self::start_transport(
             manifest,
@@ -545,7 +559,10 @@ impl LiveInferenceWorker {
         if Instant::now() >= deadline {
             return Err(error("live worker deadline exceeded before spawn"));
         }
+        let spawn_started = Instant::now();
         custody.spawn(&mut command).map_err(error)?;
+        trace_cpu_launch("process_spawn", spawn_started);
+        let ready_started = Instant::now();
         let child = custody.child_handle();
         let pipes = {
             let mut child = custody.child();
@@ -645,6 +662,7 @@ impl LiveInferenceWorker {
             return Err(error);
         }
         worker.reply_binding.ready(&worker.manifest, &ready)?;
+        trace_cpu_launch("spawn_to_ready", ready_started);
         Ok(worker)
     }
 

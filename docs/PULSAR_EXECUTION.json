@@ -4400,6 +4400,7 @@
         "EV-STERILE-BROWSER-COVERAGE",
         "EV-STERILE-BROWSER-STARTUP-RERUN",
         "EV-STERILE-BROWSER-ACK-DEADLINE",
+        "EV-STERILE-BROWSER-CPU-STARTUP-TRACE",
         "EV-RENDERED-200MS-RECORDING",
         "EV-RENDERED-200MS-RECORDING-EXPORT",
         "EV-RENDERED-SEEK-200MS",
@@ -18600,6 +18601,36 @@
             "accepted_fresh_estimates"
           ],
           "equals": 138
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-CPU-STARTUP-TRACE",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-cpu-startup-trace/result.json",
+      "sha256": "097ec5cab54e96e28d30a20c564bce3e78d5756bd3004b420b361cf4ca7ce49f",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Chromium and the trained sterile model measured 1541 ms from CPU launch to Ready, less than 1 ms from admission to first pair dispatch, and 9 ms for the first reply. The first retained estimate was worker pair 1 at source 2.417 s. The motion screen still failed.",
+      "assertions": [
+        {
+          "pointer": [
+            "cpu_startup_trace",
+            "launch_to_ready_ms"
+          ],
+          "equals": 1541
+        },
+        {
+          "pointer": [
+            "first_estimate_worker_sequence"
+          ],
+          "equals": 1
+        },
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_MOTION_SCREEN"
         }
       ]
     }
