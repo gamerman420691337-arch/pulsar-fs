@@ -174,7 +174,7 @@ impl PlayerPanel {
         }
     }
 
-    pub(crate) fn poll(&mut self) {
+    pub(crate) fn poll(&mut self, watch_reviews: bool) {
         loop {
             match self.replies.try_recv() {
                 Ok(reply) => {
@@ -204,7 +204,10 @@ impl PlayerPanel {
                 Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
             }
         }
-        if (self.status.loaded || self.status.busy || self.status.media_review.is_some())
+        if (watch_reviews
+            || self.status.loaded
+            || self.status.busy
+            || self.status.media_review.is_some())
             && !self.rpc_pending()
             && self.last_poll.elapsed() >= Duration::from_millis(250)
         {
@@ -274,7 +277,6 @@ impl PlayerPanel {
     }
 
     pub(crate) fn ui(&mut self, ui: &mut egui::Ui, consent: &Path) {
-        self.poll();
         ui.heading("Video + Handy player");
         ui.label("Pulsar controls the video, audio and script. Video opens in an mpv window.");
         ui.small("Drop local files here, or paste their absolute paths. No model is needed.");
@@ -630,7 +632,7 @@ mod tests {
                 result: Ok(DesktopPlaybackStatus::default()),
             })
             .unwrap();
-        panel.poll();
+        panel.poll(false);
         assert!(!panel.stop_pending);
     }
 

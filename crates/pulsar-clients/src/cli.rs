@@ -198,6 +198,9 @@ pub enum Commands {
         project: String,
         #[arg(long, value_parser = parse_private_document_path)]
         consent: PathBuf,
+        /// Optional host-selected local clip the assistant may propose for Desktop review.
+        #[arg(long, value_parser = parse_private_document_path)]
+        media: Option<PathBuf>,
     },
     /// Record, inspect and withdraw roleplay consent and adult attestation.
     Roleplay {

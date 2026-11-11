@@ -118,7 +118,8 @@ impl Service {
             action,
             Action::Stop | Action::Close | Action::Arm { enabled: false, .. }
         );
-        if owner.is_some() && !is_owner && !emergency {
+        let proposal = matches!(action, Action::PrepareMediaReview { .. });
+        if owner.is_some() && !is_owner && !emergency && !proposal {
             return Err(ProtocolError::new(
                 ErrorCode::Forbidden,
                 "another Desktop owns the player; Stop or close it first",
@@ -136,15 +137,6 @@ impl Service {
             }
             return Ok(status);
         }
-        if owner.is_none()
-            || matches!(
-                action,
-                Action::Open { .. } | Action::OpenMedia { .. } | Action::OpenReviewedMedia { .. }
-            )
-        {
-            *owner = Some(session.into());
-        }
-        *shared.heartbeat.lock().map_err(|_| internal())? = Instant::now();
         let priority = interrupt_priority(action);
         let interrupts = priority > 0;
         let mut queue = shared.queue.lock().map_err(|_| internal())?;
@@ -167,6 +159,12 @@ impl Service {
             }
             let epoch = shared.epoch.load(Ordering::SeqCst);
             queue.push_back((epoch, action.clone()));
+        }
+        if owner.is_none() && !emergency && !proposal {
+            *owner = Some(session.into());
+        }
+        if owner.as_deref() == Some(session) && !proposal {
+            *shared.heartbeat.lock().map_err(|_| internal())? = Instant::now();
         }
         recent.push_back((session.into(), request.into(), fingerprint));
         while recent.len() > 64 {
@@ -797,6 +795,7 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
                 continue;
             }
             let closed = matches!(action, Action::Close);
+            let proposal = matches!(action, Action::PrepareMediaReview { .. });
             let result = player.apply(action, &shared, generation, &directory);
             let message = match result {
                 Ok(()) => if player.playing {
@@ -814,7 +813,9 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
                 }
                 .to_owned(),
                 Err(error) => {
-                    let _ = player.stop(true);
+                    if !proposal {
+                        let _ = player.stop(true);
+                    }
                     format!("{error}").chars().take(400).collect()
                 }
             };
@@ -1167,6 +1168,28 @@ mod tests {
                 interrupt_priority(&expected)
             );
         }
+    }
+
+    #[test]
+    fn a_media_proposal_does_not_claim_or_steal_playback_ownership() {
+        let service = Service {
+            shared: Arc::new(Shared::new()),
+        };
+        let directory = tempfile::tempdir().unwrap();
+        let proposal = Action::PrepareMediaReview {
+            video: directory.path().join("fixture.mp4"),
+            consent: directory.path().join("consent.json"),
+        };
+        service.request("broker", "first", &proposal).unwrap();
+        assert!(service.shared.owner.lock().unwrap().is_none());
+        let play = Action::Play { sync_offset_ms: 0 };
+        service.request("desktop", "play", &play).unwrap();
+        service.request("broker", "second", &proposal).unwrap();
+        assert_eq!(
+            service.shared.owner.lock().unwrap().as_deref(),
+            Some("desktop")
+        );
+        assert!(service.request("broker", "play", &play).is_err());
     }
 
     #[test]

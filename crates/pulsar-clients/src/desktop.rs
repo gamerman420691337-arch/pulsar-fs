@@ -5185,8 +5185,9 @@ impl eframe::App for PulsarDesktop {
         }
         self.assistant_settings.poll();
         self.portable.poll();
-        self.desktop_player.poll();
-        if self.desktop_player.needs_repaint() {
+        let watch_media_reviews = Path::new(self.consent_path.trim()).is_absolute();
+        self.desktop_player.poll(watch_media_reviews);
+        if watch_media_reviews || self.desktop_player.needs_repaint() {
             context.request_repaint_after(Duration::from_millis(100));
         }
         self.poll(context);

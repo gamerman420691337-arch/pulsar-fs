@@ -316,8 +316,8 @@ pub fn run_cli(args: Vec<OsString>, endpoint: &Path, bootstrap: &Path) -> Result
         return run_gui(endpoint.to_owned(), bootstrap.to_owned());
     };
     match command {
-        Commands::Mcp { project, consent } => {
-            mcp_stdio::run(endpoint, bootstrap, ProjectId::new(project)?, &consent)
+        Commands::Mcp { project, consent, media } => {
+            mcp_stdio::run(endpoint, bootstrap, ProjectId::new(project)?, &consent, media.as_deref())
         }
         Commands::Roleplay { command } => run_roleplay_command(command, endpoint, bootstrap),
         Commands::JobAttempts {project,job,after_attempt,limit} => {
