@@ -444,6 +444,7 @@ function receiveAnalysisFallback(report,state,scope){
   clearMotion();futureEstimates=[];lastFutureEstimate=null;state.lastSubmitted=null;state.lastAck=null;state.fallbackWaiting=false;if(state.fallbackTimer!==null&&state.fallbackTimer!==undefined)clearTimeout(state.fallbackTimer);state.fallbackTimer=null;return true;
  }
  if(notice.phase!=='waiting'&&notice.phase!=='ready')throw Error('Unknown fallback status.');
+ if(state.timer!==null&&state.timer!==undefined)state.startupPhase='waiting for the inference worker';
  if(!Number.isFinite(state.captureDeadline)||performance.now()>=state.captureDeadline)throw Error('Original capture deadline expired during fallback.');
  clearMotion();futureEstimates=[];lastFutureEstimate=null;state.lastSubmitted=null;state.lastAck=null;
  if(futureTimer!==null)clearTimeout(futureTimer);futureTimer=null;
@@ -697,10 +698,10 @@ async function submitAnalysisFrame(reader,media_us,capturedAt,state,analysis){
   const extra=state?{analysis:{feed_id:feed.feed_id,role:'lookahead',generation:feed.generation,...analysis}}:{};
   const head=new TextEncoder().encode(JSON.stringify({epoch:next?feed.capture_epoch:epoch,media_us,...extra})+'\n'),body=new Uint8Array(head.length+rgb.length);body.set(head);body.set(rgb,head.length);
   const submission=state?{submitted:{media_us,observation:{...extra.analysis}},capturedAt}:null;if(state&&!next)state.lastSubmitted=submission;if(next){c.pairSent=true;c.phase='joining';if(scope.timing){c.heldTiming=scope.timing;c.heldTiming.handoffHeld=true;}}
-  if(state&&state.timer!==null){clearTimeout(state.timer);state.timer=null;}
+  if(state&&state.timer!==null)state.startupPhase='waiting for the first accepted frame';
   const sent=performance.now(),report=await post(next?'/analysis/successor-frame':'/frame',body,scope);if(observed!==generation||!currentPlayer(scope)||(state&&!currentAnalysis(state)))return;
   if(next){const successor=checkSuccessor(report,state,c);if(!sameAnalysisSubmission(successor.last_upload,submission.submitted))throw Error('Successor G acknowledgment differs from original callback.');c.pairAck=submission;if(c.committedReport)receiveContinuation(c.committedReport,state,c);else if(currentContinuation(state,c)&&c.timer===null)continuationLater(state,c,()=>inspectContinuation(state,c));}
-  else if(state){if(receiveAnalysisFallback(report,state,scope))return;checkAnalysisFeed(report,state,scope);if(!sameAnalysisSubmission(report.browser?.analysis_last_upload,submission.submitted))throw Error('Native frame acknowledgement differs from its original browser observation.');state.lastAck=submission;showAnalysis(report,performance.now()-sent,media_us,capturedAt,state);if(c?.phase==='boundary')await reserveContinuationBoundary(state,c);else maybePrepareContinuation(report,state);}else show(report,performance.now()-sent,media_us,capturedAt);
+  else if(state){if(receiveAnalysisFallback(report,state,scope))return;checkAnalysisFeed(report,state,scope);if(!sameAnalysisSubmission(report.browser?.analysis_last_upload,submission.submitted))throw Error('Native frame acknowledgement differs from its original browser observation.');state.lastAck=submission;if(state.timer!==null){clearTimeout(state.timer);state.timer=null;}showAnalysis(report,performance.now()-sent,media_us,capturedAt,state);if(c?.phase==='boundary')await reserveContinuationBoundary(state,c);else maybePrepareContinuation(report,state);}else show(report,performance.now()-sent,media_us,capturedAt);
  }catch(e){if(observed===generation){pauseVideo();clear('Analysis stopped: '+e.message);}}finally{busy=false;}
 }
 function scheduleAnalysis(state){if(currentAnalysis(state))state.callback=analysisVideo.requestVideoFrameCallback((now,metadata)=>{state.callback=null;return analysisFrame(state,now,metadata);});}

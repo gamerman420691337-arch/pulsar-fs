@@ -832,6 +832,17 @@ test('lookahead startup times out while the original capture Start is pending', 
  p.release();await pending;
  assert.ok(!p.sent.some(r=>r.route==='/frame'));
 });
+test('lookahead startup times out before the first frame acknowledgment',async()=>{
+ const p=mediaPlayer({lookahead:true,timing:true,holdFrameAt:1});
+ await startLookahead(p);
+ const pending=p.analysisFrame(1.1);await flush();
+ assert.ok(p.sent.some(r=>r.route==='/frame'));
+ p.advance(5000);await flush();
+ assert.equal(p.elements.video.paused,true);
+ assert.match(p.elements.status.textContent,/waiting for the first accepted frame/);
+ p.releaseFrame();await pending;
+ assert.equal(p.futurePreview().entries.length,0);
+});
 test('decoded lookahead frames cannot cancel startup timeout before native timing is ready', async()=>{
  const p=mediaPlayer({lookahead:true,timing:true,holdRoute:'/player/timing-observe'});
  await startLookahead(p);await p.analysisFrame(1.1);
