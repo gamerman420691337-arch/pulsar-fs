@@ -1048,6 +1048,19 @@ impl Engine {
         );
         if let Err(error) = result {
             let item = &mut record.items[index];
+            // Shutdown can reject the call after its original generation
+            // request was saved. Leave that request pending for exact replay
+            // on reopen. Other unavailable or unknown outcomes still require
+            // attention, including external publication and scan effects.
+            if self.is_shutting_down()
+                && error.code == ErrorCode::Unavailable
+                && error.message == "Engine is shutting down"
+                && item.pending.as_ref().is_some_and(|request| {
+                    matches!(request.phase.as_str(), "generate" | "resume_job")
+                })
+            {
+                return Ok(false);
+            }
             item.view.state = if matches!(
                 error.code,
                 ErrorCode::UnknownOutcome | ErrorCode::Unavailable | ErrorCode::ResourceExhausted
@@ -1748,6 +1761,49 @@ mod tests {
             directory, config, engine, session, auth_token, record, pending,
         )
     }
+    #[test]
+    fn shutdown_refusal_retains_the_original_pending_generation() {
+        let (_directory, _config, engine, owner, _, mut record, _) = setup();
+        let batch = record.report.batch_request_id.clone();
+        let item = &mut record.items[0];
+        let project = id!(ProjectId);
+        let source = id!(SourceVersionId);
+        let request = id!(RequestId);
+        item.cursor = 2;
+        item.view.project_id = Some(project.clone());
+        item.view.source_version = Some(source.clone());
+        item.view.requests.push(StashBatchEffect {
+            phase: "generate".into(),
+            request_id: request.clone(),
+            expected_revision: Some(item.revision),
+        });
+        item.pending = Some(Pending {
+            phase: "generate".into(),
+            id: request,
+            command: Command::Generate {
+                source_version: source,
+                preset: "fast".into(),
+                settings: None,
+                model_path: None,
+            },
+            project: Some(project),
+            revision: Some(item.revision),
+        });
+        let original = encode(&record).unwrap();
+        engine
+            .db
+            .lock()
+            .unwrap()
+            .execute(
+                "UPDATE stash_batches SET record=?3 WHERE session=?1 AND request=?2",
+                params![owner.as_str(), batch.as_str(), original],
+            )
+            .unwrap();
+        engine.shutdown_requested.store(true, Ordering::Release);
+        assert!(!engine.tick_stash_batch(&owner, &batch).unwrap());
+        assert_eq!(engine.load_batch(&owner, &batch).unwrap().0, original);
+    }
+
     #[test]
     fn unsupported_maximum_batch_refuses_discovery_and_preserves_migration_ledger() {
         let (_directory, _config, engine, owner, token, mut record, _pending) = setup();
