@@ -118,6 +118,7 @@ pub use desktop::PulsarDesktop;
 mod assistant_client;
 mod mcp_stdio;
 mod roleplay_consent_state;
+mod roleplay_conversation;
 pub use roleplay_consent_state::{
     attest, create as create_consent, escalate as escalate_consent, grant as grant_consent,
     load as load_consent, replace as replace_consent, revoke as revoke_consent,
@@ -140,6 +141,7 @@ pub fn command_needs_engine(args: &[OsString]) -> bool {
                     command:
                         RoleplayCommands::ReadCandidate { .. }
                         | RoleplayCommands::ProposePattern { .. }
+                        | RoleplayCommands::Chat { .. }
                         | RoleplayCommands::StopPlayback,
                 }),
         }) => true,
@@ -2455,6 +2457,19 @@ fn run_roleplay_command(
             let mut client = SessionClient::connect(endpoint, bootstrap)?;
             patterns::stage(&mut client, &project, RevisionId::new(revision), input)
         }
+        RoleplayCommands::Chat {
+            project,
+            consent,
+            profile,
+            media,
+        } => roleplay_conversation::run_cli(
+            endpoint,
+            bootstrap,
+            ProjectId::new(project)?,
+            consent,
+            profile.map(AttemptId::new).transpose()?,
+            media,
+        ),
         RoleplayCommands::StopPlayback => {
             let directory = bootstrap
                 .parent()
