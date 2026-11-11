@@ -14,6 +14,7 @@ use super::{
 use crate::{
     handy_hsp_dispatch::{
         HspClaimGate, HspClaimedHandoff, HspDispatchFailure, HspNativeOwner, HspPreclaimProgress,
+        HspSourcePhaseRefusal,
     },
     handy_hsp_execution::{
         HspAuthorityEvaluation, HspAuthoritySnapshot, HspExecutionError, HspNativeAuthority,
@@ -417,7 +418,23 @@ impl Controller {
                 pin.as_ref(),
                 project_tail,
             )
-            .map_err(|error| HspDispatchFailure::SourcePhase(error.code))?;
+                        .map_err(|error| HspDispatchFailure::SourcePhase {
+                code: error.code,
+                observation_sequence: observation.sequence,
+                bracket_ns: observation.bracket.native_receive_ns
+                    - observation.bracket.native_issue_ns,
+                cause: match error.message.as_str() {
+                    "invalid state transition: browser start: combined alignment error exceeds accepted budget" =>
+                        HspSourcePhaseRefusal::AlignmentBudget,
+                    "invalid state transition: browser clock: mapped interval exceeds uncertainty or age horizon" =>
+                        HspSourcePhaseRefusal::ClockIntervalOrAge,
+                    "invalid state transition: browser start: original start evidence expired" =>
+                        HspSourcePhaseRefusal::OriginalEvidenceExpired,
+                    "invalid state transition: browser start: display residual escapes the admitted age horizon" =>
+                        HspSourcePhaseRefusal::DisplayAge,
+                    _ => HspSourcePhaseRefusal::Other,
+                },
+            })?;
         Ok(HspAuthorityEvaluation {
             sampled_at_ns,
             snapshot,

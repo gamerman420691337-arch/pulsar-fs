@@ -42,7 +42,12 @@ pub enum HspDispatchFailure {
     InvalidBudget,
     InvalidClock,
     PlaybackClock(pulsar_protocol::ErrorCode),
-    SourcePhase(pulsar_protocol::ErrorCode),
+    SourcePhase {
+        code: pulsar_protocol::ErrorCode,
+        observation_sequence: u64,
+        bracket_ns: u64,
+        cause: HspSourcePhaseRefusal,
+    },
     Credentials,
     BindingMismatch,
     RemoteMismatch,
@@ -52,6 +57,15 @@ pub enum HspDispatchFailure {
     Cancelled,
     WorkerUnavailable,
     Authority(HspRuntimeError),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum HspSourcePhaseRefusal {
+    AlignmentBudget,
+    ClockIntervalOrAge,
+    OriginalEvidenceExpired,
+    DisplayAge,
+    Other,
 }
 
 /// Setup replaces a stream. Require an explicit previously observed idle state,

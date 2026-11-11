@@ -411,7 +411,7 @@ pub(super) fn observe_source_current(
         return Err(error);
     }
     let observed = result.map_err(|failure| match failure {
-        HspDispatchFailure::PlaybackClock(_) | HspDispatchFailure::SourcePhase(_) => {
+        HspDispatchFailure::PlaybackClock(_) | HspDispatchFailure::SourcePhase { .. } => {
             ProtocolError::new(
                 ErrorCode::Unavailable,
                 format!("{source_refusal}: {failure:?}"),
