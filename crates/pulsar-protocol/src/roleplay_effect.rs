@@ -9,13 +9,7 @@ const APPROVAL_WINDOW_NS: u64 = 30_000_000_000;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(tag = "effect", rename_all = "snake_case")]
 pub enum RoleplayEffect {
-    PresentMedia {
-        media_sha256: [u8; 32],
-    },
-    PlayScript {
-        preparation_sha256: [u8; 32],
-        project_revision: u64,
-    },
+    PresentMedia { media_sha256: [u8; 32] },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -196,9 +190,8 @@ mod tests {
             .grant(participant.clone(), ContentClass::General, 2)
             .unwrap();
         let scope = RoleplayEffectScope {
-            effect: RoleplayEffect::PlayScript {
-                preparation_sha256: [1; 32],
-                project_revision: 7,
+            effect: RoleplayEffect::PresentMedia {
+                media_sha256: [1; 32],
             },
             participants: vec![participant],
             content_class: ContentClass::General,
@@ -225,7 +218,7 @@ mod tests {
     }
 
     #[test]
-    fn confirmation_is_single_use_and_bound_to_preparation_and_revision() {
+    fn confirmation_is_single_use_and_bound_to_prepared_media() {
         let (scope, consent) = fixture();
         let mut slot = RoleplayEffectApproval::new([1; 32]);
         let review = slot.propose(&scope, &consent, 3).unwrap();
@@ -236,9 +229,8 @@ mod tests {
         let review = slot.propose(&scope, &consent, 5).unwrap();
         slot.confirm(review, &scope, &consent, 6).unwrap();
         let mut changed = scope.clone();
-        changed.effect = RoleplayEffect::PlayScript {
-            preparation_sha256: [1; 32],
-            project_revision: 8,
+        changed.effect = RoleplayEffect::PresentMedia {
+            media_sha256: [2; 32],
         };
         assert_eq!(
             slot.consume(review, &changed, &consent, 7),
