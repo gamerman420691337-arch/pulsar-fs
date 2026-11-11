@@ -225,3 +225,48 @@ pub(crate) fn run(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mcp_requires_initialization_and_refuses_unlisted_effects() {
+        let mut server = Server {
+            endpoint: Path::new("unused"),
+            bootstrap: Path::new("unused"),
+            project: ProjectId::new("fixture").unwrap(),
+            consent: Path::new("unused"),
+            work_calls: 0,
+        };
+        let mut state = Lifecycle::New;
+        let mut request = |value| handle(&mut server, &mut state, value);
+        assert_eq!(
+            request(json!({"jsonrpc":"2.0","id":0,"method":"tools/list"})).unwrap()["error"]
+                ["code"],
+            -32000
+        );
+        let init = request(json!({"jsonrpc":"2.0","id":1,"method":"initialize",
+            "params":{"protocolVersion":PROTOCOL,"capabilities":{},
+                "clientInfo":{"name":"fixture","version":"1"}}}))
+        .unwrap();
+        assert_eq!(init["result"]["protocolVersion"], PROTOCOL);
+        assert!(request(json!({"jsonrpc":"2.0","method":"notifications/initialized"})).is_none());
+        let listed = request(json!({"jsonrpc":"2.0","id":2,"method":"tools/list"})).unwrap();
+        let names: Vec<_> = listed["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|tool| tool["name"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            names,
+            ["read_candidate", "propose_pattern", "stop_playback"]
+        );
+        let denied = request(json!({"jsonrpc":"2.0","id":3,"method":"tools/call",
+            "params":{"name":"play_playback","arguments":{}}}))
+        .unwrap();
+        assert_eq!(denied["error"]["code"], -32602);
+        assert_eq!(server.work_calls, 0);
+    }
+}
