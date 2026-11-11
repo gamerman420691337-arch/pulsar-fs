@@ -42,6 +42,25 @@ pub struct RoleplayWorkerResponse {
     pub reply: RoleplayReply,
 }
 
+pub fn validate_roleplay_worker_input(
+    request: &crate::AssistantWorkerRequest,
+) -> Result<(), ProtocolError> {
+    request.validate()?;
+    let scope = &request.scope;
+    if request.vision.is_some()
+        || scope.creative_patterns.is_some()
+        || !scope.target_ids.is_empty()
+        || !scope.review_ids.is_empty()
+        || !scope.edit_recipe_ids.is_empty()
+        || !scope.allowed_sample_strides.is_empty()
+    {
+        return Err(ProtocolError::invalid(
+            "roleplay worker accepts text without proposal or vision inputs",
+        ));
+    }
+    Ok(())
+}
+
 impl RoleplayReply {
     pub fn validate(&self) -> Result<(), ProtocolError> {
         if self.text.len() > MAX_ROLEPLAY_REPLY_BYTES || self.text.contains('\0') {

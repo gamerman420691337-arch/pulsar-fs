@@ -218,16 +218,7 @@ fn decode_roleplay_completion(bytes: &[u8]) -> Result<RoleplayReply> {
 
 pub fn run_roleplay_worker() -> Result<()> {
     let request = read_worker_request()?;
-    let scope = &request.scope;
-    ensure!(
-        request.vision.is_none()
-            && scope.creative_patterns.is_none()
-            && scope.target_ids.is_empty()
-            && scope.review_ids.is_empty()
-            && scope.edit_recipe_ids.is_empty()
-            && scope.allowed_sample_strides.is_empty(),
-        "roleplay worker accepts text conversation without proposal or vision inputs"
-    );
+    validate_roleplay_worker_input(&request)?;
     let bytes = execute_runtime(
         &request,
         Path::new(RUNTIME),

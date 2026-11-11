@@ -17,6 +17,7 @@ fn is_worker_role(role: &str) -> bool {
     matches!(
         role,
         "assistant-worker"
+            | "roleplay-worker"
             | "wasm-worker"
             | "live-worker"
             | "capture-worker"

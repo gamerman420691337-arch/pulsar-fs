@@ -21,6 +21,51 @@ impl Engine {
         cancel: &AtomicBool,
         admission: Option<Reservation>,
     ) -> PResult<AssistantExecution> {
+        let deadline = self.prepare_assistant_launch(request, cancel)?;
+        crate::assistant_launch::execute(
+            crate::assistant_launch::Parent {
+                config: &self.config,
+                pool: &self.pool,
+                fence: self.worker_fence.clone(),
+                worker_identity: &self.binary_identity,
+                admission,
+            },
+            request,
+            assets,
+            cancel,
+            deadline,
+        )
+    }
+    /// Run a text-only roleplay turn using trusted, host-resolved assets.
+    /// The reply is returned directly and carries no application effect authority.
+    pub fn infer_roleplay(
+        &self,
+        request: &AssistantWorkerRequest,
+        assets: &AssistantLaunchAssets,
+        cancel: &AtomicBool,
+    ) -> PResult<AssistantExecution<RoleplayWorkerResponse>> {
+        validate_roleplay_worker_input(request)?;
+        let deadline = self.prepare_assistant_launch(request, cancel)?;
+        crate::assistant_launch::execute_roleplay(
+            crate::assistant_launch::Parent {
+                config: &self.config,
+                pool: &self.pool,
+                fence: self.worker_fence.clone(),
+                worker_identity: &self.binary_identity,
+                admission: None,
+            },
+            request,
+            assets,
+            cancel,
+            deadline,
+        )
+    }
+
+    fn prepare_assistant_launch(
+        &self,
+        request: &AssistantWorkerRequest,
+        cancel: &AtomicBool,
+    ) -> PResult<Instant> {
         let deadline = Instant::now()
             .checked_add(Duration::from_millis(request.wall_time_ms))
             .ok_or_else(|| ProtocolError::invalid("assistant deadline overflow"))?;
@@ -47,18 +92,6 @@ impl Engine {
             self.arm_worker_fence(&tx)?;
             tx.commit().map_err(internal)?;
         }
-        crate::assistant_launch::execute(
-            crate::assistant_launch::Parent {
-                config: &self.config,
-                pool: &self.pool,
-                fence: self.worker_fence.clone(),
-                worker_identity: &self.binary_identity,
-                admission,
-            },
-            request,
-            assets,
-            cancel,
-            deadline,
-        )
+        Ok(deadline)
     }
 }
