@@ -4207,7 +4207,8 @@
       "evidence": [
         "EV-DESKTOP-PLAYER-001",
         "EV-STERILE-SCRIPT-REOPEN",
-        "EV-STERILE-DESKTOP-IMPORT"
+        "EV-STERILE-DESKTOP-IMPORT",
+        "EV-STERILE-DESKTOP-REOPEN"
       ],
       "next_proof": "The operator confirmed motion and close visual sync in the local-video/HSP demo. Continue the separate editor/save/reopen/export workflow and broader platform coverage."
     },
@@ -18896,6 +18897,35 @@
             "overwrite_refused"
           ],
           "equals": true
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-DESKTOP-REOPEN",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/sterile-desktop-reopen/result.json",
+      "sha256": "1903b5787553a0c693fc897dde00314526e843a60fc574723fc6a42869113dcd",
+      "kind": "json",
+      "outcome": "pass",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Desktop reopened the committed sterile project after an Engine restart, showed RequestConflict for an existing file, preserved its bytes, and exported all 58 original actions to a new path.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "PASS"
+        },
+        {
+          "pointer": [
+            "actions"
+          ],
+          "equals": 58
+        },
+        {
+          "pointer": [
+            "overwrite_status"
+          ],
+          "equals": "RequestConflict"
         }
       ]
     }
