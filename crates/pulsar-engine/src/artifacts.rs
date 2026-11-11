@@ -240,6 +240,19 @@ pub(crate) fn snapshot_opened_reserved(
     max_bytes: u64,
     held_storage: u64,
 ) -> Result<(PathBuf, String, u64)> {
+    let result = snapshot_into_private_batch(input, dir, max_bytes, held_storage)?;
+    sync_dir(dir)?;
+    Ok(result)
+}
+
+/// Snapshot into an attempt-owned directory whose owner syncs the directory
+/// before handing the completed batch to another consumer.
+pub(crate) fn snapshot_into_private_batch(
+    input: &mut File,
+    dir: &Path,
+    max_bytes: u64,
+    held_storage: u64,
+) -> Result<(PathBuf, String, u64)> {
     #[cfg(not(unix))]
     private_directory(dir)?;
     use std::io::{Seek, SeekFrom};
@@ -317,7 +330,6 @@ pub(crate) fn snapshot_opened_reserved(
         }
         Err(error) => return Err(error.error.into()),
     }
-    sync_dir(dir)?;
     Ok((destination, hash, size))
 }
 

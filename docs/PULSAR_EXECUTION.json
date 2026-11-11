@@ -4403,6 +4403,7 @@
         "EV-STERILE-BROWSER-CPU-STARTUP-TRACE",
         "EV-STERILE-BROWSER-CPU-LAUNCH-STAGES",
         "EV-STERILE-BROWSER-SINGLE-SYNC",
+        "EV-STERILE-BROWSER-CPU-ASSET-STAGES",
         "EV-RENDERED-200MS-RECORDING",
         "EV-RENDERED-200MS-RECORDING-EXPORT",
         "EV-RENDERED-SEEK-200MS",
@@ -18688,6 +18689,36 @@
             "first_sample_s"
           ],
           "equals": 3.833333
+        },
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_MOTION_SCREEN"
+        }
+      ]
+    },
+    {
+      "id": "EV-STERILE-BROWSER-CPU-ASSET-STAGES",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-10/sterile-cpu-asset-stages/result.json",
+      "sha256": "044b00d052625484e998b36a48f6e7622b8e54d68bac07b755859b978db14164",
+      "kind": "json",
+      "outcome": "partial",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered CPU trace measured custody at 54 ms and worker, model, and runtime snapshots at 232, 2, and 463 ms respectively. The first retained estimate was at source 1.75 s. The motion screen still failed.",
+      "assertions": [
+        {
+          "pointer": [
+            "cpu_launch_stages_ms",
+            "staging_snapshot_2"
+          ],
+          "equals": 463
+        },
+        {
+          "pointer": [
+            "first_sample_s"
+          ],
+          "equals": 1.75
         },
         {
           "pointer": [

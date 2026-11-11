@@ -418,7 +418,7 @@ fn prepare_inner_tracked<const N: usize>(
                     let snapshot_started = Instant::now();
                     let mut source =
                         crate::artifacts::open_regular(&reference.path).map_err(error)?;
-                    let (path, hash, size) = crate::artifacts::snapshot_opened_reserved(
+                    let (path, hash, size) = crate::artifacts::snapshot_into_private_batch(
                         &mut source,
                         &directory,
                         reference.identity.byte_len,
@@ -447,6 +447,7 @@ fn prepare_inner_tracked<const N: usize>(
                     std::fs::Permissions::from_mode(0o500),
                 )
                 .map_err(error)?;
+                crate::artifacts::sync_dir(&directory).map_err(error)?;
                 active(&task_cancel, &task_abandoned, deadline)
             })();
             let reply = result.map(|_| prepared);
