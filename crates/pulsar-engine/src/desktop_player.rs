@@ -55,6 +55,24 @@ impl Shared {
             shutdown: AtomicBool::new(false),
         }
     }
+
+    fn publish_completion(&self, player: &Player, message: String) {
+        // Serialize with enqueue, so completion cannot acknowledge a later Stop.
+        let (Ok(queue), Ok(mut status)) = (self.queue.lock(), self.status.lock()) else {
+            return;
+        };
+        status.busy = !queue.is_empty();
+        if !status.busy {
+            status.message = message;
+        }
+        status.loaded = player.mpv.is_some();
+        status.armed = player.armed_until.is_some();
+        status.connected = player.hsp.is_some();
+        status.playing = player.playing;
+        status.expires_in_ms = player.armed_until.map_or(0, |t| {
+            t.saturating_duration_since(Instant::now()).as_millis() as u64
+        });
+    }
 }
 
 pub(crate) struct Service {
@@ -535,17 +553,7 @@ fn run(shared: Arc<Shared>, directory: PathBuf) {
                     format!("{error}").chars().take(400).collect()
                 }
             };
-            if let Ok(mut status) = shared.status.lock() {
-                status.message = message;
-                status.loaded = player.mpv.is_some();
-                status.armed = player.armed_until.is_some();
-                status.connected = player.hsp.is_some();
-                status.playing = player.playing;
-                status.expires_in_ms = player.armed_until.map_or(0, |t| {
-                    t.saturating_duration_since(Instant::now()).as_millis() as u64
-                });
-                status.busy = false;
-            }
+            shared.publish_completion(&player, message);
             if closed {
                 if let Ok(mut owner) = shared.owner.lock() {
                     *owner = None;
@@ -705,6 +713,32 @@ mod tests {
         assert_eq!(failure.to_string(), "Open a video and script first");
         assert!(player.hsp.is_none());
         assert!(player.armed_until.is_none());
+    }
+
+    #[test]
+    fn an_earlier_completion_cannot_acknowledge_pending_stop() {
+        let service = Service {
+            shared: Arc::new(Shared::new()),
+        };
+        let player = Player::default();
+        service.request("operator", "stop", &Action::Stop).unwrap();
+        service
+            .shared
+            .publish_completion(&player, "Earlier action completed".into());
+        assert!(
+            service
+                .request("operator", "status", &Action::Status)
+                .unwrap()
+                .busy
+        );
+        service.shared.queue.lock().unwrap().pop_front().unwrap();
+        service.shared.publish_completion(&player, "Stopped".into());
+        assert!(
+            !service
+                .request("operator", "status", &Action::Status)
+                .unwrap()
+                .busy
+        );
     }
 
     #[test]
