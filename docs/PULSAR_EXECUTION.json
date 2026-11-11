@@ -4534,7 +4534,8 @@
         "EV-MACOS-IMPORT-FIXTURE-MERGED",
         "EV-MACOS-TIMING-FIXTURE-NATIVE-GREEN",
         "EV-NATIVE-BROWSER-TIMING-65149D6",
-        "EV-BROWSER-TIMING-275ABD6"
+        "EV-BROWSER-TIMING-275ABD6",
+        "EV-STERILE-RENDER-0BC5B36"
       ]
     },
     {
@@ -4859,6 +4860,53 @@
     }
   ],
   "evidence": [
+    {
+      "id": "EV-STERILE-RENDER-0BC5B36",
+      "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/sterile-render-0bc5b36/score/result.json",
+      "sha256": "ac38ea78850bac21503c4ca78e68efbac27f6bed4e3704b49df9b5ce0bf1bd81",
+      "kind": "json",
+      "outcome": "fail",
+      "freshness": "pinned_checkpoint",
+      "scope": "Rendered Linux Browser Live with RAM-backed state recorded 168 fresh estimates using the trained sterile CPU model. First estimate at 250 ms; zero-offset motion failed both thresholds (17.64 points MAE, 0.743 correlation). No physical device test.",
+      "assertions": [
+        {
+          "pointer": [
+            "status"
+          ],
+          "equals": "FAIL_MOTION_SCREEN"
+        },
+        {
+          "pointer": [
+            "rendered_browser"
+          ],
+          "equals": true
+        },
+        {
+          "pointer": [
+            "physical_handy_test"
+          ],
+          "equals": false
+        },
+        {
+          "pointer": [
+            "playback_offset_ms"
+          ],
+          "equals": 0
+        },
+        {
+          "pointer": [
+            "accepted_fresh_estimates"
+          ],
+          "equals": 168
+        },
+        {
+          "pointer": [
+            "product_source_commit"
+          ],
+          "equals": "0bc5b36f0d403bc74ddce7a3418a334f3ed78336"
+        }
+      ]
+    },
     {
       "id": "EV-SSD-STARTUP-C3D9F0E",
       "path": "/mnt/4tb/artifacts/Funscripts/keep/pulsar-roadmap-m1/roadmap-2026-11-11/worker-fence-ssd-c3d9f0e.json",
