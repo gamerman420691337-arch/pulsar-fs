@@ -215,7 +215,7 @@
         "sha256": "665ba6616db61c003bc320f216d8f61841574eb1d7e8bf98794acbdb92b6ce91"
       },
       {
-        "path": "crates/pulsar-clients/src/desktop.rs",
+        "path": "crates/pulsar-clients/src/desktop/mod.rs",
         "sha256": "806a47aa52a5537919f7d15b0b4e065e002b36b3b56b3eb9f2f28d9a0f1209be"
       },
       {
@@ -3337,7 +3337,7 @@
       "source_refs": [
         "crates/pulsar-engine/src/authority.rs",
         "crates/pulsar-engine/src/project_packages.rs",
-        "crates/pulsar-clients/src/desktop.rs"
+        "crates/pulsar-clients/src/desktop/mod.rs"
       ]
     },
     {
@@ -3353,7 +3353,7 @@
       "source_refs": [
         "crates/pulsar-engine/src/authority.rs",
         "crates/pulsar-engine/src/project_packages.rs",
-        "crates/pulsar-clients/src/desktop.rs"
+        "crates/pulsar-clients/src/desktop/mod.rs"
       ]
     },
     {
@@ -3377,7 +3377,7 @@
       "source_refs": [
         "crates/pulsar-engine/src/authority.rs",
         "crates/pulsar-engine/src/project_packages.rs",
-        "crates/pulsar-clients/src/desktop.rs"
+        "crates/pulsar-clients/src/desktop/mod.rs"
       ]
     },
     {
