@@ -106,6 +106,7 @@ pub(crate) fn run_cli(
             profile: profile.profile_id.clone(),
             consent: consent.clone(),
             messages: messages.clone(),
+            persona: None,
         };
         input.encode_messages()?;
         let RoleplayReply { text, calls } = *infer(

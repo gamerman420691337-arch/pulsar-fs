@@ -370,7 +370,6 @@ fn runtime_command(
                 "--offline",
                 "--conversation",
                 "--single-turn",
-                "--jinja",
                 "--reasoning",
                 "off",
                 "-f",
@@ -972,6 +971,7 @@ mod tests {
                 text: "For this synthetic test, remember the word amber. Reply that you received it. Do not call a tool.".into(),
                 tool_receipts: vec![],
             }],
+            persona: None,
         };
         let mut request = AssistantWorkerRequest {
             vision: None,
@@ -984,7 +984,11 @@ mod tests {
             scope: AssistantProposalScope::default(),
             cpu_threads: 4,
             wall_time_ms: 60000,
-            execution: None,
+            execution: std::env::var("PULSAR_ASSISTANT_GPU_LAYERS")
+                .ok()
+                .and_then(|v| v.parse::<u16>().ok())
+                .filter(|&layers| layers > 0)
+                .map(|layers| AssistantExecutionLimits::roleplay(4096, layers)),
         };
         let first = execute_roleplay(&request, &runtime, &model, directory.path()).unwrap();
         assert!(!first.text.trim().is_empty());

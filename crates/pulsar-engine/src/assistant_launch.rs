@@ -39,7 +39,7 @@ pub struct AssistantExecution<T = AssistantWorkerResponse> {
     pub worker_identity: ArtifactIdentity,
     pub worker_peak_memory_bytes: u64,
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum WorkerRole {
     Proposal,
     Roleplay,
@@ -285,7 +285,17 @@ fn execute_worker<T: serde::de::DeserializeOwned>(
             "assistant Linux confinement unavailable",
         ));
     }
-    if !(512 * 1024 * 1024..=8 * 1024 * 1024 * 1024).contains(&paths.worker_memory_bytes) {
+    let gpu_offload = role == WorkerRole::Roleplay
+        && request
+            .execution
+            .as_ref()
+            .is_some_and(|execution| execution.gpu_layers > 0);
+    let max_worker_memory = if gpu_offload {
+        MAX_ASSISTANT_MODEL_BYTES + 2 * 1024 * 1024 * 1024
+    } else {
+        8 * 1024 * 1024 * 1024
+    };
+    if !(512 * 1024 * 1024..=max_worker_memory).contains(&paths.worker_memory_bytes) {
         return Err(ProtocolError::invalid(
             "assistant process-tree memory outside supported bounds",
         ));
@@ -341,10 +351,18 @@ fn execute_worker<T: serde::de::DeserializeOwned>(
         cpu_threads: request.cpu_threads,
         wall_time_ms: request.wall_time_ms,
     };
+    let gpu_runtime_dir = gpu_offload.then(|| paths.runtime_path.parent()).flatten();
     let address_space = paths
         .worker_memory_bytes
         .checked_mul(2)
         .and_then(|n| n.checked_add(128 * 1024 * 1024))
+        .and_then(|n| {
+            if gpu_runtime_dir.is_some() {
+                n.checked_add(32 * 1024 * 1024 * 1024)
+            } else {
+                Some(n)
+            }
+        })
         .ok_or_else(|| ProtocolError::invalid("assistant address-space cap overflow"))?;
     // Install every owner before fallible command preparation/inheritance/spawn.
     // Unconfirmed retirement keeps all images and the full admission claim.
@@ -366,6 +384,7 @@ fn execute_worker<T: serde::de::DeserializeOwned>(
             )
         }),
         role,
+        gpu_runtime_dir,
     )
     .map_err(|e| failure(ErrorCode::Unavailable, e))?;
     images.0.inherit(&mut command)?;

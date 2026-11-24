@@ -6,6 +6,7 @@ pub const MAX_ROLEPLAY_TOOL_ARGUMENT_BYTES: usize = 8 * 1024;
 pub const MAX_ROLEPLAY_TURN_CALLS: usize = 4;
 pub const MAX_ROLEPLAY_SESSION_CALLS: u32 = 32;
 pub const MAX_ROLEPLAY_REPLY_BYTES: usize = 8 * 1024;
+pub const MAX_ROLEPLAY_PERSONA_BYTES: usize = 4 * 1024;
 pub const MAX_ROLEPLAY_WORKER_RESPONSE_BYTES: u64 = 48 * 1024;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -81,6 +82,8 @@ pub struct RoleplayTurnInput {
     pub profile: crate::AttemptId,
     pub consent: std::path::PathBuf,
     pub messages: Vec<RoleplayMessage>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub persona: Option<String>,
 }
 
 impl RoleplayTurnInput {
@@ -89,6 +92,18 @@ impl RoleplayTurnInput {
             return Err(ProtocolError::invalid(
                 "roleplay needs an absolute bounded consent path",
             ));
+        }
+        if let Some(persona) = &self.persona {
+            if persona.len() > MAX_ROLEPLAY_PERSONA_BYTES
+                || persona.contains('\0')
+                || persona
+                    .chars()
+                    .any(|ch| ch.is_control() && ch != '\n' && ch != '\r' && ch != '\t')
+            {
+                return Err(ProtocolError::invalid(
+                    "roleplay persona exceeds byte bound or contains control characters",
+                ));
+            }
         }
         if self.messages.is_empty()
             || self.messages.len() > MAX_ROLEPLAY_HISTORY_MESSAGES
@@ -193,6 +208,7 @@ mod tests {
                 text: "private fixture text".into(),
                 tool_receipts: vec![],
             }],
+            persona: None,
         };
         assert!(input
             .encode_messages()

@@ -3,7 +3,7 @@ use crate::SessionClient;
 use eframe::egui;
 use pulsar_protocol::{
     AssistantProfile, AttemptId, ProjectId, RoleplayMessage, RoleplayReply, RoleplaySpeaker,
-    RoleplayToolReceipt, RoleplayTurnInput, MAX_ROLEPLAY_REPLY_BYTES,
+    RoleplayToolReceipt, RoleplayTurnInput, MAX_ROLEPLAY_PERSONA_BYTES, MAX_ROLEPLAY_REPLY_BYTES,
 };
 use std::{
     path::{Path, PathBuf},
@@ -52,6 +52,7 @@ pub(crate) struct RoleplayPanel {
     selected: Option<AttemptId>,
     messages: Vec<RoleplayMessage>,
     pending_user: Option<String>,
+    persona: String,
     draft: String,
     status: String,
 }
@@ -99,6 +100,7 @@ impl RoleplayPanel {
             selected: None,
             messages: Vec::new(),
             pending_user: None,
+            persona: String::new(),
             draft: String::new(),
             status: if started.is_ok() {
                 String::new()
@@ -214,6 +216,7 @@ impl RoleplayPanel {
             profile: profile.profile_id.clone(),
             consent: context.consent.clone(),
             messages,
+            persona: (!self.persona.trim().is_empty()).then(|| self.persona.trim().to_owned()),
         };
         if let Err(error) = input.encode_messages() {
             self.status = error.to_string();
@@ -271,6 +274,23 @@ impl RoleplayPanel {
             {
                 self.clear();
             }
+        });
+        ui.collapsing("Persona & Scene", |ui| {
+            ui.horizontal(|ui| {
+                if ui.button("Preset: Sensual RP + Handy").clicked() {
+                    self.persona = "You are an affectionate, teasing, expressive adult roleplay partner. React warmly to the user's pace, build tension gradually, and use propose_pattern + play_prepared_script when appropriate to synchronize the Handy 2 Pro with the scene's rhythm and intensity.".into();
+                }
+                if !self.persona.is_empty() && ui.button("Clear persona").clicked() {
+                    self.persona.clear();
+                }
+            });
+            ui.add_enabled(
+                !self.busy,
+                egui::TextEdit::multiline(&mut self.persona)
+                    .hint_text("Optional character persona and scene prompt...")
+                    .desired_rows(3)
+                    .char_limit(MAX_ROLEPLAY_PERSONA_BYTES),
+            );
         });
         egui::ScrollArea::vertical()
             .max_height(250.0)

@@ -757,6 +757,14 @@ test('HSP-configured playback refreshes before the ordinary timing cadence',asyn
  p.advance(124);await flush();assert.equal(probes(),1);
  p.advance(1);await flush();assert.equal(probes(),2);
 });
+test('HSP slow probe subtracts elapsed observation age from the next refresh delay',async()=>{
+ const p=mediaPlayer({timing:true,hspConfigured:true,holdRoute:'/player/timing-probe'});await prepareMedia(p);p.play();await flush();
+ await p.frame(.1,1);p.advance(62);p.releaseRoute();await flush();
+ p.advance(68);await p.frame(.183333,2);await flush();
+ const probes=()=>p.sent.filter(r=>r.route==='/player/timing-probe').length;
+ assert.equal(probes(),1);
+ p.advance(28);await flush();assert.equal(probes(),2);
+});
 test('discarded timing refresh preserves the original local expiry',async()=>{
  const p=mediaPlayer({timing:true,replyOverride:r=>{
   if(r.route!=='/player/timing-observe'||jsonBody(r).sequence!=='2')return null;

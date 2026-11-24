@@ -23,6 +23,7 @@ enum LaunchAssets<'a, 'image> {
         runtime: (i32, u64),
         model: (i32, u64),
         vision: Option<((i32, u64), (i32, u64))>,
+        gpu_runtime_dir: Option<&'a Path>,
     },
     Capture(&'a Path),
     Cuda(&'a crate::cuda_mounts::CudaMounts<'image>),
@@ -70,6 +71,7 @@ pub(crate) fn assistant_command(
     model: (i32, u64),
     vision: Option<((i32, u64), (i32, u64))>,
     role: crate::assistant_launch::WorkerRole,
+    gpu_runtime_dir: Option<&Path>,
 ) -> anyhow::Result<Command> {
     command_inner(
         config,
@@ -83,6 +85,7 @@ pub(crate) fn assistant_command(
             runtime,
             model,
             vision,
+            gpu_runtime_dir,
         },
     )
 }
@@ -247,6 +250,12 @@ fn command_inner(
         LaunchAssets::Assistant { vision, .. } => *vision,
         _ => None,
     };
+    let gpu_runtime_dir = match &assets {
+        LaunchAssets::Assistant {
+            gpu_runtime_dir, ..
+        } => *gpu_runtime_dir,
+        _ => None,
+    };
     let procs_fd = group.procs.as_raw_fd();
     let mut command = Command::new("/usr/bin/bwrap");
     command.env_clear();
@@ -315,6 +324,30 @@ fn command_inner(
                 .arg(path);
         }
     }
+    if let Some(dir) = gpu_runtime_dir {
+        for dev in [
+            "/dev/nvidiactl",
+            "/dev/nvidia0",
+            "/dev/nvidia-uvm",
+            "/dev/nvidia-uvm-tools",
+            "/dev/nvidia-modeset",
+        ] {
+            if Path::new(dev).exists() {
+                command.args(["--dev-bind", dev, dev]);
+            }
+        }
+        for ro in ["/opt/cuda", "/sys/module/nvidia", "/sys/module/nvidia_uvm"] {
+            if Path::new(ro).exists() {
+                command.args(["--ro-bind", ro, ro]);
+            }
+        }
+        command.arg("--ro-bind").arg(dir).arg("/assistant/lib");
+        command.args([
+            "--setenv",
+            "LD_LIBRARY_PATH",
+            "/assistant/lib:/opt/cuda/lib64:/usr/lib:/usr/lib64",
+        ]);
+    }
     if let Some((fd, _)) = executable {
         // An anonymous sealed file has no pathname for bind-fd's realpath step.
         // Copy its immutable bytes into bwrap's private read-only file mount.
@@ -376,7 +409,7 @@ fn command_inner(
     // RLIMIT_CPU counts all threads in a process. The cgroup bounds concurrent
     // CPU use and the supervisor bounds wall time; permit that declared envelope.
     let cpu_seconds = process_cpu_seconds(budget.wall_time_ms, budget.cpu_threads);
-    let file_limit = if cuda_mounts.is_some() || cpu_image.is_some() {
+    let file_limit = if cuda_mounts.is_some() || cpu_image.is_some() || gpu_runtime_dir.is_some() {
         1024
     } else if capture_staging.is_some() {
         512
