@@ -36,7 +36,7 @@ impl Source {
         let maximum = if executable {
             128 * 1024 * 1024
         } else {
-            2 * 1024 * 1024 * 1024
+            pulsar_protocol::MAX_ASSISTANT_MODEL_BYTES
         };
         if metadata.len() == 0
             || metadata.len() > maximum

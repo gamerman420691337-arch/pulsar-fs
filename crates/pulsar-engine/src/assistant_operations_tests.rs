@@ -2709,3 +2709,88 @@ fn creative_approval_refuses_retained_unoffered_parameters_before_jobs_or_replay
         assert_eq!(replay, 0);
     }
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore = "requires explicitly selected local runtime, GGUF candidate, and companion pulsar-worker on RTX 4090"]
+fn confined_4090_roleplay_turn_executes_persona_and_handy_pattern_tool() {
+    use std::io::Write;
+    let worker = PathBuf::from(
+        std::env::var_os("PULSAR_WORKER_EXECUTABLE").expect("pulsar-worker executable"),
+    );
+    let runtime_path =
+        PathBuf::from(std::env::var_os("PULSAR_ASSISTANT_RUNTIME").expect("local CUDA runtime"));
+    let model_path =
+        PathBuf::from(std::env::var_os("PULSAR_ASSISTANT_MODEL").expect("local GGUF model"));
+    let identify = |path: &Path, label: &str, max_bytes: u64| {
+        let (sha256, byte_len) = crate::artifacts::digest_file(path, max_bytes).unwrap();
+        ArtifactIdentity {
+            artifact_id: ArtifactId::new(label).unwrap(),
+            sha256,
+            byte_len,
+        }
+    };
+    let runtime = identify(&runtime_path, "runtime", 128 * 1024 * 1024);
+    let model = identify(&model_path, "model", MAX_ASSISTANT_MODEL_BYTES);
+    let f = Fixture::with_worker_config(worker, |config| {
+        config.max_ram_bytes = 24 * 1024 * 1024 * 1024;
+        config.worker_timeout = Duration::from_secs(90);
+    });
+    let worker_memory_bytes = model.byte_len.checked_add(1024 * 1024 * 1024).unwrap();
+    let profile = f
+        .engine
+        .register_assistant_profile(
+            crate::AssistantLaunchAssets {
+                vision: None,
+                runtime_path,
+                model_path,
+                worker_memory_bytes,
+            },
+            runtime,
+            model,
+            4,
+            90_000,
+            Some(AssistantExecutionLimits::roleplay(4096, 99)),
+        )
+        .unwrap();
+
+    let mut consent = tempfile::NamedTempFile::new_in(f._dir.path()).unwrap();
+    let now = crate::desktop_player::review_now_ns().unwrap();
+    let mut doc = RoleplayConsentDocument::least_permissive();
+    doc.attest(now);
+    doc.session
+        .grant(
+            ParticipantRef::new("operator").unwrap(),
+            ContentClass::General,
+            now,
+        )
+        .unwrap();
+    consent
+        .write_all(&serde_json::to_vec(&doc).unwrap())
+        .unwrap();
+    let owner_proof = f.engine.handy_owner_token.clone();
+
+    let input = RoleplayTurnInput {
+        profile: profile.profile_id,
+        consent: consent.path().to_path_buf(),
+        persona: Some("You are an affectionate, playful partner controlling a Handy 2 Pro.".into()),
+        messages: vec![RoleplayMessage {
+            speaker: RoleplaySpeaker::User,
+            text: "Start a gentle 10-second rhythmic wave pattern on the Handy using propose_pattern and tell me warmly.".into(),
+            tool_receipts: vec![],
+        }],
+    };
+    let response = f
+        .engine
+        .handle(f.request(Command::RunRoleplayTurn { input, owner_proof }, None))
+        .result
+        .unwrap();
+    let ResponseBody::RoleplayReply(reply) = response else {
+        panic!("expected roleplay reply");
+    };
+    assert!(!reply.text.trim().is_empty());
+    eprintln!(
+        "4090 confined roleplay reply: text={:?}, calls={:?}",
+        reply.text, reply.calls
+    );
+}

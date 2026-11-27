@@ -346,11 +346,11 @@ fn runtime_command(
     vision_image: Option<&Path>,
 ) -> Command {
     let mut command = Command::new(runtime);
-    command
-        .env_clear()
-        .env("LANG", "C.UTF-8")
-        .arg("-m")
-        .arg(model);
+    command.env_clear().env("LANG", "C.UTF-8");
+    if let Some(ld) = std::env::var_os("LD_LIBRARY_PATH") {
+        command.env("LD_LIBRARY_PATH", ld);
+    }
+    command.arg("-m").arg(model);
     if let Some(image) = vision_image {
         // MTMD has a separate flag/output contract from completion. Never
         // pass interactive-only text flags or scrape JSON from surrounding text.
